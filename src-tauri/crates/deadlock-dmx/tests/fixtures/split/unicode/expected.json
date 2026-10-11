@@ -1,0 +1,165 @@
+{
+  "report": {
+    "algorithm": 3,
+    "source_sha256": "55e8948fd7ca374483e11531c39e63e49059ec096905c23fc6ff52072151f72f",
+    "target": 6,
+    "hard_limit": 524288,
+    "budget": "3 × sum(polygon_corner_count - 2) + preserved loose positions; no triangulation performed",
+    "groups": [
+      {
+        "source_mesh": "衣装😀",
+        "source_positions": 6,
+        "pieces": [
+          {
+            "name": "衣装😀_01",
+            "file": "____01_13e3dd7230f1915d.dmx",
+            "sha256": "11d8399acf435156c6a9ec866dd17e4f26d9b56760f88071d9f4959c14bb6180",
+            "corner_map": "____01_13e3dd7230f1915d.dmx.corners.bin",
+            "corner_map_sha256": "deb56135e8f6e8e652a23ed6a36d6e288af343d042deb4ba5d846f57d775f139",
+            "segments": [
+              {
+                "face_set": 7,
+                "start": 0,
+                "end": 5
+              }
+            ],
+            "loose_positions": [],
+            "validation": {
+              "name": "衣装😀_01",
+              "source_positions": 4,
+              "indexed_corners": 4,
+              "polygons": 1,
+              "triangles": 2,
+              "render_vertex_upper_bound": 6,
+              "loose_positions_preserved": 0,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          },
+          {
+            "name": "衣装😀_02",
+            "file": "____02_f33bce497975339e.dmx",
+            "sha256": "62b1fdfb1400bf420e68d81bbb4b02959309432a9cd443e98eb8f0cc0c4d4e6f",
+            "corner_map": "____02_f33bce497975339e.dmx.corners.bin",
+            "corner_map_sha256": "61d8b8ad518184fe554f3508b2235a317f28de3ff5f7972f00d5b7d29a5dda75",
+            "segments": [
+              {
+                "face_set": 8,
+                "start": 0,
+                "end": 4
+              }
+            ],
+            "loose_positions": [
+              5
+            ],
+            "validation": {
+              "name": "衣装😀_02",
+              "source_positions": 4,
+              "indexed_corners": 3,
+              "polygons": 1,
+              "triangles": 1,
+              "render_vertex_upper_bound": 4,
+              "loose_positions_preserved": 1,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          }
+        ],
+        "triangles": 3,
+        "polygons": 2
+      }
+    ],
+    "native_compile_passed": false,
+    "validation": {
+      "passed": true,
+      "pieces": [
+        {
+          "name": "衣装😀_01",
+          "source_positions": 4,
+          "indexed_corners": 4,
+          "polygons": 1,
+          "triangles": 2,
+          "render_vertex_upper_bound": 6,
+          "loose_positions_preserved": 0,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        },
+        {
+          "name": "衣装😀_02",
+          "source_positions": 4,
+          "indexed_corners": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "render_vertex_upper_bound": 4,
+          "loose_positions_preserved": 1,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        }
+      ],
+      "coverage": "exact ordered polygon occurrences and per-corner attributes",
+      "native_compile_passed": false,
+      "compiled_vertex_count_measured": false
+    }
+  },
+  "cache_key": "8dcab45f8f255a5487bd3305b1ef53830a3f2ca2bdb7c461b9de03a9f32c6cf8"
+}

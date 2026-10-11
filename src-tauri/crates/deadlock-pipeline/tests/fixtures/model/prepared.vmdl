@@ -1,0 +1,6 @@
+{ rootNode = { _class = "RootNode" children = [
+{ _class = "RenderMeshList" children = [{ _class = "RenderMeshFile" name = "body" filename = "models/heroes/test/dmx/builder_body_230d8358.dmx" 
+ import_filter = { exclude_by_default = true exception_list = [ "body" ] }
+}] }
+{ _class = "AttachmentList" children = [{ _class = "Attachment" name = "muzzle" }] }
+] } }

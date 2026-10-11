@@ -1,0 +1,10 @@
+{
+  "scope": "Test reproduction only. Never install these fixtures. The original authority is reconstructed, not the current compiled game original.",
+  "native_input_sha256": "896b07db4618d3b663d73dd8364b1415f7f743691dd8465451db9796e733188a",
+  "prepared_dmx_sha256": "5aea8de41d4e403c4b356527048ac81da240822785f0856ac826d706e3d47484",
+  "original_skeleton_source": "Prior alpha.17 derived 120-bone target authority from source metadata.",
+  "original_physics_source": "Exact PHYS block retained in the previously supplied alpha.18 Haze replacement, SHA256 43ccc97ba750777f4683e60a66b140bede47a3655f020708b200943089ba0bfd.",
+  "reconstructed_original_sha256": "a937eaf9ba388c76401ec4c611bc834be07b5c6679bbb93a21a5daee67dc32a7",
+  "source_flags_note": "Source DMX has no compiled motion flags; flags are ordinary 64 in this test authority. Production original and native flag gates still execute.",
+  "production_behavior": "Application uses the real game original and normal source binding, with all previous checks intact."
+}

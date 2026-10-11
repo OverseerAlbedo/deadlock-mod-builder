@@ -1,0 +1,101 @@
+{
+  "original_sha256": "ebaa2de664a110afc28f0036fc6141383a91bc841e7f753dbb7961ba085b5bba",
+  "source_sha256": "5781bd7f9d065bd572d3ed19a272fdcd06779f7efe685050257896d9b039165e",
+  "skeleton": {
+    "m_boneName": [
+      "root",
+      "$cloth_a",
+      "$cloth_b",
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ],
+    "m_nParent": [
+      -1,
+      0,
+      1,
+      0,
+      3
+    ],
+    "m_nFlag": [
+      64,
+      64,
+      64,
+      192,
+      1216
+    ],
+    "m_bonePosParent": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        2.0,
+        0.0
+      ],
+      [
+        0.0,
+        4.0,
+        0.0
+      ],
+      [
+        0.0,
+        2.0,
+        0.0
+      ]
+    ],
+    "m_boneRotParent": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "m_boneScaleParent": [
+      1.0,
+      1.00390625,
+      0.998046875,
+      2.0,
+      0.5
+    ]
+  },
+  "extra_names": [
+    "custom_skirt_root",
+    "custom_skirt_tip"
+  ],
+  "required_extra_names": [
+    "custom_skirt_root",
+    "custom_skirt_tip"
+  ]
+}

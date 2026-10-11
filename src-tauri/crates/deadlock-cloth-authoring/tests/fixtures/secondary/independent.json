@@ -1,0 +1,372 @@
+{
+  "policy": "preserved-secondary-frame-proxy-candidate-v1",
+  "source_sha256": "43d6d85c85001e4eec6e429449156385afcbbbcc99765a198f55b269d94b080e",
+  "proxy_sha256": "ff6ec3a69afd441fd1f2543e8c2bc05742d0599c3a08ab565201671d26c26063",
+  "selected_groups": 3,
+  "selected_bones": 3,
+  "weighted_selected_bones": 3,
+  "proxy_positions": 18,
+  "dynamic_positions": 9,
+  "fixed_positions": 9,
+  "proxy_triangles": 24,
+  "groups": [
+    {
+      "source_root": "garment_root",
+      "root": "dmb_secondary_garment_root",
+      "anchor": "pelvis",
+      "bones": [
+        "dmb_secondary_garment_root"
+      ],
+      "weighted_bones": [
+        "dmb_secondary_garment_root"
+      ],
+      "frame_radius_inches": 0.08,
+      "fixed_anchor_offset_inches": 0.25,
+      "fixed_points": [
+        0,
+        1,
+        2
+      ],
+      "dynamic_point_range": [
+        3,
+        6
+      ]
+    },
+    {
+      "source_root": "garment_mid",
+      "root": "dmb_secondary_garment_mid",
+      "anchor": "pelvis",
+      "bones": [
+        "dmb_secondary_garment_mid"
+      ],
+      "weighted_bones": [
+        "dmb_secondary_garment_mid"
+      ],
+      "frame_radius_inches": 0.08,
+      "fixed_anchor_offset_inches": 0.25,
+      "fixed_points": [
+        6,
+        7,
+        8
+      ],
+      "dynamic_point_range": [
+        9,
+        12
+      ]
+    },
+    {
+      "source_root": "garment_tip",
+      "root": "dmb_secondary_garment_tip",
+      "anchor": "pelvis",
+      "bones": [
+        "dmb_secondary_garment_tip"
+      ],
+      "weighted_bones": [
+        "dmb_secondary_garment_tip"
+      ],
+      "frame_radius_inches": 0.08,
+      "fixed_anchor_offset_inches": 0.25,
+      "fixed_points": [
+        12,
+        13,
+        14
+      ],
+      "dynamic_point_range": [
+        15,
+        18
+      ]
+    }
+  ],
+  "joint_input_coverage": [
+    {
+      "bone": "dmb_secondary_garment_root",
+      "proxy_points": [
+        3,
+        4,
+        5
+      ],
+      "input_rank": 2,
+      "singular_values_inches": [
+        0.09797965106980236,
+        0.09797959175853539,
+        2.9770784124242178e-18
+      ],
+      "native_fit_verified": false
+    },
+    {
+      "bone": "dmb_secondary_garment_mid",
+      "proxy_points": [
+        9,
+        10,
+        11
+      ],
+      "input_rank": 2,
+      "singular_values_inches": [
+        0.09797962167024556,
+        0.09797949627070887,
+        3.4534165419330728e-34
+      ],
+      "native_fit_verified": false
+    },
+    {
+      "bone": "dmb_secondary_garment_tip",
+      "proxy_points": [
+        15,
+        16,
+        17
+      ],
+      "input_rank": 2,
+      "singular_values_inches": [
+        0.09797962167024556,
+        0.09797949627070887,
+        3.4534165419330728e-34
+      ],
+      "native_fit_verified": false
+    }
+  ],
+  "capacity_preflight": {
+    "policy": "native-cloth-capacity-v1",
+    "evidence": "docs/evidence/skirt-physics/real-garment/native-capacity.json",
+    "proxy_positions": 18,
+    "dynamic_positions": 9,
+    "source_bones": 4,
+    "reserved_controls": 16,
+    "pinned_positions": 9,
+    "reserved_model_solver_controls": 38,
+    "max_reserved_model_solver_controls": 65535,
+    "max_dynamic_positions": 32768,
+    "collision_tree_entries": 17,
+    "collision_tree_root_index": 16,
+    "collision_tree_index_type": "uint16",
+    "collision_tree_absent_parent": 65535,
+    "tree_scope": "New proxy dynamic positions only; original solver is not composed.",
+    "reserved_controls_in_tree": false,
+    "preflight_bounds_passed": true,
+    "native_compiled": false,
+    "native_output_capacity_verified": false,
+    "original_solver_preserved": false,
+    "runtime_ready": false
+  },
+  "motion_maps": {
+    "policy": "animation-supported-cloth-maps-v1",
+    "parameters": {
+      "goal_at_anchor": 0.65,
+      "goal_at_hem": 0.35,
+      "drag": 0.15,
+      "antishrink": 1.0
+    },
+    "source_sha256": "2e6604b119495ffa35457e8b3914da89103269dae6e5f6cd2c9ee3942380251a",
+    "proxy_sha256": "ff6ec3a69afd441fd1f2543e8c2bc05742d0599c3a08ab565201671d26c26063",
+    "meshes": [
+      {
+        "mesh": "garment",
+        "mesh_index": 0,
+        "positions": 18,
+        "dynamic": 9,
+        "pins": 9,
+        "physical_panels": 3,
+        "goal_dynamic_range": [
+          0.35,
+          0.35
+        ],
+        "distance_method": "Shortest rest-surface edge path from existing pins, normalized per connected panel.",
+        "seams_added": 0,
+        "panel_connections_unchanged": true
+      }
+    ],
+    "maps": [
+      "cloth_goal_strength$0",
+      "cloth_drag$0",
+      "cloth_antishrink$0"
+    ],
+    "render_source_modified": false,
+    "geometry_skinning_binds_preserved": true,
+    "gravity_modified": false,
+    "seams_inferred": false,
+    "native_map_interpretation_verified": false,
+    "native_compiled": false,
+    "runtime_ready": false,
+    "build_authorized": false
+  },
+  "source_bind_audit": {
+    "bind_identity": {
+      "bone_count": 4,
+      "original_to_compiled": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 0.0,
+      "max_rotation_error_degrees": 2.4148365394514667e-06
+    },
+    "target_scale_audit": {
+      "policy": "source2-local-scale-dmx-v1",
+      "bone_count": 4,
+      "local_scale_tolerance": 0.0001,
+      "world_scale_tolerance": 0.001,
+      "world_joint_tolerance_mm": 0.5,
+      "max_local_scale_delta": 0.0,
+      "max_world_scale_delta": 0.0,
+      "max_world_joint_delta_mm": 0.0,
+      "max_omitted_scale_world_joint_drift_mm": 0.030472946166992185,
+      "max_omitted_scale_world_scale_drift": 0.0003500284721553726,
+      "approximated_bones": 0,
+      "scaled_bones": 3,
+      "bones": [
+        {
+          "name": "pelvis",
+          "original_scale": 1.0001499652862549,
+          "export_scale": 1.0001499652862549,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0001499652862549,
+          "original_cumulative_scale": 1.0001499652862549,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "dmb_secondary_garment_root",
+          "original_scale": 0.9998999834060669,
+          "export_scale": 0.9998999834060669,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0000499336933046,
+          "original_cumulative_scale": 1.0000499336933046,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.003809118270874023
+        },
+        {
+          "name": "dmb_secondary_garment_mid",
+          "original_scale": 1.0002000331878662,
+          "export_scale": 1.0002000331878662,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0003500284721554,
+          "original_cumulative_scale": 1.0003500284721554,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.015236473083496092
+        },
+        {
+          "name": "dmb_secondary_garment_tip",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0001499652862549,
+          "original_cumulative_scale": 1.0001499652862549,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.030472946166992185
+        }
+      ],
+      "original_skeleton_modified": false,
+      "exact_scale_preservation": true,
+      "world_inverse_bind_consistent": true,
+      "native_compiler_validated": false
+    },
+    "current_and_bind_equal": true,
+    "joint_palette_entries": 6,
+    "world_inverse_bind_consistent": true,
+    "serialized_local_transforms_checked": true
+  },
+  "proxy_bind_audit": {
+    "bind_identity": {
+      "bone_count": 4,
+      "original_to_compiled": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 0.0,
+      "max_rotation_error_degrees": 2.4148365394514667e-06
+    },
+    "target_scale_audit": {
+      "policy": "source2-local-scale-dmx-v1",
+      "bone_count": 4,
+      "local_scale_tolerance": 0.0001,
+      "world_scale_tolerance": 0.001,
+      "world_joint_tolerance_mm": 0.5,
+      "max_local_scale_delta": 0.0,
+      "max_world_scale_delta": 0.0,
+      "max_world_joint_delta_mm": 0.0,
+      "max_omitted_scale_world_joint_drift_mm": 0.030472946166992185,
+      "max_omitted_scale_world_scale_drift": 0.0003500284721553726,
+      "approximated_bones": 0,
+      "scaled_bones": 3,
+      "bones": [
+        {
+          "name": "pelvis",
+          "original_scale": 1.0001499652862549,
+          "export_scale": 1.0001499652862549,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0001499652862549,
+          "original_cumulative_scale": 1.0001499652862549,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "dmb_secondary_garment_root",
+          "original_scale": 0.9998999834060669,
+          "export_scale": 0.9998999834060669,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0000499336933046,
+          "original_cumulative_scale": 1.0000499336933046,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.003809118270874023
+        },
+        {
+          "name": "dmb_secondary_garment_mid",
+          "original_scale": 1.0002000331878662,
+          "export_scale": 1.0002000331878662,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0003500284721554,
+          "original_cumulative_scale": 1.0003500284721554,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.015236473083496092
+        },
+        {
+          "name": "dmb_secondary_garment_tip",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0001499652862549,
+          "original_cumulative_scale": 1.0001499652862549,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.030472946166992185
+        }
+      ],
+      "original_skeleton_modified": false,
+      "exact_scale_preservation": true,
+      "world_inverse_bind_consistent": true,
+      "native_compiler_validated": false
+    },
+    "current_and_bind_equal": true,
+    "joint_palette_entries": 6,
+    "world_inverse_bind_consistent": true,
+    "serialized_local_transforms_checked": true
+  },
+  "source_render_bytes_modified": false,
+  "skeleton_binds_unchanged": true,
+  "simulation_mesh_is_rendered": false,
+  "body_collisions_authored": false,
+  "mmd_physics_parameters_translated": false,
+  "native_compiled": false,
+  "native_joint_fit_verified": false,
+  "runtime_ready": false,
+  "original_solver_preservation_verified": false,
+  "pending": [
+    "Native node counts and existing-joint fitting.",
+    "Tail, ear and cloth bends under Haze animation.",
+    "Rigid anchor stability, collisions and original solver integration.",
+    "Game validation before enabling this in normal Build."
+  ]
+}

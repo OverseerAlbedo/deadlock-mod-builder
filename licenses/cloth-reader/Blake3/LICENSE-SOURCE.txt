@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/xoofx/Blake3.NET/bc622edf7faa06d1a63c0f2f165c5f7c567a2e32/license.txt

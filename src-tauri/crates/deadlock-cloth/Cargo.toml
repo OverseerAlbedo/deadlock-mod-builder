@@ -1,0 +1,13 @@
+[package]
+name = "deadlock-cloth"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+deadlock-resource = { path = "../deadlock-resource" }
+deadlock-skeleton = { path = "../deadlock-skeleton" }
+deadlock-vpk = { path = "../deadlock-vpk" }
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+thiserror = "2"
+[dev-dependencies]
+serde_json = "1"

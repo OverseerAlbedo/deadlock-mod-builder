@@ -1,0 +1,384 @@
+{
+  "original": {
+    "compiled_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "runtime_motion": {
+      "status": "audited",
+      "cloth_nodes": 2,
+      "resource_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "skeleton": {
+        "m_boneName": [
+          "root",
+          "$braid"
+        ],
+        "m_nParent": [
+          -1,
+          0
+        ],
+        "m_nFlag": [
+          72,
+          4194376
+        ],
+        "m_bonePosParent": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        "m_boneRotParent": [
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "m_boneScaleParent": [
+          1,
+          1
+        ]
+      }
+    }
+  },
+  "selected": [
+    "body"
+  ],
+  "inspection": {
+    "required": true,
+    "passed": false,
+    "errors": [
+      "Replacement DMX skeleton differs from the selected original. original 2, source 5; missing (0): none; extra (3): 'custom_skirt', 'hem', 'unused_helper'; duplicates (0): none"
+    ],
+    "source_modified": false,
+    "bind_transforms_checked": false,
+    "native_compiler_validated": false,
+    "original_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_names": [
+      "root",
+      "_braid",
+      "custom_skirt",
+      "hem",
+      "unused_helper"
+    ],
+    "original_names": [
+      "root",
+      "$braid"
+    ],
+    "identity_difference": {
+      "original_count": 2,
+      "rebuilt_count": 5,
+      "missing": [],
+      "extra": [
+        "custom_skirt",
+        "hem",
+        "unused_helper"
+      ],
+      "duplicates": [],
+      "reference_duplicates": []
+    },
+    "source_aliases": {
+      "_braid": "$braid"
+    }
+  },
+  "contract": {
+    "policy": "additive-source-bind-v1",
+    "source_sha256": "220012c39242cc2f759fd8bfe2b0ddd25b327ff2536e0cacdcefeb844da6161f",
+    "original_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skeleton": {
+      "m_boneName": [
+        "root",
+        "$braid",
+        "custom_skirt",
+        "hem",
+        "unused_helper"
+      ],
+      "m_nParent": [
+        -1,
+        0,
+        0,
+        2,
+        0
+      ],
+      "m_bonePosParent": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          2.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.0,
+          0.0
+        ]
+      ],
+      "m_boneRotParent": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "m_boneScaleParent": [
+        1.0,
+        1.0,
+        0.9998999834060669,
+        1.0000799894332886,
+        1.0
+      ],
+      "m_nFlag": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "extra_names": [
+      "custom_skirt",
+      "hem",
+      "unused_helper"
+    ],
+    "required_extra_names": [
+      "custom_skirt",
+      "hem"
+    ],
+    "weighted_extra_bones": [
+      {
+        "mesh": "body",
+        "bones": [
+          "hem"
+        ],
+        "weighted_positions": 3
+      }
+    ],
+    "selected_meshes": [
+      "body"
+    ],
+    "source_aliases": {
+      "_braid": "$braid"
+    },
+    "source_bind_audit": {
+      "bind_identity": {
+        "bone_count": 5,
+        "original_to_compiled": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reordered_bones": 0,
+        "name_and_parent_identity_passed": true,
+        "max_translation_error_m": 0.0,
+        "max_rotation_error_degrees": 0.0
+      },
+      "target_scale_audit": {
+        "policy": "source2-local-scale-dmx-v1",
+        "bone_count": 5,
+        "local_scale_tolerance": 0.0001,
+        "world_scale_tolerance": 0.001,
+        "world_joint_tolerance_mm": 0.5,
+        "max_local_scale_delta": 0.0,
+        "max_world_scale_delta": 0.0,
+        "max_world_joint_delta_mm": 0.0,
+        "max_omitted_scale_world_joint_drift_mm": 0.0050808429718017575,
+        "max_omitted_scale_world_scale_drift": 0.00010001659393310547,
+        "approximated_bones": 0,
+        "scaled_bones": 2,
+        "bones": [
+          {
+            "name": "root",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "_braid",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "custom_skirt",
+            "original_scale": 0.9998999834060669,
+            "export_scale": 0.9998999834060669,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 0.9998999834060669,
+            "original_cumulative_scale": 0.9998999834060669,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "hem",
+            "original_scale": 1.0000799894332886,
+            "export_scale": 1.0000799894332886,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 0.9999799648390848,
+            "original_cumulative_scale": 0.9999799648390848,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0050808429718017575
+          },
+          {
+            "name": "unused_helper",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          }
+        ],
+        "original_skeleton_modified": false,
+        "exact_scale_preservation": true,
+        "world_inverse_bind_consistent": true,
+        "native_compiler_validated": false
+      },
+      "current_and_bind_equal": true,
+      "joint_palette_entries": 7,
+      "world_inverse_bind_consistent": true,
+      "serialized_local_transforms_checked": true
+    },
+    "implicit_unit_scale_names": [],
+    "original_names_and_parents_preserved": true,
+    "source_modified": false,
+    "weights_modified": false,
+    "custom_cloth_solver_created": false,
+    "native_compiler_validated": false
+  },
+  "skinning": {
+    "meshes": [
+      {
+        "name": "body",
+        "vertices": 3,
+        "joint_count": 1,
+        "errors": [],
+        "pending": [],
+        "passed": true
+      },
+      {
+        "name": "weapon",
+        "vertices": 3,
+        "joint_count": 1,
+        "errors": [],
+        "pending": [],
+        "passed": true
+      }
+    ],
+    "joint_palette_entries": 7,
+    "numeric_checks_passed": true
+  },
+  "required": {
+    "root": null,
+    "$braid": "root"
+  },
+  "template_audit": {
+    "bone_count": 5,
+    "joint_palette_entries": 7,
+    "joint_palette_names": [
+      "root",
+      "$braid",
+      "custom_skirt",
+      "hem",
+      "unused_helper",
+      null,
+      null
+    ],
+    "required_names_and_parents_match": true,
+    "skinning": {
+      "meshes": [
+        {
+          "name": "body",
+          "vertices": 3,
+          "joint_count": 1,
+          "errors": [],
+          "pending": [],
+          "passed": true
+        },
+        {
+          "name": "weapon",
+          "vertices": 3,
+          "joint_count": 1,
+          "errors": [],
+          "pending": [],
+          "passed": true
+        }
+      ],
+      "joint_palette_entries": 7,
+      "numeric_checks_passed": true
+    },
+    "template_original_only": true,
+    "template_bone_count": 2,
+    "extra_bones_authorized_by_source": [
+      "custom_skirt",
+      "hem",
+      "unused_helper"
+    ],
+    "source_modified": false,
+    "weights_modified": false
+  }
+}

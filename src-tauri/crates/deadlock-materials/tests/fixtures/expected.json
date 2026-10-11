@@ -1,0 +1,341 @@
+{
+  "material_text": [
+    {
+      "config": {
+        "preset": "generic"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "generic"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "cloth"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.850000 0.850000 0.850000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "cloth"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.850000 0.850000 0.850000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "painted metal"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.400000 0.400000 0.400000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "painted metal"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.400000 0.400000 0.400000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "bare metal"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.280000 0.280000 0.280000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "bare metal"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.280000 0.280000 0.280000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "skin"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "skin"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "hair"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "hair"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "emissive"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n\t\"TextureSelfIllumMask1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "emissive"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "transparent"
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.300000 0.300000 0.300000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"F_TRANSLUCENT\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "transparent"
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[0.500000 0.500000 0.500000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.300000 0.300000 0.300000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n\t\"F_TRANSLUCENT\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "bare metal",
+        "color": [
+          1,
+          0.2,
+          0.1
+        ],
+        "roughness": null,
+        "metalness": 0.8
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[1.000000 0.200000 0.100000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.280000 0.280000 0.280000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.800000 0.800000 0.800000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "preset": "bare metal",
+        "color": [
+          1,
+          0.2,
+          0.1
+        ],
+        "roughness": null,
+        "metalness": 0.8
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[1.000000 0.200000 0.100000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.280000 0.280000 0.280000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.800000 0.800000 0.800000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    },
+    {
+      "config": {
+        "color": [
+          -0.0,
+          0.123456789,
+          1e-07
+        ]
+      },
+      "paths": {},
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"[1.000000 1.000000 1.000000 1.000000]\"\n\t\"g_vColorTint1\"\t\"[-0.000000 0.123457 0.000000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n}\n"
+    },
+    {
+      "config": {
+        "color": [
+          -0.0,
+          0.123456789,
+          1e-07
+        ]
+      },
+      "paths": {
+        "color": "models/test/téxture😀.png",
+        "emission": "models/test/em.exr",
+        "normal": "models/test/n.tga"
+      },
+      "expected": "\"Layer0\"\n{\n\t\"shader\"\t\"pbr.vfx\"\n\t\"F_USE_NPR_LIGHTING\"\t\"1\"\n\t\"F_USE_STATUS_EFFECTS_PROXY\"\t\"1\"\n\t\"TextureColor1\"\t\"models/test/t\\u00e9xture\\ud83d\\ude00.png\"\n\t\"g_vColorTint1\"\t\"[-0.000000 0.123457 0.000000 1.000000]\"\n\t\"TextureRoughness1\"\t\"[0.550000 0.550000 0.550000 1.000000]\"\n\t\"TextureMetalness1\"\t\"[0.000000 0.000000 0.000000 1.000000]\"\n\t\"TextureSelfIllumMask1\"\t\"models/test/em.exr\"\n\t\"TextureNormal1\"\t\"models/test/n.tga\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"1\"\n}\n"
+    }
+  ],
+  "appearance": [
+    {
+      "text": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n}\n",
+      "row": {},
+      "expected": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n}\n"
+    },
+    {
+      "text": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n}\n",
+      "row": {
+        "color": [
+          0.2,
+          0.3,
+          0.4
+        ],
+        "roughness": 0.25,
+        "metalness": 0.7,
+        "opacity": 0.5,
+        "emission": 2
+      },
+      "expected": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[0.2 0.3 0.4 1]\"\n \"custom_future_field\" \"literal value\"\n\n\t\"TextureRoughness1\"\t\"[0.25 0.25 0.25 1]\"\n\t\"TextureMetalness1\"\t\"[0.7 0.7 0.7 1]\"\n\t\"TextureTranslucency1\"\t\"[0.5 0.5 0.5 1]\"\n\t\"F_TRANSLUCENT\"\t\"1\"\n\t\"F_SELF_ILLUM\"\t\"1\"\n\t\"g_flSelfIllumScale1\"\t\"2\"\n\t\"TextureSelfIllumMask1\"\t\"[1 1 1 1]\"\n}\n"
+    },
+    {
+      "text": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n}\n",
+      "row": {
+        "roughness": 1e-08,
+        "emission": 0
+      },
+      "expected": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n\n\t\"TextureRoughness1\"\t\"[1e-08 1e-08 1e-08 1]\"\n\t\"F_SELF_ILLUM\"\t\"0\"\n\t\"g_flSelfIllumScale1\"\t\"0\"\n\t\"TextureSelfIllumMask1\"\t\"[1 1 1 1]\"\n}\n"
+    },
+    {
+      "text": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[1 1 1 1]\"\n \"custom_future_field\" \"literal value\"\n}\n",
+      "row": {
+        "color": [
+          -0.0,
+          0.12345678949,
+          0.99999999999
+        ],
+        "opacity": 0.0001
+      },
+      "expected": "// authored\n\"Layer0\"\n{\n \"shader\" \"pbr.vfx\"\n \"g_vColorTint1\" \"[-0 0.123456789 1 1]\"\n \"custom_future_field\" \"literal value\"\n\n\t\"TextureTranslucency1\"\t\"[0.0001 0.0001 0.0001 1]\"\n\t\"F_TRANSLUCENT\"\t\"1\"\n}\n"
+    }
+  ],
+  "plans": {
+    "models/test/body.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "",
+        "normal": "$TEXTURES/body_normal.png",
+        "metalness": "$TEXTURES/nested/body_metallic.png",
+        "ao": "$TEXTURES/body_ao.jpg",
+        "emission": "$TEXTURES/nested/body_emissive.exr",
+        "opacity": "$TEXTURES/body_opacity.tif"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "generate",
+      "existing": false,
+      "ambiguous": [],
+      "candidates": {
+        "color": [
+          "$TEXTURES/body.unlabeled.tga",
+          "$TEXTURES/body_color.png",
+          "$TEXTURES/body_color_edited.png"
+        ],
+        "normal": [
+          "$TEXTURES/body_normal.png"
+        ],
+        "roughness": [],
+        "metalness": [
+          "$TEXTURES/nested/body_metallic.png"
+        ],
+        "ao": [
+          "$TEXTURES/body_ao.jpg"
+        ],
+        "emission": [
+          "$TEXTURES/nested/body_emissive.exr"
+        ],
+        "opacity": [
+          "$TEXTURES/body_opacity.tif"
+        ]
+      },
+      "roughness": null,
+      "metalness": null
+    },
+    "models/test/existing.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "existing": true,
+      "ambiguous": [],
+      "candidates": {
+        "color": [],
+        "normal": [],
+        "roughness": [],
+        "metalness": [],
+        "ao": [],
+        "emission": [],
+        "opacity": []
+      },
+      "roughness": null,
+      "metalness": null
+    }
+  },
+  "references": {
+    "text": "\"Layer0\" { \"TextureColor1\" \"models/test/body.png\" // \"nested/child.vmat\"\n \"constant\" \"[1 1 1 1]\" \"TextureNormal1\" \"models/test/n.TGA\" }",
+    "expected": [
+      "models/test/body.png",
+      "models/test/n.TGA",
+      "nested/child.vmat"
+    ]
+  },
+  "cache_key": {
+    "source": {
+      "models/test/body.vmat": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "models/test/téxture.png": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "engine": {
+      "compiler": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "C:/Tools/éngine.dll": [
+        123,
+        1234567890000000000
+      ]
+    },
+    "expected": "c61bc7ab52af5e1618415f2ac2a17c285d5a8e032063d1d35c4e4e76fc00e8f2"
+  }
+}

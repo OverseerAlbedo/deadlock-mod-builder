@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/MiloszKrajewski/K4os.Compression.LZ4/master/LICENSE

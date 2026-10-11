@@ -1,0 +1,20 @@
+[package]
+name = "deadlock-cloth-authoring"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+deadlock-preparation = { path = "../deadlock-preparation" }
+deadlock-preview = { path = "../deadlock-preview" }
+deadlock-core = { path = "../deadlock-core" }
+deadlock-project = { path = "../deadlock-project" }
+deadlock-dmx = { path = "../deadlock-dmx" }
+deadlock-model = { path = "../deadlock-model" }
+deadlock-resource = { path = "../deadlock-resource" }
+deadlock-skeleton = { path = "../deadlock-skeleton" }
+deadlock-cloth = { path = "../deadlock-cloth" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+[dev-dependencies]
+tempfile = "3"

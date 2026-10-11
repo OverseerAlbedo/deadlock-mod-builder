@@ -1,0 +1,20 @@
+{
+  "version": "1.0.1",
+  "format": "round-trip-v1",
+  "vrf_version": "20.0.6980",
+  "runtime_version": "10.0.12",
+  "platforms": {
+    "linux-x64": {
+      "entrypoint": "linux-x64/Dmb.ClothReader",
+      "files": {
+        "linux-x64/Dmb.ClothReader": "3562369cf144d7ed8abde22cf21f9fcbb6668eef0dbed3365bddee38ee8920b5"
+      }
+    },
+    "win-x64": {
+      "entrypoint": "win-x64/Dmb.ClothReader.exe",
+      "files": {
+        "win-x64/Dmb.ClothReader.exe": "454e7db9f0a142077813e0b147dbc18a402226ad69633d915b2e8682fbc81694"
+      }
+    }
+  }
+}

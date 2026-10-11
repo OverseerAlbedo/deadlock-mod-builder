@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/ksgfk/TinyEXR.NET/9a55e13d9dca6a3d347d901a777ad04bccb444a9/LICENSE

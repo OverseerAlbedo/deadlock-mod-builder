@@ -1,0 +1,43 @@
+# Dependencies and generated builds
+node_modules/
+target/
+/dist/
+/artifacts/
+/build/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+/tools/cloth-reader/bin/
+/tools/cloth-reader/obj/
+
+# Local work and captures (intentional test fixtures remain tracked)
+/workspaces/
+/validation-artifacts/
+/captures/
+/game-dumps/
+/toolsets/
+/downloads/
+/releases/
+/test-results/
+/coverage/
+/playwright-report/
+*.log
+*.blend1
+*.blend2
+
+# Machine settings and secrets
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+/.idea/
+/.vscode/
+*.pem
+*.pfx
+*.p12
+
+# Ignore build directories, not every model/JSON/EXE file.
+# Required readers and format fixtures must survive a fresh clone.

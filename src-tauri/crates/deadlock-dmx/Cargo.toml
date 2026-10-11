@@ -1,0 +1,16 @@
+[package]
+name = "deadlock-dmx"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Bounded, lossless DMX binary 4/5/9 codec and source analysis"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4", "v5"] }
+deadlock-core = { path = "../deadlock-core" }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,267 @@
+{
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain). The short pouch chain and the finger chain on the hand stay body bones.",
+ "bones": [
+  {
+   "name": "Bip001_Pelvis",
+   "parent": null,
+   "position": [
+    0,
+    0,
+    0.92
+   ]
+  },
+  {
+   "name": "Bip001_Spine",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0,
+    0,
+    1.05
+   ]
+  },
+  {
+   "name": "Bip001_Spine1",
+   "parent": "Bip001_Spine",
+   "position": [
+    0,
+    0,
+    1.19
+   ]
+  },
+  {
+   "name": "Bip001_Head",
+   "parent": "Bip001_Spine1",
+   "position": [
+    0,
+    0,
+    1.47
+   ]
+  },
+  {
+   "name": "Bip001_L_Hand",
+   "parent": "Bip001_Spine1",
+   "position": [
+    0.46,
+    0,
+    1.09
+   ]
+  },
+  {
+   "name": "Bip001_L_Finger2",
+   "parent": "Bip001_L_Hand",
+   "position": [
+    0.52,
+    0,
+    1.07
+   ]
+  },
+  {
+   "name": "Bip001_L_Finger21",
+   "parent": "Bip001_L_Finger2",
+   "position": [
+    0.54,
+    0,
+    1.04
+   ]
+  },
+  {
+   "name": "Bip001_L_Finger22",
+   "parent": "Bip001_L_Finger21",
+   "position": [
+    0.56,
+    0,
+    1.02
+   ]
+  },
+  {
+   "name": "Bone_Robe_L_00",
+   "parent": "Bip001_Spine1",
+   "position": [
+    0.044,
+    0.045,
+    1.221
+   ]
+  },
+  {
+   "name": "Bone_Robe_L_01",
+   "parent": "Bone_Robe_L_00",
+   "position": [
+    0.083,
+    0.098,
+    1.049
+   ]
+  },
+  {
+   "name": "Bone_Robe_L_02",
+   "parent": "Bone_Robe_L_01",
+   "position": [
+    0.125,
+    0.154,
+    0.865
+   ]
+  },
+  {
+   "name": "Bone_Robe_L_03",
+   "parent": "Bone_Robe_L_02",
+   "position": [
+    0.177,
+    0.222,
+    0.64
+   ]
+  },
+  {
+   "name": "Bone_Robe_L_04",
+   "parent": "Bone_Robe_L_03",
+   "position": [
+    0.231,
+    0.295,
+    0.401
+   ]
+  },
+  {
+   "name": "Bone_Robe_R_00",
+   "parent": "Bip001_Spine1",
+   "position": [
+    -0.044,
+    0.045,
+    1.221
+   ]
+  },
+  {
+   "name": "Bone_Robe_R_01",
+   "parent": "Bone_Robe_R_00",
+   "position": [
+    -0.083,
+    0.098,
+    1.049
+   ]
+  },
+  {
+   "name": "Bone_Robe_R_02",
+   "parent": "Bone_Robe_R_01",
+   "position": [
+    -0.125,
+    0.154,
+    0.865
+   ]
+  },
+  {
+   "name": "Bone_Robe_R_03",
+   "parent": "Bone_Robe_R_02",
+   "position": [
+    -0.177,
+    0.222,
+    0.64
+   ]
+  },
+  {
+   "name": "Bone_Robe_R_04",
+   "parent": "Bone_Robe_R_03",
+   "position": [
+    -0.231,
+    0.295,
+    0.401
+   ]
+  },
+  {
+   "name": "Strap_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0.1,
+    0.05,
+    0.9
+   ]
+  },
+  {
+   "name": "Strap_01",
+   "parent": "Strap_00",
+   "position": [
+    0.12,
+    0.08,
+    0.7
+   ]
+  },
+  {
+   "name": "Strap_02",
+   "parent": "Strap_01",
+   "position": [
+    0.14,
+    0.1,
+    0.5
+   ]
+  },
+  {
+   "name": "Strap_03",
+   "parent": "Strap_02",
+   "position": [
+    0.16,
+    0.12,
+    0.3
+   ]
+  },
+  {
+   "name": "Pouch_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0.15,
+    0,
+    0.9
+   ]
+  },
+  {
+   "name": "Pouch_01",
+   "parent": "Pouch_00",
+   "position": [
+    0.16,
+    0,
+    0.88
+   ]
+  },
+  {
+   "name": "Pouch_02",
+   "parent": "Pouch_01",
+   "position": [
+    0.17,
+    0,
+    0.86
+   ]
+  }
+ ],
+ "weighted": [
+  "Bip001_Pelvis",
+  "Bip001_Spine",
+  "Bip001_Spine1",
+  "Bip001_Head",
+  "Bip001_L_Hand",
+  "Bip001_L_Finger2",
+  "Bip001_L_Finger21",
+  "Bip001_L_Finger22",
+  "Bone_Robe_L_00",
+  "Bone_Robe_L_01",
+  "Bone_Robe_L_02",
+  "Bone_Robe_L_03",
+  "Bone_Robe_R_00",
+  "Bone_Robe_R_01",
+  "Bone_Robe_R_02",
+  "Bone_Robe_R_03",
+  "Strap_00",
+  "Strap_01",
+  "Strap_02",
+  "Strap_03",
+  "Pouch_00",
+  "Pouch_01",
+  "Pouch_02"
+ ],
+ "roles": {
+  "pelvis": "Bip001_Pelvis",
+  "spine": "Bip001_Spine",
+  "chest": "Bip001_Spine1",
+  "head": "Bip001_Head",
+  "hand_L": "Bip001_L_Hand"
+ },
+ "expected_roots": [
+  "Bone_Robe_L_00",
+  "Bone_Robe_R_00",
+  "Strap_00"
+ ]
+}

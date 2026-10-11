@@ -1,0 +1,1544 @@
+{
+  "surfaces": [
+    {
+      "file": "automatic-top.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "selection": {
+          "garment": {
+            "enabled": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "pinned": [
+              0,
+              1,
+              2
+            ]
+          }
+        },
+        "surfaces": [
+          {
+            "mesh": "garment",
+            "dynamic_positions": 6,
+            "pinned_positions": 3,
+            "attachment": "top",
+            "attachment_band_fraction": 0.1,
+            "attachment_height_range": [
+              3.0,
+              3.0
+            ],
+            "source_positions": 9,
+            "connected_panels": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "automatic-bottom.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "bottom",
+        "collision": "none"
+      },
+      "expected": {
+        "selection": {
+          "garment": {
+            "enabled": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "pinned": [
+              6,
+              7,
+              8
+            ]
+          }
+        },
+        "surfaces": [
+          {
+            "mesh": "garment",
+            "dynamic_positions": 6,
+            "pinned_positions": 3,
+            "attachment": "bottom",
+            "attachment_band_fraction": 0.1,
+            "attachment_height_range": [
+              1.0,
+              1.0
+            ],
+            "source_positions": 9,
+            "connected_panels": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "automatic-none-selected.dmx",
+      "options": {},
+      "expected": {
+        "error": "Choose the skirt, cape or cloth mesh in Motion first. Run Analyze to list the meshes in your replacement."
+      }
+    },
+    {
+      "file": "automatic-two-selected.dmx",
+      "options": {
+        "meshes": [
+          "garment",
+          "rigid"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "Choose one garment mesh at a time for automatic cloth setup."
+      }
+    },
+    {
+      "file": "automatic-invalid-edge.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "unknown",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "Choose the top or bottom attachment edge for cloth setup."
+      }
+    },
+    {
+      "file": "automatic-missing-mesh.dmx",
+      "options": {
+        "meshes": [
+          "missing"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "A chosen cloth mesh is missing. Run Analyze and choose it again."
+      }
+    },
+    {
+      "file": "automatic-flat.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "Cloth has no vertical attachment-to-hem span: garment. This setup supports hanging cloth in a Z-up rigged model."
+      }
+    },
+    {
+      "file": "automatic-disconnected.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "Cloth contains disconnected panels or decorations: garment. Separate the intended cloth sheet from trim before automatic setup."
+      }
+    },
+    {
+      "file": "automatic-closed.dmx",
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "error": "Cloth is a closed or thick shell: garment. Automatic setup needs an open simulation sheet with an attachment edge."
+      }
+    }
+  ],
+  "inventory": [
+    {
+      "file": "inventory-basic.vmdl_c",
+      "expected": {
+        "inventory_version": 1,
+        "resource_sha256": "ec780d5a348bbf4708ca08416822f280f3017d781379754f92822c6accb61ac1",
+        "compiled_resources_modified": false,
+        "in_game_motion_tested": false,
+        "authored_merge_supported": false,
+        "authored_merge_reason": "A new solver must preserve the original simulation and its bindings. A compiled inventory does not prove the node/control mapping, partition remapping, packed rope encoding, SIMD scheduling or collision-tree rebuild. Appending arrays or accepting changed cloth flags is not authorized.",
+        "physics_block_count": 1,
+        "physics_payload_sha256": "41f770b409f6ead8b78369e1400a03429b81a82e94f8841f7296c2ec76b80255",
+        "body_physics": {
+          "parts": 1,
+          "bone_names": [
+            "different_body_domain"
+          ],
+          "is_cloth_collider_table": false,
+          "note": "Body collision parts are separate from finite-element cloth colliders."
+        },
+        "status": "inventoried",
+        "solver_sha256": "7c136f3e1f121f8d94da19d10f4ba0ce01b8a4288b05615a7f3ac80759e431ac",
+        "solver_field_count": 13,
+        "nodes": 3,
+        "static_nodes": 1,
+        "dynamic_nodes": 2,
+        "rotation_locked_static_nodes": 1,
+        "first_position_driven_node": 3,
+        "ropes": 1,
+        "control_count": 3,
+        "control_names": [
+          "root",
+          "skirt_a",
+          "skirt_b"
+        ],
+        "node_control_binding": {
+          "status": "unverified",
+          "reason": "Matching array lengths or names do not prove the runtime node-to-control mapping. No reviewed explicit mapping is available to this inventory."
+        },
+        "cloth_colliders": {
+          "m_TaperedCapsuleRigids": {
+            "count": 1,
+            "authored_node_references": [
+              0
+            ]
+          },
+          "m_TaperedCapsuleStretches": {
+            "count": 1,
+            "authored_node_references": [
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          "m_SphereRigids": {
+            "count": 0,
+            "authored_node_references": []
+          },
+          "m_BoxRigids": {
+            "count": 0,
+            "authored_node_references": []
+          },
+          "m_SDFRigids": {
+            "count": 0,
+            "authored_node_references": []
+          }
+        },
+        "collision_tree_cardinalities": {
+          "m_TreeParents": 3,
+          "m_TreeCollisionMasks": 3,
+          "m_TreeChildren": 1
+        },
+        "scalar_rod_count": 2,
+        "simd_rod_group_count": 1,
+        "simd_rod_lane_capacity": 4,
+        "simd_note": "Four-lane group capacity is not an independent-constraint count; padding and scheduling require native compiler verification.",
+        "field_cardinalities": {
+          "m_CtrlName": {
+            "type": "array",
+            "count": 3
+          },
+          "m_Rods": {
+            "type": "array",
+            "count": 2
+          },
+          "m_SimdRods": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TaperedCapsuleRigids": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TaperedCapsuleStretches": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TreeChildren": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TreeCollisionMasks": {
+            "type": "array",
+            "count": 3
+          },
+          "m_TreeParents": {
+            "type": "array",
+            "count": 3
+          },
+          "m_nFirstPositionDrivenNode": {
+            "type": "int",
+            "value": 3
+          },
+          "m_nNodeCount": {
+            "type": "int",
+            "value": 3
+          },
+          "m_nRopeCount": {
+            "type": "int",
+            "value": 1
+          },
+          "m_nRotLockStaticNodes": {
+            "type": "int",
+            "value": 1
+          },
+          "m_nStaticNodes": {
+            "type": "int",
+            "value": 1
+          }
+        }
+      }
+    },
+    {
+      "file": "inventory-opaque.vmdl_c",
+      "expected": {
+        "inventory_version": 1,
+        "resource_sha256": "a477985a78adaba1efaf06ac61777889668a79e962de45d8c88201054b78dc4a",
+        "compiled_resources_modified": false,
+        "in_game_motion_tested": false,
+        "authored_merge_supported": false,
+        "authored_merge_reason": "A new solver must preserve the original simulation and its bindings. A compiled inventory does not prove the node/control mapping, partition remapping, packed rope encoding, SIMD scheduling or collision-tree rebuild. Appending arrays or accepting changed cloth flags is not authorized.",
+        "physics_block_count": 1,
+        "physics_payload_sha256": "771d8756b96c65f3f0e3eff9c598d51ae61ef7244f31efc3b31ed4665380d30e",
+        "body_physics": {
+          "parts": 1,
+          "bone_names": [
+            "different_body_domain"
+          ],
+          "is_cloth_collider_table": false,
+          "note": "Body collision parts are separate from finite-element cloth colliders."
+        },
+        "status": "inventoried",
+        "solver_sha256": "35cb28f1efec713897612485690a04c807b8b0181f4bf64cffe6e43fc830f779",
+        "solver_field_count": 19,
+        "nodes": 3,
+        "static_nodes": 1,
+        "dynamic_nodes": 2,
+        "rotation_locked_static_nodes": 1,
+        "first_position_driven_node": 3,
+        "ropes": 1,
+        "control_count": 3,
+        "control_names": [
+          "root",
+          "skirt_a",
+          "skirt_b"
+        ],
+        "node_control_binding": {
+          "status": "unverified",
+          "reason": "Matching array lengths or names do not prove the runtime node-to-control mapping. No reviewed explicit mapping is available to this inventory."
+        },
+        "cloth_colliders": {
+          "m_TaperedCapsuleRigids": {
+            "count": 1,
+            "authored_node_references": [
+              0
+            ]
+          },
+          "m_TaperedCapsuleStretches": {
+            "count": 1,
+            "authored_node_references": [
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          "m_SphereRigids": {
+            "count": 0,
+            "authored_node_references": []
+          },
+          "m_BoxRigids": {
+            "count": 0,
+            "authored_node_references": []
+          },
+          "m_SDFRigids": {
+            "count": 0,
+            "authored_node_references": []
+          }
+        },
+        "collision_tree_cardinalities": {
+          "m_TreeParents": 3,
+          "m_TreeCollisionMasks": 3,
+          "m_TreeChildren": 1
+        },
+        "scalar_rod_count": 2,
+        "simd_rod_group_count": 1,
+        "simd_rod_lane_capacity": 4,
+        "simd_note": "Four-lane group capacity is not an independent-constraint count; padding and scheduling require native compiler verification.",
+        "field_cardinalities": {
+          "extra": {
+            "type": "array",
+            "count": 1
+          },
+          "floating": {
+            "type": "float",
+            "value": 0.1
+          },
+          "m_CtrlName": {
+            "type": "array",
+            "count": 3
+          },
+          "m_Rods": {
+            "type": "array",
+            "count": 2
+          },
+          "m_SimdRods": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TaperedCapsuleRigids": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TaperedCapsuleStretches": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TreeChildren": {
+            "type": "array",
+            "count": 1
+          },
+          "m_TreeCollisionMasks": {
+            "type": "array",
+            "count": 3
+          },
+          "m_TreeParents": {
+            "type": "array",
+            "count": 3
+          },
+          "m_nFirstPositionDrivenNode": {
+            "type": "int",
+            "value": 3
+          },
+          "m_nNodeCount": {
+            "type": "int",
+            "value": 3
+          },
+          "m_nRopeCount": {
+            "type": "int",
+            "value": 1
+          },
+          "m_nRotLockStaticNodes": {
+            "type": "int",
+            "value": 1
+          },
+          "m_nStaticNodes": {
+            "type": "int",
+            "value": 1
+          },
+          "nothing": {
+            "type": "NoneType",
+            "value": null
+          },
+          "opaque": {
+            "type": "binary",
+            "bytes": 2,
+            "sha256": "06eb7d6a69ee19e5fbdf749018d3d2abfa04bcbd1365db312eb86dc7169389b8"
+          },
+          "scalar": {
+            "type": "bool",
+            "value": false
+          },
+          "string": {
+            "type": "str",
+            "value": "骨"
+          }
+        }
+      }
+    },
+    {
+      "file": "inventory-absent.vmdl_c",
+      "expected": {
+        "inventory_version": 1,
+        "resource_sha256": "8373065914576cdbb82fc5a30721c071de03dd32f8f5c9f80947da02b6cef511",
+        "compiled_resources_modified": false,
+        "in_game_motion_tested": false,
+        "authored_merge_supported": false,
+        "authored_merge_reason": "A new solver must preserve the original simulation and its bindings. A compiled inventory does not prove the node/control mapping, partition remapping, packed rope encoding, SIMD scheduling or collision-tree rebuild. Appending arrays or accepting changed cloth flags is not authorized.",
+        "physics_block_count": 1,
+        "physics_payload_sha256": "30ede016f6f3bf241513c849a40ba690b5df1062bf1410863336839f83667687",
+        "body_physics": {
+          "parts": 0,
+          "bone_names": [],
+          "is_cloth_collider_table": false,
+          "note": "Body collision parts are separate from finite-element cloth colliders."
+        },
+        "status": "absent",
+        "solver_sha256": null,
+        "nodes": 0,
+        "static_nodes": 0,
+        "dynamic_nodes": 0
+      }
+    },
+    {
+      "file": "inventory-null.vmdl_c",
+      "expected": {
+        "inventory_version": 1,
+        "resource_sha256": "b601cf747a726dd3f2ea93248cf56aae39982605ca5d03c939deabb3620b4961",
+        "compiled_resources_modified": false,
+        "in_game_motion_tested": false,
+        "authored_merge_supported": false,
+        "authored_merge_reason": "A new solver must preserve the original simulation and its bindings. A compiled inventory does not prove the node/control mapping, partition remapping, packed rope encoding, SIMD scheduling or collision-tree rebuild. Appending arrays or accepting changed cloth flags is not authorized.",
+        "physics_block_count": 1,
+        "physics_payload_sha256": "63c73436bcc9e4d1f6d3210ec0cea6e505e96942edbd40435b36bb893ddc1e74",
+        "body_physics": {
+          "parts": 0,
+          "bone_names": [],
+          "is_cloth_collider_table": false,
+          "note": "Body collision parts are separate from finite-element cloth colliders."
+        },
+        "status": "absent",
+        "solver_sha256": null,
+        "nodes": 0,
+        "static_nodes": 0,
+        "dynamic_nodes": 0
+      }
+    },
+    {
+      "file": "inventory-bad-0.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: invalid uint16 m_nNodeCount."
+      }
+    },
+    {
+      "file": "inventory-bad-1.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: static node count exceeds total nodes."
+      }
+    },
+    {
+      "file": "inventory-bad-2.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: rotation-locked static count exceeds static nodes."
+      }
+    },
+    {
+      "file": "inventory-bad-3.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: invalid uint16 m_nNodeCount."
+      }
+    },
+    {
+      "file": "inventory-bad-4.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: position-driven boundary exceeds total nodes."
+      }
+    },
+    {
+      "file": "inventory-bad-5.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: m_CtrlName must be an array."
+      }
+    },
+    {
+      "file": "inventory-bad-6.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: m_TaperedCapsuleRigids contains a non-object collider."
+      }
+    },
+    {
+      "file": "inventory-bad-7.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: m_TreeParents must be an array."
+      }
+    },
+    {
+      "file": "inventory-bad-8.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: m_SimdRods must be an array."
+      }
+    },
+    {
+      "file": "inventory-bad-9.vmdl_c",
+      "expected": {
+        "error": "Cloth inventory: invalid uint16 m_TaperedCapsuleRigids.nNode."
+      }
+    }
+  ],
+  "analysis": [
+    {
+      "dmx": "automatic-analysis-capsules.dmx",
+      "original": "automatic-original-capsules.vmdl_c",
+      "audit": {
+        "compiled_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+        "runtime_motion": {
+          "status": "audited",
+          "cloth_nodes": 0,
+          "resource_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+          "skeleton": {
+            "m_boneName": [
+              "pelvis",
+              "leg_upper_L",
+              "leg_lower_L",
+              "ankle_L",
+              "leg_upper_R",
+              "leg_lower_R",
+              "ankle_R"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              1,
+              2,
+              0,
+              4,
+              5
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                10
+              ],
+              [
+                2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                -2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              64,
+              64,
+              64,
+              64,
+              64
+            ]
+          }
+        }
+      },
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "legs"
+      },
+      "expected": {
+        "kind": "automatic_cloth",
+        "policy": "automatic-open-surface-cloth-v1",
+        "status": "analyzed",
+        "source_sha256": "8e245bb6c04a05e5eca59ddd811e0d8cec6bb4bf78e6d370b079767d453649a9",
+        "original_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+        "original_snapshot_verified": true,
+        "units": "Source 2 model inches",
+        "millimeters_per_unit": 25.4,
+        "options": {
+          "meshes": [
+            "garment"
+          ],
+          "attachment": "top",
+          "collision": "legs"
+        },
+        "surfaces": [
+          {
+            "mesh": "garment",
+            "dynamic_positions": 6,
+            "pinned_positions": 3,
+            "attachment": "top",
+            "attachment_band_fraction": 0.1,
+            "attachment_height_range": [
+              10.0,
+              10.0
+            ],
+            "source_positions": 9,
+            "connected_panels": 1
+          }
+        ],
+        "leg_colliders": [
+          {
+            "bone": "leg_upper_L",
+            "tip_bone": "leg_lower_L",
+            "origin": "original_ragdoll_capsule",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 1.0,
+            "endpoints_world": [
+              [
+                2.0,
+                0.0,
+                9.0
+              ],
+              [
+                2.0,
+                0.0,
+                5.0
+              ]
+            ],
+            "radius_world": 1.0,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_lower_L",
+            "tip_bone": "ankle_L",
+            "origin": "original_ragdoll_capsule",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 1.0,
+            "endpoints_world": [
+              [
+                2.0,
+                0.0,
+                5.0
+              ],
+              [
+                2.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "radius_world": 1.0,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_upper_R",
+            "tip_bone": "leg_lower_R",
+            "origin": "original_ragdoll_capsule",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 1.0,
+            "endpoints_world": [
+              [
+                -2.0,
+                0.0,
+                9.0
+              ],
+              [
+                -2.0,
+                0.0,
+                5.0
+              ]
+            ],
+            "radius_world": 1.0,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_lower_R",
+            "tip_bone": "ankle_R",
+            "origin": "original_ragdoll_capsule",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 1.0,
+            "endpoints_world": [
+              [
+                -2.0,
+                0.0,
+                5.0
+              ],
+              [
+                -2.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "radius_world": 1.0,
+            "fit_approved": false
+          }
+        ],
+        "collision_disabled": false,
+        "summary": {
+          "garment_mesh_count": 1,
+          "pinned_position_count": 3,
+          "dynamic_position_count": 6,
+          "leg_collider_count": 4,
+          "overlapping_position_count": 0
+        },
+        "blockers": [],
+        "warnings": [
+          "Attachment uses existing skin weights; inspect the pinned edge in animation.",
+          "Generated collision capsules require fit review in motion."
+        ],
+        "source_modified": false,
+        "weights_modified": false,
+        "runtime_ready": false,
+        "published": false,
+        "analysis_sha256": "e0a0afba4fb42ab610592a745fd3c678dec40cd3b0edc4af46b5268087db3a65"
+      }
+    },
+    {
+      "dmx": "automatic-analysis-none.dmx",
+      "original": "automatic-original-none.vmdl_c",
+      "audit": {
+        "compiled_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+        "runtime_motion": {
+          "status": "audited",
+          "cloth_nodes": 0,
+          "resource_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+          "skeleton": {
+            "m_boneName": [
+              "pelvis",
+              "leg_upper_L",
+              "leg_lower_L",
+              "ankle_L",
+              "leg_upper_R",
+              "leg_lower_R",
+              "ankle_R"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              1,
+              2,
+              0,
+              4,
+              5
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                10
+              ],
+              [
+                2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                -2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              64,
+              64,
+              64,
+              64,
+              64
+            ]
+          }
+        }
+      },
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "none"
+      },
+      "expected": {
+        "kind": "automatic_cloth",
+        "policy": "automatic-open-surface-cloth-v1",
+        "status": "analyzed",
+        "source_sha256": "8e245bb6c04a05e5eca59ddd811e0d8cec6bb4bf78e6d370b079767d453649a9",
+        "original_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+        "original_snapshot_verified": true,
+        "units": "Source 2 model inches",
+        "millimeters_per_unit": 25.4,
+        "options": {
+          "meshes": [
+            "garment"
+          ],
+          "attachment": "top",
+          "collision": "none"
+        },
+        "surfaces": [
+          {
+            "mesh": "garment",
+            "dynamic_positions": 6,
+            "pinned_positions": 3,
+            "attachment": "top",
+            "attachment_band_fraction": 0.1,
+            "attachment_height_range": [
+              10.0,
+              10.0
+            ],
+            "source_positions": 9,
+            "connected_panels": 1
+          }
+        ],
+        "leg_colliders": [],
+        "collision_disabled": true,
+        "summary": {
+          "garment_mesh_count": 1,
+          "pinned_position_count": 3,
+          "dynamic_position_count": 6,
+          "leg_collider_count": 0,
+          "overlapping_position_count": 0
+        },
+        "blockers": [],
+        "warnings": [
+          "No collision was selected; the cloth can pass through the body."
+        ],
+        "source_modified": false,
+        "weights_modified": false,
+        "runtime_ready": false,
+        "published": false,
+        "analysis_sha256": "45abe19ea61168a831c8a2f87ff053b4e7c7dfc755396001f6fe90c252b23fcc"
+      }
+    },
+    {
+      "dmx": "automatic-analysis-body-fit.dmx",
+      "original": "automatic-original-body-fit.vmdl_c",
+      "audit": {
+        "compiled_sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8",
+        "runtime_motion": {
+          "status": "audited",
+          "cloth_nodes": 0,
+          "resource_sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8",
+          "skeleton": {
+            "m_boneName": [
+              "pelvis",
+              "leg_upper_L",
+              "leg_lower_L",
+              "ankle_L",
+              "leg_upper_R",
+              "leg_lower_R",
+              "ankle_R"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              1,
+              2,
+              0,
+              4,
+              5
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                10
+              ],
+              [
+                2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                -2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              64,
+              64,
+              64,
+              64,
+              64
+            ]
+          }
+        }
+      },
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "legs"
+      },
+      "expected": {
+        "kind": "automatic_cloth",
+        "policy": "automatic-open-surface-cloth-v1",
+        "status": "analyzed",
+        "source_sha256": "f09d5edce7ff23b052b8b15367a1484c76581ee0aa1b8ec2b95f882da8d62478",
+        "original_sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8",
+        "original_snapshot_verified": true,
+        "units": "Source 2 model inches",
+        "millimeters_per_unit": 25.4,
+        "options": {
+          "meshes": [
+            "garment"
+          ],
+          "attachment": "top",
+          "collision": "legs"
+        },
+        "surfaces": [
+          {
+            "mesh": "garment",
+            "dynamic_positions": 6,
+            "pinned_positions": 3,
+            "attachment": "top",
+            "attachment_band_fraction": 0.1,
+            "attachment_height_range": [
+              10.0,
+              10.0
+            ],
+            "source_positions": 9,
+            "connected_panels": 1
+          }
+        ],
+        "leg_colliders": [
+          {
+            "bone": "leg_upper_L",
+            "tip_bone": "leg_lower_L",
+            "origin": "dominant_weight_geometry_p95_proposal",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 0.6900000452995301,
+            "endpoints_world": [
+              [
+                2.0,
+                0.0,
+                9.0
+              ],
+              [
+                2.0,
+                0.0,
+                5.0
+              ]
+            ],
+            "radius_world": 0.6900000452995301,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_lower_L",
+            "tip_bone": "ankle_L",
+            "origin": "dominant_weight_geometry_p95_proposal",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 0.6900000452995301,
+            "endpoints_world": [
+              [
+                2.0,
+                0.0,
+                5.0
+              ],
+              [
+                2.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "radius_world": 0.6900000452995301,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_upper_R",
+            "tip_bone": "leg_lower_R",
+            "origin": "dominant_weight_geometry_p95_proposal",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 0.6900000452995301,
+            "endpoints_world": [
+              [
+                -2.0,
+                0.0,
+                9.0
+              ],
+              [
+                -2.0,
+                0.0,
+                5.0
+              ]
+            ],
+            "radius_world": 0.6900000452995301,
+            "fit_approved": false
+          },
+          {
+            "bone": "leg_lower_R",
+            "tip_bone": "ankle_R",
+            "origin": "dominant_weight_geometry_p95_proposal",
+            "endpoints_local": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -4.0
+              ]
+            ],
+            "radius_local": 0.6900000452995301,
+            "endpoints_world": [
+              [
+                -2.0,
+                0.0,
+                5.0
+              ],
+              [
+                -2.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "radius_world": 0.6900000452995301,
+            "fit_approved": false
+          }
+        ],
+        "collision_disabled": false,
+        "summary": {
+          "garment_mesh_count": 1,
+          "pinned_position_count": 3,
+          "dynamic_position_count": 6,
+          "leg_collider_count": 4,
+          "overlapping_position_count": 0
+        },
+        "blockers": [],
+        "warnings": [
+          "Attachment uses existing skin weights; inspect the pinned edge in animation.",
+          "Generated collision capsules require fit review in motion."
+        ],
+        "source_modified": false,
+        "weights_modified": false,
+        "runtime_ready": false,
+        "published": false,
+        "analysis_sha256": "d049581658e95806d87a82c9995dfbb73b4b1607b9e4f4f43258e0a588e3e45a"
+      }
+    },
+    {
+      "dmx": "automatic-analysis-changed-bind.dmx",
+      "original": "automatic-original-changed-bind.vmdl_c",
+      "audit": {
+        "compiled_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+        "runtime_motion": {
+          "status": "audited",
+          "cloth_nodes": 0,
+          "resource_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+          "skeleton": {
+            "m_boneName": [
+              "pelvis",
+              "leg_upper_L",
+              "leg_lower_L",
+              "ankle_L",
+              "leg_upper_R",
+              "leg_lower_R",
+              "ankle_R"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              1,
+              2,
+              0,
+              4,
+              5
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                10
+              ],
+              [
+                2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                -2,
+                0,
+                -1
+              ],
+              [
+                0,
+                0,
+                -4
+              ],
+              [
+                0,
+                0,
+                -4
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              64,
+              64,
+              64,
+              64,
+              64
+            ]
+          }
+        }
+      },
+      "options": {
+        "meshes": [
+          "garment"
+        ],
+        "attachment": "top",
+        "collision": "legs"
+      },
+      "expected": {
+        "error": "Compiled skeleton identity validation failed: pelvis: bind transform changed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "bits": 16,
+  "channels": 1,
+  "duration": 0.0010000000474974513,
+  "format": "PCM16",
+  "frames": 8,
+  "kind": "DATA",
+  "loop_end": 0,
+  "loop_start": -1,
+  "payload_offset": 76,
+  "rate": 8000,
+  "resource_version": 4,
+  "stream_size": 16
+}

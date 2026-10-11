@@ -1,0 +1,72 @@
+{
+  "summary": {
+    "encoding": "binary 4",
+    "format": "model",
+    "format_version": 22,
+    "meshes": [
+      {
+        "name": "body",
+        "element": 1,
+        "vertices": 1,
+        "indexed_vertices": 0,
+        "weight_values": 1,
+        "joint_index_values": 1,
+        "has_skin_weights": true,
+        "vertex_attributes": [
+          "blendindices$0",
+          "blendweights$0",
+          "jointCount",
+          "position$0"
+        ]
+      },
+      {
+        "name": "weapon",
+        "element": 3,
+        "vertices": 1,
+        "indexed_vertices": 0,
+        "weight_values": 1,
+        "joint_index_values": 1,
+        "has_skin_weights": true,
+        "vertex_attributes": [
+          "blendindices$0",
+          "blendweights$0",
+          "jointCount",
+          "position$0"
+        ]
+      }
+    ],
+    "materials": [
+      "models/unusual/agent/body.vmat"
+    ],
+    "material_identities": [
+      {
+        "name": "models/unusual/agent/body.vmat",
+        "uuid": "05050505050505050505050505050505",
+        "path": "models/unusual/agent/body.vmat"
+      }
+    ],
+    "bones": [
+      "root_bone"
+    ],
+    "elements": 7
+  },
+  "geometry": {
+    "meshes": [
+      {
+        "name": "body",
+        "vertices": 1,
+        "polygons": 0,
+        "triangles": 0,
+        "corners": 0
+      },
+      {
+        "name": "weapon",
+        "vertices": 1,
+        "polygons": 0,
+        "triangles": 0,
+        "corners": 0
+      }
+    ],
+    "source_triangles": 0
+  }
+}

@@ -1,0 +1,30 @@
+[package]
+name = "deadlock-components"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+deadlock-core = { path = "../deadlock-core" }
+deadlock-project = { path = "../deadlock-project" }
+deadlock-resource = { path = "../deadlock-resource" }
+deadlock-vpk = { path = "../deadlock-vpk" }
+deadlock-tools = { path = "../deadlock-tools" }
+deadlock-model = { path = "../deadlock-model" }
+deadlock-dmx = { path = "../deadlock-dmx" }
+deadlock-preparation = { path = "../deadlock-preparation" }
+uuid = { version = "1", features = ["v4"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+regex = "1"
+roxmltree = "0.21"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+jpeg-decoder = { version = "0.3", default-features = false }
+moxcms = "0.8.1"
+lz4_flex = "0.11"
+crc32fast = "1"
+bcdec_rs = "=0.2.0"
+symphonia = { version = "=0.5.5", default-features = false, features = ["mp3", "wav", "pcm", "flac", "ogg", "vorbis"] }
+[dev-dependencies]
+tempfile = "3"
+[lints.rust]
+unsafe_code = "forbid"

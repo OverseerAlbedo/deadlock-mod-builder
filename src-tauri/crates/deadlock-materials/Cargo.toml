@@ -1,0 +1,25 @@
+[package]
+name = "deadlock-materials"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+deadlock-core = { path = "../deadlock-core" }
+deadlock-project = { path = "../deadlock-project" }
+deadlock-dmx = { path = "../deadlock-dmx" }
+deadlock-vpk = { path = "../deadlock-vpk" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+sha2 = "0.10"
+regex = "1"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tga", "tiff", "exr"] }
+tiff = { version = "0.11.3", default-features = false }
+crc32fast = "1"
+bzip2 = { version = "0.5.2", default-features = false, features = ["libbz2-rs-sys"] }
+lzma-rs = { version = "0.3", features = ["stream"] }
+tempfile = "3"
+zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "lzma"] }
+
+[dev-dependencies]

@@ -1,0 +1,68 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->
+{ rootNode = { _class = "RootNode" children = [
+
+
+			{
+				_class = "ClothProxyMeshList"
+				children =
+				[
+					{
+						_class = "ClothProxyMeshFile"
+						name = "builder_skirt_proxy"
+						filename = "models/custom/garment_proxy.dmx"
+						import_scale = 1.0
+						back_solve_joints = true
+						back_solve_joints_drive_meshes = true
+						flex_cloth_borders = false
+						add_bones_to_render_mesh = false
+						back_solve_influence_threshold = 0.05
+						cloth_friction_bias = 0.0
+						cloth_friction_scale = 1.0
+						envelope_inches = 1000.0
+						cloth_goal_strength_bias = 0.0
+						cloth_goal_strength_scale = 1.0
+						cloth_drag_scale = 1.0
+						cloth_mass_scale = 1.0
+						cloth_gravity_scale = 1.0
+						cloth_collision_radius_scale = 1.0
+						cloth_ground_collision_scale = 1.0
+						cloth_ground_friction_scale = 1.0
+						cloth_use_rods_scale = 1.0
+						cloth_make_rods_scale = 1.0
+						cloth_anchor_free_rotate_scale = 1.0
+						cloth_volumetric_scale = 1.0
+						cloth_suspenders_scale = 1.0
+						cloth_bend_stiffness_scale = 1.0
+						cloth_stray_radius_inv_scale = 1.0
+						cloth_stray_radius_scale = 1.0
+						cloth_stray_radius_stretchiness_scale = 1.0
+						import_filter =
+						{
+							exclude_by_default = false
+							exception_list = []
+						}
+					},
+				]
+			},
+			{
+				_class = "ClothShapeList"
+				children =
+				[
+					{
+						_class = "ClothShapeCapsule"
+						name = "builder_skirt_capsule_1"
+						parent_bone = "leg_upper_L"
+						cloth_collision_layer0 = true
+						cloth_collision_layer1 = true
+						cloth_collision_layer2 = true
+						cloth_collision_layer3 = true
+						cloth_collision_priority = 0
+						radius0 = 0.4
+						radius1 = 0.4
+						point0 = [0.1, 0.2, -0.3]
+						point1 = [0.5, -0.1, -3.0]
+						cloth_stickiness = 0.0
+					},
+				]
+			},
+		] } }

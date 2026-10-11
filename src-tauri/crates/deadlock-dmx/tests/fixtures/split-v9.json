@@ -1,0 +1,70 @@
+{
+  "summary": {
+    "encoding": "binary 9",
+    "format": "model",
+    "format_version": 22,
+    "meshes": [
+      {
+        "name": "body",
+        "element": 5,
+        "vertices": 6,
+        "indexed_vertices": 7,
+        "weight_values": 12,
+        "joint_index_values": 12,
+        "has_skin_weights": true,
+        "vertex_attributes": [
+          "blendindices$0",
+          "blendweights$0",
+          "color$0",
+          "color$0Indices",
+          "flipVCoordinates",
+          "jointCount",
+          "normal$0",
+          "normal$0Indices",
+          "position$0",
+          "position$0Indices",
+          "tangent$0",
+          "tangent$0Indices",
+          "texcoord$0",
+          "texcoord$0Indices",
+          "texcoord$1",
+          "texcoord$1Indices",
+          "vertexFormat"
+        ]
+      }
+    ],
+    "materials": [
+      "models/a.vmat",
+      "models/b.vmat"
+    ],
+    "material_identities": [
+      {
+        "name": "mat_a",
+        "uuid": "09000000000000000000000000000000",
+        "path": "models/a.vmat"
+      },
+      {
+        "name": "mat_b",
+        "uuid": "0c000000000000000000000000000000",
+        "path": "models/b.vmat"
+      }
+    ],
+    "bones": [
+      "root_bone",
+      "child_bone"
+    ],
+    "elements": 15
+  },
+  "geometry": {
+    "meshes": [
+      {
+        "name": "body",
+        "vertices": 6,
+        "polygons": 2,
+        "triangles": 3,
+        "corners": 7
+      }
+    ],
+    "source_triangles": 3
+  }
+}

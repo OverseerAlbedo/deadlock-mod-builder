@@ -1,0 +1,12 @@
+[
+  {
+    "additive": false,
+    "duration": 1.0,
+    "events": 0,
+    "frames": 2,
+    "label": "idle",
+    "skeleton": "animation/test/hero.vnmskel",
+    "target": "models/heroes_wip/test/idle.vnmclip_c",
+    "tracks": 1
+  }
+]

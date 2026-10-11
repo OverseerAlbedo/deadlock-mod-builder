@@ -1,0 +1,10 @@
+<!-- kv3 encoding:text:version{1} format:modeldoc28:version{2} -->
+{
+  // Keep this comment and spacing exactly.
+  root = { _class = "RootNode" children = [
+    { _class = "RenderMeshFile" name = "étoile" filename = "新しい model.dmx" opaque = strange:token 
+		added = "value"
+	}
+  ] blob = #[ 00ff 0a ] text = """line with spaces  
+next""" }
+}

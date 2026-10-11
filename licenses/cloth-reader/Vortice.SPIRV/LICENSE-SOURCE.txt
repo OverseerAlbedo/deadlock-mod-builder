@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/amerkoleci/Vortice.Vulkan/b9b56b6bf23bd119a22f519631d88b911bf9fa4e/LICENSE

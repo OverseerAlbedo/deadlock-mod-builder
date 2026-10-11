@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/jandk/TinyBCSharp/5eef47a45c603f00376c4f9c358c730309d058cf/LICENSE

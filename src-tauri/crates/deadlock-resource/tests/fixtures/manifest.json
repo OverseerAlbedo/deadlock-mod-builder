@@ -1,0 +1,370 @@
+{
+  "fixtures": [
+    {
+      "name": "all-values",
+      "sha256": "30fbe4b3ac4403cb491dcfdda36432dcdb5b8edacf06ea0eb6689fc9f3dbd1f7",
+      "encoded_sha256": "30fbe4b3ac4403cb491dcfdda36432dcdb5b8edacf06ea0eb6689fc9f3dbd1f7"
+    },
+    {
+      "name": "all-values-lz4",
+      "sha256": "2fe852d84edc5a47a62f88eec6ad74e10b79a31764d40996a72cd3966d5fbca6",
+      "encoded_sha256": "30fbe4b3ac4403cb491dcfdda36432dcdb5b8edacf06ea0eb6689fc9f3dbd1f7"
+    },
+    {
+      "name": "v5-chained-blobs",
+      "sha256": "324ed95549b7d0ce68e59147d3c557c678e4ed832633cf53ee7082515193f2db",
+      "encoded_sha256": "a2ff996f8d0e52c054230eec32736502b6764b08435bd530a70eee147e06cd5f"
+    },
+    {
+      "name": "v5-scalars-0",
+      "sha256": "a50240135d13a113cb5586932327533774db845767d6a3241b35d16a4b3f5708",
+      "encoded_sha256": "b8b9a9cd4d2b97b5b57defca2803ddcdd4adfc1dab2f8a2214ab8d8592bee8a7"
+    },
+    {
+      "name": "v5-scalars-1",
+      "sha256": "0aefc978bb9671af5ce5bc6c83e1d04c48780399e8ba1b087b02f5ec6dff61ba",
+      "encoded_sha256": "b8b9a9cd4d2b97b5b57defca2803ddcdd4adfc1dab2f8a2214ab8d8592bee8a7"
+    },
+    {
+      "name": "v5-scalars-2",
+      "sha256": "68bc307434509cffc8107a0aec97d134ed2adb78ce950a1ad9f6cc0b8753a388",
+      "encoded_sha256": "b8b9a9cd4d2b97b5b57defca2803ddcdd4adfc1dab2f8a2214ab8d8592bee8a7"
+    }
+  ],
+  "native": [
+    {
+      "path": "physics-references/Vindicta-R12/cloth_supported_hair.vmdl_c",
+      "sha256": "82e7212cfd93138c663ece73c6d5145f5146bca19f27942c7d769514354ebe7e",
+      "blocks": [
+        {
+          "ordinal": 2,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "f9f442dad623eb75fd64636722eaf1dbf9b4dd757b9e4de6ad98a88146ab7b33",
+          "encoded_sha256": "7ce8362acc35e35b10f41bed417c3fc32699bea7ba62be7b1b59a62d8a347bc8"
+        },
+        {
+          "ordinal": 5,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "9bd62fd05330ffc72261a0b6059ac3d515af759525f0d006e0a62469c196dd0a",
+          "encoded_sha256": "ae73f770c738d2e3ab8758632e918ceec14aea6078efa367884e5d7e6ad6640d"
+        },
+        {
+          "ordinal": 8,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "1366b31f60cb8ad2ef670daf9180d517874e5b540fd2a3d99862b39f3bb8f4b1",
+          "encoded_sha256": "ec4409c33a76da4c67ed4bf4d28ba205f8d82068a295211346426fd6dbb0a689"
+        },
+        {
+          "ordinal": 11,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "966e89cc08a910594c677a4dbe0b49a456ad06708c6e4dadf96ba07ff44e618b",
+          "encoded_sha256": "65311b99766bfdd14f0104f7e35d33ddcf15c7a54ed3851986250c85ca5a907c"
+        },
+        {
+          "ordinal": 14,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "efff1e6fdcba5d028cc342fcf2a8743fe60c3fcedb44014f0d06d1fc486e06a6",
+          "encoded_sha256": "d4f5e0e04cd1f5c40f6a02b5a661e3a8cc8825d0dc33142764627fa4df05e463"
+        },
+        {
+          "ordinal": 17,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "bf28e486568ad776ea15438109a3f6c24713c1a523c609631f6f68ed7fb5e44b",
+          "encoded_sha256": "13f93ff71e74c20fb6ddd80cb60cbfbf2b842c1547eae8cc7fe1fc65a6315ebf"
+        },
+        {
+          "ordinal": 20,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "3b81eb22f559bb1fc525dc5fb9c207243e68b5d5906eabc40348eafdf6d7e010",
+          "encoded_sha256": "cd6dd6cef7d965f7603acca16621bc05c219ddfe68d97c5f55101780cadc9e7d"
+        },
+        {
+          "ordinal": 23,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "ec75af9b53dcfde72bbb46087a049aa72502e9820d4797d797c8105347732a47",
+          "encoded_sha256": "9d52debaab7d09f0458ae331648d2c2c2de9fae2cce9f903dec1d9c9d090af9d"
+        },
+        {
+          "ordinal": 26,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "313d444f2d669bc5ea5f8cf563b9c65976b43fe1a3026e2d1c5e4c1cd6a992b6",
+          "encoded_sha256": "74ca9759963fa94d4c407f34339301d1b8da29ff51d20ffd80ef7d79cd27c397"
+        },
+        {
+          "ordinal": 29,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "944f2954a227c9af38b458d1219a7118ab48bce1d1b523005747faee2ad6aa90",
+          "encoded_sha256": "53d9b15033828de11577e27141e860578ba2536dfeaee333ac12e28135f5648c"
+        },
+        {
+          "ordinal": 32,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "213bf147df766c2d0e5c5e3b01135a270f561edd34e3bc4438f094eb6192e4c5",
+          "encoded_sha256": "f6fbe47c69ad86aab98ef9bfb7f658f69ac05273258fadef0315812cb5ac4b22"
+        },
+        {
+          "ordinal": 35,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "9ce1d5cd7057dea7124e4149ab0a4735f9156bb056ea407027289844abd8ec56",
+          "encoded_sha256": "2692edfd464559ae03542db38e339361f589acbfd9db54b5c9d686b4e17fa8c5"
+        },
+        {
+          "ordinal": 38,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "18daafd0273905bb9be68b4b9cee1d0865a35bfbc72f3c5bd324cc67098d3e4e",
+          "encoded_sha256": "9c2abb03c22dd0d5b13a839bb81de184bdd1273680a501b32a829c9cc16f98e7"
+        },
+        {
+          "ordinal": 41,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "2e23258ade7cc06be219199dcec08a87be3debcde95ca6b68973f5637c6aa381",
+          "encoded_sha256": "b81bc004b7cb7873d63768548d35dea4517fbcc588cbb76a7c4f2f6f2528d1c6"
+        },
+        {
+          "ordinal": 44,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "3c85f74af0d8e22c79d3a02f539bb9fa54734f76697dc62a3f1ca2d49860ee1d",
+          "encoded_sha256": "2e2bdbb1dea80ce549543127a71a0b655764c73aee582dd56b4ae27852745074"
+        },
+        {
+          "ordinal": 47,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "c6cf31ff4eaaeb6b2cca750884307f0f01eb0ddd5fe04a7ed664a985964dcb2a",
+          "encoded_sha256": "5da47cb02ac5dbe747b184af8434190425f8a99962c0371bc04d94f091000cdf"
+        },
+        {
+          "ordinal": 50,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "6c24b36ec541cba957244a35a1bedcc7a016c89ca4aedae85f52898783781b69",
+          "encoded_sha256": "8f2c32a5c479b93debd37607b24715172f1cb1354e9645f885a15d0cd95379b6"
+        },
+        {
+          "ordinal": 53,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "fd5a9a2def387b8d7032a6ebda606a6f9df22ab4cf877a36eb6f9031311b8fa2",
+          "encoded_sha256": "a101936ef9a753c1eb2ae3b697446dc55907832dbb75482cd9cb0db002476867"
+        },
+        {
+          "ordinal": 56,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "7631ad23fe59e8c4419ef1299e730c07a16f7fddfad49c204f5e7d50873a0151",
+          "encoded_sha256": "28f73e7b134e43792cd3692a71c0c33280943c6c914f4e36a7831bda3be84f96"
+        },
+        {
+          "ordinal": 59,
+          "name": "AGRP",
+          "version": 5,
+          "sha256": "859269ab11f08797287b7afedd270081e6e9896a3a5ccb8ec64e2ced923f7f51",
+          "encoded_sha256": "60426adc2fc697460cd1379c60f8f04b8d7522893ab869b180303d9ea9767ccb"
+        },
+        {
+          "ordinal": 60,
+          "name": "PHYS",
+          "version": 5,
+          "sha256": "fa50343fe6ce9d6bc2c5850939d5bb4eaaeea7149dd9916607bd50628282c11d",
+          "encoded_sha256": "6e3862e2cb8048aeaa404c77165d1d5f638ef9cd938bc8988b58834497ee1ac6"
+        },
+        {
+          "ordinal": 61,
+          "name": "CTRL",
+          "version": 5,
+          "sha256": "3957e3e60fe874a1aac73c8c62eebab6d57ff7f4a49a00458a9dbae23040addd",
+          "encoded_sha256": "0e9b72bcafc59938d0768b07afcf4a37722d48040061e78472fe20a9156448f6"
+        },
+        {
+          "ordinal": 64,
+          "name": "DATA",
+          "version": 5,
+          "sha256": "f34e2b1c9d34754aa79050f11b23aa35bcfc91388d6cd9830c942623d6a93861",
+          "encoded_sha256": "7d5b5436092c31dfc7e1849b02773c8d3a715bbac4418bff068120a43b16e7b0"
+        }
+      ]
+    },
+    {
+      "path": "physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c",
+      "sha256": "27dd44ea4db29f671cff53d0dd8ad171792fe5f12f45b05aca5db65e0a6b5b0c",
+      "blocks": [
+        {
+          "ordinal": 2,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "f9f442dad623eb75fd64636722eaf1dbf9b4dd757b9e4de6ad98a88146ab7b33",
+          "encoded_sha256": "7ce8362acc35e35b10f41bed417c3fc32699bea7ba62be7b1b59a62d8a347bc8"
+        },
+        {
+          "ordinal": 5,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "9bd62fd05330ffc72261a0b6059ac3d515af759525f0d006e0a62469c196dd0a",
+          "encoded_sha256": "ae73f770c738d2e3ab8758632e918ceec14aea6078efa367884e5d7e6ad6640d"
+        },
+        {
+          "ordinal": 8,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "1366b31f60cb8ad2ef670daf9180d517874e5b540fd2a3d99862b39f3bb8f4b1",
+          "encoded_sha256": "ec4409c33a76da4c67ed4bf4d28ba205f8d82068a295211346426fd6dbb0a689"
+        },
+        {
+          "ordinal": 11,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "966e89cc08a910594c677a4dbe0b49a456ad06708c6e4dadf96ba07ff44e618b",
+          "encoded_sha256": "65311b99766bfdd14f0104f7e35d33ddcf15c7a54ed3851986250c85ca5a907c"
+        },
+        {
+          "ordinal": 14,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "efff1e6fdcba5d028cc342fcf2a8743fe60c3fcedb44014f0d06d1fc486e06a6",
+          "encoded_sha256": "d4f5e0e04cd1f5c40f6a02b5a661e3a8cc8825d0dc33142764627fa4df05e463"
+        },
+        {
+          "ordinal": 17,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "bf28e486568ad776ea15438109a3f6c24713c1a523c609631f6f68ed7fb5e44b",
+          "encoded_sha256": "13f93ff71e74c20fb6ddd80cb60cbfbf2b842c1547eae8cc7fe1fc65a6315ebf"
+        },
+        {
+          "ordinal": 20,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "3b81eb22f559bb1fc525dc5fb9c207243e68b5d5906eabc40348eafdf6d7e010",
+          "encoded_sha256": "cd6dd6cef7d965f7603acca16621bc05c219ddfe68d97c5f55101780cadc9e7d"
+        },
+        {
+          "ordinal": 23,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "ec75af9b53dcfde72bbb46087a049aa72502e9820d4797d797c8105347732a47",
+          "encoded_sha256": "9d52debaab7d09f0458ae331648d2c2c2de9fae2cce9f903dec1d9c9d090af9d"
+        },
+        {
+          "ordinal": 26,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "313d444f2d669bc5ea5f8cf563b9c65976b43fe1a3026e2d1c5e4c1cd6a992b6",
+          "encoded_sha256": "74ca9759963fa94d4c407f34339301d1b8da29ff51d20ffd80ef7d79cd27c397"
+        },
+        {
+          "ordinal": 29,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "944f2954a227c9af38b458d1219a7118ab48bce1d1b523005747faee2ad6aa90",
+          "encoded_sha256": "53d9b15033828de11577e27141e860578ba2536dfeaee333ac12e28135f5648c"
+        },
+        {
+          "ordinal": 32,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "213bf147df766c2d0e5c5e3b01135a270f561edd34e3bc4438f094eb6192e4c5",
+          "encoded_sha256": "f6fbe47c69ad86aab98ef9bfb7f658f69ac05273258fadef0315812cb5ac4b22"
+        },
+        {
+          "ordinal": 35,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "9ce1d5cd7057dea7124e4149ab0a4735f9156bb056ea407027289844abd8ec56",
+          "encoded_sha256": "2692edfd464559ae03542db38e339361f589acbfd9db54b5c9d686b4e17fa8c5"
+        },
+        {
+          "ordinal": 38,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "18daafd0273905bb9be68b4b9cee1d0865a35bfbc72f3c5bd324cc67098d3e4e",
+          "encoded_sha256": "9c2abb03c22dd0d5b13a839bb81de184bdd1273680a501b32a829c9cc16f98e7"
+        },
+        {
+          "ordinal": 41,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "2e23258ade7cc06be219199dcec08a87be3debcde95ca6b68973f5637c6aa381",
+          "encoded_sha256": "b81bc004b7cb7873d63768548d35dea4517fbcc588cbb76a7c4f2f6f2528d1c6"
+        },
+        {
+          "ordinal": 44,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "3c85f74af0d8e22c79d3a02f539bb9fa54734f76697dc62a3f1ca2d49860ee1d",
+          "encoded_sha256": "2e2bdbb1dea80ce549543127a71a0b655764c73aee582dd56b4ae27852745074"
+        },
+        {
+          "ordinal": 47,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "c6cf31ff4eaaeb6b2cca750884307f0f01eb0ddd5fe04a7ed664a985964dcb2a",
+          "encoded_sha256": "5da47cb02ac5dbe747b184af8434190425f8a99962c0371bc04d94f091000cdf"
+        },
+        {
+          "ordinal": 50,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "6c24b36ec541cba957244a35a1bedcc7a016c89ca4aedae85f52898783781b69",
+          "encoded_sha256": "8f2c32a5c479b93debd37607b24715172f1cb1354e9645f885a15d0cd95379b6"
+        },
+        {
+          "ordinal": 53,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "fd5a9a2def387b8d7032a6ebda606a6f9df22ab4cf877a36eb6f9031311b8fa2",
+          "encoded_sha256": "a101936ef9a753c1eb2ae3b697446dc55907832dbb75482cd9cb0db002476867"
+        },
+        {
+          "ordinal": 56,
+          "name": "MDAT",
+          "version": 5,
+          "sha256": "7631ad23fe59e8c4419ef1299e730c07a16f7fddfad49c204f5e7d50873a0151",
+          "encoded_sha256": "28f73e7b134e43792cd3692a71c0c33280943c6c914f4e36a7831bda3be84f96"
+        },
+        {
+          "ordinal": 59,
+          "name": "AGRP",
+          "version": 5,
+          "sha256": "859269ab11f08797287b7afedd270081e6e9896a3a5ccb8ec64e2ced923f7f51",
+          "encoded_sha256": "60426adc2fc697460cd1379c60f8f04b8d7522893ab869b180303d9ea9767ccb"
+        },
+        {
+          "ordinal": 60,
+          "name": "PHYS",
+          "version": 1,
+          "sha256": "b226abb877c959cf7746cd797e1206414b4bcdc1c52fab58a7cba3e3b6f6d6a1",
+          "encoded_sha256": "b226abb877c959cf7746cd797e1206414b4bcdc1c52fab58a7cba3e3b6f6d6a1"
+        },
+        {
+          "ordinal": 61,
+          "name": "CTRL",
+          "version": 5,
+          "sha256": "3957e3e60fe874a1aac73c8c62eebab6d57ff7f4a49a00458a9dbae23040addd",
+          "encoded_sha256": "0e9b72bcafc59938d0768b07afcf4a37722d48040061e78472fe20a9156448f6"
+        },
+        {
+          "ordinal": 64,
+          "name": "DATA",
+          "version": 5,
+          "sha256": "f34e2b1c9d34754aa79050f11b23aa35bcfc91388d6cd9830c942623d6a93861",
+          "encoded_sha256": "7d5b5436092c31dfc7e1849b02773c8d3a715bbac4418bff068120a43b16e7b0"
+        }
+      ]
+    }
+  ]
+}

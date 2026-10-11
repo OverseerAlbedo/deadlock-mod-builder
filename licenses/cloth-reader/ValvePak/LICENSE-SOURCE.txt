@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/ValveResourceFormat/ValvePak/2adb4b00ed950b5ced012d8b6ac83d2d3a95ec29/LICENSE

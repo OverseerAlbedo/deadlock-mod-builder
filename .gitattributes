@@ -1,0 +1,14 @@
+# Preserve golden fixtures, embedded scripts and trust-pinned resource bytes.
+* -text
+*.rs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.mjs text eol=lf
+*.ps1 text eol=lf
+*.toml text eol=lf
+*.py text eol=lf
+*.cmd text eol=crlf

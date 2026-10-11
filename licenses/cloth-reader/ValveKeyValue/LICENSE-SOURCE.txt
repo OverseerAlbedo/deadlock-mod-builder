@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/ValveResourceFormat/ValveKeyValue/b0f2917f8c09697e9fd41c4f23647a34c5803f0d/LICENSE

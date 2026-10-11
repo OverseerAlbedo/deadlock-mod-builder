@@ -1,0 +1,54 @@
+[workspace]
+members = [".", "crates/*"]
+resolver = "2"
+
+[package]
+name = "deadlock-desktop"
+default-run = "deadlock-mod-builder"
+version = "0.13.0-alpha.51"
+edition = "2021"
+publish = false
+description = "Native character mod preparation, validation and packaging"
+license = "MIT"
+
+[features]
+default = []
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-dialog", "dep:tauri-plugin-opener"]
+
+[dependencies]
+deadlock-core = { path = "crates/deadlock-core" }
+deadlock-project = { path = "crates/deadlock-project" }
+deadlock-dmx = { path = "crates/deadlock-dmx" }
+deadlock-vpk = { path = "crates/deadlock-vpk" }
+deadlock-preview = { path = "crates/deadlock-preview" }
+deadlock-pipeline = { path = "crates/deadlock-pipeline" }
+deadlock-materials = { path = "crates/deadlock-materials" }
+deadlock-tools = { path = "crates/deadlock-tools" }
+deadlock-preparation = { path = "crates/deadlock-preparation" }
+deadlock-skeleton = { path = "crates/deadlock-skeleton" }
+deadlock-resource = { path = "crates/deadlock-resource" }
+deadlock-components = { path = "crates/deadlock-components" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3"
+tauri = { version = "2", optional = true , features = [] }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
+
+[build-dependencies]
+tauri-build = { version = "2", optional = true , features = [] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "deadlock-mod-builder"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -1,0 +1,1741 @@
+{
+  "cases": [
+    {
+      "name": "analyze_standard",
+      "operation": "analyze",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{\n rootNode = {\n  _class = \"RootNode\"\n  children = [\n   { _class = \"RenderMeshList\" children = [\n    { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/unusual/agent/old_body.dmx\" },\n    { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/unusual/agent/old_weapon.dmx\" },\n   ] },\n   { _class = \"AttachmentList\" children = [{ _class = \"Attachment\" name = \"muzzle\" parent_bone = \"root_bone\" }] },\n   { _class = \"UnknownFutureNode\" payload = resource:\"keep/this.vdata\" note = \"A } brace // in a string\" },\n  ]\n }\n}\n",
+      "expected": {
+        "meshes": [
+          {
+            "name": "body",
+            "filename": "models/unusual/agent/old_body.dmx",
+            "lower_lod": false
+          },
+          {
+            "name": "weapon",
+            "filename": "models/unusual/agent/old_weapon.dmx",
+            "lower_lod": false
+          }
+        ],
+        "ag2": [],
+        "lod_groups": 0,
+        "attachments": 1,
+        "classes": [
+          "Attachment",
+          "AttachmentList",
+          "RenderMeshFile",
+          "RenderMeshList",
+          "RootNode",
+          "UnknownFutureNode"
+        ]
+      }
+    },
+    {
+      "name": "analyze_duplicates",
+      "operation": "analyze",
+      "source": "{ children = [{_class=\"RenderMeshFile\" name=\"body\"}, {_class=\"RenderMeshFile\" name=\"body\"}] }",
+      "error": "VMDL must have uniquely named RenderMeshFile nodes."
+    },
+    {
+      "name": "keep_exact_bytes",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "source_paths": {},
+      "expected": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }"
+    },
+    {
+      "name": "disable_lods_bodygroup",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "expected": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/new/body.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n},\n  \n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  \n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [ ] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }"
+    },
+    {
+      "name": "split_disable_one_array",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": [
+          "part_a",
+          "part_b"
+        ],
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "expected": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body__part01\" filename = \"models/new/a.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"part_a\" ] }\n},\n{ _class = \"RenderMeshFile\" name = \"body__part02\" filename = \"models/new/b.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"part_b\" ] }\n},\n  \n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  \n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body__part01\", \"body__part02\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body__part01\"},\n{mesh_name=\"body__part02\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [ ] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }"
+    },
+    {
+      "name": "disabled_body_choice_empty",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@disable",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "expected": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  \n  \n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  \n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [ {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [ ] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }"
+    },
+    {
+      "name": "unicode_filters",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "π😀",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "expected": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/身体/a.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"π😀\" ] }\n},\n  \n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  \n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [ ] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }"
+    },
+    {
+      "name": "unknown_disabled_7",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [{_class=\"UnknownGroup\" meshes=[\"body_lod1\"]},\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Disabled mesh remains referenced in meshes; keep it or use a custom source."
+    },
+    {
+      "name": "unknown_disabled_8",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [{_class=\"BodyGroupChoice\" custom_mesh=\"body_lod1\" meshes=[]},\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Disabling body_lod1 leaves an unsupported custom_mesh reference; keep it or use a custom source."
+    },
+    {
+      "name": "mixed_bodygroup",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body_lod1\", {mesh_name=\"body\"}] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Unsupported BodyGroupChoice meshes layout; keep the mesh or use a custom source."
+    },
+    {
+      "name": "missing_mesh_action",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Choose a replacement, Keep Original or Disable for mesh: body_lod1"
+    },
+    {
+      "name": "unsafe_source_path",
+      "operation": "patch",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "weapon": "@keep",
+        "weapon_lod1": "@disable"
+      },
+      "source_paths": {
+        "replacement": "../outside.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Unsafe game-relative asset path: '../outside.dmx'"
+    },
+    {
+      "name": "scalar_reference",
+      "operation": "patch",
+      "source": "{ mesh={_class=\"RenderMeshFile\" name=\"body\" filename=\"old.dmx\"} ref={mesh_name=\"body\"}}",
+      "mappings": {
+        "body": [
+          "part_a",
+          "part_b"
+        ]
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Cannot expand non-array RenderMeshFile: body"
+    },
+    {
+      "name": "unknown_array",
+      "operation": "patch",
+      "source": "{ meshes=[{_class=\"RenderMeshFile\" name=\"body\"}] unknown=[\"body\"]}",
+      "mappings": {
+        "body": [
+          "part_a",
+          "part_b"
+        ]
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Cannot safely expand mesh references in unknown."
+    },
+    {
+      "name": "nonarray_render",
+      "operation": "patch",
+      "source": "{ mesh={_class=\"RenderMeshFile\" name=\"body\" filename=\"old.dmx\"}}",
+      "mappings": {
+        "body": [
+          "part_a",
+          "part_b"
+        ]
+      },
+      "source_paths": {
+        "replacement": "models/new/body.dmx",
+        "part_a": "models/new/a.dmx",
+        "part_b": "models/new/b.dmx",
+        "π😀": "models/身体/a.dmx"
+      },
+      "error": "Cannot expand non-array RenderMeshFile: body"
+    },
+    {
+      "name": "source_refs",
+      "operation": "references",
+      "source": "{ f=resource:\"models/body.vmdl\" x=\"models/a.dmx\" nested={ material=\"materials/a.vmat\" graph=\"models/a.vnmgraph\" not=\"HTTPS://unrelated\" number=3 } }",
+      "expected": [
+        "materials/a.vmat",
+        "models/a.dmx",
+        "models/a.vnmgraph",
+        "models/body.vmdl"
+      ]
+    },
+    {
+      "name": "suggest_reuse",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "reuse",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": [
+            "body_a",
+            "body_b"
+          ],
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_single",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "single",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": "effect",
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_disable",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "disable",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": "effect",
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_preserve",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "preserve",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": "effect",
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_custom",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "custom",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": "effect",
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_choose",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body_a",
+        "body_b",
+        "effect"
+      ],
+      "mappings": {
+        "body": [
+          "body_a",
+          "body_b"
+        ],
+        "body_lod1": "effect"
+      },
+      "strategy": "choose",
+      "expected": {
+        "mappings": {
+          "body": [
+            "body_a",
+            "body_b"
+          ],
+          "body_lod1": "effect",
+          "effect": "effect"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "suggest_auto_off",
+      "operation": "suggest",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "replacements": [
+        "body",
+        "effect"
+      ],
+      "mappings": {},
+      "strategy": "reuse",
+      "auto": false,
+      "expected": {
+        "mappings": {},
+        "unresolved": [
+          "body",
+          "body_lod1",
+          "effect"
+        ]
+      }
+    },
+    {
+      "name": "suggest_canonical_prefix",
+      "operation": "suggest",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{\n rootNode = {\n  _class = \"RootNode\"\n  children = [\n   { _class = \"RenderMeshList\" children = [\n    { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/unusual/agent/old_body.dmx\" },\n    { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/unusual/agent/old_weapon.dmx\" },\n   ] },\n   { _class = \"AttachmentList\" children = [{ _class = \"Attachment\" name = \"muzzle\" parent_bone = \"root_bone\" }] },\n   { _class = \"UnknownFutureNode\" payload = resource:\"keep/this.vdata\" note = \"A } brace // in a string\" },\n  ]\n }\n}\n",
+      "replacements": [
+        "models/random/model.vmdl_c.body",
+        "weapon"
+      ],
+      "expected": {
+        "mappings": {
+          "body": "models/random/model.vmdl_c.body",
+          "weapon": "weapon"
+        },
+        "unresolved": []
+      }
+    },
+    {
+      "name": "single_all",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },\n{ _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] }\n] }\n    ] } }"
+    },
+    {
+      "name": "single_no_all",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] }  ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] }\n] }\n    ] } }"
+    },
+    {
+      "name": "single_second",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"second_all\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },\n{ _class = \"LODGroupAll\" name = \"second_all\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] }\n] }\n    ] } }"
+    },
+    {
+      "name": "single_all_split",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": [
+          "glow_a",
+          "glow_b"
+        ]
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        { _class = \"RenderMeshFile\" name = \"effect__part01\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"glow_a\" ] }\n\n import_scale = 1.0\n},\n{ _class = \"RenderMeshFile\" name = \"effect__part02\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"glow_b\" ] }\n\n import_scale = 1.0\n}\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },\n{ _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect__part01\" enabled = true },\n{ mesh_name = \"effect__part02\" enabled = true }] }\n] }\n    ] } }"
+    },
+    {
+      "name": "single_all_disabled",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@disable"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        \n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },\n{ _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [] }\n] }\n    ] } }"
+    },
+    {
+      "name": "single_other_children",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] }, { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] }, {_class=\"FutureLodMetadata\" values=[1,2,3]}, { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"second_all\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},\n        \n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [\n{ _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },\n{ _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] },\n{_class=\"FutureLodMetadata\" values=[1,2,3]},\n{ _class = \"LODGroupAll\" name = \"second_all\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] }\n] }\n    ] } }"
+    },
+    {
+      "name": "bad_threshold",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class = \"LODGroupList\" children = [ { _class = \"LODGroup\" switch_threshold = 5 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "error": "Single LOD requires an original first group with zero switch threshold."
+    },
+    {
+      "name": "missing_lod_list",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [\n      { _class = \"RenderMeshList\" children = [\n        { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/old_body.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/old_body_lod1.dmx\" },\n        { _class = \"RenderMeshFile\" name = \"effect\" filename = \"models/old_effect.dmx\" }\n      ] },\n      { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n      { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n      { _class = \"Attachment\" name = \"eyes\" parent_bone = \"root\" },\n      { _class=\"Other\" children = [ { _class = \"LODGroup\" switch_threshold = 0 name = \"high\" mesh_references = [{ mesh_name = \"body\" }] },  { _class = \"LODGroup\" switch_threshold = 40 name = \"low\" mesh_references = [{ mesh_name = \"body_lod1\" }] } , { _class = \"LODGroupAll\" name = \"every_level\" mesh_references = [{ mesh_name = \"effect\" enabled = true }] } ] }\n    ] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [\n  { _class = \"Skeleton\" children = [{ _class = \"Bone\" name = \"root\" do_not_discard = true }] },\n  { _class = \"BoneMarkupList\" bone_cull_type = \"None\" },\n  { _class = \"RenderMeshFile\" name = \"body\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"replacement\"] } },\n  { _class = \"RenderMeshFile\" name = \"effect\" import_scale = 1.0\n    import_filter = { exclude_by_default = true exception_list = [\"new_effect\"] } }\n] } }",
+      "mappings": {
+        "body": "replacement",
+        "body_lod1": "@disable",
+        "effect": "@keep"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "single",
+      "error": "Single LOD strategy requires one original LODGroupList."
+    },
+    {
+      "name": "aliases_hash_authorized",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"Aggressive\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"$cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"$cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] } import_scale = 1.0 },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "reuse",
+      "original_report": {
+        "compiled_sha256": "abababababababababababababababababababababababababababababababab",
+        "runtime_motion": {
+          "status": "audited",
+          "resource_sha256": "abababababababababababababababababababababababababababababababab",
+          "skeleton": {
+            "m_boneName": [
+              "root_motion",
+              "pelvis",
+              "$cloth_solver",
+              "$cloth_tip"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              -1,
+              2
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              4194312,
+              4194312
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "expected": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/replacement.dmx\" \n import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] }\n\n import_scale = 1.0\n},{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }"
+    },
+    {
+      "name": "aliases_no_authority",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"Aggressive\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"$cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"$cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] } import_scale = 1.0 },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "reuse",
+      "error": "Compile template bone/hierarchy does not match original hero: $cloth_solver (bone is missing from the source skeleton)"
+    },
+    {
+      "name": "stale_hash",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"Aggressive\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"$cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"$cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] } import_scale = 1.0 },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "reuse",
+      "original_report": {
+        "compiled_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "runtime_motion": {
+          "status": "audited",
+          "resource_sha256": "abababababababababababababababababababababababababababababababab",
+          "skeleton": {
+            "m_boneName": [
+              "root_motion",
+              "pelvis",
+              "$cloth_solver",
+              "$cloth_tip"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              -1,
+              2
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              4194312,
+              4194312
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "error": "Source skeleton export aliases require an audit of the same original compiled model."
+    },
+    {
+      "name": "wrong_flags",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"Aggressive\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"$cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"$cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] } import_scale = 1.0 },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "reuse",
+      "original_report": {
+        "compiled_sha256": "abababababababababababababababababababababababababababababababab",
+        "runtime_motion": {
+          "status": "audited",
+          "resource_sha256": "abababababababababababababababababababababababababababababababab",
+          "skeleton": {
+            "m_boneName": [
+              "root_motion",
+              "pelvis",
+              "$cloth_solver",
+              "$cloth_tip"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              -1,
+              2
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "error": "Compile template bone/hierarchy does not match original hero: $cloth_solver (bone is missing from the source skeleton)"
+    },
+    {
+      "name": "bad_parent",
+      "operation": "merge",
+      "source": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [ { _class = \"Bone\" name = \"_cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] } ] }, { _class = \"Bone\" name = \"_cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = false children = [  ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"Aggressive\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "template": "{ rootNode = { _class = \"RootNode\" children = [{ _class = \"Skeleton\" children = [ { _class = \"Bone\" name = \"root_motion\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"pelvis\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] }, { _class = \"Bone\" name = \"$cloth_solver\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [ { _class = \"Bone\" name = \"$cloth_tip\" origin = [ 1.125, 2.25, 3.5 ] angles = [ 4, 5, 6 ] scale = 1.00002 do_not_discard = true children = [  ] } ] } ] },{ _class = \"BoneMarkupList\" bone_cull_type = \"None\" },{ _class = \"RenderMeshFile\" name = \"body\" filename = \"models/original.dmx\" import_filter = { exclude_by_default = true exception_list = [ \"replacement\" ] } import_scale = 1.0 },{ _class = \"Attachment\" name = \"cloth_anchor\" parent_bone = \"_cloth_solver\" origin = [ 7, 8, 9 ] },{ _class = \"AnimFile\" name = \"idle\" filename = \"models/idle.dmx\" }] } }",
+      "mappings": {
+        "body": "replacement"
+      },
+      "source_path": "models/replacement.dmx",
+      "strategy": "reuse",
+      "original_report": {
+        "compiled_sha256": "abababababababababababababababababababababababababababababababab",
+        "runtime_motion": {
+          "status": "audited",
+          "resource_sha256": "abababababababababababababababababababababababababababababababab",
+          "skeleton": {
+            "m_boneName": [
+              "root_motion",
+              "pelvis",
+              "$cloth_solver",
+              "$cloth_tip"
+            ],
+            "m_nParent": [
+              -1,
+              0,
+              -1,
+              2
+            ],
+            "m_nFlag": [
+              64,
+              64,
+              4194312,
+              4194312
+            ],
+            "m_bonePosParent": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ],
+            "m_boneRotParent": [
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "m_boneScaleParent": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "error": "Compile template bone/hierarchy does not match original hero: $cloth_tip (template parent '$cloth_solver', source parent 'pelvis')"
+    },
+    {
+      "name": "plan_28_None",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": null,
+      "expected": {
+        "source_format": 28,
+        "temporary_file_format": 28,
+        "compiler_target": null,
+        "conversion": "pending_compiler_detection",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_28_40",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 40,
+      "expected": {
+        "source_format": 28,
+        "temporary_file_format": 28,
+        "compiler_target": 40,
+        "conversion": "valve_native_loader",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_28_41",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 41,
+      "expected": {
+        "source_format": 28,
+        "temporary_file_format": 28,
+        "compiler_target": 41,
+        "conversion": "valve_native_loader",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_32_None",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": null,
+      "expected": {
+        "source_format": 32,
+        "temporary_file_format": 32,
+        "compiler_target": null,
+        "conversion": "pending_compiler_detection",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_32_40",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 40,
+      "expected": {
+        "source_format": 32,
+        "temporary_file_format": 32,
+        "compiler_target": 40,
+        "conversion": "valve_native_loader",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_32_41",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 41,
+      "expected": {
+        "source_format": 32,
+        "temporary_file_format": 32,
+        "compiler_target": 41,
+        "conversion": "valve_native_loader",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_40_None",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc40:version{da0ab1f8-9722-4910-94b8-10b6a08c0934} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": null,
+      "expected": {
+        "source_format": 40,
+        "temporary_file_format": 40,
+        "compiler_target": null,
+        "conversion": "pending_compiler_detection",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_40_40",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc40:version{da0ab1f8-9722-4910-94b8-10b6a08c0934} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 40,
+      "expected": {
+        "source_format": 40,
+        "temporary_file_format": 40,
+        "compiler_target": 40,
+        "conversion": "none",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_40_41",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc40:version{da0ab1f8-9722-4910-94b8-10b6a08c0934} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 41,
+      "expected": {
+        "source_format": 40,
+        "temporary_file_format": 40,
+        "compiler_target": 41,
+        "conversion": "valve_native_loader",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_41_None",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc41:version{12fc9d44-453a-4ae4-b4d9-7e2ac0bbd4e0} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": null,
+      "expected": {
+        "source_format": 41,
+        "temporary_file_format": 41,
+        "compiler_target": null,
+        "conversion": "pending_compiler_detection",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "plan_41_40",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc41:version{12fc9d44-453a-4ae4-b4d9-7e2ac0bbd4e0} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 40,
+      "error": "Unsupported ModelDoc41 → ModelDoc40 downgrade. Use the original/decompiled source or a compiler that supports the source revision. The builder will not relabel or discard newer features."
+    },
+    {
+      "name": "plan_41_41",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc41:version{12fc9d44-453a-4ae4-b4d9-7e2ac0bbd4e0} -->\n{rootNode={_class=\"RootNode\" children=[{_class=\"Future\" thing=#[00ff]}]}}",
+      "target": 41,
+      "expected": {
+        "source_format": 41,
+        "temporary_file_format": 41,
+        "compiler_target": 41,
+        "conversion": "none",
+        "header_rewritten": false,
+        "structure_rewritten_for_format": false,
+        "classes": {
+          "Future": 1,
+          "RootNode": 1
+        },
+        "native_migration_verified": false
+      }
+    },
+    {
+      "name": "wrong_guid",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc40:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode={_class=\"RootNode\" children=[]}}",
+      "target": 40,
+      "error": "Unsupported ModelDoc40 source format/GUID; refusing an unreviewed conversion."
+    },
+    {
+      "name": "bad_root",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode=[]}",
+      "target": 40,
+      "error": "ModelDoc source has no RootNode."
+    },
+    {
+      "name": "bad_children",
+      "operation": "plan",
+      "source": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{rootNode={_class=\"RootNode\" children={}}}",
+      "target": 40,
+      "error": "ModelDoc RootNode must have a children array."
+    },
+    {
+      "name": "diagnostic_52",
+      "operation": "diagnostic",
+      "output": "ParticleFloatType_t\nMismatch - Member Count",
+      "expected": "Compiler startup schema mismatch (ParticleFloatType_t). This happens before VMDL loading; changing ModelDoc headers or the DMX cannot fix it. Select a compatible binary family. This diagnostic does not imply mixed DLL directories or PATH contamination."
+    },
+    {
+      "name": "diagnostic_53",
+      "operation": "diagnostic",
+      "output": "No valid format conversion from 'modeldoc41' to 'modeldoc40'",
+      "expected": "Compiler/source format mismatch: modeldoc41 cannot be converted by this ModelDoc40 loader."
+    },
+    {
+      "name": "diagnostic_54",
+      "operation": "diagnostic",
+      "output": "WARNING: Unknown class NmSkeletonReference",
+      "expected": "Native ModelDoc class registration failed: NmSkeletonReference. A loaded animationsystem.dll or modeldoc_utils.dll does not establish these node factories. Use Setup → Scan ModelDoc classes to inspect the actual binary family, then select a compatible model toolset. Required skeleton/AG2 nodes are retained; this is not a DMX or material error."
+    },
+    {
+      "name": "diagnostic_55",
+      "operation": "diagnostic",
+      "output": "NmSkeletonList class not registered\nAnimGraph2List class not registered",
+      "expected": "Native ModelDoc class registration failed: AnimGraph2List, NmSkeletonList. A loaded animationsystem.dll or modeldoc_utils.dll does not establish these node factories. Use Setup → Scan ModelDoc classes to inspect the actual binary family, then select a compatible model toolset. Required skeleton/AG2 nodes are retained; this is not a DMX or material error."
+    },
+    {
+      "name": "diagnostic_56",
+      "operation": "diagnostic",
+      "output": "Unknown attribute x",
+      "expected": "Compiler rejected a ModelDoc node or property. Required source features must not be silently discarded."
+    },
+    {
+      "name": "diagnostic_57",
+      "operation": "diagnostic",
+      "output": "Mesh is too large and uses GPU Animated Vertex Cache\nRenderMesh: body\nVertex Count: 612345",
+      "expected": "Animated vertex-cache limit exceeded (524,288). Render node 'body'. Valve reports 612,345 compiled vertices. Enable Automatically split safely (default 400,000 conservative vertices), or export separate skinned meshes and use Select multiple in mesh mapping. Aim below about 450,000 vertices per manual piece, allowing for attribute seams. Keep skinning enabled; never use DiscardSkeleton for an animated hero body."
+    },
+    {
+      "name": "diagnostic_58",
+      "operation": "diagnostic",
+      "output": "everything okay",
+      "expected": null
+    },
+    {
+      "name": "isolated_59",
+      "operation": "isolated",
+      "hero_root": "models/heroes/test",
+      "source_name": "body",
+      "expected": "models/heroes/test/dmx/builder_body_230d8358.dmx"
+    },
+    {
+      "name": "isolated_60",
+      "operation": "isolated",
+      "hero_root": "models/heroes/test",
+      "source_name": "models/foo.vmdl_c.body",
+      "expected": "models/heroes/test/dmx/builder_models_foo_vmdl_c_body_479a42c8.dmx"
+    },
+    {
+      "name": "isolated_61",
+      "operation": "isolated",
+      "hero_root": "models/heroes/test",
+      "source_name": "π😀 very long π😀 very long π😀 very long π😀 very long π😀 very long π😀 very long π😀 very long π😀 very long ",
+      "expected": "models/heroes/test/dmx/builder____very_long____very_long____very_long____very_long_____05ae298c.dmx"
+    },
+    {
+      "name": "isolated_62",
+      "operation": "isolated",
+      "hero_root": "models/heroes/test",
+      "source_name": "",
+      "expected": "models/heroes/test/dmx/builder_mesh_e3b0c442.dmx"
+    },
+    {
+      "name": "split_above_99_order",
+      "operation": "patch",
+      "source": "{ meshes=[{_class=\"RenderMeshFile\" name=\"body\" filename=\"old.dmx\"}] refs=[{mesh_name=\"body\"}] }",
+      "mappings": {
+        "body": [
+          "piece1",
+          "piece2",
+          "piece3",
+          "piece4",
+          "piece5",
+          "piece6",
+          "piece7",
+          "piece8",
+          "piece9",
+          "piece10",
+          "piece11",
+          "piece12",
+          "piece13",
+          "piece14",
+          "piece15",
+          "piece16",
+          "piece17",
+          "piece18",
+          "piece19",
+          "piece20",
+          "piece21",
+          "piece22",
+          "piece23",
+          "piece24",
+          "piece25",
+          "piece26",
+          "piece27",
+          "piece28",
+          "piece29",
+          "piece30",
+          "piece31",
+          "piece32",
+          "piece33",
+          "piece34",
+          "piece35",
+          "piece36",
+          "piece37",
+          "piece38",
+          "piece39",
+          "piece40",
+          "piece41",
+          "piece42",
+          "piece43",
+          "piece44",
+          "piece45",
+          "piece46",
+          "piece47",
+          "piece48",
+          "piece49",
+          "piece50",
+          "piece51",
+          "piece52",
+          "piece53",
+          "piece54",
+          "piece55",
+          "piece56",
+          "piece57",
+          "piece58",
+          "piece59",
+          "piece60",
+          "piece61",
+          "piece62",
+          "piece63",
+          "piece64",
+          "piece65",
+          "piece66",
+          "piece67",
+          "piece68",
+          "piece69",
+          "piece70",
+          "piece71",
+          "piece72",
+          "piece73",
+          "piece74",
+          "piece75",
+          "piece76",
+          "piece77",
+          "piece78",
+          "piece79",
+          "piece80",
+          "piece81",
+          "piece82",
+          "piece83",
+          "piece84",
+          "piece85",
+          "piece86",
+          "piece87",
+          "piece88",
+          "piece89",
+          "piece90",
+          "piece91",
+          "piece92",
+          "piece93",
+          "piece94",
+          "piece95",
+          "piece96",
+          "piece97",
+          "piece98",
+          "piece99",
+          "piece100",
+          "piece101",
+          "piece102",
+          "piece103"
+        ]
+      },
+      "source_paths": {
+        "piece1": "models/piece1.dmx",
+        "piece2": "models/piece2.dmx",
+        "piece3": "models/piece3.dmx",
+        "piece4": "models/piece4.dmx",
+        "piece5": "models/piece5.dmx",
+        "piece6": "models/piece6.dmx",
+        "piece7": "models/piece7.dmx",
+        "piece8": "models/piece8.dmx",
+        "piece9": "models/piece9.dmx",
+        "piece10": "models/piece10.dmx",
+        "piece11": "models/piece11.dmx",
+        "piece12": "models/piece12.dmx",
+        "piece13": "models/piece13.dmx",
+        "piece14": "models/piece14.dmx",
+        "piece15": "models/piece15.dmx",
+        "piece16": "models/piece16.dmx",
+        "piece17": "models/piece17.dmx",
+        "piece18": "models/piece18.dmx",
+        "piece19": "models/piece19.dmx",
+        "piece20": "models/piece20.dmx",
+        "piece21": "models/piece21.dmx",
+        "piece22": "models/piece22.dmx",
+        "piece23": "models/piece23.dmx",
+        "piece24": "models/piece24.dmx",
+        "piece25": "models/piece25.dmx",
+        "piece26": "models/piece26.dmx",
+        "piece27": "models/piece27.dmx",
+        "piece28": "models/piece28.dmx",
+        "piece29": "models/piece29.dmx",
+        "piece30": "models/piece30.dmx",
+        "piece31": "models/piece31.dmx",
+        "piece32": "models/piece32.dmx",
+        "piece33": "models/piece33.dmx",
+        "piece34": "models/piece34.dmx",
+        "piece35": "models/piece35.dmx",
+        "piece36": "models/piece36.dmx",
+        "piece37": "models/piece37.dmx",
+        "piece38": "models/piece38.dmx",
+        "piece39": "models/piece39.dmx",
+        "piece40": "models/piece40.dmx",
+        "piece41": "models/piece41.dmx",
+        "piece42": "models/piece42.dmx",
+        "piece43": "models/piece43.dmx",
+        "piece44": "models/piece44.dmx",
+        "piece45": "models/piece45.dmx",
+        "piece46": "models/piece46.dmx",
+        "piece47": "models/piece47.dmx",
+        "piece48": "models/piece48.dmx",
+        "piece49": "models/piece49.dmx",
+        "piece50": "models/piece50.dmx",
+        "piece51": "models/piece51.dmx",
+        "piece52": "models/piece52.dmx",
+        "piece53": "models/piece53.dmx",
+        "piece54": "models/piece54.dmx",
+        "piece55": "models/piece55.dmx",
+        "piece56": "models/piece56.dmx",
+        "piece57": "models/piece57.dmx",
+        "piece58": "models/piece58.dmx",
+        "piece59": "models/piece59.dmx",
+        "piece60": "models/piece60.dmx",
+        "piece61": "models/piece61.dmx",
+        "piece62": "models/piece62.dmx",
+        "piece63": "models/piece63.dmx",
+        "piece64": "models/piece64.dmx",
+        "piece65": "models/piece65.dmx",
+        "piece66": "models/piece66.dmx",
+        "piece67": "models/piece67.dmx",
+        "piece68": "models/piece68.dmx",
+        "piece69": "models/piece69.dmx",
+        "piece70": "models/piece70.dmx",
+        "piece71": "models/piece71.dmx",
+        "piece72": "models/piece72.dmx",
+        "piece73": "models/piece73.dmx",
+        "piece74": "models/piece74.dmx",
+        "piece75": "models/piece75.dmx",
+        "piece76": "models/piece76.dmx",
+        "piece77": "models/piece77.dmx",
+        "piece78": "models/piece78.dmx",
+        "piece79": "models/piece79.dmx",
+        "piece80": "models/piece80.dmx",
+        "piece81": "models/piece81.dmx",
+        "piece82": "models/piece82.dmx",
+        "piece83": "models/piece83.dmx",
+        "piece84": "models/piece84.dmx",
+        "piece85": "models/piece85.dmx",
+        "piece86": "models/piece86.dmx",
+        "piece87": "models/piece87.dmx",
+        "piece88": "models/piece88.dmx",
+        "piece89": "models/piece89.dmx",
+        "piece90": "models/piece90.dmx",
+        "piece91": "models/piece91.dmx",
+        "piece92": "models/piece92.dmx",
+        "piece93": "models/piece93.dmx",
+        "piece94": "models/piece94.dmx",
+        "piece95": "models/piece95.dmx",
+        "piece96": "models/piece96.dmx",
+        "piece97": "models/piece97.dmx",
+        "piece98": "models/piece98.dmx",
+        "piece99": "models/piece99.dmx",
+        "piece100": "models/piece100.dmx",
+        "piece101": "models/piece101.dmx",
+        "piece102": "models/piece102.dmx",
+        "piece103": "models/piece103.dmx"
+      },
+      "expected": "{ meshes=[{_class=\"RenderMeshFile\" name=\"body__part01\" filename=\"models/piece1.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece1\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part02\" filename=\"models/piece2.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece2\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part03\" filename=\"models/piece3.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece3\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part04\" filename=\"models/piece4.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece4\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part05\" filename=\"models/piece5.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece5\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part06\" filename=\"models/piece6.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece6\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part07\" filename=\"models/piece7.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece7\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part08\" filename=\"models/piece8.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece8\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part09\" filename=\"models/piece9.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece9\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part10\" filename=\"models/piece10.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece10\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part11\" filename=\"models/piece11.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece11\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part12\" filename=\"models/piece12.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece12\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part13\" filename=\"models/piece13.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece13\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part14\" filename=\"models/piece14.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece14\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part15\" filename=\"models/piece15.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece15\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part16\" filename=\"models/piece16.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece16\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part17\" filename=\"models/piece17.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece17\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part18\" filename=\"models/piece18.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece18\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part19\" filename=\"models/piece19.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece19\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part20\" filename=\"models/piece20.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece20\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part21\" filename=\"models/piece21.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece21\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part22\" filename=\"models/piece22.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece22\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part23\" filename=\"models/piece23.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece23\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part24\" filename=\"models/piece24.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece24\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part25\" filename=\"models/piece25.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece25\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part26\" filename=\"models/piece26.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece26\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part27\" filename=\"models/piece27.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece27\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part28\" filename=\"models/piece28.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece28\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part29\" filename=\"models/piece29.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece29\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part30\" filename=\"models/piece30.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece30\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part31\" filename=\"models/piece31.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece31\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part32\" filename=\"models/piece32.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece32\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part33\" filename=\"models/piece33.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece33\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part34\" filename=\"models/piece34.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece34\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part35\" filename=\"models/piece35.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece35\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part36\" filename=\"models/piece36.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece36\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part37\" filename=\"models/piece37.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece37\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part38\" filename=\"models/piece38.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece38\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part39\" filename=\"models/piece39.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece39\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part40\" filename=\"models/piece40.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece40\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part41\" filename=\"models/piece41.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece41\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part42\" filename=\"models/piece42.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece42\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part43\" filename=\"models/piece43.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece43\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part44\" filename=\"models/piece44.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece44\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part45\" filename=\"models/piece45.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece45\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part46\" filename=\"models/piece46.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece46\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part47\" filename=\"models/piece47.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece47\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part48\" filename=\"models/piece48.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece48\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part49\" filename=\"models/piece49.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece49\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part50\" filename=\"models/piece50.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece50\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part51\" filename=\"models/piece51.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece51\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part52\" filename=\"models/piece52.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece52\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part53\" filename=\"models/piece53.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece53\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part54\" filename=\"models/piece54.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece54\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part55\" filename=\"models/piece55.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece55\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part56\" filename=\"models/piece56.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece56\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part57\" filename=\"models/piece57.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece57\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part58\" filename=\"models/piece58.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece58\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part59\" filename=\"models/piece59.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece59\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part60\" filename=\"models/piece60.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece60\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part61\" filename=\"models/piece61.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece61\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part62\" filename=\"models/piece62.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece62\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part63\" filename=\"models/piece63.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece63\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part64\" filename=\"models/piece64.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece64\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part65\" filename=\"models/piece65.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece65\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part66\" filename=\"models/piece66.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece66\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part67\" filename=\"models/piece67.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece67\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part68\" filename=\"models/piece68.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece68\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part69\" filename=\"models/piece69.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece69\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part70\" filename=\"models/piece70.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece70\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part71\" filename=\"models/piece71.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece71\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part72\" filename=\"models/piece72.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece72\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part73\" filename=\"models/piece73.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece73\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part74\" filename=\"models/piece74.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece74\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part75\" filename=\"models/piece75.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece75\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part76\" filename=\"models/piece76.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece76\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part77\" filename=\"models/piece77.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece77\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part78\" filename=\"models/piece78.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece78\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part79\" filename=\"models/piece79.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece79\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part80\" filename=\"models/piece80.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece80\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part81\" filename=\"models/piece81.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece81\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part82\" filename=\"models/piece82.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece82\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part83\" filename=\"models/piece83.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece83\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part84\" filename=\"models/piece84.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece84\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part85\" filename=\"models/piece85.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece85\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part86\" filename=\"models/piece86.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece86\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part87\" filename=\"models/piece87.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece87\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part88\" filename=\"models/piece88.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece88\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part89\" filename=\"models/piece89.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece89\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part90\" filename=\"models/piece90.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece90\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part91\" filename=\"models/piece91.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece91\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part92\" filename=\"models/piece92.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece92\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part93\" filename=\"models/piece93.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece93\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part94\" filename=\"models/piece94.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece94\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part95\" filename=\"models/piece95.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece95\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part96\" filename=\"models/piece96.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece96\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part97\" filename=\"models/piece97.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece97\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part98\" filename=\"models/piece98.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece98\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part99\" filename=\"models/piece99.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece99\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part100\" filename=\"models/piece100.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece100\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part101\" filename=\"models/piece101.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece101\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part102\" filename=\"models/piece102.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece102\" ] }\n},\n{_class=\"RenderMeshFile\" name=\"body__part103\" filename=\"models/piece103.dmx\"\n import_filter = { exclude_by_default = true exception_list = [ \"piece103\" ] }\n}] refs=[{mesh_name=\"body__part01\"},\n{mesh_name=\"body__part02\"},\n{mesh_name=\"body__part03\"},\n{mesh_name=\"body__part04\"},\n{mesh_name=\"body__part05\"},\n{mesh_name=\"body__part06\"},\n{mesh_name=\"body__part07\"},\n{mesh_name=\"body__part08\"},\n{mesh_name=\"body__part09\"},\n{mesh_name=\"body__part10\"},\n{mesh_name=\"body__part11\"},\n{mesh_name=\"body__part12\"},\n{mesh_name=\"body__part13\"},\n{mesh_name=\"body__part14\"},\n{mesh_name=\"body__part15\"},\n{mesh_name=\"body__part16\"},\n{mesh_name=\"body__part17\"},\n{mesh_name=\"body__part18\"},\n{mesh_name=\"body__part19\"},\n{mesh_name=\"body__part20\"},\n{mesh_name=\"body__part21\"},\n{mesh_name=\"body__part22\"},\n{mesh_name=\"body__part23\"},\n{mesh_name=\"body__part24\"},\n{mesh_name=\"body__part25\"},\n{mesh_name=\"body__part26\"},\n{mesh_name=\"body__part27\"},\n{mesh_name=\"body__part28\"},\n{mesh_name=\"body__part29\"},\n{mesh_name=\"body__part30\"},\n{mesh_name=\"body__part31\"},\n{mesh_name=\"body__part32\"},\n{mesh_name=\"body__part33\"},\n{mesh_name=\"body__part34\"},\n{mesh_name=\"body__part35\"},\n{mesh_name=\"body__part36\"},\n{mesh_name=\"body__part37\"},\n{mesh_name=\"body__part38\"},\n{mesh_name=\"body__part39\"},\n{mesh_name=\"body__part40\"},\n{mesh_name=\"body__part41\"},\n{mesh_name=\"body__part42\"},\n{mesh_name=\"body__part43\"},\n{mesh_name=\"body__part44\"},\n{mesh_name=\"body__part45\"},\n{mesh_name=\"body__part46\"},\n{mesh_name=\"body__part47\"},\n{mesh_name=\"body__part48\"},\n{mesh_name=\"body__part49\"},\n{mesh_name=\"body__part50\"},\n{mesh_name=\"body__part51\"},\n{mesh_name=\"body__part52\"},\n{mesh_name=\"body__part53\"},\n{mesh_name=\"body__part54\"},\n{mesh_name=\"body__part55\"},\n{mesh_name=\"body__part56\"},\n{mesh_name=\"body__part57\"},\n{mesh_name=\"body__part58\"},\n{mesh_name=\"body__part59\"},\n{mesh_name=\"body__part60\"},\n{mesh_name=\"body__part61\"},\n{mesh_name=\"body__part62\"},\n{mesh_name=\"body__part63\"},\n{mesh_name=\"body__part64\"},\n{mesh_name=\"body__part65\"},\n{mesh_name=\"body__part66\"},\n{mesh_name=\"body__part67\"},\n{mesh_name=\"body__part68\"},\n{mesh_name=\"body__part69\"},\n{mesh_name=\"body__part70\"},\n{mesh_name=\"body__part71\"},\n{mesh_name=\"body__part72\"},\n{mesh_name=\"body__part73\"},\n{mesh_name=\"body__part74\"},\n{mesh_name=\"body__part75\"},\n{mesh_name=\"body__part76\"},\n{mesh_name=\"body__part77\"},\n{mesh_name=\"body__part78\"},\n{mesh_name=\"body__part79\"},\n{mesh_name=\"body__part80\"},\n{mesh_name=\"body__part81\"},\n{mesh_name=\"body__part82\"},\n{mesh_name=\"body__part83\"},\n{mesh_name=\"body__part84\"},\n{mesh_name=\"body__part85\"},\n{mesh_name=\"body__part86\"},\n{mesh_name=\"body__part87\"},\n{mesh_name=\"body__part88\"},\n{mesh_name=\"body__part89\"},\n{mesh_name=\"body__part90\"},\n{mesh_name=\"body__part91\"},\n{mesh_name=\"body__part92\"},\n{mesh_name=\"body__part93\"},\n{mesh_name=\"body__part94\"},\n{mesh_name=\"body__part95\"},\n{mesh_name=\"body__part96\"},\n{mesh_name=\"body__part97\"},\n{mesh_name=\"body__part98\"},\n{mesh_name=\"body__part99\"},\n{mesh_name=\"body__part100\"},\n{mesh_name=\"body__part101\"},\n{mesh_name=\"body__part102\"},\n{mesh_name=\"body__part103\"}] }"
+    },
+    {
+      "name": "equipment_weapon",
+      "operation": "equipment",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon",
+              "action": "replace",
+              "sources": [
+                "replacement"
+              ]
+            }
+          ]
+        }
+      },
+      "source_names": [
+        "replacement"
+      ],
+      "expected": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "replacement",
+        "weapon_lod1": "replacement"
+      }
+    },
+    {
+      "name": "equipment_hide_lods",
+      "operation": "equipment",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon_lod1",
+              "action": "hide"
+            }
+          ]
+        }
+      },
+      "source_names": [
+        "replacement"
+      ],
+      "expected": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@disable",
+        "weapon_lod1": "@disable"
+      }
+    },
+    {
+      "name": "equipment_conflict",
+      "operation": "equipment",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon",
+              "action": "hide"
+            },
+            {
+              "target": "weapon_lod1",
+              "action": "keep"
+            }
+          ]
+        }
+      },
+      "source_names": [
+        "replacement"
+      ],
+      "error": "Equipment choices conflict across the LOD family: weapon"
+    },
+    {
+      "name": "equipment_all_hidden",
+      "operation": "equipment",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "body",
+              "action": "hide"
+            },
+            {
+              "target": "weapon",
+              "action": "hide"
+            }
+          ]
+        }
+      },
+      "source_names": [
+        "replacement"
+      ],
+      "error": "Keep at least one visible character mesh."
+    },
+    {
+      "name": "equipment_missing_source",
+      "operation": "equipment",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "mappings": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon",
+              "action": "replace",
+              "sources": [
+                "missing"
+              ]
+            }
+          ]
+        }
+      },
+      "source_names": [
+        "replacement"
+      ],
+      "error": "Equipment mesh is not present in the prepared model: missing"
+    },
+    {
+      "name": "equipment_project_does_not_bake",
+      "operation": "equipment_project",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "baseline": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "effective": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@disable",
+        "weapon_lod1": "@disable"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon",
+              "action": "hide"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      }
+    },
+    {
+      "name": "equipment_project_rejects_conflict",
+      "operation": "equipment_project",
+      "source": "{ rootNode = { children = [\n { _class = \"RenderMeshList\" children = [\n  { _class = \"RenderMeshFile\" name = \"body\" filename = \"models/body.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"body_lod1\" filename = \"models/body_lod1.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon\" filename = \"models/weapon.dmx\" },\n  { _class = \"RenderMeshFile\" name = \"weapon_lod1\" filename = \"models/weapon_lod1.dmx\" }\n ] },\n { _class = \"BodyGroupList\" children = [\n  { _class = \"BodyGroup\" name = \"Weapon\" children = [\n   { _class = \"BodyGroupChoice\" name = \"on\" meshes = [\"weapon\", \"weapon_lod1\"] custom = { flags = 7 } },\n   { _class = \"BodyGroupChoice\" name = \"off\" meshes = [] }\n  ] },\n  { _class = \"BodyGroup\" name = \"Body\" children = [\n   { _class = \"BodyGroupChoice\" name = \"body\" meshes = [\"body\", \"body_lod1\"] }\n  ] }\n ] },\n { _class = \"LODGroupList\" children = [\n  { _class = \"LODGroup\" switch_threshold = 0 mesh_references = [{mesh_name=\"body\"}, {mesh_name=\"weapon\"}] },\n  { _class = \"LODGroup\" switch_threshold = 20 mesh_references = [{mesh_name=\"body_lod1\"}, {mesh_name=\"weapon_lod1\"}] }\n ] },\n { _class = \"Attachment\" name = \"gun_mount\" parent_bone = \"hand_R\" },\n { _class = \"CustomHeroNode\" metadata = { preserved = true } }\n] } }",
+      "baseline": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "@keep",
+        "weapon_lod1": "@keep"
+      },
+      "effective": {
+        "body": "@keep",
+        "body_lod1": "@keep",
+        "weapon": "replacement",
+        "weapon_lod1": "@disable"
+      },
+      "state": {
+        "enabled": true,
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "weapon",
+              "action": "hide"
+            }
+          ]
+        }
+      },
+      "error": "This mesh is controlled by Equipment. Change or remove its Equipment choice before editing the legacy mesh mapping: weapon"
+    }
+  ]
+}

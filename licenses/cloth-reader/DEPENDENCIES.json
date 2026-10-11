@@ -1,0 +1,260 @@
+{
+  "parser": "ValveResourceFormat 20.0.6980",
+  "runtime": ".NET 10.0.12",
+  "sdk": "10.0.100",
+  "dependencies": [
+    {
+      "id": "ValveResourceFormat",
+      "version": "20.0.6980",
+      "nuget_content_sha512_base64": "MUP5FTJsnYhDdYJ8S10WW9vMriyzHxG7P2ArrXpJtmvSfg+K5oOb3Veuv29DJ5j9u+k3SlmDm5CGvvvJaLnZsw==",
+      "authors": "ValveResourceFormat Contributors",
+      "copyright": "Copyright \u00a9 ValveResourceFormat Contributors",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/ValveResourceFormat/ValveResourceFormat",
+        "commit": "a06886f7d06049052d32a7381ec05523064a2ca0"
+      }
+    },
+    {
+      "id": "Blake3",
+      "version": "3.0.2",
+      "nuget_content_sha512_base64": "THvWhdj8ErSdrGamTqjshCU1ImANfr7ieKY6eFqeMsRenvXEKut9qGm5/MA4SUk8IYvAahf67jSh0yVj9jTPzg==",
+      "authors": "Alexandre Mutel",
+      "copyright": "Alexandre Mutel",
+      "license": "BSD-2-Clause",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/xoofx/Blake3.NET",
+        "commit": "bc622edf7faa06d1a63c0f2f165c5f7c567a2e32"
+      }
+    },
+    {
+      "id": "K4os.Compression.LZ4",
+      "version": "1.3.8",
+      "nuget_content_sha512_base64": "LhwlPa7c1zs1OV2XadMtAWdImjLIsqFJPoRcIWAadSRn0Ri1DepK65UbWLPmt4riLqx2d40xjXRk0ogpqNtK7g==",
+      "authors": "Milosz Krajewski",
+      "copyright": "Milosz Krajewski",
+      "license": "https://github.com/MiloszKrajewski/K4os.Compression.LZ4/blob/master/LICENSE?raw=true",
+      "repository": {
+        "url": "https://github.com/MiloszKrajewski/K4os.Compression.LZ4"
+      }
+    },
+    {
+      "id": "KeyValues2",
+      "version": "0.8.0",
+      "nuget_content_sha512_base64": "B6QSRGR32KJibr4XiVTUW2taJmVMNwhhREFtZ8WUg/bEv8hwOlLDAcUpPgZVewTplR2T1Tl0J5o4ZkwPt7aOiA==",
+      "authors": "Datamodel.NET",
+      "copyright": null,
+      "license": "COPYING",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/kristiker/Datamodel.NET.git",
+        "commit": "d06da8dd6bf351171dd448288f7ff945754054c9"
+      }
+    },
+    {
+      "id": "SharpGLTF.Core",
+      "version": "1.0.6",
+      "nuget_content_sha512_base64": "m3qIvUnpvRRfQ0fp0TFfpPk+vsHkCIOf/uIVJ19fe9dwa29KCO/PeHVXKAph8nsFxFLXitTIIqCa5W8JGLMhBg==",
+      "authors": "Vicente Penades",
+      "copyright": "Copyright (c) 2025 Vicente Penades",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/vpenades/SharpGLTF",
+        "commit": "5153478a209ca2e276d8092f7166ff9d7ae4974f"
+      }
+    },
+    {
+      "id": "SharpGLTF.Runtime",
+      "version": "1.0.6",
+      "nuget_content_sha512_base64": "MVb0p0gzwnjHB03b0kMhf9bVUd6gSvs/jBpTkL6rMa0RtzSGARbCvZkpGbHXjxgSTncprEuzV4nAaaAucifc3Q==",
+      "authors": "Vicente Penades",
+      "copyright": "Copyright (c) 2025 Vicente Penades",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/vpenades/SharpGLTF",
+        "commit": "5153478a209ca2e276d8092f7166ff9d7ae4974f"
+      }
+    },
+    {
+      "id": "SharpGLTF.Toolkit",
+      "version": "1.0.6",
+      "nuget_content_sha512_base64": "wb9Ebb4uwXevL4WiLlry29RWIYlxa+NiAa0BB8iSR7VbmgSa5Ij/QaPNlKi1jjA4oL8aEygg5V76zY1SJfIS+Q==",
+      "authors": "Vicente Penades",
+      "copyright": "Copyright (c) 2025 Vicente Penades",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/vpenades/SharpGLTF",
+        "commit": "5153478a209ca2e276d8092f7166ff9d7ae4974f"
+      }
+    },
+    {
+      "id": "SkiaSharp",
+      "version": "4.151.1",
+      "nuget_content_sha512_base64": "FNlVsGZ9to3o9pObVqhIZanHjUGOoPb/Zxk5svCSLMJnKwxPKV7sIJrjs9BpB/jF3j9OdsaMOb4cfwSJbjueSw==",
+      "authors": "Microsoft",
+      "copyright": "\u00a9 Microsoft Corporation. All rights reserved.",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "branch": "release/4.151.1",
+        "commit": "279f93f4ffa7f9fe4e9c0bc298bedc3c9e439764"
+      }
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.Linux.NoDependencies",
+      "version": "4.151.1",
+      "nuget_content_sha512_base64": "lqPwXxYhKlmRfCuq1vGRLYEtRo3tn3ij1IGi0tI2qzkKHU6HOznHqZW+NqHV8aSKasPmRawbwlKLLPI132+SEA==",
+      "authors": "Microsoft",
+      "copyright": "\u00a9 Microsoft Corporation. All rights reserved.",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "branch": "release/4.151.1",
+        "commit": "279f93f4ffa7f9fe4e9c0bc298bedc3c9e439764"
+      }
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.macOS",
+      "version": "4.151.1",
+      "nuget_content_sha512_base64": "nLXwdhi0oB7pqqNLbSOLX+FIZQOMAU/yFPspzcDTJjTmPbMWyp0JWyeVj8sFJ/cweurEfT0J/lvfgdXX2EFHXA==",
+      "authors": "Microsoft",
+      "copyright": "\u00a9 Microsoft Corporation. All rights reserved.",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "branch": "release/4.151.1",
+        "commit": "279f93f4ffa7f9fe4e9c0bc298bedc3c9e439764"
+      }
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.Win32",
+      "version": "4.151.1",
+      "nuget_content_sha512_base64": "G+nln30ZX2ZuhH+ungf6x/QMXCje38KTS0VTfQeMyeY8uyMBmsZwFz2D30ZxUjZqsVbEIcaC2bsYF65876s4Yg==",
+      "authors": "Microsoft",
+      "copyright": "\u00a9 Microsoft Corporation. All rights reserved.",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "branch": "release/4.151.1",
+        "commit": "279f93f4ffa7f9fe4e9c0bc298bedc3c9e439764"
+      }
+    },
+    {
+      "id": "System.IO.Hashing",
+      "version": "10.0.10",
+      "nuget_content_sha512_base64": "eE839zyWZD/UBZYzP2lu9fhHX6RWe63/jz3Jxf+JumzO/db+Vc2s7CMiDwxk9ti2NTUft2tdRx31Rw2OjKbecA==",
+      "authors": "Microsoft",
+      "copyright": "\u00a9 Microsoft Corporation. All rights reserved.",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/dotnet/dotnet",
+        "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd"
+      }
+    },
+    {
+      "id": "TinyBCSharp",
+      "version": "0.1.2",
+      "nuget_content_sha512_base64": "XNqUm7oBpYlxQyUNjpNHk+pEBSlmGsl+wkK2mJU+WNTchwke7kfzdnUQCk0H4ANnIjggz6CKIJz5i/wEFAWJRQ==",
+      "authors": "JanDK",
+      "copyright": null,
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/jandk/TinyBCSharp",
+        "commit": "5eef47a45c603f00376c4f9c358c730309d058cf"
+      }
+    },
+    {
+      "id": "TinyEXR.NET",
+      "version": "1.1.0",
+      "nuget_content_sha512_base64": "Fh5LkkZS21DV2apJXDPgtDdJ8BMl4608ERoBr2zx82Nk2QHhSp+sGg+j0+ZEu/TVkYIfojzQDn280Vx8a4Iy4Q==",
+      "authors": "ksgfk",
+      "copyright": "Copyright (c) 2023-2026 ksgfk",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/ksgfk/TinyEXR.NET",
+        "branch": "refs/heads/main",
+        "commit": "9a55e13d9dca6a3d347d901a777ad04bccb444a9"
+      }
+    },
+    {
+      "id": "ValveKeyValue",
+      "version": "0.70.0.499",
+      "nuget_content_sha512_base64": "4s1Sj71jxgxAbqs1wzkN2CuikKPsUEZE3/ZV6wsbMWnkzwO0elIbnQH4wMUXnRmAYG5GaYcdZ80sUcD5BWkGyw==",
+      "authors": "ValveKeyValue Contributors",
+      "copyright": "Copyright \u00a9 ValveKeyValue Contributors",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/ValveResourceFormat/ValveKeyValue",
+        "commit": "b0f2917f8c09697e9fd41c4f23647a34c5803f0d"
+      }
+    },
+    {
+      "id": "ValvePak",
+      "version": "5.0.2.177",
+      "nuget_content_sha512_base64": "pKmdPnjxDQHFIgPNLfKyOQEyhiRemV7M/j62LSw4hJ7CWgEOgqkRIg+CB88uAa4gJShF1LSYaWZma+OajaAzdw==",
+      "authors": "ValvePak Contributors",
+      "copyright": "Copyright \u00a9 ValvePak Contributors",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/ValveResourceFormat/ValvePak",
+        "commit": "2adb4b00ed950b5ced012d8b6ac83d2d3a95ec29"
+      }
+    },
+    {
+      "id": "Vortice.SPIRV",
+      "version": "1.0.5",
+      "nuget_content_sha512_base64": "+/d13hilxamYgHFrYr59hDf7Mh71JPNtgGaUjxpFuvGMJNG2+GqNZRkcOE9qO/1F6qG0FMrXdQkybW6xr5quWg==",
+      "authors": "Amer Koleci",
+      "copyright": "Copyright (c) Amer Koleci and Contributors",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/amerkoleci/Vortice.Vulkan",
+        "branch": "refs/heads/main",
+        "commit": "b9b56b6bf23bd119a22f519631d88b911bf9fa4e"
+      }
+    },
+    {
+      "id": "Vortice.SpirvCross",
+      "version": "1.5.4",
+      "nuget_content_sha512_base64": "Ql/EBstNj6qdYipKk8KE5l/CVe/JMJJ0Y2RFW+SXYy3MP8isQaHpSn4qgogOw0bh2Ht5gwqRPX/eutBKougSQg==",
+      "authors": "Amer Koleci",
+      "copyright": "Copyright (c) Amer Koleci and Contributors",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/amerkoleci/Vortice.Vulkan",
+        "branch": "refs/heads/main",
+        "commit": "b9b56b6bf23bd119a22f519631d88b911bf9fa4e"
+      }
+    },
+    {
+      "id": "ZstdSharp.Port",
+      "version": "0.8.8",
+      "nuget_content_sha512_base64": "UIDFkA5DC3en3tOJ3Mof11yBx9kUQLsaeo/oFdvN6Bbkr9E9+VCqfIadHci8cu+I51K2Sl7XYWVl2R/mA75NBQ==",
+      "authors": "Oleg Stepanischev",
+      "copyright": "Copyright Oleg Stepanischev 2026",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/oleg-st/ZstdSharp.git",
+        "branch": "refs/heads/master",
+        "commit": "2cd0c019693bc786a5fe5c3be94e107b24e7267e"
+      }
+    }
+  ]
+}

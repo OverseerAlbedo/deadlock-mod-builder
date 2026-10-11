@@ -1,0 +1,3278 @@
+{
+  "generator": "tests/generate_fixtures.py; Python baseline",
+  "hashes": {
+    "models/heroes_wip/arbitrary/test_model.vmdl_c": "4043ab3659cd61351795c186762a045221774893a97dcc74f6ba3deade65ac03",
+    "materials/UB New.vmat_c": "f053832b3e1d82e773d60a4525491e365e588f458b08e75b82d54225a0198a3b",
+    "rootfile": "5344287ad0cd517b62386e7698af494ea129fbf7fa96a5905ca0011d4b972a40",
+    "empty.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unicode/naïve.txt": "3c48591d8d098a4538f5e013dfcf406e948eac4d3277b10bf614e295d6068179",
+    ".hidden": "8d91a8d94664344c3e98b5fd34312f79b93618ad4251cb288ee6790fbb70f3a5"
+  },
+  "receipts": {
+    "v1": {
+      "backend": "builtin",
+      "format": "VPK",
+      "version": 1,
+      "single_file": true,
+      "file_count": 6,
+      "payload_bytes": 4416,
+      "archive_bytes": 4664,
+      "files": {
+        ".hidden": "8d91a8d94664344c3e98b5fd34312f79b93618ad4251cb288ee6790fbb70f3a5",
+        "rootfile": "5344287ad0cd517b62386e7698af494ea129fbf7fa96a5905ca0011d4b972a40",
+        "empty.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "unicode/naïve.txt": "3c48591d8d098a4538f5e013dfcf406e948eac4d3277b10bf614e295d6068179",
+        "materials/UB New.vmat_c": "f053832b3e1d82e773d60a4525491e365e588f458b08e75b82d54225a0198a3b",
+        "models/heroes_wip/arbitrary/test_model.vmdl_c": "4043ab3659cd61351795c186762a045221774893a97dcc74f6ba3deade65ac03"
+      }
+    },
+    "v2": {
+      "backend": "builtin",
+      "format": "VPK",
+      "version": 2,
+      "single_file": true,
+      "file_count": 6,
+      "payload_bytes": 4416,
+      "archive_bytes": 4728,
+      "files": {
+        ".hidden": "8d91a8d94664344c3e98b5fd34312f79b93618ad4251cb288ee6790fbb70f3a5",
+        "rootfile": "5344287ad0cd517b62386e7698af494ea129fbf7fa96a5905ca0011d4b972a40",
+        "empty.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "unicode/naïve.txt": "3c48591d8d098a4538f5e013dfcf406e948eac4d3277b10bf614e295d6068179",
+        "materials/UB New.vmat_c": "f053832b3e1d82e773d60a4525491e365e588f458b08e75b82d54225a0198a3b",
+        "models/heroes_wip/arbitrary/test_model.vmdl_c": "4043ab3659cd61351795c186762a045221774893a97dcc74f6ba3deade65ac03"
+      }
+    }
+  },
+  "resource": {
+    "resource_version": 1,
+    "declared_size": 8428,
+    "blocks": [
+      {
+        "name": "MDAT",
+        "offset": 7696,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7697,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7698,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7699,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7700,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7701,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7702,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7703,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7704,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7705,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7706,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7707,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7708,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7709,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7710,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7711,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7712,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7713,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7714,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7715,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7716,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7717,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7718,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7719,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7720,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7721,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7722,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7723,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7724,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7725,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7726,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7727,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7728,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7729,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7730,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7731,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7732,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7733,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7734,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7735,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7736,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7737,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7738,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7739,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7740,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7741,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7742,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7743,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7744,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7745,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7746,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7747,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7748,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7749,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7750,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7751,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7752,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7753,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7754,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7755,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7756,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7757,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7758,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7759,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7760,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7761,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7762,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7763,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7764,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7765,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7766,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7767,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7768,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7769,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7770,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7771,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7772,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7773,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7774,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7775,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7776,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7777,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7778,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7779,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7780,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7781,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7782,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7783,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7784,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7785,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7786,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7787,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7788,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7789,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7790,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7791,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7792,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7793,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7794,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7795,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7796,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7797,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7798,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7799,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7800,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7801,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7802,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7803,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7804,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7805,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7806,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7807,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7808,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7809,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7810,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7811,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7812,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7813,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7814,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7815,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7816,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7817,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7818,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7819,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7820,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7821,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7822,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7823,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7824,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7825,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7826,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7827,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7828,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7829,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7830,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7831,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7832,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7833,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7834,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7835,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7836,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7837,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7838,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7839,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7840,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7841,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7842,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7843,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7844,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7845,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7846,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7847,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7848,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7849,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7850,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7851,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7852,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7853,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7854,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7855,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7856,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7857,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7858,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7859,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7860,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7861,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7862,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7863,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7864,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7865,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7866,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7867,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7868,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7869,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7870,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7871,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7872,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7873,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7874,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7875,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7876,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7877,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7878,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7879,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7880,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7881,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7882,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7883,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7884,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7885,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7886,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7887,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7888,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7889,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7890,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7891,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7892,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7893,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7894,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7895,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7896,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7897,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7898,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7899,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7900,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7901,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7902,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7903,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7904,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7905,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7906,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7907,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7908,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7909,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7910,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7911,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7912,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7913,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7914,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7915,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7916,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7917,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7918,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7919,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7920,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7921,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7922,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7923,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7924,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7925,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7926,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7927,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7928,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7929,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7930,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7931,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7932,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7933,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7934,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7935,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7936,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7937,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7938,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7939,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7940,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7941,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7942,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7943,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7944,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7945,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7946,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7947,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7948,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7949,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7950,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7951,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7952,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7953,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7954,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7955,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7956,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7957,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7958,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7959,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7960,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7961,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7962,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7963,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7964,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7965,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7966,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7967,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7968,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7969,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7970,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7971,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7972,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7973,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7974,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7975,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7976,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7977,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7978,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7979,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7980,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7981,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7982,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7983,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7984,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7985,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7986,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7987,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7988,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7989,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7990,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7991,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7992,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7993,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7994,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7995,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7996,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7997,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7998,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 7999,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8000,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8001,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8002,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8003,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8004,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8005,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8006,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8007,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8008,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8009,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8010,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8011,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8012,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8013,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8014,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8015,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8016,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8017,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8018,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8019,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8020,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8021,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8022,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8023,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8024,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8025,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8026,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8027,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8028,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8029,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8030,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8031,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8032,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8033,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8034,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8035,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8036,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8037,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8038,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8039,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8040,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8041,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8042,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8043,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8044,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8045,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8046,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8047,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8048,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8049,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8050,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8051,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8052,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8053,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8054,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8055,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8056,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8057,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8058,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8059,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8060,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8061,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8062,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8063,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8064,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8065,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8066,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8067,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8068,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8069,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8070,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8071,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8072,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8073,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8074,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8075,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8076,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8077,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8078,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8079,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8080,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8081,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8082,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8083,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8084,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8085,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8086,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8087,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8088,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8089,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8090,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8091,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8092,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8093,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8094,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8095,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8096,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8097,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8098,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8099,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8100,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8101,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8102,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8103,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8104,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8105,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8106,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8107,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8108,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8109,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8110,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8111,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8112,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8113,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8114,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8115,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8116,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8117,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8118,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8119,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8120,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8121,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8122,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8123,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8124,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8125,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8126,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8127,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8128,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8129,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8130,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8131,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8132,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8133,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8134,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8135,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8136,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8137,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8138,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8139,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8140,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8141,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8142,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8143,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8144,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8145,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8146,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8147,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8148,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8149,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8150,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8151,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8152,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8153,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8154,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8155,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8156,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8157,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8158,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8159,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8160,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8161,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8162,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8163,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8164,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8165,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8166,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8167,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8168,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8169,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8170,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8171,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8172,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8173,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8174,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8175,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8176,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8177,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8178,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8179,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8180,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8181,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8182,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8183,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8184,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8185,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8186,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8187,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8188,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8189,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8190,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8191,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8192,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8193,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8194,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8195,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8196,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8197,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8198,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8199,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8200,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8201,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8202,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8203,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8204,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8205,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8206,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8207,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8208,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8209,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8210,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8211,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8212,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8213,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8214,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8215,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8216,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8217,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8218,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8219,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8220,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8221,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8222,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8223,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8224,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8225,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8226,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8227,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8228,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8229,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8230,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8231,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8232,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8233,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8234,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8235,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8236,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8237,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8238,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8239,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8240,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8241,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8242,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8243,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8244,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8245,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8246,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8247,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8248,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8249,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8250,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8251,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8252,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8253,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8254,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8255,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8256,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8257,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8258,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8259,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8260,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8261,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8262,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8263,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8264,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8265,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8266,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8267,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8268,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8269,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8270,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8271,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8272,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8273,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8274,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8275,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8276,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8277,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8278,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8279,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8280,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8281,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8282,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8283,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8284,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8285,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8286,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8287,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8288,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8289,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8290,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8291,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8292,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8293,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8294,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8295,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8296,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8297,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8298,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8299,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8300,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8301,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8302,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8303,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8304,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8305,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8306,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8307,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8308,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8309,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8310,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8311,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8312,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8313,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8314,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8315,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8316,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8317,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8318,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8319,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8320,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8321,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8322,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8323,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8324,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8325,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8326,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8327,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8328,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8329,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8330,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8331,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8332,
+        "size": 1
+      },
+      {
+        "name": "MDAT",
+        "offset": 8333,
+        "size": 1
+      },
+      {
+        "name": "MARK",
+        "offset": 8334,
+        "size": 0
+      },
+      {
+        "name": "RERL",
+        "offset": 8334,
+        "size": 94
+      }
+    ]
+  },
+  "references": [
+    "models/test/rig.vnmskel",
+    "animgraphs/test/hero.vnmgraph"
+  ],
+  "models": [
+    {
+      "name": "Test Model",
+      "path": "models/heroes_wip/arbitrary/test_model.vmdl_c",
+      "likely_hero": true
+    }
+  ],
+  "snapshot_receipt": {
+    "status": "complete",
+    "method": "verified-independent-copies",
+    "attempts": 1,
+    "retries": [],
+    "file_count": 2,
+    "files": {
+      "materials/UB New.vmat_c": "f053832b3e1d82e773d60a4525491e365e588f458b08e75b82d54225a0198a3b",
+      "models/heroes_wip/arbitrary/test_model.vmdl_c": "4043ab3659cd61351795c186762a045221774893a97dcc74f6ba3deade65ac03"
+    },
+    "read_only": true,
+    "source_sha256_rechecked": true,
+    "snapshot_sha256_verified": true
+  }
+}

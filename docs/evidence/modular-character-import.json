@@ -1,0 +1,108 @@
+{
+  "version": "0.13.0-alpha.49",
+  "scope": "Modular character import, not full in-game conversion",
+  "blender_runs": [
+    {
+      "version": "5.0.0",
+      "passed": 13,
+      "cases": [
+        "exact-subset",
+        "offset-with-props",
+        "nested-parent",
+        "group-name-collision",
+        "same-rig-names-renamed",
+        "parent-controlled",
+        "live-rig-controls",
+        "physics-bound-part",
+        "scaled-part",
+        "detached-face",
+        "nearby-unattached",
+        "two-characters",
+        "uploaded-model"
+      ],
+      "uploaded_model": {
+        "source_sha256": "84ce160dd31e23434cbb50f82230e6863b261423644e46c263781e9c9c1be1be",
+        "vertices": 24238,
+        "bones": 125,
+        "maximum_copied_matrix_roundoff": 2.0954773845005548e-06,
+        "source_file_unchanged": true,
+        "external_textures_present": false
+      },
+      "selection": {
+        "selected_armatures": [
+          "Body_Rig"
+        ],
+        "merged_armatures": [
+          "Face_Rig"
+        ],
+        "excluded_armatures": [
+          "Arti10027_Rig",
+          "Rose_Rig"
+        ],
+        "excluded_meshes": [
+          "Arti10027",
+          "Rose"
+        ],
+        "retained_meshes": [
+          "Body",
+          "Face"
+        ]
+      }
+    },
+    {
+      "version": "5.2.0 LTS",
+      "passed": 13,
+      "cases": [
+        "exact-subset",
+        "offset-with-props",
+        "nested-parent",
+        "group-name-collision",
+        "same-rig-names-renamed",
+        "parent-controlled",
+        "live-rig-controls",
+        "physics-bound-part",
+        "scaled-part",
+        "detached-face",
+        "nearby-unattached",
+        "two-characters",
+        "uploaded-model"
+      ],
+      "uploaded_model": {
+        "source_sha256": "84ce160dd31e23434cbb50f82230e6863b261423644e46c263781e9c9c1be1be",
+        "vertices": 24238,
+        "bones": 125,
+        "maximum_copied_matrix_roundoff": 2.0954773845005548e-06,
+        "source_file_unchanged": true,
+        "external_textures_present": false
+      },
+      "selection": {
+        "selected_armatures": [
+          "Body_Rig"
+        ],
+        "merged_armatures": [
+          "Face_Rig"
+        ],
+        "excluded_armatures": [
+          "Arti10027_Rig",
+          "Rose_Rig"
+        ],
+        "excluded_meshes": [
+          "Arti10027",
+          "Rose"
+        ],
+        "retained_meshes": [
+          "Body",
+          "Face"
+        ]
+      }
+    }
+  ],
+  "legacy_rig_selection": {
+    "blender": "5.0.0",
+    "passed": 5
+  },
+  "rest_pose_controls": {
+    "blender": "5.0.0",
+    "passed": 7
+  }
+}

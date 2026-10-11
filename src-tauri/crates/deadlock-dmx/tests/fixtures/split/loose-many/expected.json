@@ -1,0 +1,378 @@
+{
+  "report": {
+    "algorithm": 3,
+    "source_sha256": "d89177e06e53d4e57aac83d6619d374a483a0b2dc55e78af1856582c4335a20e",
+    "target": 6,
+    "hard_limit": 524288,
+    "budget": "3 × sum(polygon_corner_count - 2) + preserved loose positions; no triangulation performed",
+    "groups": [
+      {
+        "source_mesh": "body",
+        "source_positions": 15,
+        "pieces": [
+          {
+            "name": "body_01",
+            "file": "body_01_c0e0411af373c4a5.dmx",
+            "sha256": "b48e3506abd6817a07207677a27c47c435ac01c38c71f9d323592362ef2d750d",
+            "corner_map": "body_01_c0e0411af373c4a5.dmx.corners.bin",
+            "corner_map_sha256": "deb56135e8f6e8e652a23ed6a36d6e288af343d042deb4ba5d846f57d775f139",
+            "segments": [
+              {
+                "face_set": 7,
+                "start": 0,
+                "end": 5
+              }
+            ],
+            "loose_positions": [],
+            "validation": {
+              "name": "body_01",
+              "source_positions": 4,
+              "indexed_corners": 4,
+              "polygons": 1,
+              "triangles": 2,
+              "render_vertex_upper_bound": 6,
+              "loose_positions_preserved": 0,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          },
+          {
+            "name": "body_02",
+            "file": "body_02_0c8da30ad8a12bf7.dmx",
+            "sha256": "ffba5c0be95b9a9eeff0b7381883cbdf864611539c40cdce3fa58ddb7d424ef8",
+            "corner_map": "body_02_0c8da30ad8a12bf7.dmx.corners.bin",
+            "corner_map_sha256": "61d8b8ad518184fe554f3508b2235a317f28de3ff5f7972f00d5b7d29a5dda75",
+            "segments": [
+              {
+                "face_set": 8,
+                "start": 0,
+                "end": 4
+              }
+            ],
+            "loose_positions": [
+              14
+            ],
+            "validation": {
+              "name": "body_02",
+              "source_positions": 4,
+              "indexed_corners": 3,
+              "polygons": 1,
+              "triangles": 1,
+              "render_vertex_upper_bound": 4,
+              "loose_positions_preserved": 1,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          },
+          {
+            "name": "body_03",
+            "file": "body_03_65780fcfa5abc400.dmx",
+            "sha256": "5d2ed302f3ab829b0a2a1e568c57b3486395344946a74b8808417aae50d8f206",
+            "corner_map": "body_03_65780fcfa5abc400.dmx.corners.bin",
+            "corner_map_sha256": "61d8b8ad518184fe554f3508b2235a317f28de3ff5f7972f00d5b7d29a5dda75",
+            "segments": [
+              {
+                "face_set": 8,
+                "start": 4,
+                "end": 8
+              }
+            ],
+            "loose_positions": [
+              11,
+              12,
+              13
+            ],
+            "validation": {
+              "name": "body_03",
+              "source_positions": 6,
+              "indexed_corners": 3,
+              "polygons": 1,
+              "triangles": 1,
+              "render_vertex_upper_bound": 6,
+              "loose_positions_preserved": 3,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          },
+          {
+            "name": "body_04",
+            "file": "body_04_664fb9c6f0e03325.dmx",
+            "sha256": "69ec0d4b20d2baa7249d01f2fbdb2d7c62c02a5d2918552f7151f9b4f7aa6ee3",
+            "corner_map": "body_04_664fb9c6f0e03325.dmx.corners.bin",
+            "corner_map_sha256": "61d8b8ad518184fe554f3508b2235a317f28de3ff5f7972f00d5b7d29a5dda75",
+            "segments": [
+              {
+                "face_set": 8,
+                "start": 8,
+                "end": 12
+              }
+            ],
+            "loose_positions": [
+              8,
+              9,
+              10
+            ],
+            "validation": {
+              "name": "body_04",
+              "source_positions": 6,
+              "indexed_corners": 3,
+              "polygons": 1,
+              "triangles": 1,
+              "render_vertex_upper_bound": 6,
+              "loose_positions_preserved": 3,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          },
+          {
+            "name": "body_05",
+            "file": "body_05_48bee7f5d2e97560.dmx",
+            "sha256": "efc62edcb85c774aa8eaa5ed19a26ed9630e71f1b03d5bd77405fdc9756e1074",
+            "corner_map": "body_05_48bee7f5d2e97560.dmx.corners.bin",
+            "corner_map_sha256": "61d8b8ad518184fe554f3508b2235a317f28de3ff5f7972f00d5b7d29a5dda75",
+            "segments": [
+              {
+                "face_set": 8,
+                "start": 12,
+                "end": 16
+              }
+            ],
+            "loose_positions": [
+              5,
+              6,
+              7
+            ],
+            "validation": {
+              "name": "body_05",
+              "source_positions": 6,
+              "indexed_corners": 3,
+              "polygons": 1,
+              "triangles": 1,
+              "render_vertex_upper_bound": 6,
+              "loose_positions_preserved": 3,
+              "streams_bit_exact": [
+                "position$0",
+                "normal$0",
+                "texcoord$0",
+                "texcoord$1",
+                "tangent$0",
+                "color$0",
+                "blendweights$0",
+                "blendindices$0"
+              ],
+              "normalized_weights_verified": true,
+              "material_references_preserved": true,
+              "protected_graph_preserved": true,
+              "mesh_transform_name_binding_preserved": true,
+              "transform_values_bit_exact": true,
+              "morphs": "absent; morph/flex layouts rejected",
+              "passed": true
+            }
+          }
+        ],
+        "triangles": 6,
+        "polygons": 5
+      }
+    ],
+    "native_compile_passed": false,
+    "validation": {
+      "passed": true,
+      "pieces": [
+        {
+          "name": "body_01",
+          "source_positions": 4,
+          "indexed_corners": 4,
+          "polygons": 1,
+          "triangles": 2,
+          "render_vertex_upper_bound": 6,
+          "loose_positions_preserved": 0,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        },
+        {
+          "name": "body_02",
+          "source_positions": 4,
+          "indexed_corners": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "render_vertex_upper_bound": 4,
+          "loose_positions_preserved": 1,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        },
+        {
+          "name": "body_03",
+          "source_positions": 6,
+          "indexed_corners": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "render_vertex_upper_bound": 6,
+          "loose_positions_preserved": 3,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        },
+        {
+          "name": "body_04",
+          "source_positions": 6,
+          "indexed_corners": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "render_vertex_upper_bound": 6,
+          "loose_positions_preserved": 3,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        },
+        {
+          "name": "body_05",
+          "source_positions": 6,
+          "indexed_corners": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "render_vertex_upper_bound": 6,
+          "loose_positions_preserved": 3,
+          "streams_bit_exact": [
+            "position$0",
+            "normal$0",
+            "texcoord$0",
+            "texcoord$1",
+            "tangent$0",
+            "color$0",
+            "blendweights$0",
+            "blendindices$0"
+          ],
+          "normalized_weights_verified": true,
+          "material_references_preserved": true,
+          "protected_graph_preserved": true,
+          "mesh_transform_name_binding_preserved": true,
+          "transform_values_bit_exact": true,
+          "morphs": "absent; morph/flex layouts rejected",
+          "passed": true
+        }
+      ],
+      "coverage": "exact ordered polygon occurrences and per-corner attributes",
+      "native_compile_passed": false,
+      "compiled_vertex_count_measured": false
+    }
+  },
+  "cache_key": "4201de6022a78a9dd3d5c48aac50fada452b1ea2e1f30bba41bdd15158eb2615"
+}

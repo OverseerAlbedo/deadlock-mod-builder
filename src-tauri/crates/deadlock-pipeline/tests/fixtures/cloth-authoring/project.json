@@ -1,0 +1,1 @@
+{"original_model": "models/test/hero.vmdl", "meshes": {"body": "body"}, "materials": {"models/test/materials/cloth.vmat": {"mode": "generate", "confirmed": true, "preset": "cloth", "color": [0.2, 0.3, 0.4]}}}

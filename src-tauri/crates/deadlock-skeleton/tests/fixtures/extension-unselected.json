@@ -1,0 +1,115 @@
+{
+  "original": {
+    "compiled_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "runtime_motion": {
+      "status": "audited",
+      "cloth_nodes": 2,
+      "resource_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "skeleton": {
+        "m_boneName": [
+          "root",
+          "braid"
+        ],
+        "m_nParent": [
+          -1,
+          0
+        ],
+        "m_nFlag": [
+          72,
+          4194376
+        ],
+        "m_bonePosParent": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        "m_boneRotParent": [
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "m_boneScaleParent": [
+          1,
+          1
+        ]
+      }
+    }
+  },
+  "selected": [
+    "body"
+  ],
+  "inspection": {
+    "required": true,
+    "passed": false,
+    "errors": [
+      "Replacement DMX skeleton differs from the selected original. original 2, source 5; missing (0): none; extra (3): 'custom_skirt', 'hem', 'unused_helper'; duplicates (0): none"
+    ],
+    "source_modified": false,
+    "bind_transforms_checked": false,
+    "native_compiler_validated": false,
+    "original_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_names": [
+      "root",
+      "braid",
+      "custom_skirt",
+      "hem",
+      "unused_helper"
+    ],
+    "original_names": [
+      "root",
+      "braid"
+    ],
+    "identity_difference": {
+      "original_count": 2,
+      "rebuilt_count": 5,
+      "missing": [],
+      "extra": [
+        "custom_skirt",
+        "hem",
+        "unused_helper"
+      ],
+      "duplicates": [],
+      "reference_duplicates": []
+    },
+    "source_aliases": {}
+  },
+  "contract": null,
+  "skinning": {
+    "meshes": [
+      {
+        "name": "body",
+        "vertices": 3,
+        "joint_count": 1,
+        "errors": [],
+        "pending": [],
+        "passed": true
+      },
+      {
+        "name": "weapon",
+        "vertices": 3,
+        "joint_count": 1,
+        "errors": [],
+        "pending": [],
+        "passed": true
+      }
+    ],
+    "joint_palette_entries": 7,
+    "numeric_checks_passed": true
+  }
+}

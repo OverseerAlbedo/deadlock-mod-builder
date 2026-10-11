@@ -1,0 +1,75 @@
+name: Windows tests and portable application
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Build the installer for an explicitly requested release
+        type: boolean
+        default: false
+
+# Build artifacts only. CI cannot publish a release or tag.
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      RUST_BACKTRACE: '1'
+      DMB_RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
+    steps:
+      - name: Check out source without changing fixture bytes
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Cache Rust dependencies and builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+      - name: Ensure WebView2 Runtime for the Windows startup test
+        run: ./scripts/ensure-webview2.ps1
+      - name: Test, build and validate Windows distribution
+        run: |
+          if ($env:DMB_RELEASE_BUILD -eq 'true') {
+            ./scripts/build-windows.ps1 -Release
+          } else {
+            ./scripts/build-windows.ps1
+          }
+      - name: Upload validated Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeadlockModBuilder-Windows-x64
+          path: artifacts/release/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Retain validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeadlockModBuilder-Windows-validation
+          path: artifacts/validation/
+          if-no-files-found: warn
+          retention-days: 14

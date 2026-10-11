@@ -1,0 +1,34 @@
+import { useMemo, useState } from 'react';
+import aliasesData from '../../resources/catalog/hero_aliases.json';
+import rosterData from '../../resources/catalog/hero_roster.json';
+import type { HeroRecord } from '../models';
+import { api } from '../api';
+
+const aliases:Record<string,string[]> = aliasesData;
+const roster = rosterData as {name:string;path:string;extras?:{name:string;path:string}[]}[];
+export function heroLabel(hero:HeroRecord): string {
+  const path=hero.path.replace(/\\/g,'/').replace(/_c$/,'').toLowerCase();
+  const known=roster.find(item=>item.path.toLowerCase()===path); if(known)return known.name;
+  for(const item of roster){const extra=item.extras?.find(candidate=>candidate.path.toLowerCase()===path);if(extra)return `${item.name} · ${extra.name}`;}
+  const parts=path.split('/');const ownerIndex=parts.findIndex(part=>['heroes','heroes_staging','heroes_wip'].includes(part));
+  const owner=ownerIndex>=0?parts[ownerIndex+1]:'';const stem=parts.at(-1)?.replace(/\.vmdl$/,'')??'';
+  const name=aliases[owner]?.[0]??aliases[owner.replace(/_v\d+$/,'')]?.[0]??aliases[stem]?.[0];
+  if(!name)return hero.name;
+  const alias=Object.keys(aliases).filter(key=>aliases[key][0]===name).sort((a,b)=>b.length-a.length).find(key=>stem===key||stem.startsWith(key+'_'));
+  const suffix=(alias?stem.slice(alias.length):stem).replace(/^_+/,'').replace(/_/g,' ');
+  return suffix?`${name} · ${suffix}`:roster.some(item=>item.name===name)?`${name} · Alternate model`:name;
+}
+export function alternateTarget(path:string): {name:string;path:string}|undefined {
+  if(!path)return undefined;
+  const normalized=path.replace(/\\/g,'/').replace(/_c$/,'').toLowerCase();
+  if(roster.some(item=>item.path.toLowerCase()===normalized))return undefined;
+  const label=heroLabel({path,name:''} as HeroRecord);
+  return roster.find(item=>label.startsWith(item.name+' · '));
+}
+export function HeroPicker({current,disabled,select,fail}:{current:string;disabled:boolean;select:(hero:HeroRecord)=>void;fail:(title:string,error:unknown)=>void}){
+  const [catalog,setCatalog]=useState<HeroRecord[]>([]),[query,setQuery]=useState(''),[expanded,setExpanded]=useState(false),[loading,setLoading]=useState(false),[all,setAll]=useState(false),[loaded,setLoaded]=useState(false);
+  const alternate=alternateTarget(current);
+  const matches=useMemo(()=>catalog.filter(hero=>`${heroLabel(hero)} ${hero.name} ${hero.path}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>heroLabel(a).localeCompare(heroLabel(b))),[catalog,query]);
+  async function load(includeAll=all){setLoading(true);try{setCatalog(await api.heroes(includeAll));setLoaded(true);setExpanded(true);}catch(error){fail('Could not find characters',error);}finally{setLoading(false);}}
+  return <div className="hero-picker"><div className="row"><span className="muted">{current?'Change the selected character':'Select a character from the game archive'}</span><button aria-expanded={expanded} disabled={disabled||loading} onClick={()=>{if(expanded)setExpanded(false);else if(loaded)setExpanded(true);else void load();}}>{loading?'Reading archive…':expanded?'Close selector':'Choose character…'}</button></div>{alternate&&<p className="hint">This is an alternate {alternate.name} model and may not appear during normal gameplay. The main character target is <span className="mono">{alternate.path}</span>.</p>}{expanded&&<div className="hero-selector"><div className="toolbar"><input aria-label="Search characters" autoFocus value={query} placeholder="Search characters or model paths…" onChange={event=>setQuery(event.target.value)}/><label className="checkbox"><input type="checkbox" checked={all} disabled={disabled||loading} onChange={event=>{setAll(event.target.checked);void load(event.target.checked);}}/>All models</label><button disabled={disabled||loading} onClick={()=>void load()}>Refresh</button></div><ul className="hero-results" aria-label="Available characters">{matches.slice(0,300).map(hero=><li key={hero.path}><button disabled={disabled||loading} className={hero.path===current?'selected':''} onClick={()=>{select(hero);setExpanded(false);}}><strong>{heroLabel(hero)}</strong><span className="mono">{hero.path}</span></button></li>)}</ul>{!matches.length&&<p className="hint">No matching model found in the configured game archive.</p>}{matches.length>300&&<p className="hint">Showing 300 of {matches.length.toLocaleString()} matches. Narrow the search to find a specific model.</p>}</div>}</div>;
+}

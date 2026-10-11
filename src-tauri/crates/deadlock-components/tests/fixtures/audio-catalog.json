@@ -1,0 +1,52 @@
+[
+  {
+    "association": "hero_directory",
+    "label": "rifle",
+    "metadata": {
+      "bits": 16,
+      "channels": 1,
+      "duration": 0.0010000000474974513,
+      "format": "PCM16",
+      "frames": 8,
+      "kind": "DATA",
+      "loop_end": 0,
+      "loop_start": -1,
+      "payload_offset": 76,
+      "rate": 8000,
+      "resource_version": 4,
+      "stream_size": 16
+    },
+    "original_sha256": "8ad180764b916b0a1a5f25152babeb6e9364204655299630121b7ffe3a2dc849",
+    "path": "sounds/heroes/hornet/rifle.vsnd_c",
+    "reason": "",
+    "shared": false,
+    "supported": true,
+    "target": "sounds/heroes/hornet/rifle.vsnd_c",
+    "wav_supported": true
+  },
+  {
+    "association": "resource_reference",
+    "label": "gun (potentially shared)",
+    "metadata": {
+      "bits": 16,
+      "channels": 1,
+      "duration": 0.0010000000474974513,
+      "format": "PCM16",
+      "frames": 8,
+      "kind": "DATA",
+      "loop_end": 0,
+      "loop_start": -1,
+      "payload_offset": 76,
+      "rate": 8000,
+      "resource_version": 4,
+      "stream_size": 16
+    },
+    "original_sha256": "8ad180764b916b0a1a5f25152babeb6e9364204655299630121b7ffe3a2dc849",
+    "path": "sounds/shared/gun.vsnd_c",
+    "reason": "",
+    "shared": true,
+    "supported": true,
+    "target": "sounds/shared/gun.vsnd_c",
+    "wav_supported": true
+  }
+]

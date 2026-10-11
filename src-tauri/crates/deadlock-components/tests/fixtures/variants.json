@@ -1,0 +1,10 @@
+[
+  {
+    "hero": "Silver",
+    "label": "Silver Ult",
+    "path": "models/heroes_wip/werewolf/transform/werewolf_transform.vmdl",
+    "requires_model_project": true,
+    "supported": true,
+    "target": "models/heroes_wip/werewolf/transform/werewolf_transform.vmdl"
+  }
+]

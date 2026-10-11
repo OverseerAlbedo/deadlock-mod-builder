@@ -1,0 +1,7 @@
+{
+  "original_sha256": "82e7212cfd93138c663ece73c6d5145f5146bca19f27942c7d769514354ebe7e",
+  "reference_sha256": "27dd44ea4db29f671cff53d0dd8ad171792fe5f12f45b05aca5db65e0a6b5b0c",
+  "candidate_sha256": "29c5b78991ab6acb707d767ea2c718e197b66176cb392bec3682377ba52bf5f1",
+  "output_sha256": "9bd997cc0014cbddd4a9f4cd4568181feae9f45917b9300576dcbb53e1031518",
+  "status": "tested_solver_imported"
+}

@@ -1,0 +1,4 @@
+{ rootNode = { _class = "RootNode" children = [
+{ _class = "RenderMeshList" children = [{ _class = "RenderMeshFile" name = "body" filename = "models/heroes/test/old.dmx" }] }
+{ _class = "AttachmentList" children = [{ _class = "Attachment" name = "muzzle" }] }
+] } }

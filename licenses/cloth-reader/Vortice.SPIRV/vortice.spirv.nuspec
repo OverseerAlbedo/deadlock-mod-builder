@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Vortice.SPIRV</id>
+    <version>1.0.5</version>
+    <authors>Amer Koleci</authors>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/amerkoleci/Vortice.Vulkan</projectUrl>
+    <description>Cross platform .NET bindings for SPIRV language</description>
+    <copyright>Copyright (c) Amer Koleci and Contributors</copyright>
+    <tags>3D graphics spirv standard game gamedev</tags>
+    <repository type="git" url="https://github.com/amerkoleci/Vortice.Vulkan" branch="refs/heads/main" commit="b9b56b6bf23bd119a22f519631d88b911bf9fa4e" />
+    <dependencies>
+      <group targetFramework="net9.0" />
+      <group targetFramework="net10.0" />
+      <group targetFramework=".NETStandard2.0" />
+      <group targetFramework=".NETStandard2.1" />
+    </dependencies>
+  </metadata>
+</package>

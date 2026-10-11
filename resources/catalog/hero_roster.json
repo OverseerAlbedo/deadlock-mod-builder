@@ -1,0 +1,196 @@
+[
+  {
+    "name": "Abrams",
+    "path": "models/heroes_wip/abrams/abrams.vmdl"
+  },
+  {
+    "name": "Apollo",
+    "path": "models/heroes_wip/fencer/fencer.vmdl"
+  },
+  {
+    "name": "Baba",
+    "path": "models/heroes_wip/baba/baba.vmdl"
+  },
+  {
+    "name": "Bebop",
+    "path": "models/heroes_staging/bebop/bebop.vmdl"
+  },
+  {
+    "name": "Billy",
+    "path": "models/heroes_wip/punkgoat/punkgoat.vmdl"
+  },
+  {
+    "name": "Calico",
+    "path": "models/heroes_staging/nano/nano_v2/nano.vmdl"
+  },
+  {
+    "name": "Celeste",
+    "path": "models/heroes_wip/unicorn/unicorn.vmdl"
+  },
+  {
+    "name": "Deadman Danny",
+    "path": "models/heroes_wip/deadpack/deadpack.vmdl"
+  },
+  {
+    "name": "Doorman",
+    "path": "models/heroes_wip/doorman_v2/doorman.vmdl"
+  },
+  {
+    "name": "Drifter",
+    "path": "models/heroes_wip/drifter/drifter.vmdl"
+  },
+  {
+    "name": "Dynamo",
+    "path": "models/heroes_wip/dynamo/dynamo.vmdl"
+  },
+  {
+    "name": "Graves",
+    "path": "models/heroes_wip/necro/necro.vmdl"
+  },
+  {
+    "name": "Grey Talon",
+    "path": "models/heroes_staging/archer/archer.vmdl"
+  },
+  {
+    "name": "Haze",
+    "path": "models/heroes_staging/haze/haze.vmdl"
+  },
+  {
+    "name": "Holliday",
+    "path": "models/heroes_staging/astro/astro.vmdl"
+  },
+  {
+    "name": "Infernus",
+    "path": "models/heroes_wip/inferno/inferno.vmdl"
+  },
+  {
+    "name": "Ivy",
+    "path": "models/heroes_wip/ivy/ivy.vmdl"
+  },
+  {
+    "name": "Kelvin",
+    "path": "models/heroes_staging/kelvin_v2/kelvin.vmdl"
+  },
+  {
+    "name": "Lady Geist",
+    "path": "models/heroes_wip/geist/geist.vmdl"
+  },
+  {
+    "name": "Lash",
+    "path": "models/heroes_wip/lash/lash.vmdl"
+  },
+  {
+    "name": "McGinnis",
+    "path": "models/heroes_wip/mcginnis/mcginnis.vmdl"
+  },
+  {
+    "name": "Mina",
+    "path": "models/heroes_wip/vampirebat/vampirebat.vmdl"
+  },
+  {
+    "name": "Mirage",
+    "path": "models/heroes_staging/mirage_v2/mirage.vmdl"
+  },
+  {
+    "name": "Mo & Krill",
+    "path": "models/heroes_staging/digger/digger.vmdl"
+  },
+  {
+    "name": "Nurse Harrow",
+    "path": "models/heroes_wip/nurse/nurse.vmdl"
+  },
+  {
+    "name": "Paige",
+    "path": "models/heroes_wip/bookworm/bookworm.vmdl"
+  },
+  {
+    "name": "Paradox",
+    "path": "models/heroes_staging/chrono/chrono.vmdl"
+  },
+  {
+    "name": "Pocket",
+    "path": "models/heroes_wip/pocket/pocket.vmdl"
+  },
+  {
+    "name": "Rem",
+    "path": "models/heroes_wip/familiar/familiar.vmdl",
+    "extras": [
+      {
+        "name": "Rem WIP",
+        "path": "models/heroes_wip/familiar/familiar_wip.vmdl"
+      }
+    ]
+  },
+  {
+    "name": "Seven",
+    "path": "models/heroes_staging/gigawatt_prisoner/gigawatt_prisoner.vmdl"
+  },
+  {
+    "name": "Shiv",
+    "path": "models/heroes_staging/shiv/shiv.vmdl",
+    "extras": [
+      {
+        "name": "Shiv Ult",
+        "path": "models/heroes_staging/shiv_ult/shiv_ult.vmdl"
+      }
+    ]
+  },
+  {
+    "name": "Silver",
+    "path": "models/heroes_wip/werewolf/werewolf.vmdl",
+    "extras": [
+      {
+        "name": "Silver Ult",
+        "path": "models/heroes_wip/werewolf/transform/werewolf_transform.vmdl"
+      }
+    ]
+  },
+  {
+    "name": "Sinclair",
+    "path": "models/heroes_staging/magician_v2/magician.vmdl"
+  },
+  {
+    "name": "Solomon",
+    "path": "models/heroes_wip/chessmaster/chessmaster.vmdl"
+  },
+  {
+    "name": "The Rat King",
+    "path": "models/heroes_wip/ratking/ratking.vmdl"
+  },
+  {
+    "name": "Venator",
+    "path": "models/heroes_wip/priest/priest.vmdl"
+  },
+  {
+    "name": "Victor",
+    "path": "models/heroes_wip/frank/frank.vmdl"
+  },
+  {
+    "name": "Vindicta",
+    "path": "models/heroes_staging/hornet_v3/hornet.vmdl"
+  },
+  {
+    "name": "Violet",
+    "path": "models/heroes_wip/artist/artist.vmdl"
+  },
+  {
+    "name": "Viscous",
+    "path": "models/heroes_staging/viscous/viscous.vmdl"
+  },
+  {
+    "name": "Vyper",
+    "path": "models/heroes_staging/viper/viper.vmdl"
+  },
+  {
+    "name": "Warden",
+    "path": "models/heroes_staging/warden/warden.vmdl"
+  },
+  {
+    "name": "Wraith",
+    "path": "models/heroes_wip/wraith/wraith.vmdl"
+  },
+  {
+    "name": "Yamato",
+    "path": "models/heroes_staging/yamato_v2/yamato.vmdl"
+  }
+]

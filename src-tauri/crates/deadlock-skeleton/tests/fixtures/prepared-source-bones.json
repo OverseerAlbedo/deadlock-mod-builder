@@ -1,0 +1,299 @@
+{
+  "required": {
+    "pelvis": null,
+    "spine": "pelvis",
+    "chest": "spine",
+    "neck": "chest",
+    "head": "neck",
+    "upperarm_L": "chest",
+    "forearm_L": "upperarm_L",
+    "hand_L": "forearm_L",
+    "thigh_L": "pelvis",
+    "shin_L": "thigh_L",
+    "foot_L": "shin_L",
+    "upperarm_R": "chest",
+    "forearm_R": "upperarm_R",
+    "hand_R": "forearm_R",
+    "thigh_R": "pelvis",
+    "shin_R": "thigh_R",
+    "foot_R": "shin_R"
+  },
+  "audit": {
+    "target_bind_audit": {
+      "bind_identity": {
+        "bone_count": 17,
+        "original_to_compiled": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "reordered_bones": 0,
+        "name_and_parent_identity_passed": true,
+        "max_translation_error_m": 3.35214365054653e-10,
+        "max_rotation_error_degrees": 0.0
+      },
+      "target_scale_audit": {
+        "policy": "source2-local-scale-dmx-v1",
+        "bone_count": 17,
+        "local_scale_tolerance": 0.0001,
+        "world_scale_tolerance": 0.001,
+        "world_joint_tolerance_mm": 0.5,
+        "max_local_scale_delta": 0.0,
+        "max_world_scale_delta": 0.0,
+        "max_world_joint_delta_mm": 9.8407268472109e-07,
+        "max_omitted_scale_world_joint_drift_mm": 0.0,
+        "max_omitted_scale_world_scale_drift": 0.0,
+        "approximated_bones": 0,
+        "scaled_bones": 0,
+        "bones": [
+          {
+            "name": "pelvis",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "spine",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.569789999273268e-08,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "chest",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.7848949432373045e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "neck",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.5418739431646314e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "head",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.055831886619955e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "upperarm_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.847030511197581e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "forearm_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.14132550104609e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "hand_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 9.8407268472109e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "thigh_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 1.525739929130548e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "shin_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.21716070241523e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "foot_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.363690537889439e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "upperarm_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.847030511197581e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "forearm_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.14132550104609e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "hand_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 9.8407268472109e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "thigh_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 1.525739929130548e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "shin_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.21716070241523e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "foot_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.363690537889439e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          }
+        ],
+        "original_skeleton_modified": false,
+        "exact_scale_preservation": true,
+        "world_inverse_bind_consistent": true,
+        "native_compiler_validated": false
+      },
+      "current_and_bind_equal": true,
+      "joint_palette_entries": 18,
+      "world_inverse_bind_consistent": true,
+      "serialized_local_transforms_checked": true
+    },
+    "bone_count": 17,
+    "joint_palette_entries": 18,
+    "joint_palette_names": [
+      "pelvis",
+      "spine",
+      "chest",
+      "neck",
+      "head",
+      "upperarm_L",
+      "forearm_L",
+      "hand_L",
+      "thigh_L",
+      "shin_L",
+      "foot_L",
+      "upperarm_R",
+      "forearm_R",
+      "hand_R",
+      "thigh_R",
+      "shin_R",
+      "foot_R",
+      null
+    ],
+    "required_names_and_parents_match": true,
+    "skinning": {
+      "meshes": [
+        {
+          "name": "body",
+          "vertices": 3,
+          "joint_count": 2,
+          "errors": [],
+          "pending": [],
+          "passed": true
+        }
+      ],
+      "joint_palette_entries": 18,
+      "numeric_checks_passed": true
+    }
+  }
+}

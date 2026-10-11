@@ -1,0 +1,152 @@
+{
+  "status": "restored_export_aliases",
+  "original_sha256": "4abe8ee97a1a93a447a4f9f691f7f3d827b67684cff2a37f5a08e4b7224d71aa",
+  "input_sha256": "366f06cf947813768c395be9e5007b25cc8d1ce7f1936e3cc6f68018f30d8499",
+  "output_sha256": "c2ebee268fd7774b39e3f1d10564d44073104010c5e0f245a3eddfaedfc0c6fe",
+  "aliases": [
+    {
+      "exported": "_cloth_a",
+      "original": "$cloth_a"
+    },
+    {
+      "exported": "_cloth_b",
+      "original": "$cloth_b"
+    }
+  ],
+  "alias_count": 2,
+  "changed_field_count": 10,
+  "changed_blocks": [
+    {
+      "ordinal": 0,
+      "name": "DATA",
+      "changed_field_count": 2,
+      "before_sha256": "dcbbee1cd5a0c952ffe026b9336acf1465c4750320f0e1edf3892ec592408077",
+      "after_sha256": "b7ca885abb52cee8eeef022d1a68c5688e1b9b365ad04ad539d2dafae95e7292"
+    },
+    {
+      "ordinal": 2,
+      "name": "MDAT",
+      "changed_field_count": 3,
+      "before_sha256": "f3812c53dd9ac3f2c0c5ed7fdfd5f2f2cf68a7ed793fa9c7c04f7222faec62cc",
+      "after_sha256": "50f8bc2fa179f7229b4d23b02ca2369b708ae1176d7f20cdad1bd031215ba44f"
+    },
+    {
+      "ordinal": 3,
+      "name": "MDAT",
+      "changed_field_count": 1,
+      "before_sha256": "5d033d2a41aeab8b69faad732fd9ce9034cdada8022001079d94a8a25dd9934b",
+      "after_sha256": "5dad0d6a6a01bbe952ecd523bcee74779abe12078a1e63f0519c9c19a01bb32f"
+    },
+    {
+      "ordinal": 4,
+      "name": "AGRP",
+      "changed_field_count": 4,
+      "before_sha256": "92945aebd6b3b78c64bed6d00b70f6477cf615a9f8e0d4d312869d42f4706a68",
+      "after_sha256": "628bab7d26faafa2bc7420fb1dc4d1cca05684058a7195d5c6c012e1fa2f81cb"
+    }
+  ],
+  "skeleton_identity": {
+    "bone_count": 3,
+    "original_to_compiled": [
+      1,
+      2,
+      0
+    ],
+    "reordered_bones": 3,
+    "name_and_parent_identity_passed": true,
+    "max_translation_error_m": 0.0,
+    "max_rotation_error_degrees": 0.0
+  },
+  "scale_preservation": {
+    "policy": "source2-local-scale-dmx-v1",
+    "bone_count": 3,
+    "local_scale_tolerance": 0.0001,
+    "world_scale_tolerance": 0.001,
+    "world_joint_tolerance_mm": 0.5,
+    "max_local_scale_delta": 0.0,
+    "max_world_scale_delta": 0.0,
+    "max_world_joint_delta_mm": 0.0,
+    "max_omitted_scale_world_joint_drift_mm": 0.1984375,
+    "max_omitted_scale_world_scale_drift": 0.00390625,
+    "approximated_bones": 0,
+    "scaled_bones": 2,
+    "bones": [
+      {
+        "name": "root",
+        "original_scale": 1.0,
+        "export_scale": 1.0,
+        "local_scale_delta": 0.0,
+        "cumulative_scale": 1.0,
+        "original_cumulative_scale": 1.0,
+        "world_scale_delta": 0.0,
+        "world_joint_delta_mm": 0.0,
+        "omitted_scale_world_joint_drift_mm": 0.0
+      },
+      {
+        "name": "$cloth_a",
+        "original_scale": 1.00390625,
+        "export_scale": 1.00390625,
+        "local_scale_delta": 0.0,
+        "cumulative_scale": 1.00390625,
+        "original_cumulative_scale": 1.00390625,
+        "world_scale_delta": 0.0,
+        "world_joint_delta_mm": 0.0,
+        "omitted_scale_world_joint_drift_mm": 0.0
+      },
+      {
+        "name": "$cloth_b",
+        "original_scale": 0.998046875,
+        "export_scale": 0.998046875,
+        "local_scale_delta": 0.0,
+        "cumulative_scale": 1.0019454956054688,
+        "original_cumulative_scale": 1.0019454956054688,
+        "world_scale_delta": 0.0,
+        "world_joint_delta_mm": 0.0,
+        "omitted_scale_world_joint_drift_mm": 0.1984375
+      }
+    ],
+    "original_skeleton_modified": false,
+    "exact_scale_preservation": true,
+    "world_inverse_bind_consistent": true,
+    "native_compiler_validated": false
+  },
+  "mesh_binding_audit": {
+    "bone_count": 3,
+    "original_to_compiled": [
+      1,
+      2,
+      0
+    ],
+    "reordered_bones": 3,
+    "name_and_parent_identity_passed": true,
+    "max_translation_error_m": 0.0,
+    "max_rotation_error_degrees": 0.0,
+    "meshes": [
+      {
+        "name": "body",
+        "mesh_index": 0,
+        "remapped_bones": 3,
+        "extra_remap_entries_bounds_checked": 0,
+        "identities_match": true
+      },
+      {
+        "name": "cape",
+        "mesh_index": 1,
+        "remapped_bones": 2,
+        "extra_remap_entries_bounds_checked": 0,
+        "identities_match": true
+      }
+    ],
+    "compiler_arrays_modified": false,
+    "vertex_blendindices_decoded": false,
+    "live_ag2_deformation_validated": false
+  },
+  "names_only": true,
+  "numeric_data_unchanged": true,
+  "geometry_payloads_unchanged": true,
+  "encoded_animation_samples_unchanged": true,
+  "anim_aseq_payloads_unchanged": true,
+  "animation_bindings_checked": true,
+  "resource_references_unchanged": true,
+  "in_game_motion_tested": false
+}

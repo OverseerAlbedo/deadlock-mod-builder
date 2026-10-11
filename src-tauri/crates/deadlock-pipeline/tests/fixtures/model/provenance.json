@@ -1,0 +1,12 @@
+{
+  "generator": "generate_model_fixtures.py",
+  "source_sha256": {
+    "pipeline.py": "80e520935d04177f19d831ffd913876ca945d677c9d779165e1059d47f40e1cb",
+    "model.py": "7d1a52e1c366831d1b274a7113db255ce7a0d9904c4999bce86d13b7c12febf8",
+    "project.py": "de4727ae1eeeb0b32291b96b86a80f42078a87ad214027e592a7a7ade9606bf5",
+    "materials.py": "391e571d54294fb22622e51a9bdf7988eea2ab969940d9a0c745ddd204342f76",
+    "dmx.py": "1d629d0291c579a061f3f65fd3ed7c457187dd54b3055b7b1a09014732ea6f43",
+    "source_identity.py": "8d6756bd148253fc77c5423c4dba98ee4b56c87439ef05fb1560a2d980a8ae37"
+  },
+  "native_compiler_executed": false
+}

@@ -1,0 +1,44 @@
+Qt frontend dependency notice (0.10.0rc1)
+
+This application's new frontend uses unmodified Qt for Python (PySide6 and
+Shiboken6) 6.10.2 and Qt 6.10.2, Copyright The Qt Company Ltd. and contributors.
+The source ZIP and Python application wheel do not embed Qt libraries.
+requirements-gui.txt installs PySide6-Essentials==6.10.2, which provides the
+PySide6 namespace and Widgets/Core/Gui/Svg/Test modules. Addons/WebEngine are
+not needed. The existing backend and Tk fallback do not depend on Qt.
+
+Qt for Python is available under commercial terms or LGPLv3/GPLv3 terms.
+See the actual upstream component licenses for your chosen distribution.
+Copies of LGPLv3 and GPLv3 are included alongside this notice. Qt includes
+third-party components with their own attribution requirements; those are
+not relicensed under this application's MIT license.
+
+Official licensing and notices:
+https://doc.qt.io/qtforpython-6.10/licenses.html
+https://doc.qt.io/qt-6.10/licenses-used-in-qt.html
+https://doc.qt.io/qt-6.10/qtcore-index.html#licenses-and-attributions
+https://doc.qt.io/qt-6.10/qtgui-index.html#licenses-and-attributions
+https://doc.qt.io/qt-6.10/qtsvg-index.html#licenses
+https://www.qt.io/licensing/open-source-lgpl-obligations
+
+Corresponding upstream source locations (select tag v6.10.2):
+https://code.qt.io/cgit/pyside/pyside-setup.git/
+https://code.qt.io/cgit/qt/qtbase.git/
+https://code.qt.io/cgit/qt/qtsvg.git/
+https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.10.2-src/
+https://download.qt.io/archive/qt/6.10/6.10.2/submodules/
+
+The supplied PyInstaller spec builds a one-folder application using dynamic
+Qt libraries. Keep those libraries replaceable and retain this notice and
+all applicable upstream notices. Before publicly redistributing a Windows
+binary, collect the notices and corresponding source for the exact Qt and
+third-party binaries actually included. A source URL by itself is not a
+claim that every distributor obligation has been fulfilled. No verified
+Windows binary or complete binary redistribution compliance kit is included
+in this preview delivery. The full MIT application source is supplied.
+No EULA in this project forbids reverse engineering for debugging LGPL
+library modifications. Help > About Qt displays Qt's runtime license notice.
+
+The four small checkbox/radio/spin arrows in ui/resources are original
+application SVGs and covered by the application MIT license.
+No Valve tool or game binary is included or automatically redistributed.

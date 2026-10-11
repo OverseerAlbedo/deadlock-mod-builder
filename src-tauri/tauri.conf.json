@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Deadlock Mod Builder Rust",
+  "version": "0.13.0-alpha.51",
+  "identifier": "com.deadlockmodbuilder.migration",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "features": [
+      "desktop"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Deadlock Mod Builder",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 880,
+        "minHeight": 620
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost blob:; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "shortDescription": "Build and validate Deadlock character mods",
+    "resources": {
+      "../physics-references/": "physics-references/",
+      "../resources/native/cloth-reader/manifest.json": "native/cloth-reader/manifest.json",
+      "../resources/native/cloth-reader/win-x64/Dmb.ClothReader.exe": "native/cloth-reader/win-x64/Dmb.ClothReader.exe",
+      "../LICENSE": "LICENSE",
+      "../licenses/": "licenses/"
+    }
+  }
+}

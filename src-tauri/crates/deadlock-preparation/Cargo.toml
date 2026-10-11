@@ -1,0 +1,20 @@
+[package]
+name = "deadlock-preparation"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+deadlock-core = { path = "../deadlock-core" }
+deadlock-project = { path = "../deadlock-project" }
+deadlock-dmx = { path = "../deadlock-dmx" }
+deadlock-resource = { path = "../deadlock-resource" }
+deadlock-model = { path = "../deadlock-model" }
+deadlock-skeleton = { path = "../deadlock-skeleton" }
+deadlock-preview = { path = "../deadlock-preview" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+thiserror = "2"
+sha2 = "0.10"
+regex = "1"
+uuid = { version = "1", features = ["v4"] }
+[dev-dependencies]
+tempfile = "3"

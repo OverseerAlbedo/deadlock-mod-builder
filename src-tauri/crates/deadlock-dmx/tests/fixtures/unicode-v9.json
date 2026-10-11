@@ -1,0 +1,72 @@
+{
+  "summary": {
+    "encoding": "binary 9",
+    "format": "model",
+    "format_version": 22,
+    "meshes": [
+      {
+        "name": "衣装",
+        "element": 1,
+        "vertices": 1,
+        "indexed_vertices": 0,
+        "weight_values": 1,
+        "joint_index_values": 1,
+        "has_skin_weights": true,
+        "vertex_attributes": [
+          "blendindices$0",
+          "blendweights$0",
+          "jointCount",
+          "position$0"
+        ]
+      },
+      {
+        "name": "оружие",
+        "element": 3,
+        "vertices": 1,
+        "indexed_vertices": 0,
+        "weight_values": 1,
+        "joint_index_values": 1,
+        "has_skin_weights": true,
+        "vertex_attributes": [
+          "blendindices$0",
+          "blendweights$0",
+          "jointCount",
+          "position$0"
+        ]
+      }
+    ],
+    "materials": [
+      "模型/материал.vmat"
+    ],
+    "material_identities": [
+      {
+        "name": "模型/материал.vmat",
+        "uuid": "05050505050505050505050505050505",
+        "path": "模型/материал.vmat"
+      }
+    ],
+    "bones": [
+      "root_bone"
+    ],
+    "elements": 7
+  },
+  "geometry": {
+    "meshes": [
+      {
+        "name": "衣装",
+        "vertices": 1,
+        "polygons": 0,
+        "triangles": 0,
+        "corners": 0
+      },
+      {
+        "name": "оружие",
+        "vertices": 1,
+        "polygons": 0,
+        "triangles": 0,
+        "corners": 0
+      }
+    ],
+    "source_triangles": 0
+  }
+}

@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/vpenades/SharpGLTF/5153478a209ca2e276d8092f7166ff9d7ae4974f/LICENSE

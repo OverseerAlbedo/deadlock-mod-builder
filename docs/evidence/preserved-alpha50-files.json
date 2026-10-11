@@ -1,0 +1,1830 @@
+{
+  "baseline": "Alpha 50 source archive, version 137",
+  "unchanged_files": 456,
+  "files": [
+    {
+      "path": "physics-references/Vindicta-R12-Balanced/README.md",
+      "sha256": "1546ae82b8d3fb904e7d41af9ac93a66d8fb2b241edaa6a242092a7ae7bf7c5b"
+    },
+    {
+      "path": "physics-references/Vindicta-R12-Balanced/baseline.json",
+      "sha256": "9f7ad4ba8b69f1c669fa5fa1893aa33c398aca568fed8422a44b688283829ee9"
+    },
+    {
+      "path": "physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c",
+      "sha256": "27dd44ea4db29f671cff53d0dd8ad171792fe5f12f45b05aca5db65e0a6b5b0c"
+    },
+    {
+      "path": "physics-references/Vindicta-R12/README.md",
+      "sha256": "f9bc283daed1b525670446bab0c9f74d0b766d7d776a7f8bec0ac2ba22f74016"
+    },
+    {
+      "path": "physics-references/Vindicta-R12/cloth_supported_hair.vmdl_c",
+      "sha256": "82e7212cfd93138c663ece73c6d5145f5146bca19f27942c7d769514354ebe7e"
+    },
+    {
+      "path": "scripts/test_blender_alignment.py",
+      "sha256": "845ec244f98398db2da0fee744198990ab1352698d18678aea97db338e993f8d"
+    },
+    {
+      "path": "scripts/test_blender_arm_helpers.py",
+      "sha256": "26c929c3601ad96a6d16c0282e3cf98b522c45aed0d134014ca66783a16811ed"
+    },
+    {
+      "path": "scripts/test_blender_arm_skinning.py",
+      "sha256": "7339a77b6589e3530888b9993cf0967edfc27f18203b9c5ada5ae85b8b8091fb"
+    },
+    {
+      "path": "scripts/test_blender_character_equipment.py",
+      "sha256": "af54104e3934a92bfdf1430abb2e056f581dd3b767f8738543a36aed2208ec5f"
+    },
+    {
+      "path": "scripts/test_blender_clothing.py",
+      "sha256": "531ee4db59c6182f88693e65e07fdff281213af545de90a4d9827ce52747e2ed"
+    },
+    {
+      "path": "scripts/test_blender_exact_bind.py",
+      "sha256": "41f82ea3f7d3a5fd7acb1f2ec189a3315105667ce1ebbc524edd184d98ce4cd1"
+    },
+    {
+      "path": "scripts/test_blender_library_compatibility.py",
+      "sha256": "5c5792200b40a4f1de52b7e2c5abcdc3bdcc61952d95eb8d130e7db56180504a"
+    },
+    {
+      "path": "scripts/test_blender_mapping_offsets.py",
+      "sha256": "d2f289641db4a4aceb7a26977ad7bc15a2774e721d4a3c6ff3b63e52909ed85d"
+    },
+    {
+      "path": "scripts/test_blender_material_recovery.py",
+      "sha256": "c23ae127a14a143533d025df25f4d6f98600829d4c9948f6b8d7aca9de57ad45"
+    },
+    {
+      "path": "scripts/test_blender_mmd_helpers.py",
+      "sha256": "b7b4adbf0f8fb9d7cd54c15e216851b313dfee57f78ba4aa8835d82f8c96b5bd"
+    },
+    {
+      "path": "scripts/test_blender_model_mapping.py",
+      "sha256": "02c1aef11687215c7e9c6007af10c41dfd0b383ef0faf6a510bf21d5e3d62e31"
+    },
+    {
+      "path": "scripts/test_blender_modular_rigs.py",
+      "sha256": "2fc9235be1bca0ef77c4edf3872d29e932a1bdfc516b50bbe4c5c3bf4f7b7899"
+    },
+    {
+      "path": "scripts/test_blender_pose_controls.py",
+      "sha256": "5e72bbec1174b3a8384b20884ae3ae4ed68efa9a4647b7d43f46c73ec9c9270f"
+    },
+    {
+      "path": "scripts/test_blender_preparation.py",
+      "sha256": "ea80023b5a44a7576ce08f825cac6e679004baa569a9920caf6e6e505c53f8e5"
+    },
+    {
+      "path": "scripts/test_blender_preparation_guards.py",
+      "sha256": "74fa6c942ba5923f18bbe9f3f9bb2be4d29623510c1af225ed057b18be045493"
+    },
+    {
+      "path": "scripts/test_blender_proportions.py",
+      "sha256": "d20b1b67f51eece9799c38a5e1fc2af39ed40f1833632a52baec00bc6f69b6a3"
+    },
+    {
+      "path": "scripts/test_blender_rig_recovery.py",
+      "sha256": "868e02c1105a58f166ca9ad6f5af8531f18e33917232febda019c92cd07506aa"
+    },
+    {
+      "path": "scripts/test_blender_rig_selection.py",
+      "sha256": "d2d031ac0c29e64d88e41cdb63ddcddd3385035809631a92986455c5d5a509aa"
+    },
+    {
+      "path": "scripts/test_blender_secondary_bones.py",
+      "sha256": "dbd6098a6c94ec27f2d2e51dec233007aea7a8cddb379465df2dc0fb5a5aa83b"
+    },
+    {
+      "path": "scripts/test_blender_skin_groups.py",
+      "sha256": "dbbf937159605eff9631b7838ccbc51b2be19362c212ea43dc6ba66be9d9aba9"
+    },
+    {
+      "path": "scripts/test_blender_static_shapes.py",
+      "sha256": "51d1739284a5c4f94510a8208cc75a10c05c1e95a16fe2450262d703b3abef9f"
+    },
+    {
+      "path": "scripts/test_blender_target_corpus.py",
+      "sha256": "cb812db86da0d52053406285d27a1d9cef3946814216671d3bef757f0c784b55"
+    },
+    {
+      "path": "scripts/test_source_compatibility.py",
+      "sha256": "ec3245185172c5e0561e8ff031d10b9091d6632e65e65eb7b402d84fe13ecaf8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/Cargo.toml",
+      "sha256": "87a68c213ca4028cdbb11f01225c5d1901f92723d59bd22556cd51f970e64a35"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-hinged-streamers-proxy.dmx",
+      "sha256": "8ef0c2fc7e3ae155d0fa8709a5d452953ff5ea2c494418cfb93963176316ce07"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-hinged-streamers.json",
+      "sha256": "59a97200f3de30b3c0243c6ef784f0e004d2c7edac39ac1c9fbec7ffdd350948"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-r2-groups.json",
+      "sha256": "8d8b94f56d66f0bfd4336772fba45aeb8b6f3d9be98cf441601e6315844c3776"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-r2-proxy.dmx",
+      "sha256": "1eebba6483d63387a060fd35331e90868397a835356a3ab8a77c65ac25e9c8b2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-reference-phys.bin",
+      "sha256": "caaee2b05d3a08204f81d8f38aea008cbd71f3ff1457746633503d09bc64381c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-reference-proxy.dmx",
+      "sha256": "8537f076ea1577082097e8ef3f42d26997c0447a8dad43120e6db67f8b71acd5"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-reference.json",
+      "sha256": "f90b75252c5a15f0862f20fa0cfe195f9de9922b2f30452046ae50f5b88cd73b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-refined-proxy.dmx",
+      "sha256": "9a668d49a5496134284257fde7f41b625e3cbfe1330147a0f18085fef35fa35d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-refined.json",
+      "sha256": "9c8bfe0faf74978b8810cf0d6b770016879de526cf26272c0c335f4b8926be47"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-stabilized-proxy.dmx",
+      "sha256": "edd1bf0914d5535da3459f2e3e70717e2eb4a8f1f3ad801453ea52b8f3ee299d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-stabilized.json",
+      "sha256": "21f387b8048a95ce462b737ef9512cac45a7dd5408d5be53ab4f3aa146121958"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-streamers-proxy.dmx",
+      "sha256": "64fdd29cc6ffa40c296f70764c05a511f53a0fa51999ae12cbee7303a5ea5045"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-streamers.json",
+      "sha256": "583d0f1f743375ccddeb4c05f4567a9a4ba67b35c85b67eb47746d111d5d43a0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/attachments.rs",
+      "sha256": "3eb93d38bdd0b02dfc3f5198ac138cf918c8a47f74f4ac9a8045482634e5fbd8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/automatic.rs",
+      "sha256": "b34455747df8ac83ce53e1ab32d4ceb99d8609bb75dbe3a8539d9d07d35e8a3c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/fabric_cohesion.rs",
+      "sha256": "dac7e40d0758e2c5b7f1eab56dc0c9f68e2023c11f67253d98c48fa8754d1e79"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/hair_limits.rs",
+      "sha256": "971bf8bc5a289fd137311ee1e6fdeceb62473b1c3c43a57e8ef029fd1117f28f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/hair_motion.rs",
+      "sha256": "72010599319b209ad45495fcaafdbb0b3f6691d977fddd3022571b436ee132f4"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/inventory.rs",
+      "sha256": "e4f0cbc8feb96ba502638de68e83a2d1e13cc6dbdde382d3ab7a89fac024e93a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/lib.rs",
+      "sha256": "c3d496bbbba4ccca9115f982076703f2f05bcd87e64935f6bd9a71375ba65ebf"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/long_skirt.rs",
+      "sha256": "0949076e4aa89325d8492afa6352092b69692d6cdc2cd6d01da6787ef7194ed3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/motion.rs",
+      "sha256": "429cff8356115818f28cfe328a5f879f615f8d9459ebb018b0700812e7130d8c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/parts.rs",
+      "sha256": "4e2263450d29fe2d9e0dae8657436a4cca0f84093e3e7a3f751e665b0b73569a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/physics.rs",
+      "sha256": "942001b41b53c7daa9487e83cd412fbf3aa1f5d2808901fc53a60d843a26fb01"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/proxy_source.rs",
+      "sha256": "e50d6f245682edd614470b0a08be533e818e0ad0cbc36d1a0d1888990f93c17e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/secondary.rs",
+      "sha256": "b2eff6bc6ac0643522f01b3b56cc0792619869e49b2b6449cefe88f6ffe49648"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/secondary_auto.rs",
+      "sha256": "01347d0387262218f6fa18e4b81c0274bd88b5e5db5134c623abdf6002901e1e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/skirt_surface.rs",
+      "sha256": "dafb96fd85a145c728fa4b2686d97b2a6090628e971cf242cf92c7ffc45f3be6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/surface.rs",
+      "sha256": "0211ff3f5048d65f61e285c26b4ec5bac0c4372a4fdc6188afba4b074f554518"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/surface_geometry.rs",
+      "sha256": "c2655d904379bf85c64827973e2bee2491dda65daf4e7b166cb392986bad067c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/src/tangtang_fit.rs",
+      "sha256": "e8f7dc68653f09e8c11121804b30019c0fc4ce499fcc0ea5a49e456a9d512622"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/attachments_capture.rs",
+      "sha256": "b6ba088fd1374e1d0629d06d876286acb3b0aa893c6bffba35569e2b3ca57126"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/automatic_inventory.rs",
+      "sha256": "36cc29e436ed35dbbebe3b566ef90dcac3168d672f53399b5ff880c3635ed311"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/automatic_motion.rs",
+      "sha256": "3e690fe00522f60d973c8f40b04d7cd707391b262ef179837d3b9cff33df0308"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-analysis-body-fit.dmx",
+      "sha256": "f09d5edce7ff23b052b8b15367a1484c76581ee0aa1b8ec2b95f882da8d62478"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-analysis-capsules.dmx",
+      "sha256": "8e245bb6c04a05e5eca59ddd811e0d8cec6bb4bf78e6d370b079767d453649a9"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-analysis-changed-bind.dmx",
+      "sha256": "4f99ee774f6912ada5c88439fd24599a36a03a9c929b1fc52401018030a200d0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-analysis-none.dmx",
+      "sha256": "8e245bb6c04a05e5eca59ddd811e0d8cec6bb4bf78e6d370b079767d453649a9"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-bottom.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-closed.dmx",
+      "sha256": "20de30353ea2ce732a1b21facad7aacf85a0c518f001fece677c318e1f5702d5"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-disconnected.dmx",
+      "sha256": "b5716061b869bd18f3079c79629c2b7b548e3c70361de581038084bd4094fa72"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-flat.dmx",
+      "sha256": "4d72b08f731ea8c8ac53da48d6d011a532a3eae827cafaad20c32a04ac5a5e59"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-invalid-edge.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-missing-mesh.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-none-selected.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-original-body-fit.vmdl_c",
+      "sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-original-capsules.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-original-changed-bind.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-original-none.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-reference.json",
+      "sha256": "edee7160296f1f5b049edfbb3617c81f413062b2a18b42d74cce10f784f6d99a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-top.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/automatic-two-selected.dmx",
+      "sha256": "aa7c7c3117197c0bdd6aaf4f6ac6615d4218aa74f0168140e91143e48b150a20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty28-after.vmdl",
+      "sha256": "362ceb75f217b0722e756dd2cd3a17cf448f016696cbe4c6f7add0903f1d0e03"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty28-before.vmdl",
+      "sha256": "f01f007860f1105a8b710b80724230ddb36b9e8f322d900149cd24e32aff0ad4"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty28-receipt.json",
+      "sha256": "0ae0ae2502443e1c4382ca40a67593885c33ccf74a9cf88fe593ea6e07ca50d3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty40-after.vmdl",
+      "sha256": "7318efea9ffdac942e5994a847ed53dd50ea38bf09d16c3c685693fd07c73782"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty40-before.vmdl",
+      "sha256": "d110aa5bbf5b98aa333e6e1d43dd8a0f858b11d7fdc6777b085c4bfb2ea2e91d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty40-receipt.json",
+      "sha256": "12e3b629a441070fe918935d0d7a6a2bc299ecbe92edcf7248ee4bab061581cc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty41-after.vmdl",
+      "sha256": "5eb9c95f01c6b0781d4901c391fce5de7e3f7b0fac70e524d992eb0da9064adf"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty41-before.vmdl",
+      "sha256": "40399f4d330232963205abeecd90d5cf447854eeaa5b9707be3fa7eac172e538"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/empty41-receipt.json",
+      "sha256": "9ae68cea91359eb790007f4640ade935efa70912832432f53530549373f11a46"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/hair_motion/mixed.dmx",
+      "sha256": "d3a03556af2923bc951e3e05490ee4d93842ad54474f39a770f112ccee8de0e2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/hair_motion/oracle.json",
+      "sha256": "1a71d13c351fba5c5800b1bea70a15d0753ddcc09f5eb2f5876c447ea704d81d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-absent.vmdl_c",
+      "sha256": "8373065914576cdbb82fc5a30721c071de03dd32f8f5c9f80947da02b6cef511"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-0.vmdl_c",
+      "sha256": "6b615aa310783c428284452bdb1de7cd84fa903d96e89649b4f0da8aecd2ca33"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-1.vmdl_c",
+      "sha256": "4ea40c6fc1a82d8094de70c1608e50704d75b3ffd16cac10bd9846f225c408de"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-2.vmdl_c",
+      "sha256": "47dc4f0b29b3eaf032c35da663d7c92965a085245c43d3b03ca5327114333ba4"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-3.vmdl_c",
+      "sha256": "14f8ae6c5f5afdb9b82f4c79566ebd9a013702c7abe80a3cdf0b23902ba1cf7c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-4.vmdl_c",
+      "sha256": "5350aa825562fe1c008d6501aafd5ca8bbacddaf544f8821b1839b67dfb3ff08"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-5.vmdl_c",
+      "sha256": "efe2bfd6347c5aabae5d6416ba1ebe384a50dad91a79bd971814f75e633cda4b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-6.vmdl_c",
+      "sha256": "bbf522db3d6db30edf7c65a888081f4e3f6411f6d8e0636a9ad8878a2136fd7b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-7.vmdl_c",
+      "sha256": "29b369359e9af5c2f51d84ca484efb111b48c058178b5d1a59076b96f51c9195"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-8.vmdl_c",
+      "sha256": "389096011df1bdc8d5385b53e295e263b3ec251583cfec31dc4e2174a41b5151"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-bad-9.vmdl_c",
+      "sha256": "e30e83f545715f9871ec47eb5239fe5c81c8acf954a0fb33b7a4f3a7403a312c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-basic.vmdl_c",
+      "sha256": "ec780d5a348bbf4708ca08416822f280f3017d781379754f92822c6accb61ac1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-null.vmdl_c",
+      "sha256": "b601cf747a726dd3f2ea93248cf56aae39982605ca5d03c939deabb3620b4961"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/inventory-opaque.vmdl_c",
+      "sha256": "a477985a78adaba1efaf06ac61777889668a79e962de45d8c88201054b78dc4a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/joint-after.vmdl",
+      "sha256": "e1f841481756a867e1ae089ccaceb8dcf68640f6b5474e90f7272666fa8b4342"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/joint-receipt.json",
+      "sha256": "4f981db79bd0da1cd81c93b3a48ed8792c0b57f4adf42eac52443ea6af5d70a9"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/long_skirt/oracle.json",
+      "sha256": "6f1c9634884b59321fe810b65c43ddaf6144fd51b6b9056fc1550d06ea793683"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/long_skirt/panels.dmx",
+      "sha256": "46d08124d324a49a5107b585de3d50cfe4d7a27b67725cef6fe98189662f88bd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native28-after.vmdl",
+      "sha256": "4d0bac605ca08f711ac5867586e70a794acdd32917b781c1ac1ab5f871981c5b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native28-before.vmdl",
+      "sha256": "5f4ccd37600b39be20fbc970810c15c2cdda97c2319b17775795d2e0d1cb5fdf"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native28-receipt.json",
+      "sha256": "dd3301170039a93f95990e09974c306487517b1ff1942e7901b0084432ff3417"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native40-after.vmdl",
+      "sha256": "c919d5aa66a614e78465f6d259f1da7afe46959210981b1da493d25b6eac163d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native40-before.vmdl",
+      "sha256": "da3c68d185d10559a462cd87e23bb0835a03134881f98af0d64d55212b3967a6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/native40-receipt.json",
+      "sha256": "426ca366d2391f3b84b0339bd96907201ac0a22140d52668c98b0e0ac94d4e4b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous/oracle.json",
+      "sha256": "0333bd4c0efcb765591bf9a24016fdfb6d1e23784290e90e042053d0021ad421"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous/original.vmdl_c",
+      "sha256": "495f0a744bb5de16f9eef9506a8478a58f4d5ec40dce24db6fdfee553349224e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous/source.dmx",
+      "sha256": "8d755e4bbd06dbb0d4ece15f97b4d7e8caee8b5802361a1b26835a3a6f9e1c0d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous_phys/oracle.json",
+      "sha256": "19d4e74c71815a1438af50d39541edf6b1cbeace5b6a801f7c696fe15c46a819"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous_phys/original.vmdl_c",
+      "sha256": "39f57bf3ea0f9e0402c4a3a0adaf3bd91824af55ecea9bb775b2cb0f63fb36f3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ambiguous_phys/source.dmx",
+      "sha256": "5406c45354453e16272736d9cf40645dce4d5a0e953e1f7c3a6acf9750ffbebb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/branching/oracle.json",
+      "sha256": "606e8e2b25fe7da68f674ebd5fbc7eb67bb9fabeb0bc1353522a9f867d3cef2d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/branching/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/branching/source.dmx",
+      "sha256": "c51e392933271e65ac47f8a6461c1c3d4d4bab5e9d8a255af72bb4194ab8bc24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/collision_subset/oracle.json",
+      "sha256": "65e13abf9f09d8fab193feda5efe9da82217612101aeb14eba8b1e938d3044ad"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/collision_subset/original.vmdl_c",
+      "sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/collision_subset/source.dmx",
+      "sha256": "5406c45354453e16272736d9cf40645dce4d5a0e953e1f7c3a6acf9750ffbebb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_empty_roots/oracle.json",
+      "sha256": "6e31bd7988ce1b446ab713b501f782ff0c635075284177612d23882491843663"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_empty_roots/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_empty_roots/source.dmx",
+      "sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_role/oracle.json",
+      "sha256": "c560ecc149ed0346cc974bf86354ee7b4b6efdbab4f520a5b273a460085275c7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_role/original.vmdl_c",
+      "sha256": "495f0a744bb5de16f9eef9506a8478a58f4d5ec40dce24db6fdfee553349224e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/explicit_role/source.dmx",
+      "sha256": "8d755e4bbd06dbb0d4ece15f97b4d7e8caee8b5802361a1b26835a3a6f9e1c0d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/fallback/oracle.json",
+      "sha256": "ea948fb90b218dee57dfd32b333b275892295ce19dedba9aeab3e0b81d616cf4"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/fallback/original.vmdl_c",
+      "sha256": "b71fe0c2907d8e446e2b5df4bb6e3002444c8fbb2bf3ec4e8670f9ad8ff694e8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/fallback/source.dmx",
+      "sha256": "5406c45354453e16272736d9cf40645dce4d5a0e953e1f7c3a6acf9750ffbebb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/missing_snapshot/oracle.json",
+      "sha256": "d2fc3d6159bb5911aa2788f46cfb03b52497899ea8aa085fb060fd8b0363ed07"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/missing_snapshot/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/missing_snapshot/source.dmx",
+      "sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/negative_radius/oracle.json",
+      "sha256": "d2069e1df03862f84fdba79c88aa48655c72c12f18800f22a65c1fd0e57b91af"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/negative_radius/original.vmdl_c",
+      "sha256": "7b3adbd2ef8d7e71fad3fa31d4485de4a412e0a687b42f9312abf0a18f8c7362"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/negative_radius/source.dmx",
+      "sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/no_phys/oracle.json",
+      "sha256": "7e7b5921115f0d00fbdf77d1c7bb0bae58074cc45aafd656fc8d424855b227b2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/no_phys/original.vmdl_c",
+      "sha256": "0b9ee383fd481211a4ed297d26e061ca6ac5587590ee8b3b104448791e410d6c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/no_phys/source.dmx",
+      "sha256": "5406c45354453e16272736d9cf40645dce4d5a0e953e1f7c3a6acf9750ffbebb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/noextras/oracle.json",
+      "sha256": "97758e5ecad564df59bdd36f011df99a283dcd478572c2e1602cba9bcd3d2c1c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/noextras/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/noextras/source.dmx",
+      "sha256": "1db2af3562dcd12b009217409b0c524d1946e2ad787cc407dbb639baafff1bf0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ragdoll/oracle.json",
+      "sha256": "581187c8a8052b053f88a31e375bdfb85e9c23b2144e2b5f7b378612d127b744"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ragdoll/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/ragdoll/source.dmx",
+      "sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/rounded/oracle.json",
+      "sha256": "91941889e6e4c3a6f6b2536aecf225182e1473eb00ae23e41673958426562a96"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/rounded/original.vmdl_c",
+      "sha256": "e76ef8bd0623efae73be4cd6c408e7a55dfd28a2a7f16c01335b02f0d603308a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/rounded/source.dmx",
+      "sha256": "ed82683af7e310d76e3aba3220aff1fa12c795879ce21d0f3761a7b3118ce4e3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/scale/oracle.json",
+      "sha256": "33d65d50c1cd739c056d020fc2c73d7e164549c8184bf58b49280ff89ecd9bff"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/scale/original.vmdl_c",
+      "sha256": "6480c88860121fc58c91fab074b4eb45f11ff57dcddf9fca119816cc13ebff89"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/scale/source.dmx",
+      "sha256": "469baddc72e9719d59139b0e5ca6cc79064d552742b966ef6b841b764d05e639"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/upward/oracle.json",
+      "sha256": "3508921885839808b24e61e2acf07d039b4bf60406743fc28a646a4fc957bd50"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/upward/original.vmdl_c",
+      "sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/upward/source.dmx",
+      "sha256": "c49fa2b82bc0db6c313ae8b8e547d2b1bc91d13250f6519c0f8491910b180ffd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/zero_radius/oracle.json",
+      "sha256": "d7d8c6110496ceed2f823cd1aa6c19296897857a16cd826ea7d44e54af9c9671"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/zero_radius/original.vmdl_c",
+      "sha256": "4062a5c18a6c572238ab7206b19e19f576d00f0269d63d4f611e85a8186c75f7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/physics/zero_radius/source.dmx",
+      "sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/proxy-cases.json",
+      "sha256": "adead9dc1e6ead4409253447e12ceb2bf7f6086354e0f780dd9deef971e2005c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/proxy-inputs.json",
+      "sha256": "71da3e6dd17e7c1889ab1141a39cb86fa6095aacbd625ff902845c08bffff38f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/chain.dmx",
+      "sha256": "aef3202a9fd03740fb6dddd598a6289c0fc1af6257fc59abd5239e75cfb2a0d6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/chain.json",
+      "sha256": "65c11fe74d9452a945ff44dc77e5fca94b87768adbe5f08f167ef0fd0dc227ae"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/chain.proxy.dmx",
+      "sha256": "66167c385a49918c9f5b04f95a7c8cd4cef4f636aad37754a9c1541d334281ce"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/collapsed.dmx",
+      "sha256": "baa84aa53bd76c8e2c44dcd1b40be8e9d1a55a571b05b1004f7dc9290dd3afa1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/independent.dmx",
+      "sha256": "43d6d85c85001e4eec6e429449156385afcbbbcc99765a198f55b269d94b080e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/independent.json",
+      "sha256": "dc8304a50951665f3ab35f04b7737509f315b5bd8fb06b0d8bcb8c0318253dfc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/independent.proxy.dmx",
+      "sha256": "ff6ec3a69afd441fd1f2543e8c2bc05742d0599c3a08ab565201671d26c26063"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/secondary/unweighted.dmx",
+      "sha256": "b076007ae47a3d350a2b1d255202a930129fc6a455a1aabd77ec7bfaf6d6fe17"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/ambiguous.dmx",
+      "sha256": "81585e0047ec14a42570854db15f5435a275f493c50239aa92603ba379a32a93"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/base.dmx",
+      "sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/base.proxy.dmx",
+      "sha256": "30ea3d351d747c8601815f4ff4cfb0cd7bdd36bc01fcde1dea49767f6b1b27de"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/base.render.dmx",
+      "sha256": "615e386d64a82e9936a32735b6832ec98671fe2dbbe7abd9017b51ac847a0447"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/boundary.dmx",
+      "sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/budget.dmx",
+      "sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/collapsed.dmx",
+      "sha256": "f9ab7e36846487ae3f44c19aaae70b7e9deee2858bef29e34c059e4b1010cb6e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/far_overlay.dmx",
+      "sha256": "34d41cfad00e1125fa7d4aee57818af535fe4f4e3ee2ef0372824588e9a01bf8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/motion.dmx",
+      "sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/motion.proxy.dmx",
+      "sha256": "f06d62531e95b8d116d5c461dcfd1a955b7f499527dd26a8d09bacc73d7eb005"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/motion.render.dmx",
+      "sha256": "615e386d64a82e9936a32735b6832ec98671fe2dbbe7abd9017b51ac847a0447"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/oracle.json",
+      "sha256": "25d57c30c1fec275a0332c97f307c860af341bf3bf499be3ff3d7c684f0ca42e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/overlay.dmx",
+      "sha256": "89351c9f6b069c32c3bdf8b91e401a68cf3c53967b2eaa28873ef4dbab8fc564"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/overlay.proxy.dmx",
+      "sha256": "4b922da9f1c1336335255299115f7aa122e1dd5906060e35229a6840e00c6063"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/overlay.render.dmx",
+      "sha256": "a835f046d9c3b7a3f6645c3b09e04bb96cb541f0a813500f940f7259ffd41a76"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/panel.dmx",
+      "sha256": "4c3cfb3caeda74dfed898d3562c99ed1cf3303b1641eb56e35ca3e84a14c9fbc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/panel.proxy.dmx",
+      "sha256": "17f1f0ba02b49927ba5b17678b741ffce57bba7aef0f61fbe70b1cfcc032efce"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/panel.render.dmx",
+      "sha256": "5fa5a5a6dc838d2ac09806ac547f04b33b388d599f31b3c1e22ae8fcd0ac8744"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/unanchored.dmx",
+      "sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/surface/wrong_weights.dmx",
+      "sha256": "a9c37e58d065fbd2b33967a620b517a11e32f182d7900493f39d4f062bf48bda"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/unicode-after.vmdl",
+      "sha256": "f8dccba052a93ce16bb088e5c5ce529911c74552a6e22b6fccb5588aa864ccc5"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/unicode-before.vmdl",
+      "sha256": "24d1114f494bc56f73d3f965feb06dd8b043b0a40102ab1a107c88e1867b2048"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/fixtures/unicode-receipt.json",
+      "sha256": "d3a033e93aaae0f0b30a61afcbd26e621b8ea25b226a28edea495eb6320c11b1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_automatic_fixtures.py",
+      "sha256": "510fd1524828e81dd6845ee128db622cbd5e8da68bcebd60ebee20e983076ba1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_hair_motion_fixtures.py",
+      "sha256": "adc4a9ff146a4ab47932fb683da68848e639c9ce0bb4d0e8ba6e485126db4759"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_long_skirt_fixtures.py",
+      "sha256": "44f05766f3983e86e5933819c6ae1748d62e670fcfd2f25ae0252f56722663bb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_physics_fixtures.py",
+      "sha256": "7e77b6beae41be39dcd5b5c099d9b07e7fdf2fcb4fe59aaf9b64e453e3d723aa"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_proxy.py",
+      "sha256": "c36168e831c3de31b315890acc36ea5da8d583eba254c539d32278e96dba7f26"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_secondary.py",
+      "sha256": "cbe08c2e1b9ffad4e11eb212b2b7c69d8679a9a8e704cac7d711ccafd8501092"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/generate_surface.py",
+      "sha256": "284af3c99610d96ff86482a2250e91304b7ac030473179f995fd01c5d3075316"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/hair_capture.rs",
+      "sha256": "938c27dbcf41acf9b1ae49a64787412c560f2d5a92efc738d32ae62af2eef958"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/hair_motion.rs",
+      "sha256": "b0e2334bdd30de948f4cb5ba2ad2956e9ae8c0d073ed76528f290665ab78e9ad"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/long_skirt.rs",
+      "sha256": "879648b9a869188daabafa9887aa857346f08907e9ed485110469b31e9acf059"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/long_skirt_capture.rs",
+      "sha256": "46214c476de491dc75426a1a0a5803beaf7dd769cf8b88de8abe75700eff9867"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/physics.rs",
+      "sha256": "2385420bed320dfb7479dafe3f10f600c73a2ce0a909ed17953cd3cc95c28775"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/proxy.rs",
+      "sha256": "8c94348b45db58780c0b82c4ef4ac99835e82644cc0f8300503e97ecffc16bfa"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/secondary.rs",
+      "sha256": "a751d61dce57a9bb6bcbdc5f1e09b66f1c38e1a0746a555d4e5fc4cf33daf041"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/strand_twist.rs",
+      "sha256": "658cfd69217e3571f0326fc89e40243463b479da1a734a1627555d7ee803e93f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/surface.rs",
+      "sha256": "41ad653062474c86cce5ffbf0fd0e7df86adeae665b96925f2010744a72893b0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth-authoring/tests/tangtang_fit.rs",
+      "sha256": "60d2a199638d464f5b4775c7f6738702fd9c9713afb1b2328aff8fb4657b6906"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/Cargo.toml",
+      "sha256": "d27eb643b102b3e2c00946025d577d65359a53210cccbf1a5dde434873de9ae8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/README.md",
+      "sha256": "8865fa26e0ec20c9d9bd97ffd22e310dfd4dae9bb67ee79b4a7e14ab93d20cad"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/examples/repair_source.rs",
+      "sha256": "571dfecf5a550e80ff92696f1b261c79eb059cf7a52b8a2cbf4818fe47ac32b7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/capacity.rs",
+      "sha256": "09046517979c62c2d054b88178374ab88e1f1dc3122197c8f147ebbf981724dd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated.rs",
+      "sha256": "7414e5d33f6799f15ddccbdd850bbbe8f1de8c208f1c01b035a781d24caf00d0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/attachment_limits.rs",
+      "sha256": "88c3376759ae26ec675d3abf8b22075a84b0dd5f81ee34fc45ef896c450e6cc6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/bind_repair.rs",
+      "sha256": "e6fc311f3ced7ffb2bddfb822952b1daa4334ca7d60d4ddf499822668bcd8de7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/fitting.rs",
+      "sha256": "7bc93d7da2e22b2daf40f8f911105e1c34a6ac0ebd90156328bb36fc771992a5"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/identity.rs",
+      "sha256": "e8f68418f3450218e638d8da5e2673dc6ae749f84a05dddb7f81460c83190442"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/roll_lock.rs",
+      "sha256": "c513fda04680ea590c6f70e6c641c2bd0d67b342d6f25e7385095265c53b555f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/rotation_import.rs",
+      "sha256": "3f3f0fe2f9247af2d94d0d05cde6481c0f09cf5b5524f6257945cc834ed4fe31"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/sheet_frames.rs",
+      "sha256": "90ad87a690711efcb8adc03f4081a38629d0050631ae42e812f6bc1f9136e511"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/generated/sheet_stability.rs",
+      "sha256": "47a71bb570f76b0ec18ddbb4e748fff8cc6c06f7d4dbf5cb1c5b29f1384f0ecb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/lib.rs",
+      "sha256": "53d4fb61ca0219808a198a841f19e70d463264d94816eeee03cc6c2166fdaacb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/restore.rs",
+      "sha256": "b9715b4bf41a7d476a1f08ce58d69e19a8e869c7f7acba86f28ec959f580221c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/runtime.rs",
+      "sha256": "d4c091a14d09fadf3155d1975f2f5533937f2966a49a199138f36bb89fb30b11"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/src/tested.rs",
+      "sha256": "6081566ac29ca4797c86bd6de68e723b28517f9a450fcd2bef78b317749f87ff"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/attachment_limits.rs",
+      "sha256": "87d57edd2242c6d1b35597e38b5015d5eaaa3d2fe38e538818854afe75748069"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/attachment_restraint_capture.rs",
+      "sha256": "9fa17621efc2e15df8252e071314cb8b0636e114902144b94e7a938413525e0d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/capture_compact_fitting.py",
+      "sha256": "17eb50ebdc365ca746c0db8f8bc6a2779e70d0e1fb7f1f521a6090aee6a0a1d7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/compact_fitting.rs",
+      "sha256": "82c71460d3788ac67bc6fd041223a05e2ac41667a537aef9547bd0b12b6c707e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/compiled_bind.rs",
+      "sha256": "2b1c69b33f43f0bb1664de452afd70893f0248ee873a4625cda2070ba33cadf3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/anti-twist/accepted-plan.json",
+      "sha256": "766bd86bf820d0377044db35db5f3b4b1bca4b4c96d6030747f6c3e6f2f0cb6e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/anti-twist/data.bin",
+      "sha256": "26c3f82ec9b97f8af6932c05fbf02d70490264a3ba120a069e84562fe99dbc9a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/anti-twist/phys.bin",
+      "sha256": "7b2d5e487b7223c4ffcc2782144d44a7f2c2a1bf007fae6f7e9ebcb0b24d872e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/anti-twist/provenance.json",
+      "sha256": "bd9ab989f7f5b5676a70e61a500d7322423c49801b24bbfea2af696a4e96129c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact-ribbon/data.bin",
+      "sha256": "26c3f82ec9b97f8af6932c05fbf02d70490264a3ba120a069e84562fe99dbc9a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact-ribbon/groups.json",
+      "sha256": "b940570774ff1f5ca2f38a5cc7840cda118d782756b97ba84a266b08d4411b56"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact-ribbon/phys.bin",
+      "sha256": "4fe624cff8f533fb1486e19bed096ebfed0b49e177c14afc8de85672e3638efc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact-ribbon/provenance.json",
+      "sha256": "6c575e66ee651895b06a166ddd188ef454ad1dd4184b90e5d563162560e6ef57"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/data.bin",
+      "sha256": "26c3f82ec9b97f8af6932c05fbf02d70490264a3ba120a069e84562fe99dbc9a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/groups.json",
+      "sha256": "6439388c2ae7dd7b4f44f4a6c485cc377698a203f5b54af7658899c588b36472"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/phys.bin",
+      "sha256": "73e444241509b979a1d7736cb4e0127ad15cdbb1b68885034b5e9bf0abf80bd3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/provenance.json",
+      "sha256": "21ff4836fa95b56ae1c093eb171b429fac2ec00db6d0e5ba5bfd777544e65cc9"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/reconstructed-original.vmdl_c",
+      "sha256": "a937eaf9ba388c76401ec4c611bc834be07b5c6679bbb93a21a5daee67dc32a7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/replay-provenance.json",
+      "sha256": "25108d3ff31d217c5d1dfe0f82c13bdcea2b980934d459370bae8200f3a5bc14"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/compact/source-binding.json",
+      "sha256": "a0fc3f7a5a03ac4f7c4f58e6f517eb065f86e980cdc62ceab3b85fed28fb748e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/extended-candidate.vmdl_c",
+      "sha256": "3dcc259dcc1282aaac525bef519ede8c240d63b21a0496814c172830f52f902f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/extended-original.vmdl_c",
+      "sha256": "4abe8ee97a1a93a447a4f9f691f7f3d827b67684cff2a37f5a08e4b7224d71aa"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/extended-output.vmdl_c",
+      "sha256": "f1dad078292d9616bc1c53cd893779c543684671455fca1cf1be010250540650"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/extended-source.json",
+      "sha256": "f610b069916cd6ad001a158df52159cdb714ae45737c1d019d9456434d76b407"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/external-phys.vmdl_c",
+      "sha256": "189eac217c2fadf35694b741832f5449defa98de25dcde344222cc0d67d6cfe7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/manifest.json",
+      "sha256": "1b4ab04ecfa20b24a2652dac03b812193d2af55623d30dfbfe105e9129981477"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/multiple-phys.vmdl_c",
+      "sha256": "fe8c72dc33dbdf03cd21bf0b97002e8c70ae6c164544d25b5b2047bd5340700b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/native-transfer.json",
+      "sha256": "09ab5be908a976268de1274939c29ddb781f7ab0eed7308dfcccc1aef937c676"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/no-phys.vmdl_c",
+      "sha256": "436b5cde120a0bc435b9d89ebbbd27ac40451604df2adb8691e59dc45a2d0021"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/not-required-candidate.vmdl_c",
+      "sha256": "9eb5a0e31bd98a72c35f4a6fa4c50a352f152f97b7ea1aa191dabc331c8e23af"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/not-required-original.vmdl_c",
+      "sha256": "9eb5a0e31bd98a72c35f4a6fa4c50a352f152f97b7ea1aa191dabc331c8e23af"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/not-required-output.vmdl_c",
+      "sha256": "9eb5a0e31bd98a72c35f4a6fa4c50a352f152f97b7ea1aa191dabc331c8e23af"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-animation.vmdl_c",
+      "sha256": "384781a287982ba5750723c73235ff3b23de670f31f86f94b7df41136e0840bb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-array.vmdl_c",
+      "sha256": "c4d95e9568a5345d61fa8356f1d350c86d02c7bee922d437def6e23f9028a9a6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-body.vmdl_c",
+      "sha256": "58ce65c15470e87d48e041fc1a8c016668aaf5c3ec7269577954d335af4ebffb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-duplicate-ctrl.vmdl_c",
+      "sha256": "fcca710da39af55869780a6622d8fdbbf8f1153c42e8859b2d4fdc88059cd426"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-fit.vmdl_c",
+      "sha256": "bf667c588f7a35d8707bcb93a3a2700a51fc54bf32d9f2cc500408072d790fc8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-flags.vmdl_c",
+      "sha256": "8ed651fc1fa1e5892f962f8351e3ab0feadb8e093704ea15b47a2992dc02ac20"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-inverse.vmdl_c",
+      "sha256": "c8f5e38bb62c67ab575362317a7bfb8232b27cb26c2a9aa62c908cf5c766a50a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-physics-binding.vmdl_c",
+      "sha256": "b99bd1f460bee1c087ebbd9fc5a8b45f76a411e5103960bb7e7e80d5bd4d30a0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-rest.vmdl_c",
+      "sha256": "2394ea4107e7b1d527d227b9c6bd0af064f238bef3b677b2459f89d5f2aae899"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-rods.vmdl_c",
+      "sha256": "3cc4af9021bba64bcce16b137ca0bfae978dcc45aa208a8ee5a24db13ffabd33"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-scale.vmdl_c",
+      "sha256": "b524255fe1d920fb7a119464a71527101638a835c25a5c2d1e1cd5b629812ee1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-solver.vmdl_c",
+      "sha256": "91f4987cbeca732b837ee0e741aea91b7299ce6a6a0dc2696bc2131a6f856348"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-tree.vmdl_c",
+      "sha256": "ddffe94387e4edcf3d2c78ab94768a4c629d5181f4090b0e6d6297e5be063266"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-uint16.vmdl_c",
+      "sha256": "16440d05832fc274c3de6e4b1df645ce1e7144273894ae1e3676b6c1241daa24"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reject-unknown-solver.vmdl_c",
+      "sha256": "4123f903257ab6c325f9d8d57d7e9292363a1ceb41b292a4e5af4be45b704695"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reordered-candidate.vmdl_c",
+      "sha256": "745897361602a1c2f504a856608ffd612ebb35fa0929378b7faccecec5364037"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reordered-original.vmdl_c",
+      "sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/reordered-output.vmdl_c",
+      "sha256": "991f206fe674aa13a8b268e806bb1249b993d861e35d541cd491381541831323"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/secondary/groups.json",
+      "sha256": "5c7d56a69c83e2560c30d37f5fc10f07c26b487db40564f8fe3c59abd3742bce"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/secondary/native.vmdl_c",
+      "sha256": "43ce0f53126298e0f552ca6627b0683b1b1ed14bfe8117e6fb71bb78b299cbb8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/secondary/original.vmdl_c",
+      "sha256": "ebaa2de664a110afc28f0036fc6141383a91bc841e7f753dbb7961ba085b5bba"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/secondary/source.json",
+      "sha256": "c2e38b80d82544d9eacb905b985887ee644c49b77034de7c5aa20027128b96fd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/simple-candidate.vmdl_c",
+      "sha256": "9eb5a0e31bd98a72c35f4a6fa4c50a352f152f97b7ea1aa191dabc331c8e23af"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/simple-original.vmdl_c",
+      "sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/simple-output.vmdl_c",
+      "sha256": "9cb178fa3765d2197fff46a0279617ca49b01ed9700ad2a78c1b9cc915728726"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/tested-candidate.vmdl_c",
+      "sha256": "3dcc259dcc1282aaac525bef519ede8c240d63b21a0496814c172830f52f902f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/tested-original.vmdl_c",
+      "sha256": "ebaa2de664a110afc28f0036fc6141383a91bc841e7f753dbb7961ba085b5bba"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/tested-output.vmdl_c",
+      "sha256": "506e445b27840078282f7854326df51746955473a2a2ab4b4d6e86cd022f5233"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/tested-reference.vmdl_c",
+      "sha256": "074756069868d51eb0237d8886eb30831384c597319cb65252463f4f51a57623"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/tested-source.json",
+      "sha256": "4665dd1300ad077629855a4a7b9b35621b2f7ba6d0a55b91b8a605dece18295b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/unchanged-candidate.vmdl_c",
+      "sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/unchanged-original.vmdl_c",
+      "sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/fixtures/unchanged-output.vmdl_c",
+      "sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/generate_golden.py",
+      "sha256": "ecdfd0ef0b70dcc14d5d2185387cec825d073c42e53d4a514644f1c9ae3efe99"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/generate_native.py",
+      "sha256": "97a9ed06a6657147afcad4683676d6c24d4b3031588c75043475845c6215e019"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/generate_secondary.py",
+      "sha256": "121a0b5ea52fcc1b9e4c3c233e8a2fa19f5a264058ace97afae317f08188d61b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/generated.rs",
+      "sha256": "7600cdeb603b3b7f3148d7ecd5fb519bc0ae564059a39ad62924657dac4a9576"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/graves_capture.rs",
+      "sha256": "3efd8253a312873ebaf576642893b0d781bb97c14762872ffbbe4ce32430057d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/original_identity.rs",
+      "sha256": "22ec39a3543192d121c05ce59b3d3841457aee1f1e6fdc83c89f551ac8778dbc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/parity.rs",
+      "sha256": "7e41c7e238747cffd7765ccc50be02d661292dcc7121a3d14011f918f41cf5ad"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/roll_lock.rs",
+      "sha256": "638bdfbd7fea4281ae34329c1789c8a67eaa69277de11085f37adb25045da16f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/sheet_frames.rs",
+      "sha256": "86926c46e5040c529ba7ba73a809030b92c3a3f1b405f7803494bf5f4ff0fef1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/sheet_stability.rs",
+      "sha256": "840c8a28f8b954e2b48e0653c1c585a602832cae3c2f601b31df9aa3ee2acc87"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/sheet_stability_capture.rs",
+      "sha256": "af92af2cc8a6f203bdf712f035f2cde951c5d662cbe50eae7f4e7b42bd44e529"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/source_compiler.rs",
+      "sha256": "fe021aa4633e4ed07c0518e07c64fd77d316953e4ecb3c1e3f487ff4174d690f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-cloth/tests/wraith_capture.rs",
+      "sha256": "1c17ea197441b9501ed8a0623de6f6564a9bea6dbf6d2a4751d9bdf36de4deee"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/Cargo.toml",
+      "sha256": "f27528f9d7eb199d880333d91eda66b981aa8f8a41ff28baf153a455a551425d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/examples/mapping_report.rs",
+      "sha256": "45a10d4d57f13ddbe9ad74baa3f4b8a501b79182debc1a5119851ea871204ba0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/examples/preparation_probe.rs",
+      "sha256": "ecee4c149e94154ee834c460efc4db9672b10efad729c5404f90941aac2663b1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/examples/validate_prepared.rs",
+      "sha256": "b1ad0cf9cac88f9ceda84ccfc561c9f4ecf95f447ebc3bd47e0dae9c5878dec8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/__init__.py",
+      "sha256": "85b7ff069aab2387873c94373b81d8b48d91872872d366c1c2ca0fbba49c261c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/algorithms.py",
+      "sha256": "2ef0da820f2085dd3372733115e33398bb69f4d49606acfb64725b89a2868c2e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/arm_helpers.py",
+      "sha256": "122ae7e70cd0a10fb256e69bc3a84e28bc3b0fb1bc00bbf654e413b3312889c6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/arm_skinning.py",
+      "sha256": "34c22a72d986ad7e95c25efc4ebf357cbecd2a432ad33dbe38c2ce319e6f37dc"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/blend_source.py",
+      "sha256": "8093cfe1aa3c333e396ad53163a9c6feee8b850997b990807b65a51aff20d0e8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/clothing.py",
+      "sha256": "a6cc14c305017ac73dce82730bc20e6ef5098365dd386e53c4dc9c0856e1bf18"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/exact_bind.py",
+      "sha256": "40498de113275ca8f51eb4b883afc7865088821480e9d7e43c9bf2bb457fc3f1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/leg_chains.py",
+      "sha256": "3fce161a8472722ed1fa27b7a6cb480114a7263873d1d79b56c1005be9600c90"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/material_textures.py",
+      "sha256": "6c81db0c3c68be69c142155d5095d5689ff3e6d33f374c99dd107e49ee029ed6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/retarget.py",
+      "sha256": "afc51c1d06c3de8945d0db19ca495a0fff8c2b4331090e1c3fb497473718949a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/rigid_props.py",
+      "sha256": "fe85d27b12787caee158cca2f598ace07f23c6910847f03e5fbb713c45ecfd8f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/secondary_bones.py",
+      "sha256": "b2738b19a69b0b2a7e163ccf035672ea8e75139695ae0131648fda024c8a3177"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/source_compatibility.py",
+      "sha256": "38bc576884a3c3bbca8e77e303bad3382874802f3e8d9fdb86a1aa43c318183e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/source_helpers.py",
+      "sha256": "d3705bf012e00935bd0da3b73418e5296acaef3171ef9513f875ad57b48b4c7c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/source_rigs.py",
+      "sha256": "cd9bba3069d8c30ae945e88225327c5a26ff53841d2e9ffa3aa8ae00773bd6bb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/static_face.py",
+      "sha256": "45549fed29ee381146a8f84fabde21f0cea36f3f9a1ae023c667afa63c80b6e9"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/resources/blender/worker.py",
+      "sha256": "20af2abdfef848eb682e5eccb4ca5697ae29e67d027d058d8188012f70ea96f8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/algorithms.rs",
+      "sha256": "a59e531ba33647cce5b64a707930587b0fabf5f7c93e6170f6df4bd0e80d8aa8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/arm_helpers.rs",
+      "sha256": "f20c3c1f67d913d2f11c5eff480c129950dac233b17d469f32bb3d00690c200d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/automap.rs",
+      "sha256": "f302043f63e42f5120e707ba149388a83594607db29e9a91b09ec96cfd238121"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/blender.rs",
+      "sha256": "2c5ba9a473969303a043930060834dad6af661653c2cc2663b4cffd10fb4f8fb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/fitting.rs",
+      "sha256": "0d87094564ea45be0e387b4c675d69d4c3b2442a10d19a9b9492c29a1e5a425b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/following.rs",
+      "sha256": "0ed00f9d5353f57643cb1189c77a7cc03f8e288518d7dcc7f08e83ee3e078f89"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/leg_chains.rs",
+      "sha256": "375ad13352df4e3ad07e306ae2a81454b62c6da86fc8d9f32127672f4dd80426"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/lib.rs",
+      "sha256": "1f3d67d2f271e55bde55d99568984e3e769ff14f0cb5591aa0592f7a8c4d6302"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/mapping_presets.rs",
+      "sha256": "911e77baab055b7f43c3a54ef101b4415e1f656bb25083cdaae30b9d8ab8991c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/material_recovery.rs",
+      "sha256": "99f8ab717f1d89470b57a6abab86bd815979385f821a9e64f2cb7975e7bda4bb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/provenance.rs",
+      "sha256": "9ff315ea976fda293115d2bb9d078787090eab156807d3df6fac10684bbf570d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/secondary_bones.rs",
+      "sha256": "afdf60f354a3ea746f4420e37d315374f6b1e5677cd44f413cff353e23471de3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/service.rs",
+      "sha256": "52828c6b104a3623b27487f365578294cbfd433fd77f16d980f40fdcbf7b5aae"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/src/source.rs",
+      "sha256": "8ae43b4ba464b8a2e120aa224927b18a025206d801e4cd8baca62fe036fda2c2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/arm_helpers.rs",
+      "sha256": "af286fb357a1153bd5de65d8af765ea775b64aa75a0fc2115675b32e705c6ae3"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/automap.rs",
+      "sha256": "7d18ff698a9cd06873b780c90066cc335b741a0040d89f09f920a57a3ec040ff"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/arm-deformation.json",
+      "sha256": "63436c2a452a9e68c88d2bb058423131bb5a575d60d6dbdb6d6799c8bd21f368"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/daki-rig.json",
+      "sha256": "e24f60ea5a559c4488a2a662c3d057678dcf1370b8be9c28f676b05e8dee801b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/parallel-leg-rig.json",
+      "sha256": "a923f77ea66a1b594930aaa1deedd1c913defcb166ac580bcfc0e9613aa6c62c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/recovered-skin-rig.json",
+      "sha256": "9df1301431f7a40a46a5cb65ebd6b30a408188b04c22e07688cd62077f2851e8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/reference.json",
+      "sha256": "b9af2b2932826b14ca24285eb51b554cdeb68f336d96dced37a2c53fdd863b34"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/secondary-bones.json",
+      "sha256": "b417704c28239a100327dc0993ffe93e8c2fd2ddbbe7c1014da8b36c58452406"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/fixtures/tangtang-rig.json",
+      "sha256": "34cfc117031d09aa369f92b8725648872ca8c838996f8decd2b42da292b704f0"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/following.rs",
+      "sha256": "6ce92a87450bb9838d75eb12cd8adcb3b28b14d59023209d95a98c09627e5570"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/generate_fixtures.py",
+      "sha256": "453fd02bfc9705ef4380727a447536c8da19ce9af0ad44d6abe0cd3f3e1fc288"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/leg_chains.rs",
+      "sha256": "bd00135a41197420722a77dabfae506538004a400fa026347c53b8b27bcc4f50"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/material_recovery.rs",
+      "sha256": "6a01cd254c8d4867b2555dbfa0dead62fab5c24070f0c4713de6896a1744b404"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/mmd_mapping.rs",
+      "sha256": "dc3018ad644ed2293d4f7b764c4eabbadfc6e001cbc9f797f9ec3df18acee3d8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/reference.rs",
+      "sha256": "d3e3279bb1f6b4e52f159edf9fbe16f133e65e3ad67962234c2783c74fd9100e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/rig_recovery.rs",
+      "sha256": "23e894543c4bfbfa9cb1c286d461693adb782cf7d2e5f37ecec5eb0b3b38182d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/secondary_bones.rs",
+      "sha256": "511a5e847497ef394aae381c8826a86e0442d5b61e6fcfc1b1c3ee59359768c8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-preparation/tests/workflow.rs",
+      "sha256": "f8ba92ecb32d1cb1d4b33d7400c9cb4b2e625e40d0511754113f39df9e2260eb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/Cargo.toml",
+      "sha256": "b7d7d0f73d894169753e6a2db99605e301ed7c17d76a7a7cab06b52062b42299"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/aliases.rs",
+      "sha256": "e20195f67090d13e1bbf11d4048166340a74a1068692404b5ec87227c19f3483"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/bindings.rs",
+      "sha256": "f4197dcfdbb34ecbf19a64e8a409ee0152538017bc3e8f04a01009a248f15cae"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/dmx_bind.rs",
+      "sha256": "bbe94e97b3ad94b84599aa79e057c0db69d550e30a7be80880182a35e20f82b8"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/export.rs",
+      "sha256": "9cdc73854f9c5f2fac1d1a4fcadc17611ece9baad974e199fe38550173e9a7ab"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/extensions.rs",
+      "sha256": "1c3b782f950a1c074d0cfcd6a494df4a44289aac21384d92e6fc3dc4ba3c937f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/lib.rs",
+      "sha256": "c4399d1c4c4a26d4238ca4573356ef33eb6d1cbd3e2a7454a8cda87b787ace99"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/skinning.rs",
+      "sha256": "606abf2b7de3c0b046b6265207771cfaa5a15c9557240c7af402095b961d9c1d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/source_bones.rs",
+      "sha256": "41e0347178c75e73dcc32506ead978f7f465d75a2916e7cb174931c979ed493a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/source_identity.rs",
+      "sha256": "71452dae8b07b198bae8ede93b82d59226ef6baefc4ccab2a7c799135bde7bbd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/source_skeleton.rs",
+      "sha256": "7617fa7beb65b6faebdf7847434eadfb2416c50907d2f5f5f9ecc973689ad525"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/src/transforms.rs",
+      "sha256": "679b5f35912fd050c96ea2154af0337839b68c331ecd68da5dc3811c6246acbb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-bad-control.vmdl_c",
+      "sha256": "b8aa92db1c484ec92198612a2b72b79e7dd137ceb3ba4151fdff4449657e486e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-bad-parent.vmdl_c",
+      "sha256": "7ea24f5819bd319b661e5067ebddb94dbddcb5ad449981e307088f9cebc6582a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-bad-remap.vmdl_c",
+      "sha256": "6cb4ba973daebc0ef4371726bbb49e1df69fe2673ff4f3838f0c0aee1530539a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-bad-scale.vmdl_c",
+      "sha256": "c5c5b3d9cf373fadd7e9a0d960a1c3358947f11e237bfd75a7a285cd6b9b1fae"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-unknown-blob.vmdl_c",
+      "sha256": "caa6e34669f73accc0c1ae2ddec0f6305aa3df4c6a2aba1762960b8466caa96d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-unknown-block.vmdl_c",
+      "sha256": "b15aaa1146121dcbe1ee0897ef0024bd56b32f1de757572038e48a040cff263e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-unknown-hash.vmdl_c",
+      "sha256": "2404f9b5d9ee4dfb205305ceb68257b4c14b148bd5014bd07c1ac320e75f9739"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-unknown-key.vmdl_c",
+      "sha256": "b6348683960e8fd20ace13cc465a76591d2228cb4009a7edd53cf4b7321501b1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad-unknown-value.vmdl_c",
+      "sha256": "5b0d1f5b7e0f136330342ce766a96ec1356d8820bec4eedfab6d8e674da9c035"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-bad.json",
+      "sha256": "3288b3d01058b7ec69305f5f84e88f34f9de7d8e8a60194cfae4a29b30cbfd1b"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-expected.vmdl_c",
+      "sha256": "e14ab259bfcdca56faf75aed62d22992a13eed79415715fe40f30605f7c1df6f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-input.vmdl_c",
+      "sha256": "6774980ebb80a973fdfa9eddda31546f1188e3429765ac873e20018f40751491"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-receipt.json",
+      "sha256": "94565435169bad43fa71b9b588825a1e9a7d66d313670f56c3ff38c2195b9062"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-reordered-expected.vmdl_c",
+      "sha256": "c2ebee268fd7774b39e3f1d10564d44073104010c5e0f245a3eddfaedfc0c6fe"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-reordered-input.vmdl_c",
+      "sha256": "366f06cf947813768c395be9e5007b25cc8d1ce7f1936e3cc6f68018f30d8499"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/alias-reordered-receipt.json",
+      "sha256": "77fcf8f237d3773d0301ce210c93f96844ae524c36a68b882e7f713df76fb4cf"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-bind-away.dmx",
+      "sha256": "dd3e2372e9d1b2a5210085840d74e9b61bb681f9a4fb4ece283fe0ba9318a9f6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-changed-position.dmx",
+      "sha256": "c637ee7128b130f48a33d18adf8733a73805f11fd8bce4593e02a78ad0150be7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-changed-scale.dmx",
+      "sha256": "9cb6fb1ade9c20b9789d74dd29cdc718503bf328cc0ac4516868bee6dba0682a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-duplicate-palette.dmx",
+      "sha256": "af3b51a6f9a18dd65ba2b05b991059863ea52d6691ba3d9f9340134737795979"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-mesh-under-joint.dmx",
+      "sha256": "b9a04be4e86772ae0995290c228f995375dcf0afa7dfda0f2170054b29bd7ecb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-missing-scale.dmx",
+      "sha256": "f845244a30e6df03a2d400a88d1e62d51bdd206a9f5ac541608317a76d98dc09"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-moved-mesh.dmx",
+      "sha256": "4a6aafe1f8089b81aabd0e8791ed8a7fc2665706fef0d7ef2f705afdbbfd6471"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-root-away.dmx",
+      "sha256": "b292336ed57f22794a13854c91b9d66d84bef436c2fe92b3a565f5fdef1af73f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad-shared-owner.dmx",
+      "sha256": "b9a04be4e86772ae0995290c228f995375dcf0afa7dfda0f2170054b29bd7ecb"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/bind-bad.json",
+      "sha256": "5978b2a95bd355a2df1e84e281c4749fc964463e18bb771e652f1974300b30c5"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/canonical-bindings.json",
+      "sha256": "8a0f479efcb02e841f78d314e9b1938bb279a291f9293a262d1569056b2d7102"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/canonical.vmdl_c",
+      "sha256": "4abe8ee97a1a93a447a4f9f691f7f3d827b67684cff2a37f5a08e4b7224d71aa"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/export-alias-bindings.json",
+      "sha256": "419d0dc572e2f9c587326a3b732c43e290da21d3a37f679d33aa816663f2a72d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/export-alias.vmdl_c",
+      "sha256": "6774980ebb80a973fdfa9eddda31546f1188e3429765ac873e20018f40751491"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-alias.dmx",
+      "sha256": "220012c39242cc2f759fd8bfe2b0ddd25b327ff2536e0cacdcefeb844da6161f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-alias.json",
+      "sha256": "b222bb27b9c1e73c922c1e89c709d2d0cf2c55b3d4da3f417732f577f6a46850"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-implicit.dmx",
+      "sha256": "d11549106e8016204cb763488156ac95793ad4300f078cfa56a937ce3a284258"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-implicit.json",
+      "sha256": "e2b91b567854dfc0536b6631c96fb7c7344cef5e50e9759ff5760c6315ff633e"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-loose.dmx",
+      "sha256": "ba4f67d69ca05ff1ee593758edf0e31d3cc4e4d61cbb5114cd3354a79c59565d"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-loose.json",
+      "sha256": "58d56871f2f4063ce790a1e5faf11ae710fa947a8a2ff534ca1e36ed32c39567"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-original.vmdl_c",
+      "sha256": "4abe8ee97a1a93a447a4f9f691f7f3d827b67684cff2a37f5a08e4b7224d71aa"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-reference.json",
+      "sha256": "40c1e56b4579c0f6564f714eff5969ec1540a09bb7cba8737b42131275b8036c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-source.dmx",
+      "sha256": "3a15b7a0076b89216ed859f078c9482eccbaa8489f5e6917553edb878b219f71"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-source.json",
+      "sha256": "18e7821dcc50a8e98eccb5647ff5ff4d2e9a3f4ef46817f9e5c771e63aae41e2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-unselected.dmx",
+      "sha256": "fb5f8bc649e1e15d4b6bbae4b7ddbe2e5c76c6f50c0813d2e6728c8a4e90fcae"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-unselected.json",
+      "sha256": "fd53dca13ae10d073a94f4339f5df519d338e7ca81aa534ac07eb92796b08686"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-zero.dmx",
+      "sha256": "d9536ee22b40a63949d51beff74c3146f9781bc9657c224be011c710c510a38f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension-zero.json",
+      "sha256": "4a2ec7676fb48b1038a0d297d89956f7337eac21da4e54dca1a5fb06f61e021c"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension.json",
+      "sha256": "b768b43572aaf8ab1490efe056533fbb9a3966d9ce6a4fe2a5ff9f50b8e0ff90"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/extension.vmdl_c",
+      "sha256": "3dcc259dcc1282aaac525bef519ede8c240d63b21a0496814c172830f52f902f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-reference.json",
+      "sha256": "75eb84923c74dadac2d98f1fac30700805fba0579540b7f36b3fdf0f6a5d42ca"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-scale.dmx",
+      "sha256": "d92b24102f10ff36eaf69a182ec04b4a823b5de502d0db5faf02a5274d449892"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-scale.json",
+      "sha256": "a55d3febff515b4eb996e077f3390332fd3399c5af2488283624c731fe846fbd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-source-bones.json",
+      "sha256": "4e861564fede8c0094072de9e4871d5edcb78bf992e902aae33d0460116f6d77"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-streams.dmx",
+      "sha256": "55b495633b5b94fdf9fb9c757322ef892eb634d2d864c7660128b792556ba8e6"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared-streams.json",
+      "sha256": "5206bb144056984a68d59f0dde142308a2a322e83af8568214b0f6c763b7ec00"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared.dmx",
+      "sha256": "6ac0a08d9cc6c05ec11c6b1c41cdac824281fad5dab02cdffe90d8c4f2c42cfd"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/prepared.json",
+      "sha256": "884b8a7b8b96538e99eaf176ba1a371884ad4197a99bf3296bddfc58d7d8aa9a"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/r12-balanced-bindings.json",
+      "sha256": "3b23325ed65dd7b33031bbb6583714a7ad60f2552f1da8fe9b690c4d112e7722"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/r12-original-bindings.json",
+      "sha256": "3b23325ed65dd7b33031bbb6583714a7ad60f2552f1da8fe9b690c4d112e7722"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/reordered-bindings.json",
+      "sha256": "0b39f377fcd30eb52811035ab8927fe114afb855d69691c31f6c366ef103dfe1"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/reordered.vmdl_c",
+      "sha256": "8b21129e192da0dbb21a5e860cdedddac6fcd2441558f7d585084eba2767b83f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/tangtang-native-binds.json",
+      "sha256": "14004c4249af837e71a2b0f8b83cbf70f399137aea557aaea98c66ea7f5fb2f2"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/fixtures/transforms.json",
+      "sha256": "9c1014213cad6b7863a30aec4abfc3fb9b2c6e86f3e661675890629d4919b2f7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/generate_golden.py",
+      "sha256": "2c80e478b6afee2b8afb2ec3e4ec1ecd767c81a7b71a84abc1bd95892c67eb9f"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/native_compiler.rs",
+      "sha256": "c54666cb9a1cd371189faa25950b07b401d483bc7ac2c6979340f0dbec796af7"
+    },
+    {
+      "path": "src-tauri/crates/deadlock-skeleton/tests/parity.rs",
+      "sha256": "818f01e6e0fb41aa0ed11a3acf7bad9b4ab03258932d6fe1db6830d119135b1c"
+    },
+    {
+      "path": "src/cloth/ClothAuthoringPanel.test.tsx",
+      "sha256": "90e6fbf2de953bfc71c4c990a1677684f57da9e7a8db416a1b26b4e060dbf1bb"
+    },
+    {
+      "path": "src/cloth/ClothAuthoringPanel.tsx",
+      "sha256": "4c3ad3ca1d161ec43c1b21916a9e004613676416382bcddb7d7a2cb7be1e380c"
+    },
+    {
+      "path": "src/cloth/includedSetup.ts",
+      "sha256": "e56962371445d5c1626388e8d933e0f69007b9196e837b3cd9d928221e5c088c"
+    },
+    {
+      "path": "src/cloth/models.ts",
+      "sha256": "e650c583cdff4511f342465557ac821b8e2c798e61a0fb078a6a653fb61c3449"
+    },
+    {
+      "path": "src/preparation/MappingViewport.tsx",
+      "sha256": "e57f5a3761e305f6bcf3605bc16cbe7a242cfa07df849185bc643b039c577a3c"
+    },
+    {
+      "path": "src/preparation/PhysicsBoneChoices.tsx",
+      "sha256": "50672547633ae8cf45ca672ba7013b676cef4357d1009704cb286ca695a7d598"
+    },
+    {
+      "path": "src/preparation/PreparationChrome.tsx",
+      "sha256": "604ce86ae37629bcb828e1612eabeba00c54fd2554d1db93712bb4592f70cfba"
+    },
+    {
+      "path": "src/preparation/PreparationPage.test.tsx",
+      "sha256": "d606a39d1e9ed812e37ffd35aaf0c5cbb3511e6cf586c6d970b116eb83ffe2eb"
+    },
+    {
+      "path": "src/preparation/PreparationPage.tsx",
+      "sha256": "9fb115e373d50a612725dbda8c6f893679f35ad0ac3e6a5bd5e4536d6bf265c1"
+    },
+    {
+      "path": "src/preparation/mapping-checks.test.ts",
+      "sha256": "bdf357533ece79d364adb78851e4f06077d7726916eaad38e39b030047cdf018"
+    },
+    {
+      "path": "src/preparation/mapping-checks.ts",
+      "sha256": "5b30e6b0083b6e8881e137b2cdeec96c03deb4decb04802c4db9aedc0d19213a"
+    },
+    {
+      "path": "src/preparation/mapping-motion.test.ts",
+      "sha256": "193eeedb5e3b74b962bda8c9249d7cadf5dea6bc7914d20174507487cae92d87"
+    },
+    {
+      "path": "src/preparation/mapping-motion.ts",
+      "sha256": "70652220d83913d2270944ea2c02d41836abe7ea207b9150a7998817faca126d"
+    },
+    {
+      "path": "src/preparation/mapping.test.ts",
+      "sha256": "525a32d8243d6774294a5fc64b9da8a9aeb7eadcec4eade529fe7c47a1387dc6"
+    },
+    {
+      "path": "src/preparation/mapping.ts",
+      "sha256": "43938cdbdf63a865cf5a9bb3c884b962f670e648b7ecf257865dc4dbbeddfffb"
+    },
+    {
+      "path": "src/preparation/models.ts",
+      "sha256": "aa0b4a898dbefc2fceecf6c7599861280983288cdb36f0c6e1871e1f5f579bb1"
+    },
+    {
+      "path": "src/preparation/preparation.css",
+      "sha256": "9e27bacf6076be71b04be4da64402ca09f8648e15ee2b9e72d0b168fed8a227e"
+    },
+    {
+      "path": "src/preparation/secondary-bones.test.tsx",
+      "sha256": "ea8f8602254d6e8609735e5bdf2c86d4f46c0ffa2ac215d2b2ee84b867b39894"
+    },
+    {
+      "path": "src/preparation/secondary-bones.ts",
+      "sha256": "78b2b70177611cd6d9a7623494202a7b5acc7c677d7b46bd98fb2695e45a1bab"
+    }
+  ]
+}

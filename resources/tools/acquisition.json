@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "app": "730",
+  "build": "25472966",
+  "branch": "public",
+  "queried_utc": "2026-09-23T03:20:51.5312594Z",
+  "steam_change_number": 39114578,
+  "source": "Steam CM PICSGetProductInfo, queried directly; all manifests from one public build snapshot",
+  "candidate_only": true,
+  "depots": [
+    {
+      "depot": "2347770",
+      "manifest": "3469898947734168900",
+      "whole_depot_bytes": 65005488944,
+      "whole_depot_compressed_bytes": 55599239936,
+      "selection": "runtime/core/config directory filter"
+    },
+    {
+      "depot": "2347771",
+      "manifest": "3417992560980425656",
+      "whole_depot_bytes": 7752183065,
+      "whole_depot_compressed_bytes": 5010874400,
+      "selection": "runtime/core/config directory filter"
+    },
+    {
+      "depot": "2347779",
+      "manifest": "925926935943126066",
+      "whole_depot_bytes": 2108112812,
+      "whole_depot_compressed_bytes": 576641952,
+      "selection": "whole depot"
+    }
+  ],
+  "entitlement_evidence": "Steam package 298963 includes app 730, DLC 2279721, and depots 2347770/2347771/2347779. It does not grant 2347777, which is excluded."
+}

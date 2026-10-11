@@ -1,0 +1,214 @@
+{
+  "embedded": {
+    "metadata": {
+      "version": 1,
+      "flags": 395,
+      "width": 64,
+      "height": 64,
+      "display_width": 64,
+      "display_height": 64,
+      "depth": 1,
+      "format": 16,
+      "format_name": "PNG_RGBA8888",
+      "mips": 1,
+      "picmip": 0,
+      "extra_types": [],
+      "payload_offset": 68,
+      "declared_size": 68,
+      "motion_distance": 0,
+      "range_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mip_sizes": [],
+      "compressed_mips": false
+    },
+    "method": "embedded_png"
+  },
+  "gpu": {
+    "metadata": {
+      "version": 1,
+      "flags": 11,
+      "width": 64,
+      "height": 64,
+      "display_width": 64,
+      "display_height": 64,
+      "depth": 1,
+      "format": 4,
+      "format_name": "RGBA8888",
+      "mips": 1,
+      "picmip": 0,
+      "extra_types": [],
+      "payload_offset": 68,
+      "declared_size": 68,
+      "motion_distance": 0,
+      "range_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mip_sizes": [],
+      "compressed_mips": false
+    },
+    "method": "native_vtex"
+  },
+  "padded": {
+    "metadata": {
+      "version": 1,
+      "flags": 11,
+      "width": 64,
+      "height": 64,
+      "display_width": 50,
+      "display_height": 40,
+      "depth": 1,
+      "format": 16,
+      "format_name": "PNG_RGBA8888",
+      "mips": 1,
+      "picmip": 0,
+      "extra_types": [
+        3
+      ],
+      "payload_offset": 120,
+      "declared_size": 120,
+      "motion_distance": 0,
+      "range_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mip_sizes": [],
+      "compressed_mips": false
+    },
+    "method": "embedded_png"
+  },
+  "one_pixel": {
+    "metadata": {
+      "version": 1,
+      "flags": 11,
+      "width": 4,
+      "height": 4,
+      "display_width": 1,
+      "display_height": 1,
+      "depth": 1,
+      "format": 16,
+      "format_name": "PNG_RGBA8888",
+      "mips": 1,
+      "picmip": 0,
+      "extra_types": [
+        3
+      ],
+      "payload_offset": 120,
+      "declared_size": 120,
+      "motion_distance": 0,
+      "range_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mip_sizes": [],
+      "compressed_mips": false
+    },
+    "method": "embedded_png"
+  },
+  "compressed": {
+    "metadata": {
+      "version": 1,
+      "flags": 11,
+      "width": 64,
+      "height": 64,
+      "display_width": 64,
+      "display_height": 64,
+      "depth": 1,
+      "format": 4,
+      "format_name": "RGBA8888",
+      "mips": 1,
+      "picmip": 0,
+      "extra_types": [
+        4
+      ],
+      "payload_offset": 96,
+      "declared_size": 96,
+      "motion_distance": 0,
+      "range_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mip_sizes": [
+        75
+      ],
+      "compressed_mips": true
+    },
+    "method": "native_vtex"
+  },
+  "bad_lz4": {
+    "rejected": true,
+    "reason": "Icon texture contains an invalid compressed mip."
+  },
+  "gpu_truncated": {
+    "rejected": true,
+    "reason": "Icon texture has truncated or unexpected mip pixel data."
+  },
+  "cube": {
+    "rejected": true,
+    "reason": "This image is an array, cube or volume texture; a single icon cannot replace it."
+  },
+  "array": {
+    "rejected": true,
+    "reason": "This image is an array, cube or volume texture; a single icon cannot replace it."
+  },
+  "sprite": {
+    "rejected": true,
+    "reason": "This image is a sprite sheet. Replacing its atlas needs a dedicated layout workflow."
+  },
+  "custom_mips": {
+    "rejected": true,
+    "reason": "This icon uses a custom mip chain; standard image compilation cannot preserve it."
+  },
+  "unknown_flags": {
+    "rejected": true,
+    "reason": "This icon uses texture processing flags or a format that needs a verified native Panorama recipe. Its settings will not be discarded."
+  },
+  "unknown_format": {
+    "rejected": true,
+    "reason": "This icon uses texture processing flags or a format that needs a verified native Panorama recipe. Its settings will not be discarded."
+  },
+  "png_tail": {
+    "rejected": true,
+    "reason": "Embedded PNG contains an unsupported trailing payload."
+  },
+  "gpu_padded": {
+    "rejected": true,
+    "reason": "This GPU icon has a padded display rectangle that needs a verified Panorama recipe."
+  },
+  "nonfinite": {
+    "rejected": true,
+    "reason": "Icon texture contains non-finite range metadata."
+  }
+}

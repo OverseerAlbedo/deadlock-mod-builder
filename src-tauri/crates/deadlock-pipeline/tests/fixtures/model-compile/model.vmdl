@@ -1,0 +1,6 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->
+{ rootNode = { _class = "RootNode" children = [
+{ _class = "NmSkeletonList" children = [{ _class = "NmSkeletonReference" filename = "models/test/rig.vnmskel" }] }
+{ _class = "AnimGraph2List" children = [ { _class = "DefaultAnimGraph2" filename = "animgraphs/test/game.vnmgraph" } { _class = "AnimGraph2" name = "UI" filename = "animgraphs/test/ui.vnmgraph" } ] }
+{ _class = "RenderMeshList" children = [ { _class = "RenderMeshFile" name = "body" filename = "models/test/body.dmx" } { _class = "RenderMeshFile" name = "cape" filename = "models/test/cape.dmx" } ] }
+] } }

@@ -1,0 +1,259 @@
+{
+  "audit": {
+    "compiled_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+    "runtime_motion": {
+      "cloth_nodes": 1,
+      "resource_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+      "skeleton": {
+        "m_boneName": [
+          "pelvis",
+          "leg_upper_L",
+          "leg_lower_L",
+          "ankle_L",
+          "leg_upper_R",
+          "leg_lower_R",
+          "ankle_R"
+        ],
+        "m_bonePosParent": [
+          [
+            0,
+            0,
+            10
+          ],
+          [
+            2,
+            0,
+            -1
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            -2,
+            0,
+            -1
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            0,
+            0,
+            -4
+          ]
+        ],
+        "m_boneRotParent": [
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "m_boneScaleParent": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "m_nFlag": [
+          64,
+          64,
+          64,
+          64,
+          64,
+          64,
+          64
+        ],
+        "m_nParent": [
+          -1,
+          0,
+          1,
+          2,
+          0,
+          4,
+          5
+        ]
+      },
+      "status": "audited"
+    }
+  },
+  "expected": {
+    "analysis_sha256": "fcaad044b503993bddfb9579ce38fc246d674758bd546a0ba0536f7b2772a569",
+    "blockers": [
+      "Original compiled snapshot is unavailable; re-analyze the selected hero.",
+      "No reliable dominant-weight collision-body geometry for leg_upper_L",
+      "No reliable dominant-weight collision-body geometry for leg_lower_L",
+      "No reliable dominant-weight collision-body geometry for leg_upper_R",
+      "No reliable dominant-weight collision-body geometry for leg_lower_R"
+    ],
+    "chains": [
+      {
+        "anchor": "pelvis",
+        "bones": [
+          "garment_top",
+          "garment_middle",
+          "garment_end"
+        ],
+        "pinned_bones": [
+          "garment_top"
+        ],
+        "root": "garment_top",
+        "segment_lengths": [
+          2.0,
+          2.0
+        ],
+        "simulated_bones": [
+          "garment_middle",
+          "garment_end"
+        ],
+        "terminal_orientation_verified": false,
+        "weighted_bones": [
+          "garment_end"
+        ],
+        "world_positions": [
+          [
+            3.0,
+            0.0,
+            10.0
+          ],
+          [
+            3.0,
+            0.0,
+            8.0
+          ],
+          [
+            3.0,
+            0.0,
+            6.0
+          ]
+        ]
+      }
+    ],
+    "collision_meshes": [
+      "body"
+    ],
+    "fit_approved": false,
+    "leg_colliders": [],
+    "limitations": [
+      "Current source-contract discovery requires an original with audited runtime cloth; originals without runtime cloth are not supported by this analyzer yet."
+    ],
+    "millimeters_per_unit": 25.4,
+    "options": {},
+    "original_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+    "original_snapshot_verified": false,
+    "pending_gates": [
+      "Validate selected garment surface, fixed boundary and direct proxy binding.",
+      "Native compiler validation of this garment and its animated leg colliders.",
+      "Independent original hair-solver preservation and in-game motion validation."
+    ],
+    "policy": "skirt-collision-analysis-v1",
+    "ready_for_authoring": false,
+    "role_candidates": {
+      "foot_L": [
+        "ankle_L"
+      ],
+      "foot_R": [
+        "ankle_R"
+      ],
+      "pelvis": [
+        "pelvis"
+      ],
+      "shin_L": [
+        "leg_lower_L"
+      ],
+      "shin_R": [
+        "leg_lower_R"
+      ],
+      "thigh_L": [
+        "leg_upper_L"
+      ],
+      "thigh_R": [
+        "leg_upper_R"
+      ]
+    },
+    "roles": {
+      "foot_L": "ankle_L",
+      "foot_R": "ankle_R",
+      "pelvis": "pelvis",
+      "shin_L": "leg_lower_L",
+      "shin_R": "leg_lower_R",
+      "thigh_L": "leg_upper_L",
+      "thigh_R": "leg_upper_R"
+    },
+    "runtime_ready": false,
+    "setup_ready_for_review": false,
+    "solver_written": false,
+    "source_modified": false,
+    "source_sha256": "4598f75c82b225223282ece5b1f5ee279f1ee17c78e906d421dd29e11db5fa24",
+    "summary": {
+      "chain_count": 1,
+      "custom_bone_count": 3,
+      "garment_position_count": 3,
+      "leg_collider_count": 0,
+      "overlapping_position_count": 0,
+      "pinned_bone_count": 1
+    },
+    "units": "Source 2 model inches",
+    "unselected_required_extras": [],
+    "warnings": [
+      "Collider dimensions are proposals; ragdoll shapes are not automatically suitable for cloth.",
+      "Bind-pose overlaps inspect garment positions, not continuous triangles or animated motion.",
+      "Skirt bone chains alone do not establish cross-panel cloth constraints or terminal rotations."
+    ],
+    "weights_modified": false
+  },
+  "options": {},
+  "selected": [
+    "body"
+  ],
+  "snapshot": false
+}

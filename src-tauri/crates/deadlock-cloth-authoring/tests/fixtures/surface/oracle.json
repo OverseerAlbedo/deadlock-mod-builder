@@ -1,0 +1,1154 @@
+[
+  {
+    "name": "base",
+    "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": true,
+    "receipt": {
+      "policy": "direct-cloth-surface-authoring-v1",
+      "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+      "render_sha256": "615e386d64a82e9936a32735b6832ec98671fe2dbbe7abd9017b51ac847a0447",
+      "proxy_sha256": "30ea3d351d747c8601815f4ff4cfb0cd7bdd36bc01fcde1dea49767f6b1b27de",
+      "source_modified": false,
+      "render_geometry_weights_preserved": true,
+      "serialized_binds_and_scales_preserved": true,
+      "bind_audit": {
+        "bind_identity": {
+          "bone_count": 4,
+          "original_to_compiled": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "reordered_bones": 0,
+          "name_and_parent_identity_passed": true,
+          "max_translation_error_m": 0.0,
+          "max_rotation_error_degrees": 0.0
+        },
+        "target_scale_audit": {
+          "policy": "source2-local-scale-dmx-v1",
+          "bone_count": 4,
+          "local_scale_tolerance": 0.0001,
+          "world_scale_tolerance": 0.001,
+          "world_joint_tolerance_mm": 0.5,
+          "max_local_scale_delta": 0.0,
+          "max_world_scale_delta": 0.0,
+          "max_world_joint_delta_mm": 0.0,
+          "max_omitted_scale_world_joint_drift_mm": 0.007617728296932923,
+          "max_omitted_scale_world_scale_drift": 0.00024997686956673704,
+          "approximated_bones": 0,
+          "scaled_bones": 3,
+          "bones": [
+            {
+              "name": "pelvis",
+              "original_scale": 1.0001499652862549,
+              "export_scale": 1.0001499652862549,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0001499652862549,
+              "original_cumulative_scale": 1.0001499652862549,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_root",
+              "original_scale": 0.9998999834060669,
+              "export_scale": 0.9998999834060669,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0000499336933046,
+              "original_cumulative_scale": 1.0000499336933046,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_mid",
+              "original_scale": 1.0002000331878662,
+              "export_scale": 1.0002000331878662,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0012683158099378034
+            },
+            {
+              "name": "garment_tip",
+              "original_scale": 1.0,
+              "export_scale": 1.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.007617728296932923
+            }
+          ],
+          "original_skeleton_modified": false,
+          "exact_scale_preservation": true,
+          "world_inverse_bind_consistent": true,
+          "native_compiler_validated": false
+        },
+        "current_and_bind_equal": true,
+        "joint_palette_entries": 6,
+        "world_inverse_bind_consistent": true,
+        "serialized_local_transforms_checked": true
+      },
+      "max_edge_inches": 0.7,
+      "source_bones_reserved": 4,
+      "additional_controls_reserved": 0,
+      "native_capacity": {
+        "policy": "native-cloth-capacity-v1",
+        "evidence": "docs/evidence/skirt-physics/real-garment/native-capacity.json",
+        "proxy_positions": 41,
+        "dynamic_positions": 36,
+        "source_bones": 4,
+        "reserved_controls": 0,
+        "pinned_positions": 5,
+        "reserved_model_solver_controls": 45,
+        "max_reserved_model_solver_controls": 65535,
+        "max_dynamic_positions": 32768,
+        "collision_tree_entries": 71,
+        "collision_tree_root_index": 70,
+        "collision_tree_index_type": "uint16",
+        "collision_tree_absent_parent": 65535,
+        "tree_scope": "New proxy dynamic positions only; original solver is not composed.",
+        "reserved_controls_in_tree": false,
+        "preflight_bounds_passed": true,
+        "native_compiled": false,
+        "native_output_capacity_verified": false,
+        "original_solver_preserved": false,
+        "runtime_ready": false
+      },
+      "proxy_positions": 41,
+      "meshes": {
+        "garment": {
+          "enabled_render_positions": 6,
+          "pinned_render_positions": 3,
+          "proxy_positions": 41,
+          "proxy_triangles": 64,
+          "surface_components": 1,
+          "initial_proxy_positions": 9,
+          "fixed_positions_not_on_dynamic_faces": 0,
+          "zero_area_triangles_excluded": 0,
+          "overlay_followers": {
+            "policy": "bounded-direct-cloth-overlay-v1",
+            "native_binding_verified": false,
+            "eligibility_only": true,
+            "distance_limit_mm": 2.0,
+            "per_influence_delta_limit": 0.05,
+            "weight_l1_limit": 0.1,
+            "ambiguity_margin_mm": 0.1,
+            "minimum_support_margin_mm": null,
+            "components": [],
+            "component_count": 0,
+            "source_position_count": 0,
+            "welded_position_count": 0,
+            "max_distance_mm": 0.0,
+            "max_weight_delta": 0.0,
+            "max_weight_l1": 0.0
+          }
+        }
+      },
+      "simplified": false,
+      "runtime_ready": false,
+      "native_compiled": false,
+      "original_solver_preserved": false,
+      "published": false,
+      "installed": false,
+      "pending": [
+        "Native direct-binding, overlay-follower and excluded-region audit.",
+        "Proxy and rendered-surface collision and runtime performance.",
+        "Preserve original solver while adding new cloth.",
+        "Native VPK and in-game validation."
+      ]
+    }
+  },
+  {
+    "name": "motion",
+    "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": {
+      "goal_at_anchor": 0.4,
+      "goal_at_hem": 0.15,
+      "drag": 0.15,
+      "antishrink": 0.98
+    },
+    "passed": true,
+    "receipt": {
+      "policy": "direct-cloth-surface-authoring-v1",
+      "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+      "render_sha256": "615e386d64a82e9936a32735b6832ec98671fe2dbbe7abd9017b51ac847a0447",
+      "proxy_sha256": "f06d62531e95b8d116d5c461dcfd1a955b7f499527dd26a8d09bacc73d7eb005",
+      "source_modified": false,
+      "render_geometry_weights_preserved": true,
+      "serialized_binds_and_scales_preserved": true,
+      "bind_audit": {
+        "bind_identity": {
+          "bone_count": 4,
+          "original_to_compiled": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "reordered_bones": 0,
+          "name_and_parent_identity_passed": true,
+          "max_translation_error_m": 0.0,
+          "max_rotation_error_degrees": 0.0
+        },
+        "target_scale_audit": {
+          "policy": "source2-local-scale-dmx-v1",
+          "bone_count": 4,
+          "local_scale_tolerance": 0.0001,
+          "world_scale_tolerance": 0.001,
+          "world_joint_tolerance_mm": 0.5,
+          "max_local_scale_delta": 0.0,
+          "max_world_scale_delta": 0.0,
+          "max_world_joint_delta_mm": 0.0,
+          "max_omitted_scale_world_joint_drift_mm": 0.007617728296932923,
+          "max_omitted_scale_world_scale_drift": 0.00024997686956673704,
+          "approximated_bones": 0,
+          "scaled_bones": 3,
+          "bones": [
+            {
+              "name": "pelvis",
+              "original_scale": 1.0001499652862549,
+              "export_scale": 1.0001499652862549,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0001499652862549,
+              "original_cumulative_scale": 1.0001499652862549,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_root",
+              "original_scale": 0.9998999834060669,
+              "export_scale": 0.9998999834060669,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0000499336933046,
+              "original_cumulative_scale": 1.0000499336933046,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_mid",
+              "original_scale": 1.0002000331878662,
+              "export_scale": 1.0002000331878662,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0012683158099378034
+            },
+            {
+              "name": "garment_tip",
+              "original_scale": 1.0,
+              "export_scale": 1.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.007617728296932923
+            }
+          ],
+          "original_skeleton_modified": false,
+          "exact_scale_preservation": true,
+          "world_inverse_bind_consistent": true,
+          "native_compiler_validated": false
+        },
+        "current_and_bind_equal": true,
+        "joint_palette_entries": 6,
+        "world_inverse_bind_consistent": true,
+        "serialized_local_transforms_checked": true
+      },
+      "max_edge_inches": 0.7,
+      "source_bones_reserved": 4,
+      "additional_controls_reserved": 0,
+      "native_capacity": {
+        "policy": "native-cloth-capacity-v1",
+        "evidence": "docs/evidence/skirt-physics/real-garment/native-capacity.json",
+        "proxy_positions": 41,
+        "dynamic_positions": 36,
+        "source_bones": 4,
+        "reserved_controls": 0,
+        "pinned_positions": 5,
+        "reserved_model_solver_controls": 45,
+        "max_reserved_model_solver_controls": 65535,
+        "max_dynamic_positions": 32768,
+        "collision_tree_entries": 71,
+        "collision_tree_root_index": 70,
+        "collision_tree_index_type": "uint16",
+        "collision_tree_absent_parent": 65535,
+        "tree_scope": "New proxy dynamic positions only; original solver is not composed.",
+        "reserved_controls_in_tree": false,
+        "preflight_bounds_passed": true,
+        "native_compiled": false,
+        "native_output_capacity_verified": false,
+        "original_solver_preserved": false,
+        "runtime_ready": false
+      },
+      "proxy_positions": 41,
+      "meshes": {
+        "garment": {
+          "enabled_render_positions": 6,
+          "pinned_render_positions": 3,
+          "proxy_positions": 41,
+          "proxy_triangles": 64,
+          "surface_components": 1,
+          "initial_proxy_positions": 9,
+          "fixed_positions_not_on_dynamic_faces": 0,
+          "zero_area_triangles_excluded": 0,
+          "overlay_followers": {
+            "policy": "bounded-direct-cloth-overlay-v1",
+            "native_binding_verified": false,
+            "eligibility_only": true,
+            "distance_limit_mm": 2.0,
+            "per_influence_delta_limit": 0.05,
+            "weight_l1_limit": 0.1,
+            "ambiguity_margin_mm": 0.1,
+            "minimum_support_margin_mm": null,
+            "components": [],
+            "component_count": 0,
+            "source_position_count": 0,
+            "welded_position_count": 0,
+            "max_distance_mm": 0.0,
+            "max_weight_delta": 0.0,
+            "max_weight_l1": 0.0
+          }
+        }
+      },
+      "simplified": false,
+      "runtime_ready": false,
+      "native_compiled": false,
+      "original_solver_preserved": false,
+      "published": false,
+      "installed": false,
+      "pending": [
+        "Native direct-binding, overlay-follower and excluded-region audit.",
+        "Proxy and rendered-surface collision and runtime performance.",
+        "Preserve original solver while adding new cloth.",
+        "Native VPK and in-game validation."
+      ],
+      "motion_maps": {
+        "policy": "animation-supported-cloth-maps-v1",
+        "parameters": {
+          "goal_at_anchor": 0.4,
+          "goal_at_hem": 0.15,
+          "drag": 0.15,
+          "antishrink": 0.98
+        },
+        "source_sha256": "30ea3d351d747c8601815f4ff4cfb0cd7bdd36bc01fcde1dea49767f6b1b27de",
+        "proxy_sha256": "f06d62531e95b8d116d5c461dcfd1a955b7f499527dd26a8d09bacc73d7eb005",
+        "meshes": [
+          {
+            "mesh": "garment",
+            "mesh_index": 0,
+            "positions": 41,
+            "dynamic": 36,
+            "pins": 5,
+            "physical_panels": 1,
+            "goal_dynamic_range": [
+              0.15,
+              0.3190162490093933
+            ],
+            "distance_method": "Shortest rest-surface edge path from existing pins, normalized per connected panel.",
+            "seams_added": 0,
+            "panel_connections_unchanged": true
+          }
+        ],
+        "maps": [
+          "cloth_goal_strength$0",
+          "cloth_drag$0",
+          "cloth_antishrink$0"
+        ],
+        "render_source_modified": false,
+        "geometry_skinning_binds_preserved": true,
+        "gravity_modified": false,
+        "seams_inferred": false,
+        "native_map_interpretation_verified": false,
+        "native_compiled": false,
+        "runtime_ready": false,
+        "build_authorized": false
+      }
+    }
+  },
+  {
+    "name": "overlay",
+    "source_sha256": "89351c9f6b069c32c3bdf8b91e401a68cf3c53967b2eaa28873ef4dbab8fc564",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": true,
+    "receipt": {
+      "policy": "direct-cloth-surface-authoring-v1",
+      "source_sha256": "89351c9f6b069c32c3bdf8b91e401a68cf3c53967b2eaa28873ef4dbab8fc564",
+      "render_sha256": "a835f046d9c3b7a3f6645c3b09e04bb96cb541f0a813500f940f7259ffd41a76",
+      "proxy_sha256": "4b922da9f1c1336335255299115f7aa122e1dd5906060e35229a6840e00c6063",
+      "source_modified": false,
+      "render_geometry_weights_preserved": true,
+      "serialized_binds_and_scales_preserved": true,
+      "bind_audit": {
+        "bind_identity": {
+          "bone_count": 4,
+          "original_to_compiled": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "reordered_bones": 0,
+          "name_and_parent_identity_passed": true,
+          "max_translation_error_m": 0.0,
+          "max_rotation_error_degrees": 0.0
+        },
+        "target_scale_audit": {
+          "policy": "source2-local-scale-dmx-v1",
+          "bone_count": 4,
+          "local_scale_tolerance": 0.0001,
+          "world_scale_tolerance": 0.001,
+          "world_joint_tolerance_mm": 0.5,
+          "max_local_scale_delta": 0.0,
+          "max_world_scale_delta": 0.0,
+          "max_world_joint_delta_mm": 0.0,
+          "max_omitted_scale_world_joint_drift_mm": 0.007617728296932923,
+          "max_omitted_scale_world_scale_drift": 0.00024997686956673704,
+          "approximated_bones": 0,
+          "scaled_bones": 3,
+          "bones": [
+            {
+              "name": "pelvis",
+              "original_scale": 1.0001499652862549,
+              "export_scale": 1.0001499652862549,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0001499652862549,
+              "original_cumulative_scale": 1.0001499652862549,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_root",
+              "original_scale": 0.9998999834060669,
+              "export_scale": 0.9998999834060669,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0000499336933046,
+              "original_cumulative_scale": 1.0000499336933046,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_mid",
+              "original_scale": 1.0002000331878662,
+              "export_scale": 1.0002000331878662,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0012683158099378034
+            },
+            {
+              "name": "garment_tip",
+              "original_scale": 1.0,
+              "export_scale": 1.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.007617728296932923
+            }
+          ],
+          "original_skeleton_modified": false,
+          "exact_scale_preservation": true,
+          "world_inverse_bind_consistent": true,
+          "native_compiler_validated": false
+        },
+        "current_and_bind_equal": true,
+        "joint_palette_entries": 6,
+        "world_inverse_bind_consistent": true,
+        "serialized_local_transforms_checked": true
+      },
+      "max_edge_inches": 0.7,
+      "source_bones_reserved": 4,
+      "additional_controls_reserved": 0,
+      "native_capacity": {
+        "policy": "native-cloth-capacity-v1",
+        "evidence": "docs/evidence/skirt-physics/real-garment/native-capacity.json",
+        "proxy_positions": 41,
+        "dynamic_positions": 36,
+        "source_bones": 4,
+        "reserved_controls": 0,
+        "pinned_positions": 5,
+        "reserved_model_solver_controls": 45,
+        "max_reserved_model_solver_controls": 65535,
+        "max_dynamic_positions": 32768,
+        "collision_tree_entries": 71,
+        "collision_tree_root_index": 70,
+        "collision_tree_index_type": "uint16",
+        "collision_tree_absent_parent": 65535,
+        "tree_scope": "New proxy dynamic positions only; original solver is not composed.",
+        "reserved_controls_in_tree": false,
+        "preflight_bounds_passed": true,
+        "native_compiled": false,
+        "native_output_capacity_verified": false,
+        "original_solver_preserved": false,
+        "runtime_ready": false
+      },
+      "proxy_positions": 41,
+      "meshes": {
+        "garment": {
+          "enabled_render_positions": 10,
+          "pinned_render_positions": 3,
+          "proxy_positions": 41,
+          "proxy_triangles": 64,
+          "surface_components": 1,
+          "initial_proxy_positions": 9,
+          "fixed_positions_not_on_dynamic_faces": 0,
+          "zero_area_triangles_excluded": 0,
+          "overlay_followers": {
+            "policy": "bounded-direct-cloth-overlay-v1",
+            "native_binding_verified": false,
+            "eligibility_only": true,
+            "distance_limit_mm": 2.0,
+            "per_influence_delta_limit": 0.05,
+            "weight_l1_limit": 0.1,
+            "ambiguity_margin_mm": 0.1,
+            "minimum_support_margin_mm": null,
+            "components": [
+              {
+                "component": 1,
+                "anchor_component": 0,
+                "excluded_proxy_source_positions": [
+                  9,
+                  10,
+                  11,
+                  12
+                ],
+                "correspondences": [
+                  {
+                    "source_position_ids": [
+                      9
+                    ],
+                    "triangle_source_positions": [
+                      3,
+                      6,
+                      7
+                    ],
+                    "barycentric": [
+                      0.20000004768371582,
+                      0.5970659640256828,
+                      0.20293398829060139
+                    ],
+                    "distance_mm": 0.5023796443596947,
+                    "max_weight_delta": 5.960464477539063e-08,
+                    "weight_l1": 1.043081283569336e-07,
+                    "runner_up_component_distance_mm": null,
+                    "support_margin_mm": null
+                  },
+                  {
+                    "source_position_ids": [
+                      10
+                    ],
+                    "triangle_source_positions": [
+                      3,
+                      7,
+                      4
+                    ],
+                    "barycentric": [
+                      0.7970660117093986,
+                      0.20000004768371582,
+                      0.0029339406068855686
+                    ],
+                    "distance_mm": 0.5023796443596947,
+                    "max_weight_delta": 5.960464477539063e-08,
+                    "weight_l1": 1.043081283569336e-07,
+                    "runner_up_component_distance_mm": null,
+                    "support_margin_mm": null
+                  },
+                  {
+                    "source_position_ids": [
+                      11
+                    ],
+                    "triangle_source_positions": [
+                      3,
+                      7,
+                      4
+                    ],
+                    "barycentric": [
+                      0.19706600351193826,
+                      0.20000004768371582,
+                      0.6029339488043459
+                    ],
+                    "distance_mm": 0.5023795170970067,
+                    "max_weight_delta": 5.960464477539063e-08,
+                    "weight_l1": 1.043081283569336e-07,
+                    "runner_up_component_distance_mm": null,
+                    "support_margin_mm": null
+                  },
+                  {
+                    "source_position_ids": [
+                      12
+                    ],
+                    "triangle_source_positions": [
+                      3,
+                      7,
+                      4
+                    ],
+                    "barycentric": [
+                      0.19706600351193834,
+                      0.7999999523162842,
+                      0.002934044171777488
+                    ],
+                    "distance_mm": 0.5023795170970066,
+                    "max_weight_delta": 5.960464477539063e-08,
+                    "weight_l1": 1.043081283569336e-07,
+                    "runner_up_component_distance_mm": null,
+                    "support_margin_mm": null
+                  }
+                ]
+              }
+            ],
+            "component_count": 1,
+            "source_position_count": 4,
+            "welded_position_count": 4,
+            "max_distance_mm": 0.5023796443596947,
+            "max_weight_delta": 5.960464477539063e-08,
+            "max_weight_l1": 1.043081283569336e-07
+          }
+        }
+      },
+      "simplified": false,
+      "runtime_ready": false,
+      "native_compiled": false,
+      "original_solver_preserved": false,
+      "published": false,
+      "installed": false,
+      "pending": [
+        "Native direct-binding, overlay-follower and excluded-region audit.",
+        "Proxy and rendered-surface collision and runtime performance.",
+        "Preserve original solver while adding new cloth.",
+        "Native VPK and in-game validation."
+      ]
+    }
+  },
+  {
+    "name": "far_overlay",
+    "source_sha256": "34d41cfad00e1125fa7d4aee57818af535fe4f4e3ee2ef0372824588e9a01bf8",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Unpinned cloth component is not a bounded overlay: no anchored surface within 2 mm."
+  },
+  {
+    "name": "wrong_weights",
+    "source_sha256": "a9c37e58d065fbd2b33967a620b517a11e32f182d7900493f39d4f062bf48bda",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Unpinned cloth overlay has incompatible skin binding at its nearest anchored surface."
+  },
+  {
+    "name": "panel",
+    "source_sha256": "4c3cfb3caeda74dfed898d3562c99ed1cf3303b1641eb56e35ca3e84a14c9fbc",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "pinned": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": {
+      "goal_at_anchor": 0.4,
+      "goal_at_hem": 0.15,
+      "drag": 0.15,
+      "antishrink": 0.98
+    },
+    "passed": true,
+    "receipt": {
+      "policy": "direct-cloth-surface-authoring-v1",
+      "source_sha256": "4c3cfb3caeda74dfed898d3562c99ed1cf3303b1641eb56e35ca3e84a14c9fbc",
+      "render_sha256": "5fa5a5a6dc838d2ac09806ac547f04b33b388d599f31b3c1e22ae8fcd0ac8744",
+      "proxy_sha256": "17f1f0ba02b49927ba5b17678b741ffce57bba7aef0f61fbe70b1cfcc032efce",
+      "source_modified": false,
+      "render_geometry_weights_preserved": true,
+      "serialized_binds_and_scales_preserved": true,
+      "bind_audit": {
+        "bind_identity": {
+          "bone_count": 4,
+          "original_to_compiled": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "reordered_bones": 0,
+          "name_and_parent_identity_passed": true,
+          "max_translation_error_m": 0.0,
+          "max_rotation_error_degrees": 0.0
+        },
+        "target_scale_audit": {
+          "policy": "source2-local-scale-dmx-v1",
+          "bone_count": 4,
+          "local_scale_tolerance": 0.0001,
+          "world_scale_tolerance": 0.001,
+          "world_joint_tolerance_mm": 0.5,
+          "max_local_scale_delta": 0.0,
+          "max_world_scale_delta": 0.0,
+          "max_world_joint_delta_mm": 0.0,
+          "max_omitted_scale_world_joint_drift_mm": 0.007617728296932923,
+          "max_omitted_scale_world_scale_drift": 0.00024997686956673704,
+          "approximated_bones": 0,
+          "scaled_bones": 3,
+          "bones": [
+            {
+              "name": "pelvis",
+              "original_scale": 1.0001499652862549,
+              "export_scale": 1.0001499652862549,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0001499652862549,
+              "original_cumulative_scale": 1.0001499652862549,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_root",
+              "original_scale": 0.9998999834060669,
+              "export_scale": 0.9998999834060669,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0000499336933046,
+              "original_cumulative_scale": 1.0000499336933046,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "garment_mid",
+              "original_scale": 1.0002000331878662,
+              "export_scale": 1.0002000331878662,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0012683158099378034
+            },
+            {
+              "name": "garment_tip",
+              "original_scale": 1.0,
+              "export_scale": 1.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0002499768695667,
+              "original_cumulative_scale": 1.0002499768695667,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.007617728296932923
+            }
+          ],
+          "original_skeleton_modified": false,
+          "exact_scale_preservation": true,
+          "world_inverse_bind_consistent": true,
+          "native_compiler_validated": false
+        },
+        "current_and_bind_equal": true,
+        "joint_palette_entries": 6,
+        "world_inverse_bind_consistent": true,
+        "serialized_local_transforms_checked": true
+      },
+      "max_edge_inches": 0.7,
+      "source_bones_reserved": 4,
+      "additional_controls_reserved": 0,
+      "native_capacity": {
+        "policy": "native-cloth-capacity-v1",
+        "evidence": "docs/evidence/skirt-physics/real-garment/native-capacity.json",
+        "proxy_positions": 82,
+        "dynamic_positions": 72,
+        "source_bones": 4,
+        "reserved_controls": 0,
+        "pinned_positions": 10,
+        "reserved_model_solver_controls": 86,
+        "max_reserved_model_solver_controls": 65535,
+        "max_dynamic_positions": 32768,
+        "collision_tree_entries": 143,
+        "collision_tree_root_index": 142,
+        "collision_tree_index_type": "uint16",
+        "collision_tree_absent_parent": 65535,
+        "tree_scope": "New proxy dynamic positions only; original solver is not composed.",
+        "reserved_controls_in_tree": false,
+        "preflight_bounds_passed": true,
+        "native_compiled": false,
+        "native_output_capacity_verified": false,
+        "original_solver_preserved": false,
+        "runtime_ready": false
+      },
+      "proxy_positions": 82,
+      "meshes": {
+        "garment": {
+          "enabled_render_positions": 12,
+          "pinned_render_positions": 6,
+          "proxy_positions": 82,
+          "proxy_triangles": 128,
+          "surface_components": 2,
+          "initial_proxy_positions": 18,
+          "fixed_positions_not_on_dynamic_faces": 0,
+          "zero_area_triangles_excluded": 0,
+          "overlay_followers": {
+            "policy": "bounded-direct-cloth-overlay-v1",
+            "native_binding_verified": false,
+            "eligibility_only": true,
+            "distance_limit_mm": 2.0,
+            "per_influence_delta_limit": 0.05,
+            "weight_l1_limit": 0.1,
+            "ambiguity_margin_mm": 0.1,
+            "minimum_support_margin_mm": null,
+            "components": [],
+            "component_count": 0,
+            "source_position_count": 0,
+            "welded_position_count": 0,
+            "max_distance_mm": 0.0,
+            "max_weight_delta": 0.0,
+            "max_weight_l1": 0.0
+          }
+        }
+      },
+      "simplified": false,
+      "runtime_ready": false,
+      "native_compiled": false,
+      "original_solver_preserved": false,
+      "published": false,
+      "installed": false,
+      "pending": [
+        "Native direct-binding, overlay-follower and excluded-region audit.",
+        "Proxy and rendered-surface collision and runtime performance.",
+        "Preserve original solver while adding new cloth.",
+        "Native VPK and in-game validation."
+      ],
+      "motion_maps": {
+        "policy": "animation-supported-cloth-maps-v1",
+        "parameters": {
+          "goal_at_anchor": 0.4,
+          "goal_at_hem": 0.15,
+          "drag": 0.15,
+          "antishrink": 0.98
+        },
+        "source_sha256": "e51fcd5cc9cc90de333df13555cb0dce01affb8c2d0e5368a0665532aec49550",
+        "proxy_sha256": "17f1f0ba02b49927ba5b17678b741ffce57bba7aef0f61fbe70b1cfcc032efce",
+        "meshes": [
+          {
+            "mesh": "garment",
+            "mesh_index": 0,
+            "positions": 82,
+            "dynamic": 72,
+            "pins": 10,
+            "physical_panels": 2,
+            "goal_dynamic_range": [
+              0.15,
+              0.3190162490093933
+            ],
+            "distance_method": "Shortest rest-surface edge path from existing pins, normalized per connected panel.",
+            "seams_added": 0,
+            "panel_connections_unchanged": true
+          }
+        ],
+        "maps": [
+          "cloth_goal_strength$0",
+          "cloth_drag$0",
+          "cloth_antishrink$0"
+        ],
+        "render_source_modified": false,
+        "geometry_skinning_binds_preserved": true,
+        "gravity_modified": false,
+        "seams_inferred": false,
+        "native_map_interpretation_verified": false,
+        "native_compiled": false,
+        "runtime_ready": false,
+        "build_authorized": false
+      }
+    }
+  },
+  {
+    "name": "ambiguous",
+    "source_sha256": "81585e0047ec14a42570854db15f5435a275f493c50239aa92603ba379a32a93",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ],
+        "pinned": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Unpinned cloth overlay has ambiguous support from different anchored components."
+  },
+  {
+    "name": "collapsed",
+    "source_sha256": "f9ab7e36846487ae3f44c19aaae70b7e9deee2858bef29e34c059e4b1010cb6e",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Native float32 precision collapses or reverses a cloth proxy face; provide a reviewed proxy with representable coordinates and spacing."
+  },
+  {
+    "name": "unanchored",
+    "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+    "selection": {
+      "garment": {
+        "enabled": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "A cloth position cannot be both enabled and pinned."
+  },
+  {
+    "name": "boundary",
+    "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Cloth selection cuts through a surface face; include its fixed boundary vertices as pinned."
+  },
+  {
+    "name": "budget",
+    "source_sha256": "21ad6ffe13993b8fc55b17aaec35b428120292dc5efa955690660e24b45b2fdd",
+    "selection": {
+      "garment": {
+        "enabled": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pinned": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    "options": {
+      "max_edge_inches": 0.7,
+      "max_proxy_vertices": 9
+    },
+    "motion": null,
+    "passed": false,
+    "error": "Requested cloth spacing exceeds the bounded proxy budget; provide a reviewed reduced proxy or review spacing."
+  }
+]

@@ -1,0 +1,1018 @@
+{
+  "skeleton": {
+    "m_boneName": [
+      "pelvis",
+      "spine",
+      "chest",
+      "neck",
+      "head",
+      "upperarm_L",
+      "forearm_L",
+      "hand_L",
+      "thigh_L",
+      "shin_L",
+      "foot_L",
+      "upperarm_R",
+      "forearm_R",
+      "hand_R",
+      "thigh_R",
+      "shin_R",
+      "foot_R"
+    ],
+    "m_nParent": [
+      -1,
+      0,
+      1,
+      2,
+      3,
+      2,
+      5,
+      6,
+      0,
+      8,
+      9,
+      2,
+      11,
+      12,
+      0,
+      14,
+      15
+    ],
+    "m_bonePosParent": [
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0.0,
+        0.0,
+        0.19999999999999996
+      ],
+      [
+        0.0,
+        0.0,
+        0.30000000000000004
+      ],
+      [
+        0.0,
+        0.0,
+        0.19999999999999996
+      ],
+      [
+        0.0,
+        0.0,
+        0.15000000000000013
+      ],
+      [
+        0.3,
+        0.0,
+        0.0
+      ],
+      [
+        0.3,
+        0.0,
+        0.0
+      ],
+      [
+        0.30000000000000004,
+        0.0,
+        0.0
+      ],
+      [
+        0.15,
+        0.0,
+        -0.050000000000000044
+      ],
+      [
+        0.0,
+        0.0,
+        -0.44999999999999996
+      ],
+      [
+        0.0,
+        -0.1,
+        -0.42
+      ],
+      [
+        -0.3,
+        0.0,
+        0.0
+      ],
+      [
+        -0.3,
+        0.0,
+        0.0
+      ],
+      [
+        -0.30000000000000004,
+        0.0,
+        0.0
+      ],
+      [
+        -0.15,
+        0.0,
+        -0.050000000000000044
+      ],
+      [
+        0.0,
+        0.0,
+        -0.44999999999999996
+      ],
+      [
+        0.0,
+        -0.1,
+        -0.42
+      ]
+    ],
+    "m_boneRotParent": [
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "m_boneScaleParent": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "m_nFlag": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "input": {
+    "rest_alignment": {
+      "policy": "anatomical-rest-alignment-v1"
+    },
+    "meshes": [
+      {
+        "name": "\u8863\u670d_\ud83e\uddf5",
+        "positions": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2
+          ]
+        ],
+        "normals": [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        "uvs": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              0.5,
+              0.0
+            ],
+            [
+              1.0,
+              0.5
+            ],
+            [
+              0.5,
+              1.0
+            ]
+          ]
+        ],
+        "colors": [
+          [
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          ]
+        ],
+        "weights": [
+          [
+            [
+              "pelvis",
+              0.4
+            ],
+            [
+              "spine",
+              0.6
+            ]
+          ],
+          [
+            [
+              "pelvis",
+              0.4
+            ],
+            [
+              "spine",
+              0.6
+            ]
+          ],
+          [
+            [
+              "pelvis",
+              0.4
+            ],
+            [
+              "spine",
+              0.6
+            ]
+          ]
+        ],
+        "faces": [
+          {
+            "vertices": [
+              0,
+              1,
+              2
+            ],
+            "corners": [
+              0,
+              1,
+              2
+            ],
+            "material": "models/test/materials/cloth.vmat"
+          }
+        ],
+        "deformation": [],
+        "tangents": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ]
+      }
+    ],
+    "materials": {
+      "models/test/materials/cloth.vmat": {
+        "preset": "generic",
+        "mode": "generate",
+        "confirmed": false,
+        "textures": {},
+        "color": [
+          0.2,
+          0.4,
+          0.8
+        ]
+      }
+    },
+    "weights": [],
+    "warnings": [
+      "Secondary-motion geometry may require manual setup."
+    ]
+  },
+  "audit": {
+    "bind_identity": {
+      "bone_count": 17,
+      "original_to_compiled": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 3.35214365054653e-10,
+      "max_rotation_error_degrees": 0.0
+    },
+    "target_scale_audit": {
+      "policy": "source2-local-scale-dmx-v1",
+      "bone_count": 17,
+      "local_scale_tolerance": 0.0001,
+      "world_scale_tolerance": 0.001,
+      "world_joint_tolerance_mm": 0.5,
+      "max_local_scale_delta": 0.0,
+      "max_world_scale_delta": 0.0,
+      "max_world_joint_delta_mm": 9.8407268472109e-07,
+      "max_omitted_scale_world_joint_drift_mm": 0.0,
+      "max_omitted_scale_world_scale_drift": 0.0,
+      "approximated_bones": 0,
+      "scaled_bones": 0,
+      "bones": [
+        {
+          "name": "pelvis",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "spine",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 7.569789999273268e-08,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "chest",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 3.7848949432373045e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "neck",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 4.5418739431646314e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "head",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 6.055831886619955e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "upperarm_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 4.847030511197581e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "forearm_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 7.14132550104609e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "hand_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 9.8407268472109e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "thigh_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 1.525739929130548e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "shin_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 3.21716070241523e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "foot_L",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 6.363690537889439e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "upperarm_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 4.847030511197581e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "forearm_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 7.14132550104609e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "hand_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 9.8407268472109e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "thigh_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 1.525739929130548e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "shin_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 3.21716070241523e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "foot_R",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 6.363690537889439e-07,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        }
+      ],
+      "original_skeleton_modified": false,
+      "exact_scale_preservation": true,
+      "world_inverse_bind_consistent": true,
+      "native_compiler_validated": false
+    },
+    "target_bind_audit": {
+      "bind_identity": {
+        "bone_count": 17,
+        "original_to_compiled": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "reordered_bones": 0,
+        "name_and_parent_identity_passed": true,
+        "max_translation_error_m": 3.35214365054653e-10,
+        "max_rotation_error_degrees": 0.0
+      },
+      "target_scale_audit": {
+        "policy": "source2-local-scale-dmx-v1",
+        "bone_count": 17,
+        "local_scale_tolerance": 0.0001,
+        "world_scale_tolerance": 0.001,
+        "world_joint_tolerance_mm": 0.5,
+        "max_local_scale_delta": 0.0,
+        "max_world_scale_delta": 0.0,
+        "max_world_joint_delta_mm": 9.8407268472109e-07,
+        "max_omitted_scale_world_joint_drift_mm": 0.0,
+        "max_omitted_scale_world_scale_drift": 0.0,
+        "approximated_bones": 0,
+        "scaled_bones": 0,
+        "bones": [
+          {
+            "name": "pelvis",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 0.0,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "spine",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.569789999273268e-08,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "chest",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.7848949432373045e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "neck",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.5418739431646314e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "head",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.055831886619955e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "upperarm_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.847030511197581e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "forearm_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.14132550104609e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "hand_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 9.8407268472109e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "thigh_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 1.525739929130548e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "shin_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.21716070241523e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "foot_L",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.363690537889439e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "upperarm_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 4.847030511197581e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "forearm_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 7.14132550104609e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "hand_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 9.8407268472109e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "thigh_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 1.525739929130548e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "shin_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 3.21716070241523e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          },
+          {
+            "name": "foot_R",
+            "original_scale": 1.0,
+            "export_scale": 1.0,
+            "local_scale_delta": 0.0,
+            "cumulative_scale": 1.0,
+            "original_cumulative_scale": 1.0,
+            "world_scale_delta": 0.0,
+            "world_joint_delta_mm": 6.363690537889439e-07,
+            "omitted_scale_world_joint_drift_mm": 0.0
+          }
+        ],
+        "original_skeleton_modified": false,
+        "exact_scale_preservation": true,
+        "world_inverse_bind_consistent": true,
+        "native_compiler_validated": false
+      },
+      "current_and_bind_equal": true,
+      "joint_palette_entries": 18,
+      "world_inverse_bind_consistent": true,
+      "serialized_local_transforms_checked": true
+    },
+    "skinning": {
+      "meshes": [
+        {
+          "name": "\u8863\u670d_\ud83e\uddf5",
+          "vertices": 3,
+          "joint_count": 2,
+          "errors": [],
+          "pending": [],
+          "passed": true
+        }
+      ],
+      "joint_palette_entries": 18,
+      "numeric_checks_passed": true
+    },
+    "geometry": {
+      "meshes": [
+        {
+          "name": "\u8863\u670d_\ud83e\uddf5",
+          "vertices": 3,
+          "polygons": 1,
+          "triangles": 1,
+          "corners": 3
+        }
+      ],
+      "source_triangles": 1
+    },
+    "dmx": {
+      "encoding": "binary 9",
+      "format": "model",
+      "format_version": 22,
+      "meshes": [
+        {
+          "name": "\u8863\u670d_\ud83e\uddf5",
+          "element": 38,
+          "vertices": 3,
+          "indexed_vertices": 3,
+          "weight_values": 6,
+          "joint_index_values": 6,
+          "has_skin_weights": true,
+          "vertex_attributes": [
+            "blendindices$0",
+            "blendweights$0",
+            "color$0",
+            "color$0Indices",
+            "flipVCoordinates",
+            "jointCount",
+            "normal$0",
+            "normal$0Indices",
+            "position$0",
+            "position$0Indices",
+            "tangent$0",
+            "tangent$0Indices",
+            "texcoord$0",
+            "texcoord$0Indices",
+            "texcoord$1",
+            "texcoord$1Indices",
+            "vertexFormat"
+          ]
+        }
+      ],
+      "materials": [
+        "models/test/materials/cloth.vmat"
+      ],
+      "material_identities": [
+        {
+          "name": "models/test/materials/cloth.vmat",
+          "uuid": "75dba721b544cb59ae774c73abd93d1c",
+          "path": "models/test/materials/cloth.vmat"
+        }
+      ],
+      "bones": [
+        "pelvis",
+        "spine",
+        "chest",
+        "neck",
+        "head",
+        "upperarm_L",
+        "forearm_L",
+        "hand_L",
+        "thigh_L",
+        "shin_L",
+        "foot_L",
+        "upperarm_R",
+        "forearm_R",
+        "hand_R",
+        "thigh_R",
+        "shin_R",
+        "foot_R"
+      ],
+      "elements": 44
+    },
+    "native_compiler_validated": false
+  }
+}

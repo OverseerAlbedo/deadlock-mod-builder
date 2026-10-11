@@ -1,0 +1,170 @@
+{
+  "audit": {
+    "compiled_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+    "runtime_motion": {
+      "cloth_nodes": 1,
+      "resource_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+      "skeleton": {
+        "m_boneName": [
+          "pelvis",
+          "leg_upper_L",
+          "leg_lower_L",
+          "ankle_L",
+          "leg_upper_R",
+          "leg_lower_R",
+          "ankle_R"
+        ],
+        "m_bonePosParent": [
+          [
+            0,
+            0,
+            10
+          ],
+          [
+            2,
+            0,
+            -1
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            -2,
+            0,
+            -1
+          ],
+          [
+            0,
+            0,
+            -4
+          ],
+          [
+            0,
+            0,
+            -4
+          ]
+        ],
+        "m_boneRotParent": [
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "m_boneScaleParent": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "m_nFlag": [
+          64,
+          64,
+          64,
+          64,
+          64,
+          64,
+          64
+        ],
+        "m_nParent": [
+          -1,
+          0,
+          1,
+          2,
+          0,
+          4,
+          5
+        ]
+      },
+      "status": "audited"
+    }
+  },
+  "expected": {
+    "blockers": [
+      "No validated selected weighted custom-bone extension; analyze a rigged DMX with garment bones."
+    ],
+    "chains": [],
+    "fit_approved": false,
+    "leg_colliders": [],
+    "limitations": [
+      "Current source-contract discovery requires an original with audited runtime cloth; originals without runtime cloth are not supported by this analyzer yet."
+    ],
+    "millimeters_per_unit": 25.4,
+    "original_sha256": "683c1ac2ab687fe67bf352269af3f4fde8dd3a0286635eeb6a163437d9f18077",
+    "pending_gates": [
+      "Validate selected garment surface, fixed boundary and direct proxy binding.",
+      "Native compiler validation of this garment and its animated leg colliders.",
+      "Independent original hair-solver preservation and in-game motion validation."
+    ],
+    "policy": "skirt-collision-analysis-v1",
+    "ready_for_authoring": false,
+    "roles": {},
+    "runtime_ready": false,
+    "setup_ready_for_review": false,
+    "solver_written": false,
+    "source_modified": false,
+    "source_sha256": "1db2af3562dcd12b009217409b0c524d1946e2ad787cc407dbb639baafff1bf0",
+    "summary": {
+      "chain_count": 0,
+      "custom_bone_count": 0,
+      "leg_collider_count": 0,
+      "overlapping_position_count": 0,
+      "pinned_bone_count": 0
+    },
+    "units": "Source 2 model inches",
+    "warnings": [],
+    "weights_modified": false
+  },
+  "options": {},
+  "selected": [
+    "body"
+  ],
+  "snapshot": true
+}

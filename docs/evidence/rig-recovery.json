@@ -1,0 +1,103 @@
+{
+  "blender": "5.0.0",
+  "source_sha256": "84ce160dd31e23434cbb50f82230e6863b261423644e46c263781e9c9c1be1be",
+  "source_unchanged": true,
+  "inspection_exact_data_unchanged": true,
+  "saved_intake_reimport_passed": true,
+  "live_controls_not_repaired": true,
+  "recovery": {
+    "policy": "rest-skin-rig-recovery-v1",
+    "roles": {
+      "pelvis": "Bip001_Pelvis",
+      "shin_R": "Bip001_R_Calf",
+      "foot_R": "Bip001_R_Foot",
+      "shin_L": "Bip001_L_Calf",
+      "foot_L": "Bip001_L_Foot",
+      "head": "Bip001_Head",
+      "forearm_L": "Bip001_L_Forearm",
+      "hand_L": "Bip001_L_Hand",
+      "forearm_R": "Bip001_R_Forearm",
+      "hand_R": "Bip001_R_Hand",
+      "spine": "Bip001_Spine",
+      "chest": "Bip001_Spine1",
+      "neck": "Bip001_B_NeckTwist",
+      "upperarm_L": "Bip001_B_L_UpperArm_Twist",
+      "thigh_L": "Bip001_B_L_Thigh_Twist",
+      "upperarm_R": "Bip001_B_R_UpperArm_Twist",
+      "thigh_R": "Bip001_B_R_Thigh_Twist"
+    },
+    "reconnected_roots": {
+      "Bip001_B_NeckTwist": "Bip001_Spine1",
+      "Bip001_Head": "Bip001_B_NeckTwist",
+      "Bip001_B_L_UpperArm_Twist": "Bip001_Spine1",
+      "Bip001_L_Forearm": "Bip001_B_L_UpperArm_Twist",
+      "Bip001_B_L_Thigh_Twist": "Bip001_Pelvis",
+      "Bip001_L_Calf": "Bip001_B_L_Thigh_Twist",
+      "Bip001_B_R_UpperArm_Twist": "Bip001_Spine1",
+      "Bip001_R_Forearm": "Bip001_B_R_UpperArm_Twist",
+      "Bip001_B_R_Thigh_Twist": "Bip001_Pelvis",
+      "Bip001_R_Calf": "Bip001_B_R_Thigh_Twist",
+      "Bone_Breast_L_00": "Bip001_Spine1",
+      "Bone_Breast_R_00": "Bip001_Spine1",
+      "Bip001_B_L_Hip": "Bip001_B_L_Thigh_Twist",
+      "Bip001_B_R_Hip": "Bip001_B_R_Thigh_Twist"
+    },
+    "promoted_helpers": [
+      "Bip001_B_NeckTwist",
+      "Bip001_B_L_UpperArm_Twist",
+      "Bip001_B_L_Thigh_Twist",
+      "Bip001_B_R_UpperArm_Twist",
+      "Bip001_B_R_Thigh_Twist"
+    ],
+    "effective_rest_hierarchy_only": true,
+    "original_bind_matrices_unchanged": true,
+    "rigid_body_meshes": 0,
+    "joint_empties": 0,
+    "objects": [],
+    "warning": "Recovered 14 disconnected links for rest conversion using surviving anatomical joints. Used 5 surviving helpers for missing body roles. Original rest matrices and skin weights are unchanged. Review shoulders, knees and head movement."
+  },
+  "conversions": [
+    {
+      "fit": "match_target",
+      "vertices": 24238,
+      "weighted_bones": 125,
+      "preserved_secondary_bones": 18,
+      "followed_bones": 84,
+      "hero_binds_unchanged": true,
+      "correction_handoff_passed": true,
+      "warnings": [
+        "Secondary-motion geometry may require manual setup. Existing hero cloth preservation is unchanged.",
+        "Automatic pose probes do not establish artistic quality or in-game acceptance.",
+        "84 source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.",
+        "Kept 18 existing physics bones in 5 groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.",
+        "Body__CH10027_01_Body: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Body__CH10027_01_Hair: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Face__CH10027_01_Face: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Body: movement probes found 3 severe edge-strain observations. Review the converted model before accepting; these are diagnostics, not proof of a broken mesh."
+      ]
+    },
+    {
+      "fit": "preserve_proportions",
+      "vertices": 24238,
+      "weighted_bones": 125,
+      "preserved_secondary_bones": 18,
+      "followed_bones": 84,
+      "hero_binds_unchanged": true,
+      "correction_handoff_passed": true,
+      "warnings": [
+        "Secondary-motion geometry may require manual setup. Existing hero cloth preservation is unchanged.",
+        "Automatic pose probes do not establish artistic quality or in-game acceptance.",
+        "Source torso, head and leg proportions retained after overall scale and alignment. Arms fitted to the hero shoulder, elbow and wrist pivots while retaining limb width. Arm lengths can change. Check joint movement, weapon grip and clothing clearance in game.",
+        "84 source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.",
+        "Kept 18 existing physics bones in 5 groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.",
+        "Body__CH10027_01_Body: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Body__CH10027_01_Hair: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Face__CH10027_01_Face: recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.",
+        "Body: movement probes found 15 severe edge-strain observations. Review the converted model before accepting; these are diagnostics, not proof of a broken mesh."
+      ]
+    }
+  ],
+  "materials": "temporary generated colors; external textures not supplied",
+  "target": "positional Haze regression fixture; not a current compiled hero",
+  "native_game_compiler_run": false
+}

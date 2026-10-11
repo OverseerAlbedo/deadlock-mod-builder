@@ -1,0 +1,402 @@
+[
+  {
+    "name": "roles_unicode",
+    "operation": "data",
+    "args": {
+      "text": "stats\n{ m_vecNmSkeletonRefs=[resource:\"models/a.vnmskel\"] m_animGraph2Refs=[{m_sIdentifier=\"default\" m_hGraph=resource:\"models/a.vnmgraph\"},{m_sIdentifier=\"UI 雪😀\" m_hGraph=resource:\"models/ui.vnmgraph\"}] }"
+    },
+    "expected": [
+      {
+        "class": "NmSkeletonReference",
+        "name": "",
+        "filename": "models/a.vnmskel"
+      },
+      {
+        "class": "DefaultAnimGraph2",
+        "name": "",
+        "filename": "models/a.vnmgraph"
+      },
+      {
+        "class": "AnimGraph2",
+        "name": "UI 雪😀",
+        "filename": "models/ui.vnmgraph"
+      }
+    ]
+  },
+  {
+    "name": "empty_data",
+    "operation": "data",
+    "args": {
+      "text": "header stats\n { unrelated=123 }"
+    },
+    "expected": []
+  },
+  {
+    "name": "duplicate_default",
+    "operation": "data",
+    "args": {
+      "text": "{m_animGraph2Refs=[{m_hGraph=\"a.vnmgraph\"},{m_sIdentifier=\"default\" m_hGraph=\"b.vnmgraph\"}]}"
+    },
+    "error": "Multiple default AG2 graphs require a reviewed source definition."
+  },
+  {
+    "name": "bad_skeleton_layout",
+    "operation": "data",
+    "args": {
+      "text": "{m_vecNmSkeletonRefs=\"bad\"}"
+    },
+    "error": "Unsupported m_vecNmSkeletonRefs layout."
+  },
+  {
+    "name": "missing_graph_path",
+    "operation": "data",
+    "args": {
+      "text": "{m_animGraph2Refs=[{}]}"
+    },
+    "error": "AG2 reference has no resource filename."
+  },
+  {
+    "name": "no_data",
+    "operation": "data",
+    "args": {
+      "text": "error"
+    },
+    "error": "Source 2 Viewer did not return a text KV3 DATA block."
+  },
+  {
+    "name": "recover_lists",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ] } }",
+      "refs": [
+        "models/a.vnmskel_c",
+        "models/a.vnmgraph_c",
+        "models/ui.vnmgraph_c"
+      ],
+      "recovered": [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    ]
+  },
+  {
+    "name": "exact_unchanged",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "refs": [
+        "models/a.vnmskel_c",
+        "models/a.vnmgraph_c",
+        "models/ui.vnmgraph_c"
+      ],
+      "recovered": [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    ]
+  },
+  {
+    "name": "existing_lists",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n] } }",
+      "refs": [
+        "models/a.vnmskel_c",
+        "models/a.vnmgraph_c",
+        "models/ui.vnmgraph_c"
+      ],
+      "recovered": [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    ]
+  },
+  {
+    "name": "stale_source",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "refs": [
+        "models/a.vnmskel_c"
+      ],
+      "recovered": [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    },
+    "error": "Source AG2 references differ from the original compiled model. Regenerate the original source:\nmodels/a.vnmgraph\nmodels/ui.vnmgraph"
+  },
+  {
+    "name": "no_roles_guess",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ] } }",
+      "refs": [
+        "models/a.vnmskel_c",
+        "models/a.vnmgraph_c",
+        "models/ui.vnmgraph_c"
+      ],
+      "recovered": []
+    },
+    "error": "Original AG2 nodes are missing from the decompiled source. Configure Source2Viewer-CLI to recover their identifiers from DATA."
+  },
+  {
+    "name": "unknown_original",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "refs": null,
+      "recovered": []
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    ]
+  },
+  {
+    "name": "remove_preview",
+    "operation": "preview",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }"
+    },
+    "expected": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n\n\n] } }"
+  },
+  {
+    "name": "preserve_compiler",
+    "operation": "compiler",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "policy": "preserve",
+      "target": 41
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      []
+    ]
+  },
+  {
+    "name": "disable_compiler",
+    "operation": "compiler",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "policy": "disable_legacy",
+      "target": 41
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] \n disabled = true\n}, { _class=\"AnimGraph\" disabled=true }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI 雪😀\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        "Temporarily disabled AnimationList",
+        "Temporarily disabled AnimGraph"
+      ]
+    ]
+  },
+  {
+    "name": "bad_header",
+    "operation": "compiler",
+    "args": {
+      "text": "{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ] } }",
+      "policy": "preserve",
+      "target": 41
+    },
+    "error": "Model compiler requires a canonical text ModelDoc source header."
+  },
+  {
+    "name": "wrong_extension",
+    "operation": "source",
+    "args": {
+      "text": "{children=[{_class=\"AnimGraph2\" filename=\"a.vnmskel\"}]}"
+    },
+    "error": "Invalid AnimGraph2 filename: a.vnmskel"
+  },
+  {
+    "name": "typed_source",
+    "operation": "source",
+    "args": {
+      "text": "{children=[{_class=\"AnimGraph2\" filename=resource:\"models/u.vnmgraph_c\" name=\"ui\"}]}"
+    },
+    "expected": [
+      {
+        "class": "AnimGraph2",
+        "name": "ui",
+        "filename": "models/u.vnmgraph"
+      }
+    ]
+  },
+  {
+    "name": "legacy_ascii_escaped_source_is_unchanged",
+    "operation": "reconcile",
+    "args": {
+      "text": "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI \\u96ea\\ud83d\\ude00\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      "refs": [
+        "models/a.vnmskel_c",
+        "models/a.vnmgraph_c",
+        "models/ui.vnmgraph_c"
+      ],
+      "recovered": [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    },
+    "expected": [
+      "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca} -->\n{ rootNode = { _class = \"RootNode\" children = [ { _class = \"RenderMeshList\" children = [ { _class=\"RenderMeshFile\" name=\"body\" filename=\"body.dmx\" } ] }, { _class=\"AnimationList\" mystery={disabled=false} children=[] }, { _class=\"AnimGraph\" disabled=false }, { _class=\"EmptyAnimGraph\" disabled=true } ,\n{ _class = \"NmSkeletonList\" children = [\n{ _class = \"NmSkeletonReference\" filename = \"models/a.vnmskel\" }\n] },\n{ _class = \"AnimGraph2List\" children = [\n{ _class = \"DefaultAnimGraph2\" filename = \"models/a.vnmgraph\" },\n{ _class = \"AnimGraph2\" name = \"UI \\u96ea\\ud83d\\ude00\" filename = \"models/ui.vnmgraph\" }\n] },\n] } }",
+      [
+        {
+          "class": "NmSkeletonReference",
+          "name": "",
+          "filename": "models/a.vnmskel"
+        },
+        {
+          "class": "DefaultAnimGraph2",
+          "name": "",
+          "filename": "models/a.vnmgraph"
+        },
+        {
+          "class": "AnimGraph2",
+          "name": "UI 雪😀",
+          "filename": "models/ui.vnmgraph"
+        }
+      ]
+    ]
+  }
+]

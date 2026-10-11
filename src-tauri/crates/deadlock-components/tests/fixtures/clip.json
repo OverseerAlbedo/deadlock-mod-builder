@@ -1,0 +1,12 @@
+{
+  "additive": false,
+  "duration": 1.0,
+  "events": 0,
+  "frames": 2,
+  "in_game_validated": false,
+  "original_sha256": "f55402a2630de0a519996c5661ead650b88225f68a736e7dd32e77afafe7182e",
+  "output_sha256": "10e610458d2435cc28f1ad9ac7dd068cb32ac982564d06f452facfdc6c4d7bf7",
+  "skeleton": "animation/test/hero.vnmskel",
+  "status": "verified",
+  "tracks": 1
+}

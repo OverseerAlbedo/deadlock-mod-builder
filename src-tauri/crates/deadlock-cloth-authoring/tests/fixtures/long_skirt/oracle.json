@@ -1,0 +1,35 @@
+{
+  "roots": [
+    "spring0",
+    "spring1",
+    "spring2",
+    "spring3",
+    "skirt_short_a",
+    "skirt_short_b",
+    "cape_a",
+    "cape_b",
+    "hair_a",
+    "hair_b",
+    "tail_a",
+    "tail_b",
+    "ornament_a",
+    "ornament_b",
+    "skirt_detached"
+  ],
+  "long_skirts": [
+    "spring0",
+    "spring1",
+    "spring2",
+    "spring3"
+  ],
+  "connected_pairs": [
+    [
+      "spring0",
+      "spring1"
+    ],
+    [
+      "spring2",
+      "spring3"
+    ]
+  ]
+}

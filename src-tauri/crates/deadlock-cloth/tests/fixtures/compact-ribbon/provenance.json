@@ -1,0 +1,17 @@
+{
+  "provenance": "Exact encoded PHYS and DATA blocks extracted from user-supplied alpha26-ribbon Windows compiler output. No native tables changed. Not an in-game acceptance claim.",
+  "resource_sha256": "d46210beecf9000a40d43f5cfbfb864a705692f8b9e4b6a90b06dfec5761dd88",
+  "resource_bytes": 8855972,
+  "blocks": {
+    "PHYS": {
+      "bytes": 155330,
+      "sha256": "4fe624cff8f533fb1486e19bed096ebfed0b49e177c14afc8de85672e3638efc"
+    },
+    "DATA": {
+      "bytes": 19588,
+      "sha256": "26c3f82ec9b97f8af6932c05fbf02d70490264a3ba120a069e84562fe99dbc9a"
+    }
+  },
+  "selected_bones": 262,
+  "weighted_bones": 199
+}

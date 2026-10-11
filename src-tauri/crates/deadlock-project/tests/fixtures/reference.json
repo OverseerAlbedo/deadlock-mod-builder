@@ -1,0 +1,2057 @@
+{
+  "reference": "deadlock_builder.project + asset_paths + customization.state, schema 1",
+  "platform": "posix",
+  "files": [
+    "old/package/Collection.dmx",
+    "old/package/modèle with spaces.GLB",
+    "old/package/source_materials/models/body/color.png",
+    "old/package/local.png",
+    "old/package/mesh.vmdl",
+    "new/package/Collection.dmx",
+    "new/package/source_materials/models/body/color.png",
+    "new/package/local.png",
+    "new/package/mesh.vmdl",
+    "profiles/case/profile.json"
+  ],
+  "cases": [
+    {
+      "name": "empty_draft",
+      "operation": "save",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef"
+      },
+      "path": "draft.json",
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "",
+        "dmx": "",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {},
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000,
+        "hero_root": ""
+      }
+    },
+    {
+      "name": "vindicta_saved",
+      "operation": "save",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "candidates": {
+              "color": [
+                "old"
+              ]
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        }
+      },
+      "path": "old/package/project.dmb.json",
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "Collection.dmx",
+        "textures": "source_materials",
+        "source_root": ".",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "@textures/models/body/color.png",
+              "normal": "@source/local.png",
+              "opacity": ""
+            },
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000,
+        "hero_root": "models/heroes_staging/hornet_v3"
+      }
+    },
+    {
+      "name": "all_sources_and_customization",
+      "operation": "save",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "candidates": {
+              "color": [
+                "old"
+              ]
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "customization": {
+          "schema": 1,
+          "enabled": true,
+          "model_enabled": true,
+          "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+          "icons": [
+            {
+              "enabled": true,
+              "source": "${ROOT}/old/package/local.png",
+              "target": "panorama/vindicta.vtex_c",
+              "fit": "contain",
+              "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "animations": [
+            {
+              "source": "${ROOT}/old/package/pose.vnmclip",
+              "target": "animations/vindicta.vnmclip_c"
+            }
+          ],
+          "effects": [
+            {
+              "source": "${ROOT}/old/package/shine.vpcf_c",
+              "target": "particles/vindicta.vpcf_c",
+              "allow_shared": true
+            }
+          ],
+          "audio": [
+            {
+              "source": "${ROOT}/old/package/sound.wav",
+              "target": "sounds/vindicta.vsnd_c"
+            }
+          ],
+          "clothing": {
+            "enabled": false,
+            "mode": "simulated",
+            "source": "${ROOT}/old/package/skirt.glb"
+          },
+          "physics": {
+            "enabled": true,
+            "source": "${ROOT}/old/package/test.vmdl_c",
+            "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "cloth_setup": {
+            "meshes": [
+              "skirt"
+            ],
+            "attachment": "top",
+            "collision": "legs"
+          },
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "models/replacement/body.vmat",
+                "color": [
+                  0.2,
+                  0.3,
+                  0.4
+                ],
+                "emission": 2
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [
+              {
+                "target": "gun",
+                "action": "replace",
+                "sources": [
+                  "newgun"
+                ],
+                "include_lods": false
+              }
+            ],
+            "props": [
+              {
+                "enabled": true,
+                "source": "${ROOT}/old/package/prop.glb",
+                "bone": "hand",
+                "translation": [
+                  1,
+                  2,
+                  3
+                ],
+                "rotation": [
+                  0,
+                  90,
+                  0
+                ],
+                "scale": 0.25
+              }
+            ],
+            "variants": [
+              {
+                "enabled": false,
+                "model": "models/alternate.vmdl_c",
+                "project": "${ROOT}/old/package/alternate.dmb.json"
+              }
+            ]
+          },
+          "face": {
+            "enabled": true,
+            "mode": "static",
+            "weights": {
+              "smile": 0.2
+            }
+          },
+          "future_section": {
+            "unset": null,
+            "paths_are_opaque": "do/not/rebase"
+          }
+        },
+        "preparation_source": "${ROOT}/old/package/modèle with spaces.GLB",
+        "preparation_options": {
+          "rotation": [
+            0,
+            0,
+            90
+          ],
+          "roles": {
+            "head": "Head"
+          },
+          "landmarks": {
+            "head": []
+          },
+          "reviewed": false,
+          "unknown": null
+        }
+      },
+      "path": "old/package/project.dmb.json",
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "modèle with spaces.GLB",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {
+          "rotation": [
+            0,
+            0,
+            90
+          ],
+          "roles": {
+            "head": "Head"
+          },
+          "landmarks": {
+            "head": []
+          },
+          "reviewed": false,
+          "unknown": null
+        },
+        "customization": {
+          "schema": 1,
+          "enabled": true,
+          "model_enabled": true,
+          "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+          "icons": [
+            {
+              "enabled": true,
+              "source": "local.png",
+              "target": "panorama/vindicta.vtex_c",
+              "fit": "contain",
+              "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "animations": [
+            {
+              "source": "pose.vnmclip",
+              "target": "animations/vindicta.vnmclip_c"
+            }
+          ],
+          "effects": [
+            {
+              "source": "shine.vpcf_c",
+              "target": "particles/vindicta.vpcf_c",
+              "allow_shared": true
+            }
+          ],
+          "audio": [
+            {
+              "source": "sound.wav",
+              "target": "sounds/vindicta.vsnd_c"
+            }
+          ],
+          "clothing": {
+            "enabled": false,
+            "mode": "simulated",
+            "source": "skirt.glb"
+          },
+          "physics": {
+            "enabled": true,
+            "source": "test.vmdl_c",
+            "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "cloth_setup": {
+            "meshes": [
+              "skirt"
+            ],
+            "attachment": "top",
+            "collision": "legs"
+          },
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "models/replacement/body.vmat",
+                "color": [
+                  0.2,
+                  0.3,
+                  0.4
+                ],
+                "emission": 2
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [
+              {
+                "target": "gun",
+                "action": "replace",
+                "sources": [
+                  "newgun"
+                ],
+                "include_lods": false
+              }
+            ],
+            "props": [
+              {
+                "enabled": true,
+                "source": "prop.glb",
+                "bone": "hand",
+                "translation": [
+                  1,
+                  2,
+                  3
+                ],
+                "rotation": [
+                  0,
+                  90,
+                  0
+                ],
+                "scale": 0.25
+              }
+            ],
+            "variants": [
+              {
+                "enabled": false,
+                "model": "models/alternate.vmdl_c",
+                "project": "alternate.dmb.json"
+              }
+            ]
+          },
+          "face": {
+            "enabled": true,
+            "mode": "static",
+            "weights": {
+              "smile": 0.2
+            }
+          },
+          "future_section": {
+            "unset": null,
+            "paths_are_opaque": "do/not/rebase"
+          }
+        },
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "Collection.dmx",
+        "textures": "source_materials",
+        "source_root": ".",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "@textures/models/body/color.png",
+              "normal": "@source/local.png",
+              "opacity": ""
+            },
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000,
+        "hero_root": "models/heroes_staging/hornet_v3"
+      }
+    },
+    {
+      "name": "changed_model_rebases_existing_old",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "candidates": {
+              "color": [
+                "old"
+              ]
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        }
+      },
+      "initial_rebase": true,
+      "changes": {
+        "dmx": "${ROOT}/new/package/Collection.dmx"
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/new/package/Collection.dmx",
+        "textures": "${ROOT}/new/package/source_materials",
+        "source_root": "${ROOT}/new/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/new/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/new/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/new/package/local.png",
+              "opacity": ""
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "changed_textures_missing_new_remains_new",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "candidates": {
+              "color": [
+                "old"
+              ]
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        }
+      },
+      "initial_rebase": true,
+      "changes": {
+        "textures": "${ROOT}/custom-textures"
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/custom-textures",
+        "source_root": "${ROOT}/old/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/custom-textures/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "windows_absolute_recovered",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/new/package/Collection.dmx",
+        "textures": "${ROOT}/new/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "C:\\Users\\name\\package\\source_materials\\models\\body\\color.png"
+            }
+          }
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/new/package/Collection.dmx",
+        "textures": "${ROOT}/new/package/source_materials",
+        "source_root": "${ROOT}/new/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "${ROOT}/new/package/source_materials/models/body/color.png"
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "missing_basename_no_recovery",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "/unrelated/color.png"
+            }
+          }
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "source_root": "${ROOT}/old/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "/unrelated/color.png"
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "legacy_top_paths_recovery",
+      "operation": "load",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "/gone/package/Collection.dmx",
+        "textures": "/gone/package/source_materials",
+        "mesh_template": "/gone/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "candidates": {
+              "color": [
+                "old"
+              ]
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "extra_root_key": {
+          "ignored": true
+        }
+      },
+      "path": "new/package/profile.json",
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/new/package/Collection.dmx",
+        "textures": "${ROOT}/new/package/source_materials",
+        "source_root": "${ROOT}/new/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/new/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "models/replacement/body.vmat": {
+            "mode": "generate",
+            "confirmed": true,
+            "roughness": null,
+            "metalness": 0.4,
+            "color": [
+              0.5,
+              0.2,
+              1
+            ],
+            "textures": {
+              "color": "${ROOT}/old/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/old/package/local.png",
+              "opacity": ""
+            },
+            "ambiguous": [],
+            "existing": true,
+            "future_material": {
+              "x": null
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "relative_load_sources",
+      "operation": "load",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "Collection.dmx",
+        "textures": "source_materials",
+        "mesh_template": "mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "@textures/models/body/color.png",
+              "normal": "@source/local.png",
+              "opacity": ""
+            }
+          }
+        },
+        "source_root": ".",
+        "customization": {
+          "schema": 1,
+          "enabled": true,
+          "model_enabled": true,
+          "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+          "icons": [
+            {
+              "enabled": true,
+              "source": "local.png",
+              "target": "panorama/vindicta.vtex_c",
+              "fit": "contain",
+              "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "animations": [
+            {
+              "source": "pose.vnmclip",
+              "target": "animations/vindicta.vnmclip_c"
+            }
+          ],
+          "effects": [
+            {
+              "source": "shine.vpcf_c",
+              "target": "particles/vindicta.vpcf_c",
+              "allow_shared": true
+            }
+          ],
+          "audio": [
+            {
+              "source": "sound.wav",
+              "target": "sounds/vindicta.vsnd_c"
+            }
+          ],
+          "clothing": {
+            "enabled": false,
+            "mode": "simulated",
+            "source": "skirt.glb"
+          },
+          "physics": {
+            "enabled": true,
+            "source": "test.vmdl_c",
+            "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "cloth_setup": {
+            "meshes": [
+              "skirt"
+            ],
+            "attachment": "top",
+            "collision": "legs"
+          },
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "models/replacement/body.vmat",
+                "color": [
+                  0.2,
+                  0.3,
+                  0.4
+                ],
+                "emission": 2
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [
+              {
+                "target": "gun",
+                "action": "replace",
+                "sources": [
+                  "newgun"
+                ],
+                "include_lods": false
+              }
+            ],
+            "props": [
+              {
+                "enabled": true,
+                "source": "prop.glb",
+                "bone": "hand",
+                "translation": [
+                  1,
+                  2,
+                  3
+                ],
+                "rotation": [
+                  0,
+                  90,
+                  0
+                ],
+                "scale": 0.25
+              }
+            ],
+            "variants": [
+              {
+                "enabled": false,
+                "model": "models/alternate.vmdl_c",
+                "project": "alternate.dmb.json"
+              }
+            ]
+          },
+          "face": {
+            "enabled": true,
+            "mode": "static",
+            "weights": {
+              "smile": 0.2
+            }
+          },
+          "future_section": {
+            "unset": null,
+            "paths_are_opaque": "do/not/rebase"
+          }
+        }
+      },
+      "path": "new/package/profile.json",
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {
+          "schema": 1,
+          "enabled": true,
+          "model_enabled": true,
+          "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+          "icons": [
+            {
+              "enabled": true,
+              "source": "${ROOT}/new/package/local.png",
+              "target": "panorama/vindicta.vtex_c",
+              "fit": "contain",
+              "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "animations": [
+            {
+              "source": "${ROOT}/new/package/pose.vnmclip",
+              "target": "animations/vindicta.vnmclip_c"
+            }
+          ],
+          "effects": [
+            {
+              "source": "${ROOT}/new/package/shine.vpcf_c",
+              "target": "particles/vindicta.vpcf_c",
+              "allow_shared": true
+            }
+          ],
+          "audio": [
+            {
+              "source": "${ROOT}/new/package/sound.wav",
+              "target": "sounds/vindicta.vsnd_c"
+            }
+          ],
+          "clothing": {
+            "enabled": false,
+            "mode": "simulated",
+            "source": "${ROOT}/new/package/skirt.glb"
+          },
+          "physics": {
+            "enabled": true,
+            "source": "${ROOT}/new/package/test.vmdl_c",
+            "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "cloth_setup": {
+            "meshes": [
+              "skirt"
+            ],
+            "attachment": "top",
+            "collision": "legs"
+          },
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "models/replacement/body.vmat",
+                "color": [
+                  0.2,
+                  0.3,
+                  0.4
+                ],
+                "emission": 2
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [
+              {
+                "target": "gun",
+                "action": "replace",
+                "sources": [
+                  "newgun"
+                ],
+                "include_lods": false
+              }
+            ],
+            "props": [
+              {
+                "enabled": true,
+                "source": "${ROOT}/new/package/prop.glb",
+                "bone": "hand",
+                "translation": [
+                  1,
+                  2,
+                  3
+                ],
+                "rotation": [
+                  0,
+                  90,
+                  0
+                ],
+                "scale": 0.25
+              }
+            ],
+            "variants": [
+              {
+                "enabled": false,
+                "model": "models/alternate.vmdl_c",
+                "project": "${ROOT}/new/package/alternate.dmb.json"
+              }
+            ]
+          },
+          "face": {
+            "enabled": true,
+            "mode": "static",
+            "weights": {
+              "smile": 0.2
+            }
+          },
+          "future_section": {
+            "unset": null,
+            "paths_are_opaque": "do/not/rebase"
+          }
+        },
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "dmx": "${ROOT}/new/package/Collection.dmx",
+        "textures": "${ROOT}/new/package/source_materials",
+        "source_root": "${ROOT}/new/package",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "${ROOT}/new/package/mesh.vmdl",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "${ROOT}/new/package/source_materials/models/body/color.png",
+              "normal": "${ROOT}/new/package/local.png",
+              "opacity": ""
+            }
+          }
+        },
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "relative_dmx_parent_dot",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "dmx": "Collection.dmx"
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {},
+        "customization": {},
+        "schema": 1,
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "",
+        "dmx": "Collection.dmx",
+        "textures": "",
+        "source_root": ".",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {},
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 18,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": true,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "clear_hero_targets",
+      "operation": "clear_targets",
+      "customization": {
+        "schema": 1,
+        "enabled": true,
+        "model_enabled": true,
+        "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "icons": [
+          {
+            "enabled": true,
+            "source": "${ROOT}/old/package/local.png",
+            "target": "panorama/vindicta.vtex_c",
+            "fit": "contain",
+            "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "animations": [
+          {
+            "source": "${ROOT}/old/package/pose.vnmclip",
+            "target": "animations/vindicta.vnmclip_c"
+          }
+        ],
+        "effects": [
+          {
+            "source": "${ROOT}/old/package/shine.vpcf_c",
+            "target": "particles/vindicta.vpcf_c",
+            "allow_shared": true
+          }
+        ],
+        "audio": [
+          {
+            "source": "${ROOT}/old/package/sound.wav",
+            "target": "sounds/vindicta.vsnd_c"
+          }
+        ],
+        "clothing": {
+          "enabled": false,
+          "mode": "simulated",
+          "source": "${ROOT}/old/package/skirt.glb"
+        },
+        "physics": {
+          "enabled": true,
+          "source": "${ROOT}/old/package/test.vmdl_c",
+          "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "cloth_setup": {
+          "meshes": [
+            "skirt"
+          ],
+          "attachment": "top",
+          "collision": "legs"
+        },
+        "appearance": {
+          "enabled": true,
+          "materials": [
+            {
+              "target": "models/replacement/body.vmat",
+              "color": [
+                0.2,
+                0.3,
+                0.4
+              ],
+              "emission": 2
+            }
+          ]
+        },
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "gun",
+              "action": "replace",
+              "sources": [
+                "newgun"
+              ],
+              "include_lods": false
+            }
+          ],
+          "props": [
+            {
+              "enabled": true,
+              "source": "${ROOT}/old/package/prop.glb",
+              "bone": "hand",
+              "translation": [
+                1,
+                2,
+                3
+              ],
+              "rotation": [
+                0,
+                90,
+                0
+              ],
+              "scale": 0.25
+            }
+          ],
+          "variants": [
+            {
+              "enabled": false,
+              "model": "models/alternate.vmdl_c",
+              "project": "${ROOT}/old/package/alternate.dmb.json"
+            }
+          ]
+        },
+        "face": {
+          "enabled": true,
+          "mode": "static",
+          "weights": {
+            "smile": 0.2
+          }
+        },
+        "future_section": {
+          "unset": null,
+          "paths_are_opaque": "do/not/rebase"
+        }
+      },
+      "expected": {
+        "schema": 1,
+        "enabled": true,
+        "model_enabled": true,
+        "icons": [
+          {
+            "enabled": true,
+            "source": "${ROOT}/old/package/local.png",
+            "target": "",
+            "fit": "contain"
+          }
+        ],
+        "animations": [
+          {
+            "source": "${ROOT}/old/package/pose.vnmclip",
+            "target": ""
+          }
+        ],
+        "effects": [
+          {
+            "source": "${ROOT}/old/package/shine.vpcf_c",
+            "target": "",
+            "allow_shared": true
+          }
+        ],
+        "audio": [
+          {
+            "source": "${ROOT}/old/package/sound.wav",
+            "target": ""
+          }
+        ],
+        "clothing": {
+          "enabled": false,
+          "mode": "simulated",
+          "source": "${ROOT}/old/package/skirt.glb"
+        },
+        "physics": {
+          "enabled": false,
+          "source": "${ROOT}/old/package/test.vmdl_c",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "cloth_setup": {
+          "meshes": [],
+          "attachment": "top",
+          "collision": "legs"
+        },
+        "appearance": {
+          "enabled": true,
+          "materials": [
+            {
+              "target": "",
+              "color": [
+                0.2,
+                0.3,
+                0.4
+              ],
+              "emission": 2
+            }
+          ]
+        },
+        "equipment": {
+          "enabled": true,
+          "meshes": [
+            {
+              "target": "",
+              "action": "replace",
+              "sources": [
+                "newgun"
+              ],
+              "include_lods": false
+            }
+          ],
+          "props": [
+            {
+              "enabled": true,
+              "source": "${ROOT}/old/package/prop.glb",
+              "bone": "",
+              "translation": [
+                1,
+                2,
+                3
+              ],
+              "rotation": [
+                0,
+                90,
+                0
+              ],
+              "scale": 0.25
+            }
+          ],
+          "variants": [
+            {
+              "enabled": false,
+              "model": "",
+              "project": "${ROOT}/old/package/alternate.dmb.json"
+            }
+          ]
+        },
+        "face": {
+          "enabled": true,
+          "mode": "static",
+          "weights": {
+            "smile": 0.2
+          }
+        },
+        "future_section": {
+          "unset": null,
+          "paths_are_opaque": "do/not/rebase"
+        }
+      }
+    },
+    {
+      "name": "settings_legacy_unknown",
+      "operation": "settings",
+      "settings": {
+        "cswin": "C:/Tools/CSWin64",
+        "resourcecompiler": "C:/Tools/材料/compiler.exe",
+        "unknown": "discard"
+      },
+      "expected": {
+        "steam": "",
+        "deadlock": "",
+        "pak": "",
+        "csdk": "",
+        "resourcecompiler": "C:/Tools/材料/compiler.exe",
+        "cswin": "C:/Tools/CSWin64",
+        "cswin_resourcecompiler": "",
+        "model_backend": "auto",
+        "model_game": "",
+        "model_format": "auto",
+        "optional_cs2": "",
+        "source2viewer": "",
+        "vpk_tool": "",
+        "vpk_backend": "builtin",
+        "ag2_adapter": "",
+        "workspace": "",
+        "last_project": "",
+        "blender": ""
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "empty_action",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef"
+      },
+      "action": true,
+      "error": "Select a hero / original model before preparing, analyzing or building this project."
+    },
+    {
+      "name": "unsafe_0",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "../escape.vmdl"
+      },
+      "error": "Unsafe game-relative asset path: '../escape.vmdl'"
+    },
+    {
+      "name": "unsafe_1",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "/absolute.vmdl"
+      },
+      "error": "Unsafe game-relative asset path: '/absolute.vmdl'"
+    },
+    {
+      "name": "unsafe_2",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "C:/absolute.vmdl"
+      },
+      "error": "Invalid asset path: 'C:/absolute.vmdl'"
+    },
+    {
+      "name": "unsafe_3",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models\\..\\escape.vmdl_c"
+      },
+      "error": "Unsafe game-relative asset path: 'models/../escape.vmdl_c'"
+    },
+    {
+      "name": "unsafe_4",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models//hero.vmdl"
+      },
+      "error": "Unsafe game-relative asset path: 'models//hero.vmdl'"
+    },
+    {
+      "name": "unsafe_5",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/./hero.vmdl"
+      },
+      "error": "Unsafe game-relative asset path: 'models/./hero.vmdl'"
+    },
+    {
+      "name": "unsafe_6",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/hero\n.vmdl"
+      },
+      "error": "Invalid asset path: 'models/hero\\n.vmdl'"
+    },
+    {
+      "name": "unsafe_7",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/hero.vmat"
+      },
+      "error": "Select an original VMDL hero resource."
+    },
+    {
+      "name": "unsafe_8",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": " "
+      },
+      "error": "Select an original VMDL hero resource."
+    },
+    {
+      "name": "field_schema",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "schema": 2
+      },
+      "error": "This project uses an unsupported profile version."
+    },
+    {
+      "name": "field_name",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "name": "invalid name"
+      },
+      "error": "Project name must use lowercase letters, numbers and underscores."
+    },
+    {
+      "name": "field_model_input_mode",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "model_input_mode": "unknown"
+      },
+      "error": "Unknown model input mode."
+    },
+    {
+      "name": "field_vpk_number",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "vpk_number": 0
+      },
+      "error": "Addon VPK number must be 1–99. Installation only targets game/citadel/addons."
+    },
+    {
+      "name": "field_lod_strategy",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "lod_strategy": "unknown"
+      },
+      "error": "Unknown LOD strategy."
+    },
+    {
+      "name": "field_ag2_mode",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "ag2_mode": "unknown"
+      },
+      "error": "Unknown AG2 mode."
+    },
+    {
+      "name": "field_animation_policy",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "animation_policy": "unknown"
+      },
+      "error": "Unknown animation policy."
+    },
+    {
+      "name": "field_split_target",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "split_target": 524288
+      },
+      "error": "Split target must be an integer from 3 through 524287; Valve hard limit is fixed at 524288."
+    },
+    {
+      "name": "field_auto_split",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "auto_split": "yes"
+      },
+      "error": "Automatic split must be enabled or disabled."
+    },
+    {
+      "name": "field_meshes",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "meshes": {
+          "body": []
+        }
+      },
+      "error": "Mesh mapping must be a mesh name, unique nonempty mesh list, Keep Original or Disable."
+    },
+    {
+      "name": "split_name_collision",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "meshes": {
+          "body": [
+            "one",
+            "two"
+          ],
+          "body__part01": "three"
+        }
+      },
+      "error": "Split mesh name collides with an original render node: body__part01"
+    },
+    {
+      "name": "duplicate_unicode_targets",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "customization": {
+          "icons": [
+            {
+              "target": "icons/Straße.vtex_c"
+            },
+            {
+              "target": "icons/STRASSE.vtex_c"
+            }
+          ]
+        }
+      },
+      "error": "Two enabled replacements target the same game asset: icons/STRASSE.vtex_c"
+    },
+    {
+      "name": "bad_bool",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "customization": {
+          "enabled": "yes"
+        }
+      },
+      "error": "Character extras enabled must be enabled or disabled."
+    },
+    {
+      "name": "bad_appearance_number",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "customization": {
+          "appearance": {
+            "materials": [
+              {
+                "roughness": true
+              }
+            ]
+          }
+        }
+      },
+      "error": "Roughness must be a finite number from 0 to 1."
+    },
+    {
+      "name": "bad_prop_scale",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "customization": {
+          "equipment": {
+            "props": [
+              {
+                "scale": 0
+              }
+            ]
+          }
+        }
+      },
+      "error": "Prop scale must be a positive finite number."
+    },
+    {
+      "name": "token_traversal",
+      "operation": "rebase",
+      "project": {
+        "id": "0123456789abcdef0123456789abcdef",
+        "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+        "name": "vindicta",
+        "hero_name": "Vindicta",
+        "dmx": "${ROOT}/old/package/Collection.dmx",
+        "textures": "${ROOT}/old/package/source_materials",
+        "mesh_template": "${ROOT}/old/package/mesh.vmdl",
+        "meshes": {
+          "body": [
+            "body_01",
+            "body_02"
+          ],
+          "gun": "gun",
+          "hat": "@keep",
+          "extra": "@disable"
+        },
+        "materials": {
+          "a.vmat": {
+            "textures": {
+              "color": "@textures/../secret.png"
+            }
+          }
+        }
+      },
+      "error": "Invalid package-relative asset path."
+    }
+  ],
+  "path_cases": [
+    {
+      "operation": "relative_asset",
+      "arguments": [
+        "models\\hero.vmdl"
+      ],
+      "expected": "models/hero.vmdl"
+    },
+    {
+      "operation": "relative_to",
+      "arguments": [
+        "C:\\TOOLS\\package\\Color.png",
+        "c:\\tools\\package"
+      ],
+      "expected": "Color.png"
+    },
+    {
+      "operation": "relative_to",
+      "arguments": [
+        "C:/straße/body.png",
+        "C:/STRASSE"
+      ],
+      "expected": null
+    },
+    {
+      "operation": "relative_to",
+      "arguments": [
+        "C:/same",
+        "C:/same"
+      ],
+      "expected": "."
+    },
+    {
+      "operation": "absolute",
+      "arguments": [
+        "C:\\Tools\\hero.vmdl"
+      ],
+      "expected": true
+    },
+    {
+      "operation": "absolute",
+      "arguments": [
+        "C:relative"
+      ],
+      "expected": false
+    },
+    {
+      "operation": "absolute",
+      "arguments": [
+        "\\\\server\\share\\file"
+      ],
+      "expected": true
+    },
+    {
+      "operation": "relative_to",
+      "arguments": [
+        "/same",
+        "/same"
+      ],
+      "expected": "."
+    }
+  ]
+}

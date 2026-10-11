@@ -1,0 +1,977 @@
+{
+  "model_input_mode": "prepared",
+  "preparation_source": "",
+  "preparation_blend": "",
+  "preparation_report": "",
+  "preparation_options": {},
+  "customization": {
+    "schema": 1,
+    "enabled": true,
+    "model_enabled": true,
+    "icons": [],
+    "animations": [],
+    "clothing": {
+      "enabled": false,
+      "mode": "weighted",
+      "source": ""
+    },
+    "physics": {
+      "enabled": true,
+      "source": "../../../../../Downloads/Vindicta-R12-Skirt-Balanced-Test2/cloth_supported_hair_skirt_balanced_test2.vmdl_c",
+      "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c"
+    }
+  },
+  "schema": 1,
+  "id": "1b4b39813b974a92842f396b3c68d68f",
+  "name": "vin",
+  "hero_name": "Hornet",
+  "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
+  "dmx": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/Collection.dmx",
+  "textures": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/source_materials",
+  "source_root": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update",
+  "imported_source": "",
+  "original_compiled": "",
+  "source_overlay": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/source_materials",
+  "mesh_template": "",
+  "material_mapping": "",
+  "material_remap": "",
+  "skeleton_reference": "",
+  "expected_dmx_sha256": "",
+  "meshes": {
+    "body": "body",
+    "body_lod1": "body",
+    "body_lod2": "body",
+    "body_lod3": "body",
+    "ghost_glow": "ghost_glow",
+    "ghost_glow_lod1": "ghost_glow",
+    "gun": "gun",
+    "gun_lod1": "gun",
+    "gun_lod2": "gun",
+    "gun_lod3": "gun"
+  },
+  "materials": {
+    "models/heroes_staging/hornet_v3/materials/rg_cloth.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_cloth_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_crimson.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_crimson_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_edges.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_edges_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_energy.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_energy_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_gold.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_gold_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_graphite.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_graphite_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_lens.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_lens_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_obsidian.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_obsidian_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/rg_rubber.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/rg_rubber_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_charcoal_insignia.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_charcoal_insignia_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_charcoal_insignia_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_charcoal_twill.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_charcoal_twill_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_charcoal_twill_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_crimson_bound_edge.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_crimson_bound_edge_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_crimson_bound_edge_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_oxblood_insignia.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_oxblood_insignia_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_oxblood_insignia_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_oxblood_twill.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_oxblood_twill_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_oxblood_twill_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_waist_bevel.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_waist_bevel_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_waist_bevel_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_waist_blackened_steel.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_waist_blackened_steel_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_waist_blackened_steel_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/sk26_worn_crimson_thread.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/sk26_worn_crimson_thread_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/sk26_worn_crimson_thread_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_blackened_fasteners.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_blackened_fasteners_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_blackened_fasteners_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_corset_underlayer.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_corset_underlayer_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_corset_underlayer_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_crimson_inlay.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_crimson_inlay_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_crimson_inlay_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_graphite_plates.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_graphite_plates_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_graphite_plates_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_machined_edges.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_machined_edges_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_machined_edges_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_obsidian_ceramic.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_obsidian_ceramic_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_obsidian_ceramic_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_recessed_joints.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_recessed_joints_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_recessed_joints_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t24_red_power.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t24_red_power_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t24_red_power_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_black_graphite_frame.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_black_graphite_frame_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_black_graphite_frame_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_crimson_upper_inlay.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_crimson_upper_inlay_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_crimson_upper_inlay_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_dark_fastener.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_dark_fastener_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_dark_fastener_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_dark_machined_bevel.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_dark_machined_bevel_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_dark_machined_bevel_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_obsidian_cup.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_obsidian_cup_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_obsidian_cup_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_recessed_flexible_seam.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_recessed_flexible_seam_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_recessed_flexible_seam_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_red_sternum_power.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_red_sternum_power_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_red_sternum_power_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/t25_smooth_chest_support.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/t25_smooth_chest_support_color.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/t25_smooth_chest_support_roughness.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub4_black_gunmetal.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub4_burgundy.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub4_charcoal.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub4_joint.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub4_red.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub5_continuous_gunmetal.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub5_dark_trim.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub5_inset_red.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub5_recess.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub7_fastener_metal.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub7_fitted_collar_cloth_001.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub7_inlaid_armor_fascia.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub7_sculpted_graphite.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/ub8_dark_undercloth.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_antique_gold.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_antique_gold_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_burgundy_cloth.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_burgundy_cloth_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_crimson_emission.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_crimson_emission_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_edge_highlight.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_edge_highlight_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_flexible_underarmor.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_flexible_underarmor_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_graphite_edges.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_graphite_edges_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_hair_strand_shadows.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_hair_strand_shadows_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_obsidian_armor.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_obsidian_armor_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_oxblood_armor.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_oxblood_armor_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vin_silver_braid.vmat": {
+      "preset": "generic",
+      "textures": {
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vin_silver_braid_edited_color.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vindicta_glow.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vindicta_hair.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vindicta_head.vmat": {
+      "preset": "generic",
+      "textures": {},
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    },
+    "models/heroes_staging/hornet_v3/materials/vindicta_headv2.vmat": {
+      "preset": "generic",
+      "textures": {
+        "ao": "@textures/models/heroes_staging/hornet_v3/materials/vindicta_headv2_ao.png",
+        "color": "@textures/models/heroes_staging/hornet_v3/materials/vindicta_headv2_edited_color.png",
+        "emission": "@textures/models/heroes_staging/hornet_v3/materials/vindicta_headv2_emissive.png",
+        "roughness": "@textures/models/heroes_staging/hornet_v3/materials/vindicta_headv2_rough.png"
+      },
+      "color": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "confirmed": true,
+      "mode": "keep",
+      "roughness": null,
+      "metalness": null
+    }
+  },
+  "lod_strategy": "reuse",
+  "ag2_mode": "auto",
+  "animation_policy": "preserve",
+  "vpk_number": 5,
+  "auto_decompile": true,
+  "auto_map": true,
+  "generate_materials": true,
+  "compile_model": true,
+  "build_vpk": true,
+  "install": true,
+  "review_lods": true,
+  "allow_unskinned": true,
+  "auto_split": true,
+  "split_target": 500000,
+  "hero_root": "models/heroes_staging/hornet_v3"
+}

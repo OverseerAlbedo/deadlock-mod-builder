@@ -1,0 +1,443 @@
+{
+  "identity": {
+    "policy": "ordinary-child-bone-extension-v1",
+    "extra_names": [
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ],
+    "extra_count": 2,
+    "original_identity": {
+      "bone_count": 3,
+      "original_to_compiled": [
+        0,
+        1,
+        2
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 0.0,
+      "max_rotation_error_degrees": 0.0
+    },
+    "original_scale": {
+      "policy": "source2-local-scale-dmx-v1",
+      "bone_count": 3,
+      "local_scale_tolerance": 0.0001,
+      "world_scale_tolerance": 0.001,
+      "world_joint_tolerance_mm": 0.5,
+      "max_local_scale_delta": 0.0,
+      "max_world_scale_delta": 0.0,
+      "max_world_joint_delta_mm": 0.0,
+      "max_omitted_scale_world_joint_drift_mm": 0.1984375,
+      "max_omitted_scale_world_scale_drift": 0.00390625,
+      "approximated_bones": 0,
+      "scaled_bones": 2,
+      "bones": [
+        {
+          "name": "root",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "$cloth_a",
+          "original_scale": 1.00390625,
+          "export_scale": 1.00390625,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.00390625,
+          "original_cumulative_scale": 1.00390625,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "$cloth_b",
+          "original_scale": 0.998046875,
+          "export_scale": 0.998046875,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0019454956054688,
+          "original_cumulative_scale": 1.0019454956054688,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.1984375
+        }
+      ],
+      "original_skeleton_modified": false,
+      "exact_scale_preservation": true,
+      "world_inverse_bind_consistent": true,
+      "native_compiler_validated": false
+    },
+    "anchors": {
+      "custom_skirt_root": "root",
+      "custom_skirt_tip": "root"
+    },
+    "original_bone_count": 3,
+    "compiled_bone_count": 5,
+    "new_cloth_simulation": false,
+    "in_game_motion_tested": false
+  },
+  "source": {
+    "original_sha256": "4abe8ee97a1a93a447a4f9f691f7f3d827b67684cff2a37f5a08e4b7224d71aa",
+    "source_sha256": "5781bd7f9d065bd572d3ed19a272fdcd06779f7efe685050257896d9b039165e",
+    "skeleton": {
+      "m_boneName": [
+        "root",
+        "$cloth_a",
+        "$cloth_b",
+        "custom_skirt_root",
+        "custom_skirt_tip"
+      ],
+      "m_nParent": [
+        -1,
+        0,
+        1,
+        0,
+        3
+      ],
+      "m_nFlag": [
+        64,
+        64,
+        64,
+        192,
+        1216
+      ],
+      "m_bonePosParent": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.0,
+          0.0
+        ],
+        [
+          0.0,
+          4.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.0,
+          0.0
+        ]
+      ],
+      "m_boneRotParent": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "m_boneScaleParent": [
+        1.0,
+        1.00390625,
+        0.998046875,
+        2.0,
+        0.5
+      ]
+    },
+    "extra_names": [
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ],
+    "required_extra_names": [
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ]
+  },
+  "source_binding": {
+    "source_sha256": "5781bd7f9d065bd572d3ed19a272fdcd06779f7efe685050257896d9b039165e",
+    "identity": {
+      "bone_count": 5,
+      "original_to_compiled": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 0.0,
+      "max_rotation_error_degrees": 0.0
+    },
+    "scale": {
+      "policy": "source2-local-scale-dmx-v1",
+      "bone_count": 5,
+      "local_scale_tolerance": 0.0001,
+      "world_scale_tolerance": 0.001,
+      "world_joint_tolerance_mm": 0.5,
+      "max_local_scale_delta": 0.0,
+      "max_world_scale_delta": 0.0,
+      "max_world_joint_delta_mm": 0.0,
+      "max_omitted_scale_world_joint_drift_mm": 50.8,
+      "max_omitted_scale_world_scale_drift": 1.0,
+      "approximated_bones": 0,
+      "scaled_bones": 4,
+      "bones": [
+        {
+          "name": "root",
+          "original_scale": 1.0,
+          "export_scale": 1.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "$cloth_a",
+          "original_scale": 1.00390625,
+          "export_scale": 1.00390625,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.00390625,
+          "original_cumulative_scale": 1.00390625,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "$cloth_b",
+          "original_scale": 0.998046875,
+          "export_scale": 0.998046875,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0019454956054688,
+          "original_cumulative_scale": 1.0019454956054688,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.1984375
+        },
+        {
+          "name": "custom_skirt_root",
+          "original_scale": 2.0,
+          "export_scale": 2.0,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 2.0,
+          "original_cumulative_scale": 2.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 0.0
+        },
+        {
+          "name": "custom_skirt_tip",
+          "original_scale": 0.5,
+          "export_scale": 0.5,
+          "local_scale_delta": 0.0,
+          "cumulative_scale": 1.0,
+          "original_cumulative_scale": 1.0,
+          "world_scale_delta": 0.0,
+          "world_joint_delta_mm": 0.0,
+          "omitted_scale_world_joint_drift_mm": 50.8
+        }
+      ],
+      "original_skeleton_modified": false,
+      "exact_scale_preservation": true,
+      "world_inverse_bind_consistent": true,
+      "native_compiler_validated": false
+    },
+    "weights_reassigned": false,
+    "source_bones_checked": [
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ]
+  },
+  "bindings": {
+    "passed": true,
+    "model_bone_count": 5,
+    "mesh_binding_audit": {
+      "bone_count": 5,
+      "original_to_compiled": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "reordered_bones": 0,
+      "name_and_parent_identity_passed": true,
+      "max_translation_error_m": 0.0,
+      "max_rotation_error_degrees": 0.0,
+      "meshes": [
+        {
+          "name": "body",
+          "mesh_index": 0,
+          "remapped_bones": 5,
+          "extra_remap_entries_bounds_checked": 0,
+          "identities_match": true
+        },
+        {
+          "name": "cape",
+          "mesh_index": 1,
+          "remapped_bones": 2,
+          "extra_remap_entries_bounds_checked": 0,
+          "identities_match": true
+        }
+      ],
+      "compiler_arrays_modified": false,
+      "vertex_blendindices_decoded": false,
+      "live_ag2_deformation_validated": false
+    },
+    "inverse_bind_audit": {
+      "meshes": [
+        {
+          "mesh_ordinal": 0,
+          "bone_count": 5,
+          "max_linear_residual": 0.0,
+          "worst_linear_bone": "root",
+          "max_translation_residual_inches": 4.440892098500626e-16,
+          "worst_translation_bone": "$cloth_b"
+        },
+        {
+          "mesh_ordinal": 1,
+          "bone_count": 2,
+          "max_linear_residual": 0.0,
+          "worst_linear_bone": "root",
+          "max_translation_residual_inches": 4.440892098500626e-16,
+          "worst_translation_bone": "$cloth_b"
+        }
+      ],
+      "both_multiplication_orders_checked": true,
+      "linear_component_limit": 0.0001,
+      "translation_component_limit_inches": 0.001,
+      "max_linear_residual": 0.0,
+      "max_translation_residual_inches": 4.440892098500626e-16
+    },
+    "animation_rest_audit": [
+      {
+        "bone_count": 5,
+        "rest_identity": {
+          "bone_count": 5,
+          "original_to_compiled": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "reordered_bones": 0,
+          "name_and_parent_identity_passed": true,
+          "max_translation_error_m": 0.0,
+          "max_rotation_error_degrees": 0.0
+        },
+        "scale_preservation": {
+          "policy": "source2-local-scale-dmx-v1",
+          "bone_count": 5,
+          "local_scale_tolerance": 0.0001,
+          "world_scale_tolerance": 0.001,
+          "world_joint_tolerance_mm": 0.5,
+          "max_local_scale_delta": 0.0,
+          "max_world_scale_delta": 0.0,
+          "max_world_joint_delta_mm": 0.0,
+          "max_omitted_scale_world_joint_drift_mm": 50.8,
+          "max_omitted_scale_world_scale_drift": 1.0,
+          "approximated_bones": 0,
+          "scaled_bones": 4,
+          "bones": [
+            {
+              "name": "root",
+              "original_scale": 1.0,
+              "export_scale": 1.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0,
+              "original_cumulative_scale": 1.0,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "$cloth_a",
+              "original_scale": 1.00390625,
+              "export_scale": 1.00390625,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.00390625,
+              "original_cumulative_scale": 1.00390625,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "$cloth_b",
+              "original_scale": 0.998046875,
+              "export_scale": 0.998046875,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0019454956054688,
+              "original_cumulative_scale": 1.0019454956054688,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.1984375
+            },
+            {
+              "name": "custom_skirt_root",
+              "original_scale": 2.0,
+              "export_scale": 2.0,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 2.0,
+              "original_cumulative_scale": 2.0,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 0.0
+            },
+            {
+              "name": "custom_skirt_tip",
+              "original_scale": 0.5,
+              "export_scale": 0.5,
+              "local_scale_delta": 0.0,
+              "cumulative_scale": 1.0,
+              "original_cumulative_scale": 1.0,
+              "world_scale_delta": 0.0,
+              "world_joint_delta_mm": 0.0,
+              "omitted_scale_world_joint_drift_mm": 50.8
+            }
+          ],
+          "original_skeleton_modified": false,
+          "exact_scale_preservation": true,
+          "world_inverse_bind_consistent": true,
+          "native_compiler_validated": false
+        },
+        "max_position_component_delta_inches": 0.0,
+        "max_quaternion_component_delta": 0.0,
+        "max_local_scale_delta": 0.0
+      }
+    ],
+    "compiler_arrays_modified": false,
+    "vertex_blendindices_decoded": false,
+    "live_ag2_deformation_validated": false
+  }
+}

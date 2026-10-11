@@ -1,0 +1,16 @@
+{
+  "status": "accepted_working_baseline",
+  "baseline_id": "vindicta-r12-balanced-v1",
+  "reference_sha256": "27dd44ea4db29f671cff53d0dd8ad171792fe5f12f45b05aca5db65e0a6b5b0c",
+  "source_name": "cloth_supported_hair_skirt_balanced_test2.vmdl_c",
+  "included_path": "physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c",
+  "accepted_by": "user",
+  "acceptance_date_user_timezone": "2026-10-05",
+  "user_acceptance": "okay, this can be our working baseline then, how can we implement this then",
+  "previous_feedback": "Test 1 stretch acceptable; too stiff and more leg clipping. Test 2 reduces attraction most toward the hem.",
+  "integration_changes_physics_values": false,
+  "assistant_ran_deadlock": false,
+  "assistant_ran_windows_resourcecompiler": false,
+  "prior_validation_report": "docs/evidence/skirt-physics/balanced-baseline/validation-report.json",
+  "scope": "Matching 95-bone Vindicta replacement; other heroes and new garments require separate authoring and qualification."
+}

@@ -1,0 +1,1 @@
+{"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "skeleton": {"m_boneName": ["root", "braid"], "m_nParent": [-1, 0], "m_nFlag": [72, 4194376], "m_bonePosParent": [[0, 0, 0], [0, 1, 0]], "m_boneRotParent": [[0, 0, 0, 1], [0, 0, 0, 1]], "m_boneScaleParent": [1, 1]}, "scale_policy": "source2-local-scale-dmx-v1"}

@@ -1,0 +1,33 @@
+{
+  "roots": [
+    "hair_short_0",
+    "bang_short_0",
+    "spring_imported",
+    "hair_curved_0",
+    "hair_dense_0",
+    "hair_single",
+    "hair_branch"
+  ],
+  "weighted_coordinates": {
+    "dmb_secondary_hair_short_0": 0.0,
+    "dmb_secondary_hair_short_1": 1.0,
+    "dmb_secondary_bang_short_0": 0.0,
+    "dmb_secondary_bang_short_1": 0.5,
+    "dmb_secondary_bang_short_2": 1.0,
+    "dmb_secondary_ponytail_0": 0.0,
+    "dmb_secondary_ponytail_1": 0.5,
+    "dmb_secondary_ponytail_2": 1.0,
+    "dmb_secondary_hair_curved_0": 0.0,
+    "dmb_secondary_hair_curved_1": 0.5,
+    "dmb_secondary_hair_curved_2": 1.0,
+    "dmb_secondary_hair_dense_0": 0.0,
+    "dmb_secondary_hair_dense_1": 0.25,
+    "dmb_secondary_hair_dense_2": 0.5,
+    "dmb_secondary_hair_dense_3": 0.75,
+    "dmb_secondary_hair_dense_4": 1.0,
+    "dmb_secondary_hair_single": 0.0,
+    "dmb_secondary_hair_branch": 0.0,
+    "dmb_secondary_hair_branch_left": 1.0,
+    "dmb_secondary_hair_branch_right": 1.0
+  }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "deadlock-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "creation-flags", "job-object", "process-group"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+win32job = "2.0.3"
+windows = { version = "0.62.2", features = ["Win32_System_Threading"] }
+
+[lints.rust]
+unsafe_code = "forbid"

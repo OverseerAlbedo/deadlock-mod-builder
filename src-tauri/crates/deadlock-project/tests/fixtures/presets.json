@@ -1,0 +1,2085 @@
+{
+  "cases": [
+    {
+      "name": "same",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "appearance",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.2
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.2
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "dmx",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/new/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/new/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "clothing",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            },
+            "clothing": {
+              "enabled": true,
+              "source": "/source/skirt.glb",
+              "mode": "weighted"
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          },
+          "clothing": {
+            "enabled": true,
+            "source": "/source/skirt.glb",
+            "mode": "weighted"
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "prop",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": [
+                {
+                  "source": "/source/hat.glb",
+                  "bone": "head"
+                }
+              ]
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": [
+              {
+                "source": "/source/hat.glb",
+                "bone": "head"
+              }
+            ]
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "disabled_prop",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": [
+                {
+                  "enabled": false,
+                  "source": "/source/hat.glb"
+                }
+              ]
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": [
+              {
+                "enabled": false,
+                "source": "/source/hat.glb"
+              }
+            ]
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "face",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            },
+            "face": {
+              "enabled": true,
+              "weights": {
+                "smile": 0.8
+              }
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "",
+        "preparation_report": "",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          },
+          "face": {
+            "enabled": true,
+            "weights": {
+              "smile": 0.8
+            }
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    },
+    {
+      "name": "equipment",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [
+                {
+                  "target": "hat",
+                  "action": "hide"
+                }
+              ],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "expected": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [
+              {
+                "target": "hat",
+                "action": "hide"
+              }
+            ],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": false,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "wrong_hero",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/other.vmdl",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "error": "This outfit belongs to a different hero. Select its original hero before loading it: models/other.vmdl"
+    },
+    {
+      "name": "unknown_execution",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": "",
+          "install": true
+        }
+      },
+      "error": "Outfit preset has missing or unsupported choice fields."
+    },
+    {
+      "name": "missing_choice",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "error": "Outfit preset has missing or unsupported choice fields."
+    },
+    {
+      "name": "unknown_root",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        },
+        "command": "do something"
+      },
+      "error": "Choose a Deadlock character outfit preset."
+    },
+    {
+      "name": "schema",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 2,
+        "name": "my character",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "error": "Unsupported character outfit preset format."
+    },
+    {
+      "name": "name",
+      "project": {
+        "model_input_mode": "prepared",
+        "preparation_source": "",
+        "preparation_blend": "/source/prepared.blend",
+        "preparation_report": "/source/report.json",
+        "preparation_options": {
+          "reviewed": true
+        },
+        "customization": {
+          "enabled": true,
+          "appearance": {
+            "enabled": true,
+            "materials": [
+              {
+                "target": "materials/body.vmat",
+                "roughness": 0.5
+              }
+            ]
+          },
+          "equipment": {
+            "enabled": true,
+            "meshes": [],
+            "props": []
+          }
+        },
+        "schema": 1,
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "my_character",
+        "hero_name": "",
+        "original_model": "models/hero.vmdl_c",
+        "dmx": "/source/body.dmx",
+        "textures": "",
+        "source_root": "",
+        "imported_source": "",
+        "original_compiled": "",
+        "source_overlay": "",
+        "mesh_template": "",
+        "material_mapping": "",
+        "material_remap": "",
+        "skeleton_reference": "",
+        "expected_dmx_sha256": "",
+        "meshes": {
+          "body": "body"
+        },
+        "materials": {},
+        "lod_strategy": "reuse",
+        "ag2_mode": "auto",
+        "animation_policy": "preserve",
+        "vpk_number": 9,
+        "auto_decompile": true,
+        "auto_map": true,
+        "generate_materials": true,
+        "compile_model": true,
+        "build_vpk": true,
+        "install": false,
+        "review_lods": true,
+        "allow_unskinned": false,
+        "auto_split": false,
+        "split_target": 400000
+      },
+      "preset": {
+        "format": "deadlock-character-outfit",
+        "schema": 1,
+        "name": "",
+        "original_model": "models/hero.vmdl_c",
+        "hero_name": "",
+        "choices": {
+          "mesh_template": "",
+          "preparation_options": {
+            "reviewed": true
+          },
+          "source_overlay": "",
+          "skeleton_reference": "",
+          "lod_strategy": "reuse",
+          "textures": "",
+          "materials": {},
+          "dmx": "/source/body.dmx",
+          "expected_dmx_sha256": "",
+          "customization": {
+            "enabled": true,
+            "appearance": {
+              "enabled": true,
+              "materials": [
+                {
+                  "target": "materials/body.vmat",
+                  "roughness": 0.5
+                }
+              ]
+            },
+            "equipment": {
+              "enabled": true,
+              "meshes": [],
+              "props": []
+            }
+          },
+          "original_compiled": "",
+          "material_remap": "",
+          "imported_source": "",
+          "meshes": {
+            "body": "body"
+          },
+          "model_input_mode": "prepared",
+          "material_mapping": "",
+          "source_root": "",
+          "preparation_source": ""
+        }
+      },
+      "error": "Give the outfit a name between 1 and 100 characters."
+    }
+  ]
+}

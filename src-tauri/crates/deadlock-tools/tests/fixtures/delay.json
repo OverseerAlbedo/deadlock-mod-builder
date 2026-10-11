@@ -1,0 +1,20 @@
+{
+  "machine": "0x8664",
+  "amd64": true,
+  "imports": [],
+  "delay_imports": [
+    "KERNEL32.dll",
+    "resourcecompiler.exe"
+  ],
+  "exports": [],
+  "timestamp": 0,
+  "image_base": "0x180000000",
+  "sections": [
+    {
+      "name": "",
+      "rva": 4096,
+      "raw_size": 1536,
+      "raw_offset": 512
+    }
+  ]
+}

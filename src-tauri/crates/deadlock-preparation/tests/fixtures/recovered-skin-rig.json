@@ -1,0 +1,208 @@
+[
+  {
+    "name": "Bip001_pelvis",
+    "parent": null,
+    "position": [
+      0,
+      0,
+      1
+    ],
+    "humanoid_role_hint": "pelvis"
+  },
+  {
+    "name": "Bip001_spine",
+    "parent": "Bip001_pelvis",
+    "position": [
+      0,
+      0,
+      1.2
+    ],
+    "humanoid_role_hint": "spine"
+  },
+  {
+    "name": "Bip001_Spine1",
+    "parent": "Bip001_spine",
+    "position": [
+      0,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "chest"
+  },
+  {
+    "name": "Bip001_B_neck_Twist",
+    "parent": "Bip001_Spine1",
+    "position": [
+      0,
+      0,
+      1.7
+    ],
+    "humanoid_role_hint": "neck"
+  },
+  {
+    "name": "Bip001_head",
+    "parent": "Bip001_B_neck_Twist",
+    "position": [
+      0,
+      0,
+      1.85
+    ],
+    "humanoid_role_hint": "head"
+  },
+  {
+    "name": "Bip001_B_L_upperarm_Twist",
+    "parent": "Bip001_Spine1",
+    "position": [
+      0.3,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "upperarm_L"
+  },
+  {
+    "name": "forearm_L",
+    "parent": "Bip001_B_L_upperarm_Twist",
+    "position": [
+      0.6,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "forearm_L"
+  },
+  {
+    "name": "hand_L",
+    "parent": "forearm_L",
+    "position": [
+      0.9,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "hand_L"
+  },
+  {
+    "name": "Bip001_B_L_thigh_Twist",
+    "parent": "Bip001_pelvis",
+    "position": [
+      0.15,
+      0,
+      0.95
+    ],
+    "humanoid_role_hint": "thigh_L"
+  },
+  {
+    "name": "shin_L",
+    "parent": "Bip001_B_L_thigh_Twist",
+    "position": [
+      0.15,
+      0,
+      0.5
+    ],
+    "humanoid_role_hint": "shin_L"
+  },
+  {
+    "name": "foot_L",
+    "parent": "shin_L",
+    "position": [
+      0.15,
+      -0.1,
+      0.08
+    ],
+    "humanoid_role_hint": "foot_L"
+  },
+  {
+    "name": "Bip001_B_R_upperarm_Twist",
+    "parent": "Bip001_Spine1",
+    "position": [
+      -0.3,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "upperarm_R"
+  },
+  {
+    "name": "forearm_R",
+    "parent": "Bip001_B_R_upperarm_Twist",
+    "position": [
+      -0.6,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "forearm_R"
+  },
+  {
+    "name": "hand_R",
+    "parent": "forearm_R",
+    "position": [
+      -0.9,
+      0,
+      1.5
+    ],
+    "humanoid_role_hint": "hand_R"
+  },
+  {
+    "name": "Bip001_B_R_thigh_Twist",
+    "parent": "Bip001_pelvis",
+    "position": [
+      -0.15,
+      0,
+      0.95
+    ],
+    "humanoid_role_hint": "thigh_R"
+  },
+  {
+    "name": "shin_R",
+    "parent": "Bip001_B_R_thigh_Twist",
+    "position": [
+      -0.15,
+      0,
+      0.5
+    ],
+    "humanoid_role_hint": "shin_R"
+  },
+  {
+    "name": "foot_R",
+    "parent": "shin_R",
+    "position": [
+      -0.15,
+      -0.1,
+      0.08
+    ],
+    "humanoid_role_hint": "foot_R"
+  },
+  {
+    "name": "Bip001_B_L_Deltoid",
+    "parent": "Bip001_B_L_upperarm_Twist",
+    "position": [
+      0.3,
+      0,
+      1.5
+    ]
+  },
+  {
+    "name": "Bip001_B_R_Deltoid",
+    "parent": "Bip001_B_R_upperarm_Twist",
+    "position": [
+      -0.3,
+      0,
+      1.5
+    ]
+  },
+  {
+    "name": "Bip001_B_L_Hip",
+    "parent": "Bip001_B_L_thigh_Twist",
+    "position": [
+      0.15,
+      0,
+      0.95
+    ]
+  },
+  {
+    "name": "Bip001_B_R_Hip",
+    "parent": "Bip001_B_R_thigh_Twist",
+    "position": [
+      -0.15,
+      0,
+      0.95
+    ]
+  }
+]

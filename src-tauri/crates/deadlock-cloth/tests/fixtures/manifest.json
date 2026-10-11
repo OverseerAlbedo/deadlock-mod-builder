@@ -1,0 +1,115 @@
+{
+  "restorations": [
+    {
+      "name": "simple",
+      "output_sha256": "9cb178fa3765d2197fff46a0279617ca49b01ed9700ad2a78c1b9cc915728726",
+      "status": "restored"
+    },
+    {
+      "name": "unchanged",
+      "output_sha256": "36124cddffd83a67d344cc1bc1dcfa3bc32ea080e66215227af601075336cae7",
+      "status": "already_preserved"
+    },
+    {
+      "name": "not-required",
+      "output_sha256": "9eb5a0e31bd98a72c35f4a6fa4c50a352f152f97b7ea1aa191dabc331c8e23af",
+      "status": "not_required"
+    },
+    {
+      "name": "reordered",
+      "output_sha256": "991f206fe674aa13a8b268e806bb1249b993d861e35d541cd491381541831323",
+      "status": "restored"
+    },
+    {
+      "name": "extended",
+      "output_sha256": "f1dad078292d9616bc1c53cd893779c543684671455fca1cf1be010250540650",
+      "status": "restored",
+      "source": "extended-source.json"
+    }
+  ],
+  "tested": {
+    "output_sha256": "506e445b27840078282f7854326df51746955473a2a2ab4b4d6e86cd022f5233",
+    "node_count": 5,
+    "extra_names": [
+      "custom_skirt_root",
+      "custom_skirt_tip"
+    ]
+  },
+  "rejects": [
+    {
+      "name": "rest",
+      "stage": "apply",
+      "python_error": "Bind transform outside safe original-physics transfer tolerance: custom_skirt_tip"
+    },
+    {
+      "name": "scale",
+      "stage": "apply",
+      "python_error": "Compiled skeleton identity validation failed: custom_skirt_tip: bind transform changed"
+    },
+    {
+      "name": "inverse",
+      "stage": "apply",
+      "python_error": "Compiled mesh inverse bind differs from model skeleton: custom_skirt_tip"
+    },
+    {
+      "name": "animation",
+      "stage": "apply",
+      "python_error": "Bind transform outside safe original-physics transfer tolerance: custom_skirt_tip"
+    },
+    {
+      "name": "unknown-solver",
+      "stage": "apply",
+      "python_error": "Compiler produced a different authored solver; refusing to overwrite unreviewed physics."
+    },
+    {
+      "name": "array",
+      "stage": "qualify",
+      "python_error": "Tested cloth has incomplete per-node data: m_NodeInvMasses"
+    },
+    {
+      "name": "tree",
+      "stage": "qualify",
+      "python_error": "Tested cloth collision-tree indices are cyclic, duplicated or inconsistent."
+    },
+    {
+      "name": "rods",
+      "stage": "qualify",
+      "python_error": "Tested cloth index capacity is failed: see diagnostic checks"
+    },
+    {
+      "name": "fit",
+      "stage": "qualify",
+      "python_error": "Tested cloth has a malformed joint-fit matrix."
+    },
+    {
+      "name": "physics-binding",
+      "stage": "qualify",
+      "python_error": "Tested cloth requires the embedded PHYS block to match its CTRL binding."
+    },
+    {
+      "name": "uint16",
+      "stage": "qualify",
+      "python_error": "Compiled mesh remapping table has invalid slice boundaries."
+    },
+    {
+      "name": "duplicate-ctrl",
+      "stage": "qualify",
+      "python_error": "Compiled CTRL requires unique and complete embedded mesh bindings"
+    },
+    {
+      "name": "solver",
+      "stage": "validate",
+      "python_error": "Tested cloth solver/bindings changed: Original cloth solver payload is missing or changed (all decoded solver fields compared)."
+    },
+    {
+      "name": "body",
+      "stage": "validate",
+      "python_error": "Original rigid-body physics changed around the tested cloth solver."
+    },
+    {
+      "name": "flags",
+      "stage": "validate",
+      "python_error": "Tested cloth solver/bindings changed: Cloth/procedural bone flags differ by bone name: custom_skirt_tip"
+    }
+  ]
+}

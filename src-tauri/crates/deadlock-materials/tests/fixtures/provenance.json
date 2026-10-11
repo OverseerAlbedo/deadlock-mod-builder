@@ -1,0 +1,29 @@
+{
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "sources_sha256": {
+    "deadlock_builder/materials.py": "391e571d54294fb22622e51a9bdf7988eea2ab969940d9a0c745ddd204342f76",
+    "deadlock_builder/customization/appearance.py": "4048aac2b17882bfbf9eb9b1b6612013267ad3d8a59fa4720aa2a45b28d0b930",
+    "deadlock_builder/source_package.py": "bfaa0f07c6993f819bb37902f7840686396ade012c9d03977b3a001a1a52737e"
+  },
+  "fixtures_sha256": {
+    "compiled-material.bin": "1cb37416e1373a936d6992a75329f0d1fb2f4f337a9ab63c3447c2033196bd94",
+    "compiled-texture.bin": "e74a272e9dc109570c397272f1b8fd5151a823447b8d53fc03854921d4ca728e",
+    "expected.json": "3b440c15e49480e0550b721c5da72a4f9fdd206e09f306de54ebeed11a54a6db",
+    "source/models/test/existing.vmat": "95a58c8b9f011acb6214f5597501667af59b5f89dfd20677b755318cfdf0c7d7",
+    "source-bzip2.zip": "67a84ecdd96f3cdf8d1c2666aeebebf126eb7e3fbef8e9300b47ddbdc021003c",
+    "source-deflate.zip": "ab1dfca37dbf86128fa7ef57e65ab58911c4cf69041d02c0afeffa932b61a44e",
+    "source-lzma.zip": "7ea619fbe57ca9069ed2fe97689e9ed25be23a4ae1ce166c9f3b9e006806b4a4",
+    "source-stored.zip": "77006dfcb0c0ea8efcd1ec436359d7301be83b8f4042231e506b12e68d1c1614",
+    "textures/body.unlabeled.tga": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_ao.jpg": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_color.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_color.txt": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_color_edited.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_normal.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_normal_roughness.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/body_opacity.tif": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/nested/body_emissive.exr": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/nested/body_metallic.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1",
+    "textures/nobody_color.png": "ba7b4674632787afc18e422536eaae2083e5cf59d12561d66820a666288173d1"
+  }
+}

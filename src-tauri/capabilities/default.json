@@ -1,0 +1,47 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Local project desktop window, native file dialogs and listed program download pages",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-ask",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://store.steampowered.com/about/"
+        },
+        {
+          "url": "https://store.steampowered.com/app/1422450/Deadlock/"
+        },
+        {
+          "url": "https://github.com/ValveResourceFormat/ValveResourceFormat/releases"
+        },
+        {
+          "url": "https://deadlockmodding.pages.dev/modding-tools/csdk-12"
+        },
+        {
+          "url": "https://github.com/SteamRE/DepotDownloader/releases/tag/DepotDownloader_3.4.0"
+        },
+        {
+          "url": "https://store.steampowered.com/app/730/CounterStrike_2/"
+        },
+        {
+          "url": "https://www.blender.org/releases/5-2/"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/"
+        },
+        {
+          "url": "https://developer.microsoft.com/en-us/microsoft-edge/webview2/"
+        }
+      ]
+    }
+  ]
+}
