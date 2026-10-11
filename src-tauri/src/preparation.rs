@@ -241,7 +241,7 @@ impl Application {
     ) -> Option<deadlock_preparation::weapon::Reference> {
         let result = self.step(clock, "Measure the original gun", || {
             cancel.check()?;
-            let base = deadlock_pipeline::workspace::root(settings, project)?.join("base");
+            let base = deadlock_pipeline::sources::base_dir(settings, project)?;
             let (target, _) = deadlock_skeleton::transforms::prepare_target(skeleton)
                 .map_err(|e| AppError::validation("Original skeleton failed validation", e))?;
             let separate = project.model_input_mode == deadlock_project::ModelInputMode::Weapon;
@@ -269,7 +269,7 @@ impl Application {
             let root=deadlock_pipeline::workspace::root(&settings,&project)?;
             let(runner,_logs)=self.create_runner(clock,cancel)?;
             let lease_runner=runner.clone();
-            let _lease=deadlock_pipeline::workspace::WorkspaceLease::acquire_for_runner(&root,&lease_runner)?;
+            let lease=deadlock_pipeline::workspace::WorkspaceLease::acquire_for_runner(&root,&lease_runner)?;
             let(compiled,skeleton,model_text)=self.preparation_original(&settings,&project,clock,cancel,&runner)?;
             cancel.check()?;
             let reference=self.weapon_reference(&settings,&project,&skeleton,&model_text,clock,cancel);
@@ -279,6 +279,9 @@ impl Application {
             complete.values.insert("complete_mapping".into(),true.into());
             analysis.suggestions=self.preparation_suggest(&analysis,&complete)?;
             cancel.check()?;
+            // Earlier unused inspections are removed once this one is complete.
+            drop(lease);
+            self.prune_preparation(&settings,&[&project],Some(Path::new(&analysis.root)));
             self.append_log("info","Source imported into a separate preparation workspace. Review target/source roles and mappings before preparing.")?;
             Ok(analysis)
         }).map(|(value,_)|value)
@@ -316,12 +319,15 @@ impl Application {
             let root=deadlock_pipeline::workspace::root(&settings,&project)?;
             let(runner,_logs)=self.create_runner(clock,cancel)?;
             let lease_runner=runner.clone();
-            let _lease=deadlock_pipeline::workspace::WorkspaceLease::acquire_for_runner(&root,&lease_runner)?;
+            let lease=deadlock_pipeline::workspace::WorkspaceLease::acquire_for_runner(&root,&lease_runner)?;
             let(compiled,skeleton,_)=self.preparation_original(&settings,&project,clock,cancel,&runner)?;
             self.step(clock,"Verify reviewed target against current game",||{cancel.check()?;if skeleton!=analysis.target_skeleton{return Err(AppError::validation("Target skeleton changed","Import and analyze the original replacement again before preparing."));}Ok(())})?;
             let service=self.preparation_service(&settings,&project,clock,runner)?.with_cancel(cancel.clone());
             let result=service.prepare(&project,&analysis,options,correction,&compiled).map_err(|e|failure(e,cancel))?;
             cancel.check()?;
+            // Older unaccepted results of this run are replaced by this one.
+            drop(lease);
+            self.prune_preparation(&settings,&[&project],Some(Path::new(&analysis.root)));
             self.append_log("info","Prepared DMX passed its native bind and stream checks. Review it before accepting; compiler and in-game validation are still required.")?;
             Ok(result)
         }).map(|(value,_)|value)
@@ -338,6 +344,9 @@ impl Application {
             let allowed=asset_paths::resolve(&root.join("humanoid_preparation")).map_err(|e|AppError::validation("Preparation workspace could not be resolved",e))?;
             for path in [&result.dmx,&result.blend,&result.report]{let path=asset_paths::resolve(Path::new(path)).map_err(|e|AppError::validation("Preparation result path could not be resolved",e))?;if !path.starts_with(&allowed)||!path.is_file(){return Err(AppError::validation("Prepared result is outside this project workspace",text(&path)?));}}
             let accepted=self.step(clock,"Verify and accept prepared model",||{cancel.check()?;let p=service::handoff(&project,&result).map_err(|e|failure(e,cancel))?;service::check_handoff(&p).map_err(|e|failure(e,cancel))?;cancel.check()?;Ok(p)})?;
+            drop(_lease);
+            let run=Path::new(&accepted.preparation_report).parent().and_then(Path::parent).map(Path::to_path_buf);
+            self.prune_preparation(&settings,&[&accepted],run.as_deref());
             self.append_log("info","Prepared source, material choices and skeleton reference accepted. Run Analyze to review build mappings.")?;
             Ok(accepted)
         }).map(|(value,_)|value)

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { fireEvent,render,screen } from '@testing-library/react';
+import { cleanup,fireEvent,render,screen } from '@testing-library/react';
 import { describe,expect,it,vi } from 'vitest';
 import { PhysicsBoneChoices } from './PhysicsBoneChoices';
-import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,PHYSICS_BINDING_POLICY } from './secondary-bones';
+import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,breastBones,breastMotionOptions,PHYSICS_BINDING_POLICY } from './secondary-bones';
 import type { Bone,PreparationOptions } from './models';
 import hanging from '../../src-tauri/crates/deadlock-preparation/tests/fixtures/hanging-chains.json';
 const physical={policy:PHYSICS_BINDING_POLICY,dynamic_bodies:['saved rigid'],kinematic_bodies:[]};
@@ -60,13 +60,40 @@ describe('unnamed and robe moving parts',()=>{
     const groups=physicsGroups(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles});
     expect(groups.map(g=>g.root)).toEqual(hanging.expected_roots);
     expect(groups.find(g=>g.root==='Strap_00')?.source_anchor).toBe('Bip001_Pelvis');
+    expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles,breast_motion:true}).map(g=>g.root)).toEqual(hanging.expected_roots_with_breast_motion);
+    expect(breastBones(hanging.bones as Bone[],hanging.weighted,roles!)).toEqual(hanging.breast_bones);
+    const renamed=hanging.renamed_breast_bones as Record<string,string>,rename=(n:string)=>renamed[n]??n;
+    expect(breastBones((hanging.bones as Bone[]).map(b=>({...b,name:rename(b.name)})),hanging.weighted.map(rename),roles!)).toEqual(hanging.breast_bones.map(rename));
   });
   it('adds groups detected for the first time to an automatic project but never re-adds one you left off',()=>{
     const roles=hanging.roles as PreparationOptions['source_roles'];
     const saved:PreparationOptions={source_roles:roles,target_roles:roles,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00']};
-    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,saved).physics_roots).toEqual(['Strap_00','Bone_Robe_L_00','Bone_Robe_R_00']);
-    const declined={...saved,physics_offered:['Bone_Robe_L_00','Bone_Robe_R_00','Strap_00']};
+    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,saved).physics_roots).toEqual(['Strap_00','Bone_Robe_L_00','Bone_Robe_R_00','Hair_Back_00','Hat_Ribbon_00']);
+    const declined={...saved,physics_offered:['Bone_Robe_L_00','Bone_Robe_R_00','Hair_Back_00','Hat_Ribbon_00','Strap_00']};
     expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,declined).physics_roots).toEqual(['Strap_00']);
     expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,{...saved,automatic_secondary_motion:false}).physics_roots).toEqual(['Strap_00']);
+  });
+});
+
+describe('optional breast motion',()=>{
+  const roles=hanging.roles as PreparationOptions['source_roles'];
+  const base:PreparationOptions={source_roles:roles,target_roles:roles,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00']};
+  it('is off by default and adds or removes only the breast groups with the breast part type',()=>{
+    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles}).physics_roots).not.toContain('Bone_Breast_L_00');
+    const on=breastMotionOptions(hanging.bones as Bone[],hanging.weighted,base,true);
+    expect(on).toMatchObject({breast_motion:true,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00','Bone_Breast_L_00','Bone_Breast_R_00'],physics_kinds:{Bone_Breast_L_00:'breast',Bone_Breast_R_00:'breast'}});
+    const off=breastMotionOptions(hanging.bones as Bone[],hanging.weighted,on,false);
+    expect(off).toMatchObject({breast_motion:false,physics_roots:['Strap_00'],physics_kinds:{}});
+    expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,off).map(g=>g.root)).toEqual(hanging.expected_roots);
+  });
+  it('offers the checkbox only when breast bones were found',()=>{
+    const toggle=vi.fn();
+    render(<PhysicsBoneChoices groups={[]} options={base} change={vi.fn()} busy={false} breasts={{count:2,toggle}}/>);
+    fireEvent.click(screen.getByLabelText('Breast motion (optional)'));
+    expect(toggle).toHaveBeenCalledWith(true);
+    expect(screen.getByText(/2 breast bones were found; they follow the chest/)).toBeVisible();
+    cleanup();
+    render(<PhysicsBoneChoices groups={[]} options={base} change={vi.fn()} busy={false} breasts={{count:0,toggle}}/>);
+    expect(screen.queryByLabelText('Breast motion (optional)')).toBeNull();
   });
 });

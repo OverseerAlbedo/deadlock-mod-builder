@@ -9,6 +9,7 @@ pub mod diagnostics;
 pub mod intake;
 pub mod preparation;
 pub mod setup;
+pub mod storage;
 pub mod vpk_slots;
 pub mod workflows;
 

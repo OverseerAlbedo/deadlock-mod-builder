@@ -507,3 +507,13 @@ tr:hover td { background: #1a1f24; }
 .mapping-proposal strong { overflow-wrap: anywhere; }
 .mapping-proposal-list { max-height: 26rem; overflow-y: auto; padding-right: 6px; }
 .mapping-checks > button { margin-top: 10px; }
+.storage-retention { margin: 12px 0 16px; }
+.storage-table th[scope="row"] { font-weight: 500; }
+.storage-table td.row { justify-content: flex-end; gap: 6px; }
+.storage-details > td { padding: 0 0 12px 18px; }
+.storage-details table th[scope="row"] { width: 60%; }
+.storage-details .hint { margin: 2px 0 0; }
+.color-adjustment { margin-top: 10px; }
+.color-sliders { display: grid; gap: 8px; margin: 8px 0; }
+.color-slider { display: grid; grid-template-columns: 150px minmax(0,1fr) 56px; align-items: center; gap: 10px; }
+.color-slider output { text-align: right; font-variant-numeric: tabular-nums; }

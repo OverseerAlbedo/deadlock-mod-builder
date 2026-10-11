@@ -103,3 +103,138 @@ pub fn owned(path: &str, tokens: &BTreeSet<String>) -> bool {
         .iter()
         .any(|part| tokens.contains(&strip_version(&casefold(part))))
 }
+
+/// Which model the installed game loads for each hero definition
+/// (`scripts/heroes.vdata`, `m_strModelName`). A readable hero name, an existing
+/// model file and a successful build do not establish this: the game can select
+/// a different model of the same hero (Rem loads `familiar_wip.vmdl`).
+#[derive(Debug, Clone, Default)]
+pub struct GameModels {
+    /// Casefolded `.vmdl` path → hero definition keys that load it.
+    pub by_model: BTreeMap<String, Vec<String>>,
+}
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum GameTarget {
+    /// Hero definitions in the installed game load this model.
+    Active { heroes: Vec<String> },
+    /// A roster model of a hero whose game definition loads another model.
+    Unused { model: String },
+    /// The hero's definitions load several different models.
+    Ambiguous { models: Vec<String> },
+}
+fn model_key(path: &str) -> String {
+    casefold(path).trim_end_matches("_c").to_owned()
+}
+impl GameModels {
+    pub fn from_definition(doc: &deadlock_resource::Value) -> Result<Self> {
+        let mut by_model: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (key, hero) in doc.object().map_err(fail)? {
+            if let Some(model) = hero.get("m_strModelName").and_then(|v| v.string().ok()).filter(|m| !m.is_empty()) {
+                by_model.entry(model_key(model)).or_default().push(key.clone());
+            }
+        }
+        Ok(Self { by_model })
+    }
+    /// `None` when the archive has no hero definitions (for example a partial archive).
+    pub fn read(archive: &deadlock_vpk::Vpk) -> Result<Option<Self>> {
+        let Some(key) = ["scripts/heroes.vdata_c", "scripts/heroes.vdata"]
+            .into_iter()
+            .find(|k| archive.entries.contains_key(*k))
+        else {
+            return Ok(None);
+        };
+        let doc = crate::icon_catalog::definition(&crate::read(archive, key)?)?;
+        Self::from_definition(&doc).map(Some)
+    }
+    pub fn target(&self, model: &str) -> Result<Option<GameTarget>> {
+        let key = model_key(model);
+        if let Some(heroes) = self.by_model.get(&key) {
+            return Ok(Some(GameTarget::Active { heroes: heroes.clone() }));
+        }
+        // Only hero body models from the roster are compared; other models in a
+        // hero folder (weapons, ability props) are not the hero's body.
+        let roster_body = roster()?.iter().any(|hero| {
+            casefold(&hero.path) == key || hero.extras.iter().any(|m| casefold(&m.path) == key)
+        });
+        if !roster_body {
+            return Ok(None);
+        }
+        let owners = owner_keys(&key);
+        let models: BTreeSet<&String> = self
+            .by_model
+            .keys()
+            .filter(|m| !owner_keys(m).is_disjoint(&owners) && !owner_keys(m).contains("gen_man"))
+            .collect();
+        Ok(match models.len() {
+            0 => None,
+            1 => Some(GameTarget::Unused { model: models.into_iter().next().unwrap().clone() }),
+            _ => Some(GameTarget::Ambiguous { models: models.into_iter().cloned().collect() }),
+        })
+    }
+    /// An explanation when a project's target is not what the game loads.
+    pub fn target_warning(&self, model: &str) -> Result<Option<String>> {
+        let name = |path: &str| {
+            roster().ok().and_then(|r| r.into_iter().find(|h| !owner_keys(&h.path).is_disjoint(&owner_keys(path))).map(|h| h.name))
+                .unwrap_or_else(|| "this hero".into())
+        };
+        Ok(match self.target(model)? {
+            Some(GameTarget::Unused { model: active }) => Some(format!(
+                "The installed game loads {active} for {}. This project replaces {}, which the game does not load for that hero, so the original character would still be visible. Choose {} in Overview → Character, then prepare and build again.",
+                name(&active), model_key(model), name(&active)
+            )),
+            Some(GameTarget::Ambiguous { models }) => Some(format!(
+                "The installed game's definitions for {} load different models ({}). Check which one appears in game before building.",
+                name(model), models.join(", ")
+            )),
+            _ => None,
+        })
+    }
+}
+
+#[cfg(test)]
+mod game_model_tests {
+    use super::*;
+    use deadlock_resource::{Kind, Value};
+    fn definitions(rows: &[(&str, &str)]) -> GameModels {
+        let doc = Value::new(Kind::Object(rows.iter().map(|(k, m)| {
+            (k.to_string(), Value::new(Kind::Object(vec![("m_strModelName".into(), Value::new(Kind::String(m.to_string())))])))
+        }).collect()));
+        GameModels::from_definition(&doc).unwrap()
+    }
+    #[test]
+    fn roster_models_the_game_does_not_load_are_reported() {
+        let game = definitions(&[
+            ("hero_familiar", "models/heroes_wip/familiar/familiar_wip.vmdl"),
+            ("hero_atlas", "models/heroes_wip/abrams/abrams.vmdl"),
+            ("hero_targetdummy", "models/heroes_wip/gen_man/gen_man.vmdl"),
+        ]);
+        assert_eq!(game.target("models/heroes_wip/familiar/familiar_wip.vmdl_c").unwrap(), Some(GameTarget::Active { heroes: vec!["hero_familiar".into()] }));
+        assert_eq!(game.target("models/heroes_wip/familiar/familiar.vmdl").unwrap(), Some(GameTarget::Unused { model: "models/heroes_wip/familiar/familiar_wip.vmdl".into() }));
+        let warning = game.target_warning("models/heroes_wip/familiar/familiar.vmdl").unwrap().unwrap();
+        assert!(warning.contains("familiar_wip.vmdl for Rem"), "{warning}");
+        assert_eq!(game.target_warning("models/heroes_wip/abrams/abrams.vmdl").unwrap(), None);
+        // Other models in a hero folder are not hero bodies.
+        assert_eq!(game.target("models/heroes_wip/familiar/familiar_bubble.vmdl").unwrap(), None);
+    }
+    #[test]
+    fn every_roster_hero_matches_the_recorded_game_definitions() {
+        let input: serde_json::Value = serde_json::from_str(include_str!("../tests/fixtures/icons/game-image-inventory.json")).unwrap();
+        let mut game = GameModels::default();
+        for (key, hero) in input["heroes"].as_object().unwrap() {
+            if let Some(model) = hero["m_strModelName"].as_str() {
+                game.by_model.entry(model_key(model)).or_default().push(key.clone());
+            }
+        }
+        for hero in roster().unwrap() {
+            assert!(matches!(game.target(&hero.path).unwrap(), Some(GameTarget::Active { .. })), "{} targets {} but the game loads another model", hero.name, hero.path);
+        }
+    }
+}
+/// The roster name of a hero body model (main or alternate), for labels only.
+pub fn display_name(path: &str) -> Option<String> {
+    let key = model_key(path);
+    roster().ok()?.into_iter().find(|hero| {
+        casefold(&hero.path) == key || hero.extras.iter().any(|m| casefold(&m.path) == key)
+    }).map(|hero| hero.name)
+}

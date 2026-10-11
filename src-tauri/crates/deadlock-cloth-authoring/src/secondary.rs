@@ -239,7 +239,16 @@ pub fn setup(
             "A saved motion profile refers to an unselected group.",
         ));
     }
-    let part_choices=if tang {BTreeMap::new()}else{cfg.part_kinds.clone().unwrap_or_default()};
+    let mut part_choices=if tang {BTreeMap::new()}else{cfg.part_kinds.clone().unwrap_or_default()};
+    // Part types chosen in model preparation (for example breast motion) apply
+    // unless the part type was changed on the Motion page.
+    if !tang {
+        for (root, kind) in opts.get("physics_kinds").and_then(|v| v.as_object()).into_iter().flatten() {
+            if let Some(kind) = kind.as_str().filter(|_| roots.contains(root) && !part_choices.contains_key(root)) {
+                part_choices.insert(root.clone(), kind.to_owned());
+            }
+        }
+    }
     let mut parts=crate::parts::analyze(d,&groups,&part_choices,cancel)?;
     // Recognize the complete accepted rig, never a partial name match. Rebind
     // its existing proxy for proportion changes using the existing strict fit.

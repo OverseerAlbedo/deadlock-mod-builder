@@ -3,7 +3,7 @@ import type { ExtraPreviewRequest } from './extras/models';
 import type { PreparationAnalysis, PreparationOptions, PreparationResult, ResumedPreparation, ReviewIssue, Suggestions, Vec3, WeaponPreview } from './preparation/models';
 import type { BuildResponse, InspectionResult, OriginalValidation, PrepareResult } from './build/models';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AnalysisResult, HeroRecord, LogEntry, PathKind, PhysicsChoices, Project, ProjectDocument, Settings, SetupStatus, TimingReport } from './models';
+import type { AnalysisResult, HeroRecord, LogEntry, PathKind, PhysicsChoices, Project, ProjectDocument, Settings, SetupStatus, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
 
 export const isDesktop = () => isTauri();
 export interface ToolLogFile {path:string;bytes:number;kind:string}
@@ -58,6 +58,9 @@ export const api = {
   logs: () => invoke<LogEntry[]>('get_log_entries'),
   logText: () => invoke<string>('get_log_text'),
   saveLog: (path: string) => invoke<void>('save_log', { path }),
+  storageReport: (project: Project | null) => invoke<StorageReport>('storage_report', { project }),
+  storageClear: (request: StorageClearRequest, project: Project | null) => invoke<{result: StorageClearResult; report: StorageReport}>('storage_clear', { request, project }),
+  storageFindProjects: (folder: string) => invoke<number>('storage_find_projects', { folder }),
 };
 
 export function errorText(error: unknown): string {

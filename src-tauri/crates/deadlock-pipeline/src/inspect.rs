@@ -350,8 +350,12 @@ impl<'a> ModelPipeline<'a> {
             if !p.expected_dmx_sha256.is_empty()&&p.expected_dmx_sha256!=source_sha256{return Err(invalid("Replacement DMX differs from the imported package hash. Import the revised source package or explicitly review the new source hash."));}
             let summary=self.clock.measure("Analyze DMX meshes, weights and bones",Some(parent.id()),|_|dmx.summary_with_cancel(self.cancel).map_err(deadlock_dmx::DmxError::into_core))?;
             let geometry=self.clock.measure("Count model geometry",Some(parent.id()),|_|dmx.geometry_counts_with_cancel(self.cancel).map_err(deadlock_dmx::DmxError::into_core))?;
+            // The game may load another model of this hero (Rem: familiar_wip.vmdl);
+            // a readable name and a successful build do not show that.
+            let mut target_warning=None;
             if !self.settings.pak.is_empty()&&Path::new(&self.settings.pak).is_file(){
                 let archive=deadlock_vpk::Vpk::open(&self.settings.pak).map_err(vpk_error)?;
+                target_warning=deadlock_components::heroes::GameModels::read(&archive).ok().flatten().and_then(|game|game.target_warning(p.source_model()).ok().flatten());
                 for material in &summary.materials{
                     self.cancel.check()?;let source=safety::inside(&base,material)?;
                     if !p.source_overlay.is_empty()&&safety::inside(Path::new(&p.source_overlay),material)?.is_file(){continue;}
@@ -422,6 +426,7 @@ impl<'a> ModelPipeline<'a> {
             }
             if automatic_split.is_none(){self.clock.skip_step("Split oversized meshes",Some(parent.id()),if p.auto_split{"No selected mesh requires subdivision"}else{"Automatic subdivision is disabled"})?;}
             let mut warnings=vertex_preflight.warnings.clone();
+            warnings.extend(target_warning);
             if secondary_waiting_for_mesh_mapping {
                 warnings.push("Complete Mesh mapping, then Analyze again to check automatic motion. Your saved physics-bone choices are retained; the selected replacement meshes must include the moving parts.".into());
             }

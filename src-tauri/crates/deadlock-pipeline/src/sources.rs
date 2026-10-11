@@ -33,6 +33,61 @@ pub struct BaseFingerprint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cli_sha256: Option<String>,
 }
+impl BaseFingerprint {
+    /// Sources decompiled from the game archive are identical for every project
+    /// of the same hero and game version, so they are extracted once and shared.
+    /// Imported folders and single compiled files stay per project.
+    pub fn shared_key(&self) -> Option<String> {
+        (self.pak.is_some() && self.source.is_none() && self.compiled.is_none()).then(|| {
+            crate::inspect::hash(&serde_json::to_vec(self).unwrap_or_default())[..32].to_owned()
+        })
+    }
+}
+/// The shared-cache key recorded by a project's `base-fingerprint.json`.
+pub fn shared_key(marker: &[u8]) -> Option<String> {
+    serde_json::from_slice::<BaseFingerprint>(marker)
+        .ok()?
+        .shared_key()
+}
+/// Where a project's extracted original hero sources are: the shared cache for
+/// game-archive sources, otherwise the project's own `base` folder.
+pub fn base_dir(settings: &Settings, project: &Project) -> Result<PathBuf> {
+    let root = workspace::root(settings, project)?;
+    let shared = fs::read(root.join("base-fingerprint.json"))
+        .ok()
+        .and_then(|bytes| shared_key(&bytes))
+        .map(|key| shared_base(settings, &key))
+        .transpose()?
+        .filter(|path| path.is_dir());
+    Ok(shared.unwrap_or_else(|| root.join("base")))
+}
+fn shared_base(settings: &Settings, key: &str) -> Result<PathBuf> {
+    Ok(
+        deadlock_project::asset_paths::resolve(Path::new(&settings.workspace))
+            .map_err(|e| invalid(e.to_string()))?
+            .join(crate::storage::SHARED_ORIGINALS)
+            .join(key)
+            .join("base"),
+    )
+}
+/// Move files that the shared cache lacks (for example materials decompiled
+/// later for this project), then remove the project's own copy.
+fn merge_into(legacy: &Path, shared: &Path, cancel: &CancellationToken) -> Result<()> {
+    for file in files(legacy, cancel)? {
+        let relative = file
+            .strip_prefix(legacy)
+            .map_err(|_| invalid("Source escapes root."))?;
+        let destination = shared.join(relative);
+        if !destination.exists() {
+            if let Some(parent) = destination.parent() {
+                fs::create_dir_all(parent).map_err(|e| CoreError::io("Create shared source folder", e))?;
+            }
+            fs::rename(&file, &destination)
+                .map_err(|e| CoreError::io("Move original source into the shared cache", e))?;
+        }
+    }
+    crate::storage::remove(legacy)
+}
 
 pub struct SourceService<'a> {
     pub settings: &'a Settings,
@@ -92,6 +147,9 @@ impl SourceService<'_> {
                 Ok(signature)
             })?;
             let marker = root.join("base-fingerprint.json");
+            if let Some(key) = fingerprint.shared_key() {
+                return self.ensure_shared(project, &root, &fingerprint, &key, span.id());
+            }
             if marker.is_file() && base.is_dir() {
                 let saved: BaseFingerprint=serde_json::from_slice(&fs::read(&marker).map_err(|e|CoreError::io("Read base cache fingerprint",e))?)?;
                 if saved==fingerprint {
@@ -101,15 +159,76 @@ impl SourceService<'_> {
             }
             if !project.auto_decompile && source.is_none() {return Err(invalid("Auto-decompile is disabled and this hero has no cached original sources."));}
             let temp=tempfile::Builder::new().prefix("base-pending-").tempdir_in(&root).map_err(|e|CoreError::io("Create original-source staging",e))?;
-            if let Some(source)=source {self.clock.measure("Copy imported original sources",Some(span.id()),|_|safety::copy_tree(source,temp.path(),self.cancel))?;}
-            else if let Some(pak)=pak {self.decompile(pak,&project.original_model,temp.path(),Some(span.id()))?;}
-            else if let Some(compiled)=compiled {
-                let destination=safety::inside(temp.path(),project.source_model())?;
-                let command=compiler::decompile_resource(Path::new(&self.settings.source2viewer),compiled,&destination)?;
-                if let Some(parent)=destination.parent(){fs::create_dir_all(parent).map_err(|e|CoreError::io("Create source-model folder",e))?;}
-                self.clock.measure("Decompile imported compiled model",Some(span.id()),|_|self.runner.run(&command))?;
+            self.populate(project, temp.path(), pak, source, compiled, span.id())?;
+            // Preserve the previous cache until the complete new source graph has
+            // passed parsing; keep its backup if publication itself fails.
+            if base.exists(){let backup=root.join("backups"); fs::create_dir_all(&backup).map_err(|e|CoreError::io("Create source backups",e))?; fs::rename(&base,backup.join(format!("base-{}",uuid::Uuid::new_v4().simple()))).map_err(|e|CoreError::io("Back up original-source cache",e))?;
+                crate::storage::prune_backups(&backup, self.settings.keep_backups as usize, self.log);}
+            fs::rename(temp.path(),&base).map_err(|e|CoreError::io("Publish original sources",e))?;
+            safety::write_json(&marker,&fingerprint)?;
+            (self.log)("Base hero model found; original paths preserved");
+            Ok(base)
+        })
+    }
+    /// Game-archive sources live once per hero and game version in the shared
+    /// cache. A project's earlier private copy is merged into it on first use.
+    fn ensure_shared(&self, project: &Project, root: &Path, fingerprint: &BaseFingerprint, key: &str, parent: &str) -> Result<PathBuf> {
+        let shared = shared_base(self.settings, key)?;
+        let folder = shared.parent().ok_or_else(|| invalid("Shared source cache has no parent."))?;
+        let record = folder.join("fingerprint.json");
+        let marker = root.join("base-fingerprint.json");
+        let legacy = root.join("base");
+        let matches = |path: &Path| fs::read(path).ok().and_then(|b| serde_json::from_slice::<BaseFingerprint>(&b).ok()).is_some_and(|saved| saved == *fingerprint);
+        deadlock_vpk::check_unlinked_path(folder, true).map_err(vpk_error)?;
+        if !(shared.is_dir() && matches(&record)) {
+            if legacy.is_dir() && matches(&marker) {
+                self.clock.measure("Move original sources into the shared cache", Some(parent), |_| {
+                    if folder.exists() { crate::storage::remove(folder)?; }
+                    fs::create_dir_all(folder).map_err(|e| CoreError::io("Create shared source cache", e))?;
+                    fs::rename(&legacy, &shared).map_err(|e| CoreError::io("Move original sources into the shared cache", e))?;
+                    safety::write_json(&record, fingerprint)
+                })?;
+            } else {
+                if !project.auto_decompile { return Err(invalid("Auto-decompile is disabled and this hero has no cached original sources.")); }
+                let pak = Path::new(&self.settings.pak);
+                let parent_folder = folder.parent().ok_or_else(|| invalid("Shared source cache has no parent."))?;
+                fs::create_dir_all(parent_folder).map_err(|e| CoreError::io("Create shared source cache", e))?;
+                let temp = tempfile::Builder::new().prefix("base-pending-").tempdir_in(parent_folder).map_err(|e| CoreError::io("Create original-source staging", e))?;
+                let staged = temp.path().join("base");
+                fs::create_dir_all(&staged).map_err(|e| CoreError::io("Create original-source staging", e))?;
+                self.populate(project, &staged, Some(pak), None, None, parent)?;
+                safety::write_json(&temp.path().join("fingerprint.json"), fingerprint)?;
+                if folder.exists() { crate::storage::remove(folder)?; }
+                fs::rename(temp.path(), folder).map_err(|e| CoreError::io("Publish original sources", e))?;
+
+                (self.log)("Base hero model found; original paths preserved");
             }
-            let main=safety::inside(temp.path(),project.source_model())?;
+        } else {
+            self.clock.measure("Reuse cached original sources", Some(parent), |_| { self.cancel.check()?; (self.log)("Reusing shared original hero sources"); Ok(()) })?;
+        }
+        if legacy.is_dir() {
+            // Same hero and game version: only files the cache lacks are kept.
+            if matches(&marker) { merge_into(&legacy, &shared, self.cancel)?; }
+            else {
+                let backup = root.join("backups");
+                fs::create_dir_all(&backup).map_err(|e| CoreError::io("Create source backups", e))?;
+                fs::rename(&legacy, backup.join(format!("base-{}", uuid::Uuid::new_v4().simple()))).map_err(|e| CoreError::io("Back up original-source cache", e))?;
+                crate::storage::prune_backups(&backup, self.settings.keep_backups as usize, self.log);
+            }
+        }
+        if !matches(&marker) { safety::write_json(&marker, fingerprint)?; }
+        Ok(shared)
+    }
+    fn populate(&self, project: &Project, destination: &Path, pak: Option<&Path>, source: Option<&Path>, compiled: Option<&Path>, parent: &str) -> Result<()> {
+            if let Some(source)=source {self.clock.measure("Copy imported original sources",Some(parent),|_|safety::copy_tree(source,destination,self.cancel))?;}
+            else if let Some(pak)=pak {self.decompile(pak,&project.original_model,destination,Some(parent))?;}
+            else if let Some(compiled)=compiled {
+                let target=safety::inside(destination,project.source_model())?;
+                let command=compiler::decompile_resource(Path::new(&self.settings.source2viewer),compiled,&target)?;
+                if let Some(folder)=target.parent(){fs::create_dir_all(folder).map_err(|e|CoreError::io("Create source-model folder",e))?;}
+                self.clock.measure("Decompile imported compiled model",Some(parent),|_|self.runner.run(&command))?;
+            }
+            let main=safety::inside(destination,project.source_model())?;
             if !main.is_file(){return Err(invalid(format!("Original hero VMDL could not be decompiled at its original path: {}. For imports select the folder containing models/.",project.source_model())));}
             deadlock_model::analyze(&read_text(&main)?).map_err(|e|invalid(e.to_string()))?;
             if let Some(pak)=pak {
@@ -120,23 +239,15 @@ impl SourceService<'_> {
                     for reference in deadlock_model::source_references(&read_text(&current)?).map_err(|e|invalid(e.to_string()))? {
                         if !seen.insert(reference.clone()){continue;}
                         if seen.len()>10000 {return Err(invalid("Hero dependency graph exceeds 10,000 source resources."));}
-                        let dest=safety::inside(temp.path(),&reference)?;
+                        let dest=safety::inside(destination,&reference)?;
                         if (reference.ends_with(".vmdl")||reference.ends_with(".vmat"))&&!dest.exists()&&archive.entries.contains_key(&deadlock_core::text::casefold(&format!("{reference}_c"))) {
-                            self.decompile(pak,&format!("{reference}_c"),temp.path(),Some(span.id()))?;
+                            self.decompile(pak,&format!("{reference}_c"),destination,Some(parent))?;
                         }
                         if reference.ends_with(".vmdl")&&dest.is_file(){pending.push(dest);}
                     }
                 }
             }
-            self.cancel.check()?;
-            // Preserve the previous cache until the complete new source graph has
-            // passed parsing; keep its backup if publication itself fails.
-            if base.exists(){let backup=root.join("backups"); fs::create_dir_all(&backup).map_err(|e|CoreError::io("Create source backups",e))?; fs::rename(&base,backup.join(format!("base-{}",uuid::Uuid::new_v4().simple()))).map_err(|e|CoreError::io("Back up original-source cache",e))?;}
-            fs::rename(temp.path(),&base).map_err(|e|CoreError::io("Publish original sources",e))?;
-            safety::write_json(&marker,&fingerprint)?;
-            (self.log)("Base hero model found; original paths preserved");
-            Ok(base)
-        })
+            self.cancel.check()
     }
     pub fn support_resources(
         &self,

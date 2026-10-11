@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { fireEvent,render,screen,waitFor } from '@testing-library/react';
 import { describe,expect,it,vi } from 'vitest';
-import { MaterialEditor } from './MaterialEditor';
+import { AppearanceOverrides, MaterialEditor, colorFilter } from './MaterialEditor';
 import type { Project } from '../models';
 import fixture from '../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json';
-vi.mock('./ImagePreview',()=>({ImagePreview:({path}:{path:string})=><span data-testid="texture-preview">{path}</span>}));
+vi.mock('./ImagePreview',()=>({ImagePreview:({path,filter}:{path:string;filter?:string})=><span data-testid="texture-preview" data-filter={filter}>{path}</span>}));
 vi.mock('../api',async original=>({...await original<typeof import('../api')>(),api:{validateAssetPath:vi.fn(async(path:string)=>path)}}));
 const id='models/test/materials/prepared/cloth2_e034ebe4.vmat';
 const initial={...fixture.cases[0].expected,original_model:'models/test/hero.vmdl',dmx:'C:\\prepared.dmx',materials:{[id]:{preset:'generic',mode:'generate',textures:{},confirmed:false}}} as unknown as Project;
@@ -55,5 +55,21 @@ describe('Texture assignment visibility',()=>{
     fireEvent.change(screen.getByLabelText('Base color candidates'),{target:{value:'__none__'}});
     await waitFor(()=>expect(screen.getByText('0 texture assignments')).toBeVisible());
     expect(changes.mock.calls.at(-1)![0].materials[id].textures).toEqual({color:''});
+  });
+});
+
+describe('Experimental color editor',()=>{
+  it('adds hue, saturation and brightness to a surface change and previews them',()=>{
+    const project={...initial,materials:{[id]:{mode:'generate',confirmed:true,textures:{color:'C:\textures\cloth.png'}}},customization:{...initial.customization,enabled:true,appearance:{enabled:true,materials:[{enabled:true,target:id}]}}} as unknown as Project;
+    function Harness(){const [value,setValue]=useState(project);return <AppearanceOverrides project={value} update={setValue} disabled={false} fail={vi.fn()}/>;}
+    render(<Harness/>);
+    fireEvent.click(screen.getByLabelText('Adjust colors 1 (experimental)'));
+    fireEvent.change(screen.getByLabelText('Hue shift 1'),{target:{value:'90'}});
+    fireEvent.change(screen.getByLabelText('Saturation 1'),{target:{value:'0.5'}});
+    expect(screen.getByText('90°')).toBeVisible();
+    expect(screen.getByTestId('texture-preview')).toHaveAttribute('data-filter','hue-rotate(90deg) saturate(0.5) brightness(1)');
+    fireEvent.click(screen.getByLabelText('Adjust colors 1 (experimental)'));
+    expect(screen.queryByLabelText('Hue shift 1')).toBeNull();
+    expect(colorFilter({})).toBe('hue-rotate(0deg) saturate(1) brightness(1)');
   });
 });

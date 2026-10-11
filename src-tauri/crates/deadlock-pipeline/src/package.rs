@@ -200,6 +200,7 @@ impl PackageService<'_> {
                 &pending.0,
                 &output,
                 &root.join("backups"),
+                self.settings.keep_backups as usize,
                 overwrite,
                 self.cancel,
             )?;
@@ -404,6 +405,7 @@ impl PackageService<'_> {
                 &snapshot,
                 &target,
                 &root.join("backups"),
+                self.settings.keep_backups as usize,
                 overwrite,
                 self.cancel,
             )
@@ -486,6 +488,7 @@ pub(crate) fn publish_copy(
     source: &Path,
     target: &Path,
     backups: &Path,
+    keep_backups: usize,
     overwrite: bool,
     cancel: &CancellationToken,
 ) -> Result<()> {
@@ -559,6 +562,9 @@ pub(crate) fn publish_copy(
             .persist_noclobber(target)
             .map_err(|e| CoreError::io("Publish new verified package", e.error))?;
     }
+    // Older replaced copies beyond the retention setting are removed only
+    // after the new package is in place.
+    crate::storage::prune_backups(backups, keep_backups, &|_| {});
     Ok(())
 }
 

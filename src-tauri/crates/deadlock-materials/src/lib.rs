@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 mod appearance;
 mod cache;
+pub mod color_adjust;
 mod overlay;
 mod planner;
 mod source_zip;

@@ -82,6 +82,8 @@ choices!(SecondaryMotion {
     enabled: bool, preset: String, roots: Vec<String>, profiles: BTreeMap<String, String>, part_kinds: BTreeMap<String, String>
 });
 choices!(Appearance { enabled: bool, materials: Vec<AppearanceMaterial> });
+// hue: experimental color editor hue shift in degrees (-180 to 180); saturation and
+// brightness: factors from 0 to 2 where 1 keeps the original.
 choices!(AppearanceMaterial {
     enabled: bool,
     target: String,
@@ -89,7 +91,10 @@ choices!(AppearanceMaterial {
     roughness: f64,
     metalness: f64,
     opacity: f64,
-    emission: f64
+    emission: f64,
+    hue: f64,
+    saturation: f64,
+    brightness: f64
 });
 choices!(Equipment { enabled: bool, meshes: Vec<EquipmentMesh>, props: Vec<Prop>, variants: Vec<Variant> });
 choices!(EquipmentMesh { target: String, action: String, sources: Vec<String>, include_lods: bool });
@@ -250,7 +255,7 @@ impl Customization {
             if motion.profiles.as_ref().is_some_and(|p| p.len() > 128 || p.iter().any(|(k,v)| k.is_empty() || !["automatic", "balanced", "stiff", "soft"].contains(&v.as_str()))) {
                 return Err(error("Secondary group movement must be automatic, balanced, stiff or soft."));
             }
-            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !["hair","streamer","tail","ear","cloth","long_skirt","accessory"].contains(&v.as_str()))) {
+            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !["hair","streamer","tail","ear","cloth","long_skirt","accessory","breast","rigid"].contains(&v.as_str()))) {
                 return Err(error("Choose a supported moving-part type."));
             }
             if self.active() && motion.enabled == Some(true) && self.physics.as_ref().is_some_and(|p| p.enabled == Some(true)) {
@@ -316,6 +321,14 @@ impl Customization {
                 }
                 if let Some(v) = row.emission {
                     number(v, 0., 64., "Emission")?;
+                }
+                if let Some(v) = row.hue {
+                    number(v, -180., 180., "Hue shift")?;
+                }
+                for (v, label) in [(row.saturation, "Saturation"), (row.brightness, "Brightness")] {
+                    if let Some(v) = v {
+                        number(v, 0., 2., label)?;
+                    }
                 }
             }
         }

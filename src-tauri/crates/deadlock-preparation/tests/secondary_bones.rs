@@ -136,5 +136,20 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     assert_eq!(roots, expected);
     let strap = groups.iter().find(|g| g.root == "Strap_00").unwrap();
     assert_eq!((strap.source_anchor.as_str(), strap.source_bones.len()), ("Bip001_Pelvis", 4));
-    assert!(groups.iter().all(|g| !g.source_bones.iter().any(|b| b.contains("Finger") || b.starts_with("Pouch"))));
+    assert!(groups.iter().all(|g| !g.source_bones.iter().any(|b| b.contains("Finger") || b.starts_with("Pouch") || b.starts_with("HairPin") || b.starts_with("HairLoop"))));
+    // Breasts move only when breast motion is on, as one weighted bone each.
+    let breasts: Vec<String> = serde_json::from_value(data["breast_bones"].clone()).unwrap();
+    assert_eq!(secondary::breast_bones(&source, &weighted, &roles), breasts);
+    assert_eq!(secondary::candidates_with(&source, &weighted, &roles, &roles, Some(false)).unwrap(), groups);
+    let with: Vec<String> = serde_json::from_value(data["expected_roots_with_breast_motion"].clone()).unwrap();
+    let moving = secondary::candidates_with(&source, &weighted, &roles, &roles, Some(true)).unwrap();
+    assert_eq!(moving.iter().map(|g| g.root.clone()).collect::<Vec<_>>(), with);
+    let left = moving.iter().find(|g| g.root == "Bone_Breast_L_00").unwrap();
+    assert_eq!((left.source_anchor.as_str(), left.source_bones.len()), ("Bip001_Spine1", 1));
+    // Without breast names the mirrored pair in front of the chest is found by position.
+    let renamed: BTreeMap<String, String> = serde_json::from_value(data["renamed_breast_bones"].clone()).unwrap();
+    let rename = |n: &String| renamed.get(n).cloned().unwrap_or_else(|| n.clone());
+    let generic: Vec<Bone> = source.iter().map(|b| Bone { name: rename(&b.name), ..b.clone() }).collect();
+    let generic_weighted: Vec<String> = weighted.iter().map(rename).collect();
+    assert_eq!(secondary::breast_bones(&generic, &generic_weighted, &roles), breasts.iter().map(rename).collect::<Vec<_>>());
 }

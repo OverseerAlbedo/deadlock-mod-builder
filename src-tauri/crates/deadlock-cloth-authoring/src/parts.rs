@@ -23,6 +23,10 @@ pub enum Kind {
     Cloth,
     LongSkirt,
     Accessory,
+    /// Gentle spring for breasts (optional breast motion).
+    Breast,
+    /// Follows its bone without motion: halos, hats, crowns, hairpins.
+    Rigid,
 }
 impl Kind {
     pub fn parse(s: &str) -> Result<Self> {
@@ -34,6 +38,8 @@ impl Kind {
             "cloth" => Ok(Self::Cloth),
             "long_skirt" => Ok(Self::LongSkirt),
             "accessory" => Ok(Self::Accessory),
+            "breast" => Ok(Self::Breast),
+            "rigid" => Ok(Self::Rigid),
             _ => Err(invalid("Unknown moving-part type.")),
         }
     }
@@ -122,8 +128,15 @@ fn radii(points: &[[f64; 3]]) -> [f64; 3] {
 fn semantic(name: &str) -> Option<Kind> {
     let n = name.to_lowercase();
     let has = |words: &[&str]| words.iter().any(|w| n.contains(w));
+    // Breasts and rigid accessories (hairpin, hair ornament, halo, hat) come
+    // first: a hair or ear word in their name must not give them hair motion.
+    if deadlock_preparation::secondary_bones::named_breast(name) {
+        Some(Kind::Breast)
+    } else if deadlock_preparation::secondary_bones::rigid_named(name) {
+        Some(Kind::Rigid)
+    }
     // Hair takes precedence over 'tail' (ponytail) and flat mesh evidence.
-    if has(&["hair", "ponytail", "braid", "bang", "髪", "发", "髮"]) {
+    else if has(&["hair", "ponytail", "braid", "bang", "髪", "发", "髮"]) {
         Some(Kind::Hair)
     } else if has(&["tail", "尻尾", "しっぽ", "尾"]) {
         Some(Kind::Tail)
@@ -133,7 +146,7 @@ fn semantic(name: &str) -> Option<Kind> {
         || n.contains("耳")
     {
         Some(Kind::Ear)
-    } else if has(&["breast", "bust", "chest", "boob", "胸", "ornament", "board"]) {
+    } else if has(&["chest", "胸", "ornament", "board"]) {
         Some(Kind::Accessory)
     } else if has(&["streamer", "ribbon", "リボン", "飘带", "飄帶"]) {
         Some(Kind::Streamer)
@@ -248,7 +261,10 @@ pub fn analyze(
         let joined_panel=shared.iter().any(|(&(a,b),&n)|n>=3&&(a==i||b==i));
         let (hint, descendant_hint)=group_semantic(g);let explicit=overrides.get(&g.source_root).map(|s|Kind::parse(s)).transpose()?;
         let supported=chain.len()>=2&&length>1e-4;
+        // A chain that ends where it starts is a band or ring, never a strand.
+        let looped=chain.len()>=4&&length>1e-4&&norm(sub(position(&chain[chain.len()-1]),position(&chain[0])))<0.3*length;
         let (kind,mut reason,mut review):(Kind,String,bool)=if let Some(kind)=explicit{(kind,"Selected part type".into(),false)}
+        else if looped&&matches!(hint,None|Some(Kind::Hair)){(Kind::Rigid,"Closed ring (halo, crown or hat band); follows its bone without motion".into(),true)}
         else if let Some(kind)=hint{
             if kind==Kind::Streamer && !(supported&&slender&&flat){(Kind::Cloth,"Ribbon name, but geometry is not a thin, elongated chain; using cloth support".into(),true)}
             else if descendant_hint{(kind,"Consistent hair/tail names within the preserved physics group".into(),false)}
@@ -306,6 +322,26 @@ mod tests {
         }
         assert_eq!(semantic("spring_01"), None);
         assert_eq!(semantic("rear_support"), None);
+    }
+    #[test]
+    fn breasts_and_rigid_accessories_never_get_hair_motion() {
+        for (n, k) in [
+            ("Bone_Breast_L_00", Kind::Breast),
+            ("左胸", Kind::Breast),
+            ("HairPin_01", Kind::Rigid),
+            ("hair_ornament", Kind::Rigid),
+            ("髪飾り", Kind::Rigid),
+            ("Halo_00", Kind::Rigid),
+            ("hat_base_M_a_01_jnt", Kind::Rigid),
+            ("Hat_Ribbon_00", Kind::Streamer),
+            ("hair_back_01", Kind::Hair),
+        ] {
+            assert_eq!(semantic(n), Some(k), "{n}");
+        }
+        let maps = crate::secondary_auto::parameters(Kind::Rigid, 0.5, false, 4., 0.2, None).unwrap();
+        assert_eq!((maps[0], maps[3]), (1., 0.));
+        let breast = crate::secondary_auto::parameters(Kind::Breast, 0., true, 2., 0.2, None).unwrap();
+        assert!(breast[0] < 1. && breast[3] == 0. && breast[4] > 0. && breast[4] <= 0.8);
     }
     #[test]
     fn shape_is_rotation_invariant() {

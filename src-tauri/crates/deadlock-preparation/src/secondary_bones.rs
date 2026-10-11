@@ -12,8 +12,100 @@ pub const BINDING_POLICY: &str = "verified-rigid-body-bone-binding-v1";
 /// Keep in sync with secondary_bones.py and src/preparation/secondary-bones.ts.
 pub const HINTS: [&str; 28] = ["hair","ponytail","braid","ribbon","streamer","skirt","cloth","cape","tail","robe","sash","scarf","shawl","mantle","cloak","tassel","veil",
     "髪","发","髮","尻尾","しっぽ","耳","リボン","裙","マント","スカート","スカーフ"];
+/// Rigid head and body accessories. Hair and ear names do not make these move
+/// (hairpin, hair ornament, 髪飾り, ear ornament); other motion names such as
+/// ribbon or tassel still win. Keep in sync with secondary_bones.py and
+/// src/preparation/secondary-bones.ts.
+pub const RIGID_HINTS: [&str; 38] = ["halo","hat","cap","pin","pins","clip","clips","crown","tiara","circlet","horn","horns","helmet","helm","glasses","goggles","goggle","spectacles","visor","mask","earring","earrings","piercing","hairpin","hairclip","barrette","hairband","headband","ornament","accessory","acc",
+    "飾","冠","帽","角","眼鏡","メガネ","輪"];
+/// Breast bones move only when breast motion is turned on.
+pub const BREAST_HINTS: [&str; 6] = ["breast","bust","boob","oppai","おっぱい","乳"];
+fn tokens(name:&str)->Vec<String> {
+    // Split on separators and camel case: HatBrim_L -> hat, brim, l.
+    let mut out=vec![];let mut word=String::new();let mut previous_lower=false;
+    for c in name.chars() {
+        if !c.is_alphanumeric() {if !word.is_empty(){out.push(std::mem::take(&mut word).to_lowercase());}previous_lower=false;continue;}
+        if c.is_uppercase()&&previous_lower&&!word.is_empty(){out.push(std::mem::take(&mut word).to_lowercase());}
+        previous_lower=c.is_lowercase()||c.is_ascii_digit();word.push(c);
+    }
+    if !word.is_empty(){out.push(word.to_lowercase());}
+    out.into_iter().map(|t|t.trim_end_matches(|c:char|c.is_ascii_digit()).to_owned()).filter(|t|!t.is_empty()).collect()
+}
+pub fn rigid_named(name:&str)->bool {
+    let words=tokens(name);let n=name.to_lowercase();
+    let rigid=RIGID_HINTS.iter().any(|h|if h.is_ascii(){words.iter().any(|w|w==h)||(h.len()>=6&&n.contains(h))}else{n.contains(h)});
+    // Moving names other than hair and ears keep their motion (a ribbon on a hat).
+    let moving=HINTS.iter().filter(|h|!["hair","髪","发","髮","耳"].contains(h)).any(|h|n.contains(h));
+    rigid&&!moving
+}
+pub fn named_breast(name:&str)->bool {
+    let n=name.to_lowercase();
+    BREAST_HINTS.iter().any(|h|n.contains(h)) || (n.contains('胸')&&(n.contains('左')||n.contains('右')||tokens(name).iter().any(|t|["l","r","left","right"].contains(&t.as_str()))))
+}
 fn named_secondary(name:&str)->bool {
     let n=name.to_lowercase();HINTS.iter().any(|s|n.contains(s)) || n.split(|c:char|!c.is_alphanumeric()).any(|s|["ear","ears"].contains(&s))
+}
+/// A closed loop (halo, crown band, hat brim): the single chain that contains the
+/// bone, from below its body anchor, ends close to where it starts.
+fn ring_chain(bone:&Bone,names:&BTreeMap<&str,&Bone>,children:&BTreeMap<&str,Vec<&str>>,roles:&BTreeMap<String,String>)->bool {
+    let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
+    let mut bone=bone;let mut steps=0;
+    while let Some(parent)=bone.parent.as_deref().and_then(|p|names.get(p)) {
+        if roles.values().any(|r|r==&parent.name)||steps>=512 {break;}
+        bone=parent;steps+=1;
+    }
+    let mut chain=vec![bone];let mut cursor=bone.name.as_str();
+    while let Some(next)=children.get(cursor) {
+        if next.len()!=1||chain.len()>=512 {return false;}
+        cursor=next[0];let Some(child)=names.get(cursor) else {return false;};chain.push(child);
+    }
+    let path:f64=chain.windows(2).map(|w|distance(&w[0].position,&w[1].position)).sum();
+    chain.len()>=4 && path>1e-6 && distance(&chain[0].position,&chain[chain.len()-1].position)<0.3*path
+}
+/// Facing direction in the ground plane, from the feet to the toes (default -Y).
+fn facing(names:&BTreeMap<&str,&Bone>,children:&BTreeMap<&str,Vec<&str>>,roles:&BTreeMap<String,String>)->[f64;2] {
+    let mut f=[0.,0.];
+    for side in ["foot_L","foot_R"] {
+        let Some(foot)=roles.get(side).and_then(|n|names.get(n.as_str())) else {continue};
+        for child in children.get(foot.name.as_str()).into_iter().flatten().filter_map(|c|names.get(c)) {
+            f[0]+=child.position[0]-foot.position[0];f[1]+=child.position[1]-foot.position[1];
+        }
+    }
+    let n=(f[0]*f[0]+f[1]*f[1]).sqrt();
+    if n<1e-6 {[0.,-1.]} else {[f[0]/n,f[1]/n]}
+}
+/// Breast bones: weighted, short, non-role children of the chest (or spine) that
+/// are named as breasts, or form a mirrored pair in front of the chest between
+/// the spine and the neck.
+fn breast_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&BTreeMap<&str,Vec<&str>>,weighted:&BTreeSet<&str>,roles:&BTreeMap<String,String>)->BTreeSet<&'a str> {
+    let role_names:BTreeSet<&str>=roles.values().map(String::as_str).collect();
+    let (Some(pelvis),Some(head))=(roles.get("pelvis").and_then(|n|names.get(n.as_str())),roles.get("head").and_then(|n|names.get(n.as_str()))) else {return BTreeSet::new();};
+    let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
+    let torso=distance(&pelvis.position,&head.position);
+    if torso<=1e-6 {return BTreeSet::new();}
+    let parents:Vec<&str>=["chest","spine"].iter().filter_map(|r|roles.get(*r).map(String::as_str)).collect();
+    let low=roles.get("spine").and_then(|n|names.get(n.as_str())).unwrap_or(pelvis).position[2];
+    let high=roles.get("neck").and_then(|n|names.get(n.as_str())).unwrap_or(head).position[2];
+    let short=|bone:&Bone|{
+        let mut branch=vec![bone.name.as_str()];let mut at=0;
+        while at<branch.len() {if branch.len()>3 {return false;}branch.extend(children.get(branch[at]).into_iter().flatten().copied());at+=1;}
+        branch.len()<=3 && branch.iter().all(|n|!role_names.contains(n)&&names.get(n).is_some_and(|b|distance(&b.position,&bone.position)<=0.15*torso))
+    };
+    let options:Vec<&Bone>=source.iter().filter(|b|b.parent.as_deref().is_some_and(|p|parents.contains(&p))&&!role_names.contains(b.name.as_str())
+        &&weighted.contains(b.name.as_str())&&short(b)).collect();
+    let mut output:BTreeSet<&str>=options.iter().filter(|b|named_breast(&b.name)).map(|b|b.name.as_str()).collect();
+    let forward=facing(names,children,roles);let lateral=[-forward[1],forward[0]];
+    let place=|b:&Bone|{let p=names[b.parent.as_deref().unwrap()];let d=[b.position[0]-p.position[0],b.position[1]-p.position[1]];
+        (d[0]*forward[0]+d[1]*forward[1],d[0]*lateral[0]+d[1]*lateral[1],b.position[2])};
+    for (i,a) in options.iter().enumerate() {
+        let partners:Vec<&&Bone>=options.iter().enumerate().filter(|(j,b)|*j!=i&&b.parent==a.parent&&{
+            let ((fa,la,za),(fb,lb,zb))=(place(a),place(b));
+            fa>=0.02*torso&&fb>=0.02*torso&&(fa-fb).abs()<=0.03*torso&&(za-zb).abs()<=0.03*torso&&la*lb<0.
+                &&(la+lb).abs()<=0.04*torso&&(la-lb).abs()>=0.06*torso&&(la-lb).abs()<=0.5*torso&&za>low&&za<high
+        }).map(|(_,b)|b).collect();
+        if partners.len()==1 && !rigid_named(&a.name) {output.insert(a.name.as_str());}
+    }
+    output
 }
 /// Unnamed hanging parts (sashes, streamers, chains named in another language):
 /// a non-role chain of at least three weighted bones attached directly to the
@@ -56,28 +148,56 @@ pub struct PreservationPlan {
     pub new_physics: bool,
     pub in_game_motion_tested: bool,
 }
+/// The optional breast motion choice of model preparation.
+pub fn breast_motion(options: &PreparationOptions) -> Result<Option<bool>> {
+    options.values.get("breast_motion").map(|v| v.as_bool().ok_or_else(|| invalid("Breast motion must be on or off."))).transpose()
+}
+/// Detected breast bones (named or a mirrored pair in front of the chest).
+pub fn breast_bones(source: &[Bone], weighted: &[String], source_roles: &BTreeMap<String,String>) -> Vec<String> {
+    let names: BTreeMap<_,_> = source.iter().map(|b| (b.name.as_str(),b)).collect();
+    let mut children=BTreeMap::<&str,Vec<&str>>::new();
+    for bone in source{if let Some(parent)=bone.parent.as_deref(){children.entry(parent).or_default().push(&bone.name);}}
+    let weighted:BTreeSet<&str>=weighted.iter().map(String::as_str).collect();
+    breast_roots(source,&names,&children,&weighted,source_roles).into_iter().map(str::to_owned).collect()
+}
 fn roles(options: &PreparationOptions, key: &str) -> Result<BTreeMap<String,String>> {
     serde_json::from_value(options.values.get(key).cloned().unwrap_or_default())
         .map_err(|_| invalid("Review the source and target body roles before keeping physics bones."))
 }
 pub fn candidates(source: &[Bone], weighted: &[String], source_roles: &BTreeMap<String,String>, target_roles: &BTreeMap<String,String>) -> Result<Vec<PhysicsGroup>> {
+    candidates_with(source, weighted, source_roles, target_roles, None)
+}
+/// `breasts`: Some(true) adds breast bones as moving parts, Some(false) leaves
+/// them on the body even when the source gives them physics, None keeps the
+/// earlier behavior (only source physics).
+pub fn candidates_with(source: &[Bone], weighted: &[String], source_roles: &BTreeMap<String,String>, target_roles: &BTreeMap<String,String>, breasts: Option<bool>) -> Result<Vec<PhysicsGroup>> {
     let names: BTreeMap<_,_> = source.iter().map(|b| (b.name.as_str(),b)).collect();
     if names.len() != source.len() { return Err(invalid("Duplicate source bone identities.")); }
     let mut children=BTreeMap::<&str,Vec<&str>>::new();
     for bone in source{if let Some(parent)=bone.parent.as_deref(){children.entry(parent).or_default().push(&bone.name);}}
     let mut physical: BTreeSet<_> = source.iter().filter(|b| b.details.get("physics").is_some_and(|p| p["policy"] == BINDING_POLICY && p["dynamic_bodies"].as_array().is_some_and(|v| !v.is_empty() && v.iter().all(|n| n.as_str().is_some_and(|n| !n.is_empty()))))).map(|b| b.name.as_str()).collect();
+    let weighted_set:BTreeSet<&str>=weighted.iter().map(String::as_str).collect();
+    let breast_set=breast_roots(source,&names,&children,&weighted_set,source_roles);
+    if breasts==Some(false) {physical.retain(|n|!breast_set.contains(n));}
     let verified=physical.clone();
     // FBX/GLB rigs often have usable secondary chains without rigid bodies.
     // Require a semantic hint (or a long hanging chain) PLUS multiple weighted, spatially separated
     // joints. Existing physical rigs always retain their original boundaries.
-    let weighted_set:BTreeSet<&str>=weighted.iter().map(String::as_str).collect();
-    for bone in source.iter().filter(|b|named_secondary(&b.name)||hanging_chain(b,&names,&children,&weighted_set,source_roles)) {
+    let automatic=source.iter().filter(|b|(named_secondary(&b.name)||hanging_chain(b,&names,&children,&weighted_set,source_roles))
+        && !rigid_named(&b.name) && !ring_chain(b,&names,&children,source_roles) && !breast_set.contains(b.name.as_str()));
+    for bone in automatic {
         let mut branch=BTreeSet::new();let mut pending=vec![bone.name.as_str()];
         while let Some(n)=pending.pop(){if !branch.insert(n)||branch.len()>512{return Err(invalid("Secondary chain is cyclic or exceeds 512 bones."));}pending.extend(children.get(n).into_iter().flatten().copied());}
         if branch.iter().any(|n|verified.contains(n)||source_roles.values().any(|r|r==n)
             || names[n].details.get("physics").is_some_and(|p|["dynamic_bodies","kinematic_bodies"].iter().any(|k|p[k].as_array().is_some_and(|a|!a.is_empty())))){continue;}
         let used=weighted.iter().filter(|n|branch.contains(n.as_str())).map(|n|names[n.as_str()]).collect::<Vec<_>>();
         if used.len()>=2 && used.iter().skip(1).any(|b|(0..3).map(|k|(b.position[k]-used[0].position[k]).powi(2)).sum::<f64>()>1e-10){physical.insert(bone.name.as_str());}
+    }
+    // A breast is usually one weighted bone; it moves as a whole.
+    if breasts==Some(true) {
+        for root in &breast_set {
+            if !names[root].details.get("physics").is_some_and(|p|["dynamic_bodies","kinematic_bodies"].iter().any(|k|p[k].as_array().is_some_and(|a|!a.is_empty()))) {physical.insert(root);}
+        }
     }
     let mut groups = vec![];
     for &root in &physical {
@@ -117,7 +237,7 @@ pub fn selection(source: &[Bone], weighted: &[String], target: &[Bone], options:
     if !enabled { return Ok(None); }
     let roots: Vec<String> = serde_json::from_value(options.values.get("physics_roots").cloned().unwrap_or_default()).map_err(|_| invalid("Choose the detected physics groups to keep."))?;
     if roots.is_empty() || roots.iter().collect::<BTreeSet<_>>().len() != roots.len() { return Err(invalid("Choose the detected physics groups to keep.")); }
-    let groups = candidates(source, weighted, &roles(options,"source_roles")?, &roles(options,"target_roles")?)?;
+    let groups = candidates_with(source, weighted, &roles(options,"source_roles")?, &roles(options,"target_roles")?, breast_motion(options)?)?;
     if roots.iter().any(|r| !groups.iter().any(|g| &g.root == r)) { return Err(invalid("Saved physics groups are stale or unsupported. Inspect the original source again.")); }
     let groups: Vec<_> = groups.into_iter().filter(|g| roots.contains(&g.root)).collect();
     let mut exported = BTreeMap::new();

@@ -3,13 +3,17 @@ import { Section } from '../components/Primitives';
 import type { PreparationOptions } from './models';
 import type { PhysicsGroup } from './secondary-bones';
 
-export function PhysicsBoneChoices({groups,options,change:apply,busy}:{groups:PhysicsGroup[];options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean}){
+export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts}:{groups:PhysicsGroup[];options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;breasts?:{count:number;toggle:(enabled:boolean)=>void}}){
   // Groups you were shown are remembered, so a group you leave off is not re-added on the next inspection.
   const change=(values:Partial<PreparationOptions>)=>apply({...values,physics_offered:groups.map(g=>g.root)});
   const enabled=options.preserve_physics_bones??false,roots=options.physics_roots??[],selected=groups.filter(g=>roots.includes(g.root));
   return <Section title="Hair, cloth and other moving parts" className="prep-card prep-physics-card">
     <p className="hint">Uses existing physics bindings or recognizable secondary bone chains with skin weights. Supported groups are selected automatically when you inspect a new model.</p>
     <Check label="Keep existing physics bones (rig only)" value={enabled} disabled={busy||(!groups.length&&!enabled)} onChange={value=>change({preserve_physics_bones:value,physics_roots:roots.length?roots:groups.map(g=>g.root),reviewed:false})}/>
+    {breasts&&(breasts.count>0||options.breast_motion===true)&&<div className="prep-breast-motion">
+      <Check label="Breast motion (optional)" value={options.breast_motion===true} disabled={busy} onChange={breasts.toggle}/>
+      <p className="hint">{options.breast_motion===true?`A gentle, damped spring for ${breasts.count} breast ${breasts.count===1?'bone':'bones'}. Change the amount under Motion → Adjust moving parts and check it in game.`:`Off. ${breasts.count} breast ${breasts.count===1?'bone was':'bones were'} found; they follow the chest.`} Convert again after changing this.</p>
+    </div>}
     {!groups.length&&<p className="hint">No supported physics groups were detected. For a saved preparation from an older version, press Inspect source again to read its rigid-body bindings.</p>}
     {enabled&&<>
       <p className="prep-physics-stats" role="status">{selected.length} groups selected · {selected.reduce((n,g)=>n+g.source_bones.length,0)} bones · {selected.reduce((n,g)=>n+g.weighted_bones.length,0)} weighted bones</p>

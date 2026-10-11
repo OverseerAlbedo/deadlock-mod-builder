@@ -8,7 +8,7 @@ preparation step does automatically so that almost any rigged humanoid works.
 | Stage | Where | What happens |
 | --- | --- | --- |
 | Setup | `src/setup`, `src-tauri/src/setup.rs` | Game VPK, Source2Viewer CLI, compilers, Blender. |
-| Overview | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`). |
+| Overview | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`). The picker labels models from the installed game's hero definitions (`scripts/heroes.vdata`, `m_strModelName`): the model a hero definition loads is that hero's main target, and roster models the game does not load are marked *Not used in game* (Rem loads `familiar_wip.vmdl`). Analyze warns when a project targets such a model. |
 | **Model preparation** | `src/preparation`, `deadlock-preparation` crate, embedded Blender scripts | Turn the source file into a DMX bound to the hero's exact skeleton. |
 | Appearance / Physics / Extras | `src/components`, `deadlock-materials`, `deadlock-cloth*`, `deadlock-components` | Materials, mesh mapping, equipment, secondary motion, icons, sounds. |
 | Review & build | `deadlock-pipeline` | Inspect the project, compile model/materials, pack the VPK, install. |
@@ -129,9 +129,29 @@ veil, and Japanese/Chinese equivalents) or is a long unnamed chain: at least
 three weighted bones in a single line, hanging from the pelvis, spine, chest,
 neck or head, spanning a quarter of the torso. Fingers and toes never qualify.
 All three implementations share the fixture
-`tests/fixtures/hanging-chains.json` and must agree. New models keep every
+`tests/fixtures/hanging-chains.json` and must agree (`scripts/test_blender_moving_parts.py`
+checks the Python copy in Blender). New models keep every
 detected group; projects with automatic motion add groups detected for the
 first time, while groups you were shown and left off stay off.
+
+Rigid accessories never become moving parts from their names: halo, hat, cap,
+crown, tiara, horn, helmet, glasses, mask, earring, hairpin, clip, hair band,
+ornament and accessory (also 飾, 冠, 帽, 角, 眼鏡, 輪) override the hair and ear
+words, so `HairPin` or `髪飾り` stay on the head. Other motion words still win (a
+ribbon on a hat moves). A chain that ends close to where it starts (a halo or
+hat band) is a ring, not a strand. During Build, `parts.rs` gives such groups
+the **Rigid** part type (they follow their bone without motion) when they come
+from source physics bindings.
+
+**Breast motion** is optional and off by default (`breast_motion` in the
+preparation options; unset keeps earlier projects unchanged). Breast bones are
+weighted, short (at most three bones), non-role children of the chest or spine
+that are named breast/bust/boob/oppai/乳 (or 胸 with a side), or form a mirrored
+pair in front of the chest between the spine and the neck. Turning it on keeps
+them as moving parts and records `physics_kinds: {root: "breast"}`; Build gives
+them the **Breast** part type: a damped spring (goal 0.6, drag 0.3, no gravity)
+with a bounded travel radius, so they settle quickly and never sag. Amounts are
+adjustable per part under Motion → Adjust moving parts and need an in-game check.
 
 ### Mesh mapping (Build page)
 

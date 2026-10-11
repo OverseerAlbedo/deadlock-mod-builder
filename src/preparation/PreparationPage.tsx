@@ -8,7 +8,7 @@ import { PhysicsBoneChoices } from './PhysicsBoneChoices';
 import { SceneObjects } from './SceneObjects';
 import { WeaponPanel, weaponDefaults } from './WeaponPanel';
 import { weaponLike } from '../components/WeaponModels';
-import { physicsGroups, keptPhysicsBones, automaticPhysicsOptions, SECONDARY_PREFIX } from './secondary-bones';
+import { physicsGroups, keptPhysicsBones, automaticPhysicsOptions, breastBones, breastMotionOptions, SECONDARY_PREFIX } from './secondary-bones';
 import { Check, SelectField } from '../components/CustomizationPages';
 import { NumberField } from '../components/MaterialEditor';
 import { Disclosure, Section } from '../components/Primitives';
@@ -136,7 +136,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
             </tr>)}</tbody></table></div>
           </Section>
           </PreparationPanel>
-          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} options={options} change={changeOptions} busy={busy}/></PreparationPanel>}
+          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} options={options} change={changeOptions} busy={busy} breasts={{count:breastBones(analysis.analysis.bones,analysis.analysis.weighted_bones,options.source_roles??{}).length,toggle:enabled=>changeOptions(breastMotionOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,enabled))}}/></PreparationPanel>}
           {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="mapping" active={activePanel}>
           {project.model_input_mode==='rigged_humanoid'&&<Section title="Weighted bone mapping" className="prep-card prep-mapping-card">
             <p><strong>{unmapped}</strong> weighted bones still need a target. Every weighted bone must be resolved before conversion.</p>

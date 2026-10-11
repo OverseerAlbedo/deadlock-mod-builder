@@ -57,6 +57,12 @@ pub struct Settings {
     pub workspace: String,
     pub last_project: String,
     pub blender: String,
+    /// Replaced VPKs and original-source backups kept per file.
+    pub keep_backups: u32,
+    /// Keep the previous preparation run besides the one the project uses.
+    pub keep_previous_preparation: bool,
+    /// Remove caches and compiler folders the next build recreates after a successful build.
+    pub clear_build_data_after_build: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -79,6 +85,9 @@ impl Default for Settings {
             workspace: String::new(),
             last_project: String::new(),
             blender: String::new(),
+            keep_backups: 1,
+            keep_previous_preparation: true,
+            clear_build_data_after_build: false,
         }
     }
 }

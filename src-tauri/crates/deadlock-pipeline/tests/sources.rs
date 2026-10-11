@@ -128,3 +128,60 @@ fn missing_sources_and_cancellation_fail_without_partial_cache() {
         .join("base")
         .exists());
 }
+
+#[test]
+fn game_archive_sources_are_shared_per_hero_and_game_version() {
+    use deadlock_pipeline::sources::{base_dir, BaseFingerprint};
+    let temp = tempfile::tempdir().unwrap();
+    let pak = temp.path().join("pak01_dir.vpk");
+    write(&pak, b"game archive index");
+    let mut settings = Settings::default();
+    settings.workspace = temp.path().join("work").display().to_string();
+    settings.pak = pak.display().to_string();
+    let fingerprint = BaseFingerprint {
+        model: MODEL.into(),
+        pak_index_sha256: Some(deadlock_core::safety::digest(&pak).unwrap()),
+        pak: Some(pak.canonicalize().unwrap()),
+        ..Default::default()
+    };
+    // Two projects of the same hero that each extracted their own copy earlier;
+    // the second one also decompiled an extra material.
+    let projects: Vec<Project> = (0..2)
+        .map(|i| {
+            let mut project = Project::default();
+            project.original_model = MODEL.into();
+            let root = workspace::root(&settings, &project).unwrap();
+            write(&root.join("base").join(MODEL), TEXT.as_bytes());
+            if i == 1 {
+                write(&root.join("base/materials/extra.vmat"), b"extra");
+            }
+            write(
+                &root.join("base-fingerprint.json"),
+                &serde_json::to_vec(&fingerprint).unwrap(),
+            );
+            project
+        })
+        .collect();
+    let token = CancellationToken::new();
+    let clock = TimingRecorder::new("original-source");
+    let service = SourceService {
+        settings: &settings,
+        runner: &NoTools,
+        cancel: &token,
+        clock: &clock,
+        log: &|_| {},
+    };
+    let first = service.ensure_base(&projects[0]).unwrap();
+    let second = service.ensure_base(&projects[1]).unwrap();
+    assert_eq!(first, second);
+    assert!(first.starts_with(temp.path().join("work/shared-originals")));
+    assert_eq!(fs::read(first.join(MODEL)).unwrap(), TEXT.as_bytes());
+    assert_eq!(fs::read(first.join("materials/extra.vmat")).unwrap(), b"extra");
+    for project in &projects {
+        let root = workspace::root(&settings, project).unwrap();
+        assert!(!root.join("base").exists());
+        assert_eq!(base_dir(&settings, project).unwrap(), first);
+    }
+    // Reuse needs no tool and keeps the shared copy.
+    assert_eq!(service.ensure_base(&projects[0]).unwrap(), first);
+}

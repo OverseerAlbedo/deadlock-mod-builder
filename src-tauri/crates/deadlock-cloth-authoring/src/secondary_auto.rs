@@ -47,6 +47,9 @@ pub(crate) fn parameters(
             1.,
         ),
         Kind::Tail | Kind::Accessory => (0.65 - 0.30 * t, 0.15, 1.),
+        // A gentle spring: it settles back quickly, is damped, and does not sag.
+        Kind::Breast => (0.6, 0.3, 0.),
+        Kind::Rigid => (1., 0., 0.),
     };
     match choice.unwrap_or("automatic") {
         "automatic" => {}
@@ -70,6 +73,9 @@ pub(crate) fn parameters(
         } else {
             length * t * 0.60 + radius
         }
+    } else if kind == Kind::Breast {
+        // Bounded movement keeps the jiggle natural (inches).
+        (length * 0.25).clamp(0.3, 0.8)
     } else {
         0.
     };

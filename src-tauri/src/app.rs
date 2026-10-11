@@ -134,6 +134,17 @@ pub struct Application {
     pub(crate) extras_catalog: Mutex<Option<crate::catalogs::PreviewCatalog>>,
 }
 
+/// A game model with what the installed game does with it.
+#[derive(Debug, Clone, Serialize)]
+pub struct HeroModel {
+    #[serde(flatten)]
+    pub model: deadlock_vpk::Model,
+    /// Roster name of the hero this model belongs to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hero: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub game: Option<deadlock_components::heroes::GameTarget>,
+}
 fn lock<T>(value: &Mutex<T>) -> MutexGuard<'_, T> {
     value
         .lock()
@@ -411,6 +422,7 @@ impl Application {
                     .map_err(|e| AppError::validation("Project could not be opened", e))
             })?;
             token.check()?;
+            self.remember_project(path, &project);
             Ok(ProjectDocument {
                 path: Some(path_text(path)?),
                 project,
@@ -426,6 +438,7 @@ impl Application {
                     .save(path)
                     .map_err(|e| AppError::validation("Project could not be saved", e))
             })?;
+            self.remember_project(path, &project);
             Ok(ProjectDocument {
                 path: Some(path_text(path)?),
                 project,
@@ -525,7 +538,7 @@ impl Application {
         })
         .map(|(packet, _)| packet)
     }
-    pub fn heroes(&self, all_models: bool) -> Result<Vec<deadlock_vpk::Model>> {
+    pub fn heroes(&self, all_models: bool) -> Result<Vec<HeroModel>> {
         self.operation("Read game model catalog", |clock, token| {
             let settings = self.settings()?;
             if settings.pak.is_empty() {
@@ -540,7 +553,22 @@ impl Application {
                     .map_err(|e| AppError::validation("Game archive could not be read", e))
             })?;
             token.check()?;
-            self.step(clock, "List game models", || Ok(archive.models(all_models)))
+            let models = self.step(clock, "List game models", || Ok(archive.models(all_models)))?;
+            // Hero definitions say which model the game loads for each hero. A
+            // missing or unreadable definition only removes this extra detail.
+            let game = self.step(clock, "Read hero model choices of the game", || {
+                Ok(deadlock_components::heroes::GameModels::read(&archive).unwrap_or_else(|error| {
+                    let _ = self.append_log("warning", &format!("Hero definitions could not be read: {error}"));
+                    None
+                }))
+            })?;
+            Ok(models
+                .into_iter()
+                .map(|model| {
+                    let target = game.as_ref().and_then(|g| g.target(&model.path).ok().flatten());
+                    HeroModel { hero: deadlock_components::heroes::display_name(&model.path), game: target, model }
+                })
+                .collect())
         })
         .map(|(models, _)| models)
     }
@@ -548,14 +576,17 @@ impl Application {
         let models = self.heroes(true)?;
         let selected = models
             .iter()
-            .find(|record| record.path == path)
+            .find(|record| record.model.path == path)
             .ok_or_else(|| {
                 AppError::validation(
                     "Select an existing game model",
                     "The selected model is not in the configured archive.",
                 )
             })?;
-        project.change_hero(selected.name.clone(), selected.path.clone());
+        project.change_hero(
+            selected.hero.clone().unwrap_or_else(|| selected.model.name.clone()),
+            selected.model.path.clone(),
+        );
         project
             .validate_draft()
             .map_err(|e| AppError::validation("Project could not be updated", e))?;

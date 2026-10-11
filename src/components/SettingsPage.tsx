@@ -6,7 +6,8 @@ import { CompactPathField } from './Paths';
 import { ToolDownloads, ToolLink } from '../setup/ToolDownloads';
 import type { ToolLinkId } from '../setup/toolLinks';
 
-const pathFields: {key: keyof Settings; label: string; directory: boolean; download?: ToolLinkId; hint?: string}[] = [
+type PathKey = {[K in keyof Settings]-?: Settings[K] extends string ? K : never}[keyof Settings];
+const pathFields: {key: PathKey; label: string; directory: boolean; download?: ToolLinkId; hint?: string}[] = [
   {key: 'workspace', label: 'Workspace folder', directory: true},
   {key: 'deadlock', label: 'Deadlock installation', directory: true, download: 'deadlock'},
   {key: 'pak', label: 'Deadlock game archive', directory: false},

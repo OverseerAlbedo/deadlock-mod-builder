@@ -113,11 +113,11 @@
   },
   {
     "name": "Rem",
-    "path": "models/heroes_wip/familiar/familiar.vmdl",
+    "path": "models/heroes_wip/familiar/familiar_wip.vmdl",
     "extras": [
       {
-        "name": "Rem WIP",
-        "path": "models/heroes_wip/familiar/familiar_wip.vmdl"
+        "name": "Unused model",
+        "path": "models/heroes_wip/familiar/familiar.vmdl"
       }
     ]
   },

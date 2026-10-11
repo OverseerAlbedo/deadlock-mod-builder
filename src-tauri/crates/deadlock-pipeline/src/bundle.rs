@@ -703,6 +703,7 @@ impl<B: BundleMemberBuilder> BundleService<'_, B> {
                             &pending.0,
                             &output,
                             &root.join("backups"),
+                            self.settings.keep_backups as usize,
                             overwrite_output,
                             self.cancel,
                         )?;

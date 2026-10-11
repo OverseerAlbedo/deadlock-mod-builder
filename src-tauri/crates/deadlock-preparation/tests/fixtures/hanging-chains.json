@@ -1,5 +1,5 @@
 {
- "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain). The short pouch chain and the finger chain on the hand stay body bones.",
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest.",
  "bones": [
   {
    "name": "Bip001_Pelvis",
@@ -225,6 +225,150 @@
     0,
     0.86
    ]
+  },
+  {
+   "name": "Bone_Breast_L_00",
+   "parent": "Bip001_Spine1",
+   "position": [
+    0.05,
+    -0.03,
+    1.23
+   ]
+  },
+  {
+   "name": "Bone_Breast_R_00",
+   "parent": "Bip001_Spine1",
+   "position": [
+    -0.05,
+    -0.03,
+    1.23
+   ]
+  },
+  {
+   "name": "Hair_Back_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0,
+    0.05,
+    1.5
+   ]
+  },
+  {
+   "name": "Hair_Back_01",
+   "parent": "Hair_Back_00",
+   "position": [
+    0,
+    0.08,
+    1.4
+   ]
+  },
+  {
+   "name": "Hair_Back_02",
+   "parent": "Hair_Back_01",
+   "position": [
+    0,
+    0.09,
+    1.3
+   ]
+  },
+  {
+   "name": "HairPin_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0.06,
+    -0.02,
+    1.55
+   ]
+  },
+  {
+   "name": "HairPin_01",
+   "parent": "HairPin_00",
+   "position": [
+    0.07,
+    -0.02,
+    1.56
+   ]
+  },
+  {
+   "name": "HairLoop_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0.08,
+    0,
+    1.6
+   ]
+  },
+  {
+   "name": "HairLoop_01",
+   "parent": "HairLoop_00",
+   "position": [
+    0.04,
+    0.0693,
+    1.6
+   ]
+  },
+  {
+   "name": "HairLoop_02",
+   "parent": "HairLoop_01",
+   "position": [
+    -0.04,
+    0.0693,
+    1.6
+   ]
+  },
+  {
+   "name": "HairLoop_03",
+   "parent": "HairLoop_02",
+   "position": [
+    -0.08,
+    0,
+    1.6
+   ]
+  },
+  {
+   "name": "HairLoop_04",
+   "parent": "HairLoop_03",
+   "position": [
+    -0.04,
+    -0.0693,
+    1.6
+   ]
+  },
+  {
+   "name": "HairLoop_05",
+   "parent": "HairLoop_04",
+   "position": [
+    0.04,
+    -0.0693,
+    1.6
+   ]
+  },
+  {
+   "name": "Hat_Ribbon_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0.05,
+    0.06,
+    1.58
+   ]
+  },
+  {
+   "name": "Hat_Ribbon_01",
+   "parent": "Hat_Ribbon_00",
+   "position": [
+    0.06,
+    0.1,
+    1.5
+   ]
+  },
+  {
+   "name": "Hat_Ribbon_02",
+   "parent": "Hat_Ribbon_01",
+   "position": [
+    0.07,
+    0.13,
+    1.42
+   ]
   }
  ],
  "weighted": [
@@ -250,7 +394,23 @@
   "Strap_03",
   "Pouch_00",
   "Pouch_01",
-  "Pouch_02"
+  "Pouch_02",
+  "Bone_Breast_L_00",
+  "Bone_Breast_R_00",
+  "Hair_Back_00",
+  "Hair_Back_01",
+  "Hair_Back_02",
+  "HairPin_00",
+  "HairPin_01",
+  "HairLoop_00",
+  "HairLoop_01",
+  "HairLoop_02",
+  "HairLoop_03",
+  "HairLoop_04",
+  "HairLoop_05",
+  "Hat_Ribbon_00",
+  "Hat_Ribbon_01",
+  "Hat_Ribbon_02"
  ],
  "roles": {
   "pelvis": "Bip001_Pelvis",
@@ -262,6 +422,25 @@
  "expected_roots": [
   "Bone_Robe_L_00",
   "Bone_Robe_R_00",
+  "Hair_Back_00",
+  "Hat_Ribbon_00",
   "Strap_00"
- ]
+ ],
+ "expected_roots_with_breast_motion": [
+  "Bone_Breast_L_00",
+  "Bone_Breast_R_00",
+  "Bone_Robe_L_00",
+  "Bone_Robe_R_00",
+  "Hair_Back_00",
+  "Hat_Ribbon_00",
+  "Strap_00"
+ ],
+ "breast_bones": [
+  "Bone_Breast_L_00",
+  "Bone_Breast_R_00"
+ ],
+ "renamed_breast_bones": {
+  "Bone_Breast_L_00": "Bone_C_L_00",
+  "Bone_Breast_R_00": "Bone_C_R_00"
+ }
 }

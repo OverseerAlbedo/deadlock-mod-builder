@@ -50,6 +50,9 @@ fn validate_row(row: &AppearanceMaterial) -> Result<()> {
             "Appearance color needs three finite RGB values from 0 to 1.",
         ));
     }
+    if let Some(adjustment) = crate::color_adjust::Adjustment::from_row(row) {
+        adjustment.validate()?;
+    }
     Ok(())
 }
 fn selections(state: &Customization) -> Result<&[AppearanceMaterial]> {
@@ -78,10 +81,10 @@ pub fn apply_materials(plans: &Plans, state: &Customization) -> Result<Plans> {
     Ok(plans.clone())
 }
 #[derive(Debug)]
-struct Token {
-    value: String,
-    start: usize,
-    end: usize,
+pub(crate) struct Token {
+    pub(crate) value: String,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
     structural: bool,
 }
 fn tokens(text: &str) -> Result<Vec<Token>> {
@@ -169,7 +172,7 @@ fn tokens(text: &str) -> Result<Vec<Token>> {
     }
     Ok(out)
 }
-fn layer(text: &str) -> Result<(BTreeMap<String, Token>, usize)> {
+pub(crate) fn layer(text: &str) -> Result<(BTreeMap<String, Token>, usize)> {
     let tokens = tokens(text)?;
     if tokens.len() < 3
         || tokens[0].value != "Layer0"
@@ -217,7 +220,7 @@ fn layer(text: &str) -> Result<(BTreeMap<String, Token>, usize)> {
     }
     Ok((params, end))
 }
-fn number(value: f64) -> String {
+pub(crate) fn number(value: f64) -> String {
     if value == 0.0 {
         return if value.is_sign_negative() {
             "-0".into()
@@ -334,7 +337,7 @@ pub fn patch_materials(
             )));
         }
         let source = read_text(&path)?;
-        let patched = patch_text(&source, row)?;
+        let patched = crate::color_adjust::adjust_material(content, target, &patch_text(&source, row)?, row, cancel)?;
         if patched != source {
             staged.push((target.to_owned(), path, patched));
         }

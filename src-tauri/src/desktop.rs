@@ -92,7 +92,7 @@ async fn preview_source(state: AppState<'_>, path: PathBuf) -> Result<tauri::ipc
     background(move || app.preview_source(&path).map(tauri::ipc::Response::new)).await
 }
 #[tauri::command]
-async fn get_heroes(state: AppState<'_>, all_models: bool) -> Result<Vec<deadlock_vpk::Model>> {
+async fn get_heroes(state: AppState<'_>, all_models: bool) -> Result<Vec<crate::app::HeroModel>> {
     let app = state.inner().clone();
     background(move || app.heroes(all_models)).await
 }
@@ -321,7 +321,10 @@ pub fn run() {
             crate::cloth_authoring::commands::skirt_author,
             crate::cloth_authoring::commands::cloth_setup,
             crate::vpk_slots::commands::get_vpk_slots,
-            crate::vpk_slots::commands::choose_free_vpk_slot
+            crate::vpk_slots::commands::choose_free_vpk_slot,
+            crate::storage::commands::storage_report,
+            crate::storage::commands::storage_clear,
+            crate::storage::commands::storage_find_projects
         ])
         .run(tauri::generate_context!());
     if let Err(error) = result {

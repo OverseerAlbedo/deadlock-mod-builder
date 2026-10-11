@@ -45,43 +45,44 @@ and Arti10027, robe streamers `Bone_Robe_L/R_00-04`).
   `src/preparation/secondary-bones.ts`. They share
   `deadlock-preparation/tests/fixtures/hanging-chains.json`; extend that fixture
   and all three tests when the rules change.
-- Part kinds (hair, tail, streamer, cloth) are classified separately in
-  `deadlock-cloth-authoring/src/parts.rs` (`semantic`, `analyze`).
+- Part kinds (hair, tail, streamer, cloth, breast, rigid) are classified separately in
+  `deadlock-cloth-authoring/src/parts.rs` (`semantic`, `analyze`). Its names reuse
+  `named_breast` and `rigid_named` from `secondary_bones.rs`.
+- `scripts/test_blender_moving_parts.py` checks the Python detector against the
+  shared fixture (run it with Blender).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
 - Do not update dependencies or lockfiles unless the change needs it.
 - Version must agree in package.json, package-lock.json, Cargo.toml files and
   tauri.conf.json (`node scripts/check-repository.mjs` checks this).
 
-## Planned work (agreed with the user)
+## Implemented after Alpha 51 (uncommitted on master; needs Windows and in-game checks)
 
-1. **Storage.** Workspaces live in `%LOCALAPPDATA%\DeadlockModBuilder\workspaces\<project id>`
-   and are never pruned (about 21 GB on the user's PC). Fix, in this order:
-   - Prepare creates `humanoid_preparation/<uuid>` per run
-     (`deadlock-preparation/src/service.rs`, around the "Stage character source"
-     step); keep only the run the project uses (plus optionally the previous one).
-   - `backups/base-*` (original hero sources, `deadlock-pipeline/src/sources.rs`)
-     and replaced VPKs (`publish_copy` in `deadlock-pipeline/src/package.rs`)
-     accumulate; keep the last one or two.
-   - Workspaces of unsaved/discarded projects remain; offer to remove them.
-   - Rebuildable build data (`split-dmx`, `native-model`, `build-evidence`,
-     `material-cache`) can be cleared after a successful build.
-   - Share the extracted original hero (`base`) per hero and game version
-     instead of per project.
-   - A **Storage** section in Settings (`src/components/SettingsPage.tsx`) that
-     shows size per project and per kind of data, with Clear buttons and
-     retention settings. The user specifically wants this.
-2. **Breast jiggle (optional toggle, natural, not overdone).** Detect breast bones
-   (names and geometry: paired chest-children in front of the chest) and give
-   them a gentle spring profile through the existing secondary-motion path
-   (`deadlock-cloth-authoring/src/secondary.rs` profiles,
-   `deadlock-pipeline/src/motion.rs`). Off by default; tune in game.
-3. **Hair false positives.** Halos and hats are sometimes detected as hair and
-   get hair motion. Rigid head accessories (halo, hat, crown, horn, helmet, ear
-   ornaments, glasses) must not become hair; check names and geometry (rigid,
-   closed or ring-shaped, not a hanging chain) in the three detectors and in
-   `parts.rs`.
-4. **Experimental color editor.** Simple per-material hue/saturation/brightness
-   or tint for models. Build on Appearance → Surface changes (tint already exists,
-   `src/components/MaterialEditor.tsx`, `deadlock-materials`).
+The four planned items and the Rem target issue are implemented; see the
+`Unreleased` section of CHANGELOG.md.
 
-Also see the user's "Character Target Mapping Issue" document if they share it.
+- **Storage**: `deadlock-pipeline/src/storage.rs` (classification, report, clear,
+  retention; never removes paths a project references, locked workspaces, or
+  compiler folders whose `.deadlock-builder.json` names another project) and
+  `src-tauri/src/storage.rs` (commands `storage_report`, `storage_clear`,
+  `storage_find_projects`; registry `known-projects.json` in the app config dir;
+  pruning after Inspect/Convert/Accept). UI: `src/components/StorageSection.tsx`.
+  Settings fields `keep_backups`, `keep_previous_preparation`,
+  `clear_build_data_after_build`. Game-archive original hero sources are shared in
+  `<workspace>/shared-originals/<key>` (`sources::base_dir`); imported folders
+  stay per project.
+- **Breast motion**: `breast_motion` preparation option (unset = old behavior),
+  `breast_roots` in the three detectors, `physics_kinds` option read by
+  `secondary::setup`, `Kind::Breast` parameters in `secondary_auto.rs`.
+- **Rigid accessories**: `RIGID_HINTS`, `rigid_named`, `ring_chain` in the three
+  detectors; `Kind::Rigid` and the ring rule in `parts.rs`.
+- **Color editor**: `hue`/`saturation`/`brightness` on `AppearanceMaterial`,
+  `deadlock-materials/src/color_adjust.rs` (adjusted copy of the staged
+  base-color image), UI in `MaterialEditor.tsx` (the CSS preview is approximate).
+- **Game targets (Rem)**: `heroes::GameModels` reads `scripts/heroes.vdata`;
+  `get_heroes` returns `hero` and `game` per model; Analyze warns on a target the
+  game does not load; the roster's Rem main entry is `familiar_wip.vmdl`.
+
+Still to do: Windows build (`scripts/build-windows.ps1`), in-game checks of
+breast motion amounts, rigid accessories, color edits and a Rem build, and a real
+Storage cleanup on the user's PC (dry run: 37 GB total, 28 GB clearable).
+

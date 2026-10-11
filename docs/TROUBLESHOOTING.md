@@ -37,13 +37,19 @@ If attachment, relative scale, live controls or independent part physics still p
 
 If the source contains a gun, the **Weapon** tab offers to fit it onto the hero's gun, leave it out, or keep it in the hand. *Replace* is only available when the hero's gun is part of the hero model. When the hero's gun is a separate model, use **Appearance → Equipment → Weapon model** to create a weapon project from the same file. Use **Preview gun fit**; if the gun points backwards or is upside down, use *Flip barrel direction* or *Roll*. Shots and muzzle flashes come from the original muzzle bones, so check aim and grip in game.
 
-Choose the main hero model unless an alternate variant is intended. A valid VPK targeting an unused model path can compile without visibly replacing the character being tested. Check the installation slot and disable conflicting mods when diagnosing this.
+Choose the main hero model unless an alternate variant is intended. A valid VPK targeting an unused model path can compile without visibly replacing the character being tested. The character picker reads the installed game's hero definitions: the model the game loads is listed under the hero's name, and roster models it does not load are marked *Not used in game* (for example Rem loads `familiar_wip.vmdl`, not `familiar.vmdl`). Analyze warns when a saved project still targets such a model; choose the game's model, then prepare and build again. Check the installation slot and disable conflicting mods when diagnosing this.
 
 ## Physics
 
 Automatic mode operates on preserved secondary groups and available mesh evidence. Narrow straps, long streamers, broad skirt panels and upper attachments have different treatment. An explicit override can intentionally prevent automatic classification. Re-analyze a changed project and rebuild to apply a new plan.
 
+Halos, hats, crowns, hairpins and other rigid accessories stay on the head instead of receiving hair motion. Breast motion is optional (Model preparation → moving parts, off by default); after turning it on, convert again and adjust the amount under Motion → Adjust moving parts.
+
 Vindicta, Daki, TangTang and Graves have accepted user-tested configurations. This is not certification of every combination of source character, target hero, motion, and game version. Native test fixtures, standalone previews and compiler success do not replace gameplay verification.
+
+## Disk space
+
+Projects are built in the workspace folder (by default `%LOCALAPPDATA%DeadlockModBuilderworkspaces`), and each project also has working copies in the CSDK and model toolset folders. **Settings → Storage** shows how much each project uses and clears data the builder can recreate: old model preparations, older backups, build caches, compiler working folders and leftovers of interrupted operations. Data a saved or open project still uses, built VPKs and workspaces with a build lock are kept. **Remove…** deletes all stored data of one project (its saved project file stays; installed mods are not touched). Retention choices are saved with the other settings.
 
 ## Logs
 

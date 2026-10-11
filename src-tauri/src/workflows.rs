@@ -130,6 +130,17 @@ impl Application {
                         .save(&path)
                         .map_err(|e| deadlock_core::CoreError::Integrity(e.to_string()))
                 })?;
+            self.remember_project(&path, &project);
+            if service.model.settings.clear_build_data_after_build {
+                // Optional: caches and compiler folders the next build recreates.
+                let cleared = service.model.clock.measure("Clear rebuildable build data", None, |_| {
+                    deadlock_pipeline::storage::clear_after_build(service.model.settings, &project, service.model.cancel)
+                })?;
+                (service.model.log)(&format!(
+                    "Cleared {:.1} MB of rebuildable build data",
+                    cleared.removed_bytes as f64 / 1_048_576.0
+                ));
+            }
             Ok(ProjectBuild {
                 project,
                 result,

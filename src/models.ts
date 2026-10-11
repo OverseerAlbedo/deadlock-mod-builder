@@ -74,7 +74,18 @@ export interface Settings {
   workspace: string;
   last_project: string;
   blender: string;
+  /** Replaced VPKs and original-source backups kept per file. */
+  keep_backups?: number;
+  keep_previous_preparation?: boolean;
+  clear_build_data_after_build?: boolean;
 }
+export type StorageKind = 'preparation' | 'originals' | 'backups' | 'output' | 'build_data' | 'compiler' | 'temporary' | 'records';
+export interface StorageUsage { kind: StorageKind; bytes: number; reclaimable: number }
+export interface StorageProject { id: string; name: string; hero: string; project_file: string | null; open: boolean; locked: boolean; workspace: string | null; modified: number | null; bytes: number; reclaimable: number; usage: StorageUsage[] }
+export interface StorageShared { key: string; model: string; bytes: number; used_by: string[] }
+export interface StorageReport { workspace: string; bytes: number; reclaimable: number; projects: StorageProject[]; shared: StorageShared[]; other_bytes: number }
+export interface StorageClearRequest { project?: string; kinds?: StorageKind[]; remove_project?: boolean; unused_shared?: boolean }
+export interface StorageClearResult { removed_bytes: number; removed: string[]; skipped: string[] }
 export type OperationStatus = 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'cached';
 export type StepStatus = OperationStatus;
 export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean }
@@ -142,7 +153,9 @@ export interface ModelSummary {
 }
 export interface AnalysisResult { summary: ModelSummary; timings: TimingReport }
 
-export interface HeroRecord { name: string; path: string; likely_hero: boolean }
+/** What the installed game does with a model, from its hero definitions (m_strModelName). */
+export type GameTarget = {state:'active';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]};
+export interface HeroRecord { name: string; path: string; likely_hero: boolean; hero?: string; game?: GameTarget }
 export type AssetKind = 'icons' | 'animations' | 'effects' | 'audio';
 export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project';
 export interface ResourceReplacement {
@@ -151,13 +164,15 @@ export interface ResourceReplacement {
   volume_percent?: number; audio_fit?: 'exact' | 'pad' | 'trim';
   [key: string]: JsonValue | undefined;
 }
-export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'>; [key:string]: JsonValue|undefined }
+export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'rigid'>; [key:string]: JsonValue|undefined }
 export interface PhysicsChoices { enabled?: boolean; source?: string; hero_path?: string; [key: string]: JsonValue | undefined }
 export interface ClothingChoices { enabled?: boolean; mode?: 'weighted' | 'simulated'; source?: string; [key: string]: JsonValue | undefined }
 export interface ClothSetupChoices { meshes?: string[]; attachment?: 'top' | 'bottom'; collision?: 'legs' | 'none'; [key: string]: JsonValue | undefined }
 export interface AppearanceMaterial {
   enabled?: boolean; target?: string; color?: [number,number,number]; roughness?: number;
-  metalness?: number; opacity?: number; emission?: number; [key: string]: JsonValue | undefined;
+  metalness?: number; opacity?: number; emission?: number;
+  /** Experimental color editor: hue shift in degrees (-180–180); saturation and brightness factors (0–2, 1 keeps the original). */
+  hue?: number; saturation?: number; brightness?: number; [key: string]: JsonValue | undefined;
 }
 export interface EquipmentMesh {
   target?: string; action?: 'keep' | 'hide' | 'replace'; sources?: string[]; include_lods?: boolean;

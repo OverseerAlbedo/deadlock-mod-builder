@@ -43,7 +43,7 @@ Counts include name-based alternate artwork and shared images referenced by the 
 | Paradox | 17 | 3 | 0 | 0 |
 | Pocket | 18 | 3 | 0 | 0 |
 | Rem | 17 | 4 | 0 | 0 |
-| Rem WIP | 17 | 4 | 0 | 0 |
+| Rem (unused model, `familiar.vmdl`) | 17 | 4 | 0 | 0 |
 | Seven | 17 | 3 | 0 | 0 |
 | Shiv | 23 | 3 | 0 | 0 |
 | Shiv Ult | 23 | 3 | 0 | 0 |

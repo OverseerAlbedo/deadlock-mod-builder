@@ -6,6 +6,7 @@ pub mod motion;
 pub mod secondary_motion;
 pub mod package;
 pub mod sources;
+pub mod storage;
 pub mod workspace;
 use deadlock_core::{CoreError, Result, TimingRecorder, TimingStatus};
 
