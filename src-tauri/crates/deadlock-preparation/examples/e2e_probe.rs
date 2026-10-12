@@ -4,6 +4,7 @@
 //!   e2e_probe plan INSPECTION TARGET_FIXTURE WORKSPACE MODE[hero|weapon] ACTION[replace|remove|keep|none] FIT[match_target|preserve_proportions]
 //!   e2e_probe validate INSPECTION TARGET_FIXTURE OPTIONS REPORT OUTPUT.dmx
 //!   e2e_probe orient INSPECTION      (prints the upright rotation or null)
+//!   e2e_probe hand INSPECTION        (prints the right-hand bone that holds a gun file, or null)
 //!
 //! The hero gun reference here is synthetic (built at the hero's weapon bones);
 //! production measures the decompiled original gun meshes instead.
@@ -90,7 +91,7 @@ fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     match a.first().map(String::as_str) {
         Some("plan") => {
-            let inspection: Inspection = read(&a[1]);
+            let mut inspection: Inspection = read(&a[1]);
             let (_, target) = canonical(&a[2]);
             let workspace = Path::new(&a[3]);
             let mode = a[4].as_str();
@@ -101,6 +102,11 @@ fn main() {
             complete.values.insert("complete_mapping".into(), true.into());
             let suggestions = automap::suggest(&inspection.bones, &inspection.weighted_bones, &target_bones, &complete).expect("suggest");
             let source_roles = suggestions.source.as_ref().map(|s| s.roles.clone()).unwrap_or_default();
+            if mode != "weapon" {
+                // As the service does: the offered guns mark their bones, so charms on them are found.
+                let offered: Vec<_> = inspection.weapons.iter().filter(|c| c.gun_file || weapon::score(c, &inspection.bones, &source_roles) >= 2.5).cloned().collect();
+                weapon::mark_gun_bones(&mut inspection.bones, &offered);
+            }
             let mut options = json!({
                 "reviewed": true, "follow_motion_reviewed": true, "fit_mode": fit_mode, "arm_skinning": "smooth_twist",
                 "source_roles": source_roles, "target_roles": suggestions.target.roles, "mapping": suggestions.mapping,
@@ -121,7 +127,8 @@ fn main() {
             }
             let mut plan = None;
             if action != "none" {
-                let candidate = weapon::best_candidate(&inspection.weapons, &inspection.bones, &source_roles).expect("gun candidate");
+                // Same choice as a fresh inspection: the gun file first, then a clear candidate.
+                let candidate = weapon::suggest(&inspection.weapons, &inspection.bones, &source_roles, mode == "weapon").expect("gun candidate");
                 let reference = if mode == "weapon" {
                     weapon::Reference { separate_model: true, ..synthetic_reference(&target_bones) }
                 } else {
@@ -144,7 +151,8 @@ fn main() {
             let job = json!({
                 "operation": "prepare", "source": inspection_source(&a[1]), "mode": if mode == "weapon" { "weapon" } else { "rigged_humanoid" },
                 "target": target, "hero_root": "models/heroes_wip/test", "options": options, "rotation": inspect_job["rotation"].clone(),
-                "correction": false, "weapon": plan, "breast_bones": inspect_job["breast_bones"].clone(),
+                "correction": false, "weapon": plan, "gun_bones": weapon::gun_marks(&inspection.bones), "breast_bones": inspect_job["breast_bones"].clone(),
+                "weapon_source": inspect_job["weapon_source"].clone(),
                 "result": workspace.join("result.json"), "workspace": workspace,
             });
             fs::create_dir_all(workspace).unwrap();
@@ -160,12 +168,36 @@ fn main() {
                 None => println!("null"),
             }
         }
-        Some("validate") => {
+        Some("hand") => {
+            // The bone the service asks Blender to put the gun file in.
             let inspection: Inspection = read(&a[1]);
+            let hand = if inspection.bones.is_empty() {
+                None
+            } else {
+                automap::roles(&inspection.bones, &inspection.weighted_bones, &Default::default()).expect("roles").roles.get("hand_R").cloned()
+            };
+            println!("{}", serde_json::to_string(&hand).unwrap());
+        }
+        Some("validate") => {
+            let mut inspection: Inspection = read(&a[1]);
             let (skeleton, target) = canonical(&a[2]);
             let options: PreparationOptions = read(&a[3]);
             let report: PreparedResponse = read(&a[4]);
-            let plan = secondary_bones::selection(&inspection.bones, &inspection.weighted_bones, &target.iter().map(Bone::from).collect::<Vec<_>>(), &options).expect("secondary plan");
+            // The planned job beside the options holds the gun plan and the gun-bone marks.
+            let job: Value = read(&Path::new(&a[3]).with_file_name("job.json").to_string_lossy());
+            let gun: Option<weapon::Plan> = serde_json::from_value(job["weapon"].clone()).expect("weapon plan");
+            let marks: BTreeMap<String, Vec<String>> = serde_json::from_value(job.get("gun_bones").cloned().unwrap_or(json!({}))).expect("gun bones");
+            for bone in &mut inspection.bones {
+                if let Some(ids) = marks.get(&bone.name) {
+                    bone.details.insert("weapon".into(), json!(ids));
+                }
+            }
+            let plan = secondary_bones::selection_for(&inspection.bones, &inspection.weighted_bones, &target.iter().map(Bone::from).collect::<Vec<_>>(), &options, gun.as_ref()).expect("secondary plan");
+            if let Some(plan) = &plan {
+                let preserved: Option<secondary_bones::PreservationPlan> = serde_json::from_value(report.algorithm_audits.get("preserved_physics_bones").cloned().unwrap_or(Value::Null)).expect("preserved bones");
+                assert_eq!(preserved.as_ref(), Some(plan), "Blender and the native selection disagree");
+                eprintln!("moving parts: {:?}", plan.groups.iter().map(|g| (&g.root, &g.target_anchor)).collect::<Vec<_>>());
+            }
             let extended = secondary_bones::export_skeleton(&skeleton, &target, &report.target, &inspection.bones, plan.as_ref()).expect("unchanged original binds");
             let receipt = export_dmx(&PreparedReport { meshes: report.meshes.clone(), extra: BTreeMap::new() }, &extended, Path::new(&a[5])).expect("native export and bind checks");
             println!("validated {} meshes, {} bones, policy {}; skinning {}", report.meshes.len(), extended.names.len(), report.rest_alignment.policy, serde_json::to_string(&receipt.skinning).unwrap());

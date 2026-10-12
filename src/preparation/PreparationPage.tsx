@@ -8,7 +8,7 @@ import { PhysicsBoneChoices } from './PhysicsBoneChoices';
 import { SceneObjects } from './SceneObjects';
 import { WeaponPanel, weaponDefaults } from './WeaponPanel';
 import { weaponLike } from '../components/WeaponModels';
-import { physicsGroups, keptPhysicsBones, automaticPhysicsOptions, breastBones, breastMotionOptions, SECONDARY_PREFIX } from './secondary-bones';
+import { physicsGroups, keptPhysicsBones, automaticPhysicsOptions, breastBones, breastMotionOptions, gunChoiceOptions, hangsFromGun, SECONDARY_PREFIX } from './secondary-bones';
 import { Check, SelectField } from '../components/CustomizationPages';
 import { NumberField } from '../components/MaterialEditor';
 import { Disclosure, Section } from '../components/Primitives';
@@ -56,7 +56,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
     const sameSource=source===project.preparation_source||source===analysis?.source_original||source===analysis?.source;
     const sent=sameSource?project:{...project,preparation_options:asOptions({...options,scene:undefined,weapon:undefined})};
     const value=await api.preparationInspect(sent,source,rotation);if(version!==generation.current)return;
-    let choices=value.suggestions,base:PreparationOptions={influence_limit:options.influence_limit??4,fit_mode:options.fit_mode??'match_target',arm_skinning:options.arm_skinning??'smooth_twist',complete_mapping:true,...(sameSource&&options.scene?{scene:options.scene}:{}),...(sameSource&&options.weapon?{weapon:options.weapon}:{})};
+    let choices=value.suggestions,base:PreparationOptions={influence_limit:options.influence_limit??4,fit_mode:options.fit_mode??'match_target',arm_skinning:options.arm_skinning??'smooth_twist',complete_mapping:true,...(sameSource&&options.scene?{scene:options.scene}:{}),...(sameSource&&options.weapon?{weapon:options.weapon}:{}),...(options.weapon_source?{weapon_source:options.weapon_source}:{})};
     if(sameSource&&Object.keys(options.mapping??{}).length){
       // Retain only choices that exist in this fresh pair of rigs.
       const validRoles=(roles:PreparationOptions['source_roles'],names:Set<string>)=>Object.fromEntries(Object.entries(roles??{}).filter(([,name])=>names.has(name)));
@@ -93,7 +93,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
   const boneLabel=(name:string)=>labels[name]?`${name} — ${labels[name]}`:name;
   const [panel,setPanel]=useState<PrepPanel>('roles');
   const [roleGroup,setRoleGroup]=useState('all');
-  const weaponOnly=project.model_input_mode==='weapon',weaponTab=weaponOnly||(analysis?.analysis.weapons?.length??0)>0;
+  const weaponOnly=project.model_input_mode==='weapon',weaponTab=weaponOnly||(analysis?.analysis.weapons?.length??0)>0||(Boolean(analysis)&&project.model_input_mode!=='prepared');
   const activePanel:PrepPanel=weaponOnly?(panel==='review'?'review':'weapon'):project.model_input_mode!=='rigged_humanoid'&&(panel==='physics'||panel==='mapping')?'roles':panel==='weapon'&&!weaponTab?'roles':panel;
   const shownRoles=ROLES.filter(role=>roleGroup==='all'||(roleGroup==='torso'?!role.includes('_'):roleGroup==='arms'?/upperarm|forearm|hand/.test(role):/thigh|shin|foot/.test(role)));
   const hero=project.hero_name||basename(project.original_model).replace(/\.vmdl(_c)?$/,'');
@@ -136,7 +136,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
             </tr>)}</tbody></table></div>
           </Section>
           </PreparationPanel>
-          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} options={options} change={changeOptions} busy={busy} breasts={{count:breastBones(analysis.analysis.bones,analysis.analysis.weighted_bones,options.source_roles??{}).length,toggle:enabled=>changeOptions(breastMotionOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,enabled)),added:Boolean(analysis.breast_generation),result:analysis.analysis.breast_bones,reinspect:()=>void inspect()}}/></PreparationPanel>}
+          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} gunParts={physics.filter(g=>hangsFromGun(g.root,analysis.analysis.bones,options.source_roles??{})).map(g=>g.root)} options={options} change={changeOptions} busy={busy} breasts={{count:breastBones(analysis.analysis.bones,analysis.analysis.weighted_bones,options.source_roles??{}).length,toggle:enabled=>changeOptions(breastMotionOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,enabled)),added:Boolean(analysis.breast_generation),result:analysis.analysis.breast_bones,reinspect:()=>void inspect()}}/></PreparationPanel>}
           {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="mapping" active={activePanel}>
           {project.model_input_mode==='rigged_humanoid'&&<Section title="Weighted bone mapping" className="prep-card prep-mapping-card">
             <p><strong>{unmapped}</strong> weighted bones still need a target. Every weighted bone must be resolved before conversion.</p>
@@ -171,7 +171,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
             {pageCount>1&&<div className="row"><button disabled={currentPage===0} onClick={()=>setPage(currentPage-1)}>Previous bones</button><span>{currentPage+1} / {pageCount}</span><button disabled={currentPage+1>=pageCount} onClick={()=>setPage(currentPage+1)}>Next bones</button></div>}
           </Section>}
           </PreparationPanel>}
-          {weaponTab&&<PreparationPanel id="weapon" active={activePanel}><WeaponPanel project={project} analysis={analysis} options={options} change={changeOptions} busy={busy} operate={operate}/></PreparationPanel>}
+          {weaponTab&&<PreparationPanel id="weapon" active={activePanel}><WeaponPanel project={project} analysis={analysis} options={options} change={values=>changeOptions(analysis?gunChoiceOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,values):values)} busy={busy} operate={operate} reinspect={()=>void inspect()}/></PreparationPanel>}
           <PreparationPanel id="review" active={activePanel}>
       <Section title="Conversion review" className="prep-card prep-review-card"><p className="prep-section-intro">Choose the fit, confirm your review, then check and convert using the action bar below.</p><div className="prep-fit-settings">{!weaponOnly&&<>
         <SelectField label="Arm skinning" value={options.arm_skinning??'source'} values={[["smooth_twist","Smooth twist weights (reference style)"],["source","Keep mapped source weights"]]} disabled={busy} onChange={value=>changeOptions({arm_skinning:value as PreparationOptions['arm_skinning'],reviewed:false})}/>

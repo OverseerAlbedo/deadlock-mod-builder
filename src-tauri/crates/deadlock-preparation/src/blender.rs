@@ -103,10 +103,11 @@ pub fn detect() -> Option<PathBuf> {
     candidates.sort();
     candidates.pop()
 }
-const SCRIPTS: [(&str, &[u8]); 20] = [
+const SCRIPTS: [(&str, &[u8]); 21] = [
     ("breast_bones.py", include_bytes!("../resources/blender/breast_bones.py")),
     ("scene_isolation.py", include_bytes!("../resources/blender/scene_isolation.py")),
     ("weapon_fit.py", include_bytes!("../resources/blender/weapon_fit.py")),
+    ("weapon_source.py", include_bytes!("../resources/blender/weapon_source.py")),
     ("source_compatibility.py", include_bytes!("../resources/blender/source_compatibility.py")),
     ("source_rigs.py", include_bytes!("../resources/blender/source_rigs.py")),
     ("arm_skinning.py", include_bytes!("../resources/blender/arm_skinning.py")),
@@ -208,6 +209,12 @@ pub enum Request {
         /// Add breast bones where the chest has breasts (breast motion).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         breast_bones: Option<serde_json::Value>,
+        /// Add the gun file's meshes (the right hand holds them).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        weapon_source: Option<crate::weapon::GunFile>,
+        /// Weapon-model projects: the source may be a gun-only file.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mode: Option<deadlock_project::ModelInputMode>,
     },
     StageBlend {
         source: String,
@@ -230,10 +237,26 @@ pub enum Request {
         /// Fitted gun meshes: source objects, source->target transform and skinning.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         weapon: Option<crate::weapon::Plan>,
+        /// Bones of the offered gun candidates (bone -> candidate ids), as the
+        /// inspection marked them; charms hanging from the gun are found by them.
+        #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        gun_bones: std::collections::BTreeMap<String, Vec<String>>,
         /// The breast-bone request the inspection used, repeated here.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         breast_bones: Option<serde_json::Value>,
+        /// The gun-file request the inspection used, repeated here.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        weapon_source: Option<crate::weapon::GunFile>,
     },
+}
+/// What an inspection repeats besides the source and its rotation.
+#[derive(Debug, Clone, Default)]
+pub struct InspectInputs {
+    pub garment: Option<PathBuf>,
+    pub scene: Option<serde_json::Value>,
+    pub breast_bones: Option<serde_json::Value>,
+    pub weapon_source: Option<crate::weapon::GunFile>,
+    pub weapon_model: bool,
 }
 impl BlenderBridge {
     pub fn execute<T: Serialize, R: DeserializeOwned>(
@@ -297,6 +320,21 @@ impl BlenderBridge {
         scene: Option<serde_json::Value>,
         breast_bones: Option<&serde_json::Value>,
     ) -> Result<R> {
+        let inputs = InspectInputs {
+            garment: garment.map(Path::to_path_buf),
+            scene,
+            breast_bones: breast_bones.cloned(),
+            ..Default::default()
+        };
+        self.inspect_with(source, destination, rotation, &inputs)
+    }
+    pub fn inspect_with<R: DeserializeOwned>(
+        &self,
+        source: &Path,
+        destination: &Path,
+        rotation: [f64; 3],
+        inputs: &InspectInputs,
+    ) -> Result<R> {
         if !rotation.iter().all(|v| v.is_finite()) {
             return Err(invalid("Source rotation must contain finite values."));
         }
@@ -304,9 +342,11 @@ impl BlenderBridge {
             &Request::Inspect {
                 source: path_text(source)?,
                 rotation,
-                garment_source: garment.map(path_text).transpose()?,
-                scene,
-                breast_bones: breast_bones.cloned(),
+                garment_source: inputs.garment.as_deref().map(path_text).transpose()?,
+                scene: inputs.scene.clone(),
+                breast_bones: inputs.breast_bones.clone(),
+                weapon_source: inputs.weapon_source.clone(),
+                mode: inputs.weapon_model.then_some(deadlock_project::ModelInputMode::Weapon),
             },
             destination,
         )

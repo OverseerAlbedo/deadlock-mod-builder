@@ -157,14 +157,14 @@ export interface AnalysisResult { summary: ModelSummary; timings: TimingReport }
 export type GameTarget = {state:'active';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]};
 export interface HeroRecord { name: string; path: string; likely_hero: boolean; hero?: string; game?: GameTarget }
 export type AssetKind = 'icons' | 'animations' | 'effects' | 'audio';
-export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project';
+export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project' | 'weapon';
 export interface ResourceReplacement {
   enabled?: boolean; source?: string; target?: string; allow_shared?: boolean;
   original_sha256?: string; fit?: 'contain' | 'cover' | 'stretch';
   volume_percent?: number; audio_fit?: 'exact' | 'pad' | 'trim';
   [key: string]: JsonValue | undefined;
 }
-export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'rigid'>; [key:string]: JsonValue|undefined }
+export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'charm'|'rigid'>; [key:string]: JsonValue|undefined }
 export interface PhysicsChoices { enabled?: boolean; source?: string; hero_path?: string; [key: string]: JsonValue | undefined }
 export interface ClothingChoices { enabled?: boolean; mode?: 'weighted' | 'simulated'; source?: string; [key: string]: JsonValue | undefined }
 export interface ClothSetupChoices { meshes?: string[]; attachment?: 'top' | 'bottom'; collision?: 'legs' | 'none'; [key: string]: JsonValue | undefined }

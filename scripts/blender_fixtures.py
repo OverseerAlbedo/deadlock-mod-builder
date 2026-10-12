@@ -199,6 +199,32 @@ def pistol(name='Pistol', grip=(-.74, 0, 1.45), forward=(0, -1, 0), up=(0, 0, 1)
     return mesh_object(name, parts, material(name + '_mat', (.2, .2, .22, 1)))
 
 
+def charmed_pistol(rig, hand, name='Pistol'):
+    """A pistol on its own gun bone with an unnamed two-link charm hanging below
+    the grip. The charm is part of the pistol mesh, weighted to its two links."""
+    data = rig.data
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode='EDIT')
+    for bone_name, parent, head, tail in (('Gun', hand, (-.74, 0, 1.45), (-.74, -.1, 1.45)),
+                                          ('Gun_Link_0', 'Gun', (-.74, .01, 1.37), (-.74, .01, 1.33)),
+                                          ('Gun_Link_1', 'Gun_Link_0', (-.74, .01, 1.33), (-.74, .01, 1.29))):
+        bone = data.edit_bones.new(bone_name)
+        bone.head, bone.tail, bone.use_deform = Vector(head), Vector(tail), True
+        bone.parent = data.edit_bones[parent]
+    bpy.ops.object.mode_set(mode='OBJECT')
+    grip, forward, up = Vector((-.74, 0, 1.45)), Vector((0, -1, 0)), Vector((0, 0, 1))
+    slide_center = grip + forward * .06 + up * .05
+    parts = [box(slide_center, forward, .24, .035, .045) + ({'Gun': 1.},),
+             box(grip - up * .02, up, .11, .03, .05) + ({'Gun': 1.},),
+             box(slide_center + forward * .13, forward, .03, .02) + ({'Gun': 1.},),
+             box((-.74, .01, 1.35), up, .035, .012) + ({'Gun_Link_0': 1.},),
+             box((-.74, .01, 1.31), up, .035, .02, .006) + ({'Gun_Link_1': 1.},)]
+    gun = mesh_object(name, parts, material(name + '_mat', (.2, .2, .22, 1)))
+    gun.parent = rig
+    gun.modifiers.new('Armature', 'ARMATURE').object = rig
+    return gun
+
+
 def bone_parent(obj, rig, bone):
     world = obj.matrix_world.copy()
     obj.parent = rig
@@ -354,6 +380,43 @@ def unrigged_character():
     cam = bpy.data.objects.new('Camera', bpy.data.cameras.new('Camera'))
     bpy.context.scene.collection.objects.link(cam)
     return body
+
+
+def gun_file():
+    """A gun in a file of its own: one unrigged object with no weapon words
+    ("Cube"), lying along X at the origin, on a floor with a camera."""
+    gun = pistol(name='Cube', grip=(0, 0, 0), forward=(1, 0, 0), up=(0, 0, 1))
+    mesh_object('Plane', [box((0, 0, -.1), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
+    cam = bpy.data.objects.new('Camera', bpy.data.cameras.new('Camera'))
+    bpy.context.scene.collection.objects.link(cam)
+    return gun
+
+
+def rigged_gun_file():
+    """A gun file with its own rig: frame and slide skinned to it, a bevelled
+    curve strap denser than either part, a hidden old part and a floor."""
+    arm = bpy.data.armatures.new('GunRig')
+    rig = bpy.data.objects.new('GunRig', arm)
+    bpy.context.scene.collection.objects.link(rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode='EDIT')
+    root = arm.edit_bones.new('root'); root.head = (0, 0, 0); root.tail = (0, 0, .05)
+    slide = arm.edit_bones.new('slide'); slide.head = (0, 0, .05); slide.tail = (.1, 0, .05); slide.parent = root
+    bpy.ops.object.mode_set(mode='OBJECT')
+    frame = mesh_object('Frame', [box((0, 0, -.02), (0, 0, 1), .11, .03, .05) + ({'root': 1.},)], material('Frame_mat'))
+    top = mesh_object('Slide', [box((.06, 0, .05), (1, 0, 0), .24, .035, .045) + ({'slide': 1.},)], material('Slide_mat'))
+    for obj in (frame, top):
+        obj.parent = rig
+        obj.modifiers.new('Armature', 'ARMATURE').object = rig
+    old = mesh_object('Old', [box((0, 0, 0), (1, 0, 0), .2, .03) + ({},)])
+    old.hide_render = True
+    curve = bpy.data.curves.new('Strap', 'CURVE')
+    curve.bevel_depth = .005
+    spline = curve.splines.new('POLY'); spline.points.add(2)
+    for point, co in zip(spline.points, [(-.05, 0, -.05, 1), (-.08, 0, -.1, 1), (-.05, 0, -.15, 1)]):
+        point.co = co
+    bpy.context.scene.collection.objects.link(bpy.data.objects.new('Strap', curve))
+    mesh_object('Plane', [box((0, 0, -.2), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
 
 
 def export(path):

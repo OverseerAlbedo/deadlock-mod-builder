@@ -7,7 +7,7 @@ import { CompactPathField } from './Paths';
 const extensions: Record<PathKind, string[]> = {
   texture_directory:[],texture:['png','tga','jpg','jpeg','tif','tiff','exr'],physics:['vmdl_c'],garment:['blend','glb','gltf','fbx'],icon:['png','jpg','jpeg'],
   animation:['vnmclip','vnmclip_c','blend','fbx','glb','gltf'],effect:['vpcf_c'],audio:['wav','mp3','flac','ogg','vsnd_c'],
-  prop:['blend','glb','gltf','fbx'],variant_project:['json'],
+  prop:['blend','glb','gltf','fbx'],variant_project:['json'],weapon:['blend','glb','gltf','fbx'],
 };
 export function FilePathInput({label,value,kind,update,disabled,fail}: {
   label:string;value:string;kind:PathKind;update:(path:string)=>void;disabled:boolean;fail:(title:string,error:unknown)=>void;

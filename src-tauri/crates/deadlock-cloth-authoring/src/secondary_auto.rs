@@ -39,6 +39,9 @@ pub(crate) fn parameters(
     if kind == Kind::Breast {
         return breast_parameters(length, choice);
     }
+    if kind == Kind::Charm {
+        return charm_parameters(t, root, length, choice);
+    }
     let (mut goal, mut drag, gravity) = match kind {
         Kind::Hair => (if root { 1. } else { 0.6 - 0.2 * t }, 0., 0.),
         Kind::Ear => (if root { 1. } else { 0.6 - 0.2 * t }, 0., 0.),
@@ -50,7 +53,7 @@ pub(crate) fn parameters(
             1.,
         ),
         Kind::Tail | Kind::Accessory => (0.65 - 0.30 * t, 0.15, 1.),
-        Kind::Rigid | Kind::Breast => (1., 0., 0.),
+        Kind::Rigid | Kind::Breast | Kind::Charm => (1., 0., 0.),
     };
     match choice.unwrap_or("automatic") {
         "automatic" => {}
@@ -97,6 +100,21 @@ fn breast_parameters(size: f64, choice: Option<&str>) -> Result<Maps> {
     };
     let travel = ((size * 0.45).clamp(0.4, 1.5) * travel_scale).min(2.);
     Ok([goal, drag, 1., 0., travel, 0., 0., 0.])
+}
+/// A charm on a gun (keychain, pendant, strap): a light swing that lags the gun
+/// and settles within a few swings. Its pivot stays on the gun, there is no
+/// gravity, so it never sags into the gun when the gun is held sideways, and
+/// the travel limit (about a third of the charm's reach) keeps the swing small.
+/// `length` is the charm's reach from its pivot in inches. Needs an in-game check.
+fn charm_parameters(t: f64, root: bool, length: f64, choice: Option<&str>) -> Result<Maps> {
+    let (goal, drag, travel_scale) = match choice.unwrap_or("automatic") {
+        "automatic" | "balanced" => (0.5 - 0.15 * t, 0.3, 1.),
+        "stiff" => (0.7 - 0.15 * t, 0.4, 0.6),
+        "soft" => (0.35 - 0.1 * t, 0.2, 1.4),
+        _ => return Err(invalid("Unknown part movement setting.")),
+    };
+    let travel = ((length * 0.35).clamp(0.2, 1.2) * travel_scale).min(1.6);
+    Ok([if root { 1. } else { goal }, drag, 1., 0., travel, 0., 0., 0.])
 }
 pub(crate) fn point(
     s: &mut Surface,

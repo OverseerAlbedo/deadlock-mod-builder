@@ -15,10 +15,14 @@ function breastHint(breasts:BreastChoice,on:boolean):string{
   return breasts.count>0?`Off. ${bones} ${breasts.count===1?'was':'were'} found; they follow the chest.`:"Off. This model has no breast bones; turning this on adds them where the chest has breasts (inspect again afterwards). Breast bones that come with the rig's own physics are kept either way; the Physics tab decides whether they bounce.";
 }
 
-export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts}:{groups:PhysicsGroup[];options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;breasts?:BreastChoice}){
+export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts,gunParts=[]}:{groups:PhysicsGroup[];options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;breasts?:BreastChoice;gunParts?:string[]}){
   // Groups you were shown are remembered, so a group you leave off is not re-added on the next inspection.
   const change=(values:Partial<PreparationOptions>)=>apply({...values,physics_offered:groups.map(g=>g.root)});
   const enabled=options.preserve_physics_bones??false,roots=options.physics_roots??[],selected=groups.filter(g=>roots.includes(g.root));
+  // Charms on a replaced gun hang from the fitted gun's weapon bone.
+  const fitted=options.weapon?.enabled===true&&options.weapon.action==='replace';
+  const anchor=(g:PhysicsGroup)=>fitted&&gunParts.includes(g.root)?'the fitted gun':g.target_anchor;
+  const charms=groups.filter(g=>gunParts.includes(g.root));
   return <Section title="Hair, cloth and other moving parts" className="prep-card prep-physics-card">
     <p className="hint">Uses existing physics bindings or recognizable secondary bone chains with skin weights. Supported groups are selected automatically when you inspect a new model.</p>
     <Check label="Keep existing physics bones (rig only)" value={enabled} disabled={busy||(!groups.length&&!enabled)} onChange={value=>change({preserve_physics_bones:value,physics_roots:roots.length?roots:groups.map(g=>g.root),reviewed:false})}/>
@@ -34,8 +38,9 @@ export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts}:{g
       <p className="hint">Preparation keeps the bones and weights. Automatic motion chooses settings for each part during Build, including anti-twist for supported streamers. Rig preservation alone does not create in-game swaying.</p>
       <details className="prep-physics-groups"><summary>Choose detected groups ({groups.length})</summary>
         <div className="row"><button disabled={busy||!groups.length} onClick={()=>change({physics_roots:groups.map(g=>g.root),reviewed:false})}>Keep all detected groups</button><button disabled={busy||!roots.length} onClick={()=>change({physics_roots:[],reviewed:false})}>Clear group selection</button></div>
-        <div className="prep-physics-list">{groups.map(g=><div key={g.root}><Check label={`${g.root} · ${g.source_bones.length} bones → ${g.target_anchor}`} value={roots.includes(g.root)} disabled={busy} onChange={checked=>change({physics_roots:checked?[...roots,g.root]:roots.filter(n=>n!==g.root),reviewed:false})}/></div>)}</div>
+        <div className="prep-physics-list">{groups.map(g=><div key={g.root}><Check label={`${g.root} · ${g.source_bones.length} bones → ${anchor(g)}`} value={roots.includes(g.root)} disabled={busy} onChange={checked=>change({physics_roots:checked?[...roots,g.root]:roots.filter(n=>n!==g.root),reviewed:false})}/></div>)}</div>
       </details>
+      {charms.length>0&&<p className="hint">{`Gun charms: ${charms.map(g=>g.root).join(', ')} ${charms.length===1?'hangs':'hang'} from the gun. `}{fitted?'They keep their own bones on the fitted gun and get a light swing. ':'They follow the hand with the gun and get a light swing. '}Turn gun charm motion on or off on the Physics tab.</p>}
       {roots.some(n=>!groups.some(g=>g.root===n))&&<p role="alert">Some saved groups are no longer detected. Inspect the source and choose the groups again.</p>}
     </>}
   </Section>;

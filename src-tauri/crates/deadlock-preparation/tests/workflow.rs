@@ -436,3 +436,70 @@ fn garment_provenance_allows_identical_move_but_rejects_changed_dependency() {
     fs::write(moved.join("cloth.bin"), b"modified").unwrap();
     assert!(provenance::check_clothing_selection(&project, Some(&record)).is_err());
 }
+#[test]
+fn gun_file_is_added_at_inspect_and_convert_and_its_hash_binds_the_preparation() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("project"); fs::create_dir(&root).unwrap();
+    let source = root.join("input.gltf"); fs::write(&source, b"{}").unwrap();
+    let guns = temp.path().join("guns"); fs::create_dir(&guns).unwrap();
+    let gun = guns.join("pistol.gltf"); fs::write(&gun, b"{\"buffers\":[{\"uri\":\"pistol.bin\"}]}").unwrap();
+    fs::write(guns.join("pistol.bin"), b"pistol vertices").unwrap();
+    let compiled = root.join("hero.vmdl_c"); fs::write(&compiled, b"original compiled fixture").unwrap();
+    let executable = root.join("blender.exe"); fs::write(&executable, b"fixture").unwrap();
+    let data = fixture();
+    let tool = Arc::new(FixtureTool {data: data.clone(), calls: Mutex::new(vec![]), emit: true});
+    let svc = PreparationService::new(root, BlenderBridge {executable, executor: tool.clone()});
+    let mut project = Project::default();
+    project.original_model = "models/test/hero.vmdl_c".into();
+    project.model_input_mode = ModelInputMode::RiggedHumanoid;
+    let skeleton = || serde_json::from_value(data["skeleton"].clone()).unwrap();
+    // The character file itself is not a gun file.
+    project.preparation_options.values.insert("weapon_source".into(), json!(source.to_str().unwrap()));
+    assert!(svc.inspect(&project, source.to_str().unwrap(), [0.; 3], &compiled, skeleton()).unwrap_err().to_string().contains("character source itself"));
+    project.preparation_options.values.insert("weapon_source".into(), json!(gun.to_str().unwrap()));
+    let analysis = svc.inspect(&project, source.to_str().unwrap(), [0.; 3], &compiled, skeleton()).unwrap();
+    let record = analysis.weapon_file.clone().expect("gun file record");
+    assert!(record.source.ends_with("pistol.gltf") && Path::new(&record.source).starts_with(&analysis.root));
+    assert_eq!(record.hand.as_deref(), Some("mixamorig:RightHand"));
+    assert_eq!(record.selection.source_files.len(), 2, "{:?}", record.selection.source_files);
+    // Ordinary passes inspect the character alone; the last pass adds the gun.
+    let inspections: Vec<Value> = tool.calls.lock().unwrap().iter().filter(|j| j["operation"] == "inspect").cloned().collect();
+    assert!(inspections[..inspections.len() - 1].iter().all(|j| j.get("weapon_source").is_none()));
+    assert_eq!(inspections.last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand"}));
+    let mut options: PreparationOptions = serde_json::from_value(json!({"reviewed":true,"source_roles":analysis.suggestions.source.as_ref().unwrap().roles,"target_roles":analysis.suggestions.target.roles,"mapping":analysis.suggestions.mapping})).unwrap();
+    options.values.insert("weapon_source".into(), json!(gun.to_str().unwrap()));
+    assert!(service::review_issues(&project, &analysis, &options).unwrap().is_empty());
+    let result = svc.prepare(&project, &analysis, options.clone(), false, &compiled).unwrap();
+    assert_eq!(tool.calls.lock().unwrap().last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand"}));
+    let receipt: Value = serde_json::from_slice(&fs::read(&result.report).unwrap()).unwrap();
+    assert_eq!(receipt["weapon_file_selection"], serde_json::to_value(&record.selection).unwrap());
+    let accepted = service::handoff(&project, &result).unwrap();
+    assert_eq!(accepted.preparation_options.values["weapon_source"], json!(gun.to_str().unwrap()));
+    service::check_handoff(&accepted).unwrap();
+    // Corrections reuse the prepared scene, which already holds the gun.
+    svc.prepare(&accepted, &analysis, options.clone(), true, &compiled).unwrap();
+    assert!(tool.calls.lock().unwrap().last().unwrap().get("weapon_source").is_none());
+    // A moved but identical gun file is still the same gun.
+    let moved = temp.path().join("moved"); fs::rename(&guns, &moved).unwrap();
+    let mut relocated = accepted.clone();
+    relocated.preparation_options.values.insert("weapon_source".into(), json!(moved.join("pistol.gltf").to_str().unwrap()));
+    service::check_handoff(&relocated).unwrap();
+    // A changed gun file (or one of its buffers) invalidates the preparation like a changed source.
+    fs::write(moved.join("pistol.bin"), b"another gun").unwrap();
+    assert!(service::check_handoff(&relocated).unwrap_err().to_string().contains("gun file changed"));
+    let mut moved_options = options.clone();
+    moved_options.values.insert("weapon_source".into(), relocated.preparation_options.values["weapon_source"].clone());
+    assert!(service::review_issues(&relocated, &analysis, &moved_options).unwrap().iter().any(|i| i.tab == "weapon" && i.message.contains("gun file changed")));
+    let before = tool.calls.lock().unwrap().len();
+    assert!(svc.prepare(&relocated, &analysis, moved_options, false, &compiled).unwrap_err().to_string().contains("gun file changed"));
+    assert_eq!(before, tool.calls.lock().unwrap().len());
+    // Clearing or adding a gun file after the inspection also needs a new inspection.
+    let mut cleared = accepted.clone(); cleared.preparation_options.values.remove("weapon_source");
+    assert!(service::check_handoff(&cleared).unwrap_err().to_string().contains("gun file changed"));
+    let mut without = options.clone(); without.values.remove("weapon_source");
+    assert!(service::review_issues(&project, &analysis, &without).unwrap().iter().any(|i| i.tab == "weapon"));
+    let mut plain = analysis.clone(); plain.weapon_file = None;
+    assert!(service::review_issues(&project, &plain, &options).unwrap().iter().any(|i| i.message.contains("gun file changed")));
+    assert!(service::review_issues(&project, &plain, &without).unwrap().is_empty());
+    assert_eq!(fs::read(source).unwrap(), b"{}");
+}

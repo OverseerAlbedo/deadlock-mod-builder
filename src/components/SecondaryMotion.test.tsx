@@ -113,3 +113,31 @@ describe('Breast motion on the Physics tab',()=>{
    expect(openPreparation).toHaveBeenCalled();
  });
 });
+describe('Gun charm motion on the Physics tab',()=>{
+ const base={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['Pistol_Link_00','Key_Chain_00','hair'],physics_kinds:{Pistol_Link_00:'charm'}},customization:{enabled:true,secondary_motion:{enabled:true}}} as unknown as Project;
+ it('turns gun charms on and off and sets their amount together, without a conversion',()=>{
+   const update=vi.fn();
+   const {rerender}=render(<SecondaryMotion project={base} update={update} disabled={false} report={null} fresh={false}/>);
+   const box=screen.getByLabelText('Gun charm motion');
+   expect(box).toBeChecked();
+   expect(screen.getByText(/On for Pistol_Link_00, Key_Chain_00: a light swing that settles quickly and does not sag into the gun/)).toBeVisible();
+   fireEvent.change(screen.getByLabelText('Charm movement'),{target:{value:'stiff'}});
+   expect(update).toHaveBeenLastCalledWith({profiles:{Pistol_Link_00:'stiff',Key_Chain_00:'stiff'}});
+   fireEvent.click(box);
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{Pistol_Link_00:'rigid',Key_Chain_00:'rigid'}});
+   const off={...base,customization:{...base.customization,secondary_motion:{enabled:true,part_kinds:{Pistol_Link_00:'rigid' as const,Key_Chain_00:'rigid' as const}}}} as Project;
+   rerender(<SecondaryMotion project={off} update={update} disabled={false} report={null} fresh={false}/>);
+   expect(screen.getByLabelText('Gun charm motion')).not.toBeChecked();
+   expect(screen.getByText(/Off: Pistol_Link_00, Key_Chain_00 stay still on the gun/)).toBeVisible();
+   fireEvent.click(screen.getByLabelText('Gun charm motion'));
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{Pistol_Link_00:'charm',Key_Chain_00:'charm'}});
+ });
+ it('finds charms from the last Analyze and stays hidden without any',()=>{
+   const project={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['Bone.012','hair']}} as unknown as Project;
+   const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'source',proxy_sha256:'proxy',proxy_positions:18,groups:[],parts:[{root:'Bone.012',kind:'charm',reason:'Hangs from the fitted gun; light charm swing',roll_locked:false,review_recommended:false}]}};
+   const {rerender}=render(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={report} fresh/>);
+   expect(screen.getByLabelText('Gun charm motion')).toBeChecked();
+   rerender(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={null} fresh={false}/>);
+   expect(screen.queryByLabelText('Gun charm motion')).not.toBeInTheDocument();
+ });
+});

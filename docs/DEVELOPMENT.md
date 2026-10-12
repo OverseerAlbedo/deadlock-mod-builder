@@ -68,7 +68,7 @@ Biped digit aliases follow Autodesk's [MotionBuilder Biped template](https://hel
 
 ## Any-humanoid and gun probe
 
-`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against the captured 196-bone hero in `tests/fixtures/daki-rig.json`. It does not use `legacy/python`.
+`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against the captured 196-bone hero in `tests/fixtures/daki-rig.json`. It does not use `legacy/python`.
 
 ```powershell
 cargo build --manifest-path src-tauri/Cargo.toml -p deadlock-preparation --example e2e_probe

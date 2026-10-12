@@ -4,12 +4,19 @@ export const SECONDARY_PREFIX='dmb_secondary_';
 export interface PhysicsGroup {root:string;source_anchor:string;target_anchor:string;source_bones:string[];weighted_bones:string[]}
 /** Keep in sync with secondary_bones.rs (HINTS) and secondary_bones.py. */
 export const SECONDARY_HINTS=['hair','ponytail','braid','ribbon','streamer','skirt','cloth','cape','tail','robe','sash','scarf','shawl','mantle','cloak','tassel','veil','髪','发','髮','尻尾','しっぽ','耳','リボン','裙','マント','スカート','スカーフ'];
-const namedSecondary=(name:string)=>SECONDARY_HINTS.some(s=>name.toLowerCase().includes(s))||name.toLowerCase().split(/[^a-z0-9]+/).some(s=>['ear','ears'].includes(s));
+const namedSecondary=(name:string)=>SECONDARY_HINTS.some(s=>name.toLowerCase().includes(s))||name.toLowerCase().split(/[^a-z0-9]+/).some(s=>['ear','ears'].includes(s))||charmNamed(name);
 /** Rigid head and body accessories. Hair and ear names do not make these move (hairpin, hair ornament, 髪飾り, ear ornament);
  * other motion names such as ribbon or tassel still win. Keep in sync with secondary_bones.rs (RIGID_HINTS) and secondary_bones.py. */
 export const RIGID_HINTS=['halo','hat','cap','pin','pins','clip','clips','crown','tiara','circlet','horn','horns','helmet','helm','glasses','goggles','goggle','spectacles','visor','mask','earring','earrings','piercing','hairpin','hairclip','barrette','hairband','headband','ornament','accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪'];
 /** Breast bones move only when breast motion is turned on. */
 export const BREAST_HINTS=['breast','bust','boob','pectoral','oppai','おっぱい','乳'];
+/** Charms and other small hanging pieces, matched without separators (Key_Chain is keychain). They move anywhere and
+ * override the rigid accessory words (a dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and secondary_bones.py. */
+export const CHARM_HINTS=['charm','keychain','keyring','pendant','lanyard','dangle','チャーム','キーホルダー','ペンダント','根付','挂件','掛件','吊坠','吊墜','挂坠','掛墜','吊饰','吊飾'];
+/** Straps count as charms only when they hang from a gun bone. */
+export const GUN_STRAP_HINTS=['strap','ストラップ'];
+/** Moving gun parts (slide, magazine, trigger ...) are never charms. */
+export const GUN_PART_HINTS=['slide','mag','magazine','clip','bullet','bullets','shell','shells','ammo','round','rounds','cartridge','casing','trigger','hammer','bolt','barrel','muzzle','cylinder','chamber','breech','sight','sights','scope','stock','grip','handle','safety','lever','pump','drum','receiver','rail','laser','silencer','suppressor','bayonet','blade','spring','guard','hopper','弾','弹','マガジン','スライド','トリガー','引き金','銃口','枪口'];
 const isAscii=(text:string)=>/^[\x00-\x7f]*$/.test(text);
 /** Split on separators and camel case: HatBrim_L -> hat, brim, l. */
 function tokens(name:string):string[]{
@@ -25,9 +32,34 @@ function tokens(name:string):string[]{
 function rigidNamed(name:string):boolean{
   const words=tokens(name),n=name.toLowerCase();
   const rigid=RIGID_HINTS.some(h=>isAscii(h)?words.includes(h)||(h.length>=6&&n.includes(h)):n.includes(h));
-  const moving=SECONDARY_HINTS.filter(h=>!['hair','髪','发','髮','耳'].includes(h)).some(h=>n.includes(h));
+  const moving=SECONDARY_HINTS.filter(h=>!['hair','髪','发','髮','耳'].includes(h)).some(h=>n.includes(h))||charmNamed(name);
   return rigid&&!moving;
 }
+export const charmNamed=(name:string)=>{const n=name.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');return CHARM_HINTS.some(h=>n.includes(h));};
+const gunPartNamed=(name:string)=>{const words=tokens(name),n=name.toLowerCase();return GUN_PART_HINTS.some(h=>isAscii(h)?words.includes(h):n.includes(h));};
+/** Bones of a gun candidate carry the candidate ids under `weapon` (marked at inspection). */
+const gunMarks=(bone:Bone|undefined)=>Array.isArray(bone?.weapon)?bone!.weapon!.filter(m=>typeof m==='string'):[];
+/** Charms on a gun: a chain hanging from a bone of a gun candidate. Two to four bones in one line whose tip hangs below
+ * their top by at least 40% of their length, without gun-part names; a strap on the gun qualifies in any shape. */
+function gunCharm(bone:Bone,names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>):boolean{
+  const roles=new Set(Object.values(sourceRoles)),parent=bone.parent?names.get(bone.parent):undefined;
+  if(!parent||roles.has(bone.name)||roles.has(parent.name)||!gunMarks(parent).length)return false;
+  if(GUN_STRAP_HINTS.some(h=>bone.name.toLowerCase().includes(h)))return true;
+  const chain=[bone];let cursor=bone.name;
+  while(children.get(cursor)?.length){const next=children.get(cursor)!;if(next.length!==1||chain.length>4||!names.has(next[0]))return false;cursor=next[0];chain.push(names.get(cursor)!);}
+  const path=chain.slice(1).reduce((s,b,i)=>s+distance(chain[i].position,b.position),0);
+  return chain.length>=2&&chain.length<=4&&path>1e-6&&!chain.some(b=>roles.has(b.name)||gunPartNamed(b.name))&&chain[0].position[2]-chain[chain.length-1].position[2]>=0.4*path;
+}
+/** Whether the moving part at `root` hangs from a gun: a bone between the root and its body anchor belongs to the gun
+ * candidate `gun` (any gun when omitted). */
+export function hangsFromGun(root:string,bones:Bone[],sourceRoles:Partial<Record<string,string>>,gun?:string):boolean{
+  const names=new Map(bones.map(b=>[b.name,b])),roles=new Set(Object.values(sourceRoles));let steps=0;
+  let cursor=names.get(names.get(root)?.parent??'');
+  while(cursor){if(roles.has(cursor.name)||steps>=512)return false;const marks=gunMarks(cursor);if(gun===undefined?marks.length>0:marks.includes(gun))return true;cursor=names.get(cursor.parent??'');steps++;}
+  return false;
+}
+/** The gun left out in the Weapon tab, as its candidate id (empty when the gun stays). */
+const removedGun=(options:PreparationOptions)=>options.weapon?.enabled&&options.weapon.action==='remove'?(options.weapon.objects??[]).join('+'):'';
 export const namedBreast=(name:string)=>{const n=name.toLowerCase();return BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t))));};
 const distance=(a:Vec3,b:Vec3)=>Math.sqrt(a.reduce((s,v,k)=>s+(v-b[k])**2,0));
 /** A closed loop (halo, crown band, hat brim): the single chain that contains the bone, from below its body anchor, ends close to where it starts. */
@@ -102,7 +134,7 @@ export function physicsGroups(bones:Bone[],weighted:string[],options:Preparation
   const weightedSet=new Set(weighted),breasts=options.breast_motion,breastSet=breastRoots(bones,names,children,weightedSet,sourceRoles);
   if(breasts===false)for(const n of breastSet)physical.delete(n);
   const verified=new Set(physical);
-  for(const bone of bones.filter(b=>(namedSecondary(b.name)||hangingChain(b,names,children,weightedSet,sourceRoles))&&!rigidNamed(b.name)&&!ringChain(b,names,children,sourceRoles)&&!breastSet.has(b.name))){
+  for(const bone of bones.filter(b=>(namedSecondary(b.name)||hangingChain(b,names,children,weightedSet,sourceRoles)||gunCharm(b,names,children,sourceRoles))&&!rigidNamed(b.name)&&!ringChain(b,names,children,sourceRoles)&&!breastSet.has(b.name))){
     const branch=new Set<string>(),pending=[bone.name];let invalid=false;
     while(pending.length){const n=pending.pop()!;if(branch.has(n)||branch.size>=512){invalid=true;break;}branch.add(n);pending.push(...(children.get(n)??[]));}
     if(invalid||[...branch].some(n=>verified.has(n)||Object.values(sourceRoles).includes(n)||Boolean(names.get(n)?.physics?.dynamic_bodies?.length||names.get(n)?.physics?.kinematic_bodies?.length)))continue;
@@ -122,18 +154,36 @@ export function physicsGroups(bones:Bone[],weighted:string[],options:Preparation
     const used=branch.filter(n=>weights.has(n)).sort(),role=Object.keys(sourceRoles).find(r=>sourceRoles[r as keyof typeof sourceRoles]===anchor) as keyof typeof targetRoles|undefined,destination=role?targetRoles[role]:undefined;
     if(used.length&&destination)groups.push({root,source_anchor:anchor,target_anchor:destination,source_bones:branch,weighted_bones:used});
   }
-  return groups;
+  // Moving parts on a gun that is left out go with it (as in secondary_bones.rs selection_for).
+  const removed=removedGun(options);
+  return removed?groups.filter(g=>!hangsFromGun(g.root,bones,sourceRoles,removed)):groups;
+}
+/** Moving parts on a gun that is left out are dropped from the kept groups; choosing the gun again keeps them again
+ * (when motion is automatic). `values` is the Weapon tab's change; the result adds the matching physics roots. */
+export function gunChoiceOptions(bones:Bone[],weighted:string[],options:PreparationOptions,values:Partial<PreparationOptions>):Partial<PreparationOptions>{
+  const next={...options,...values},before=removedGun(options),after=removedGun(next),roles=next.source_roles??{},roots=next.physics_roots??[];
+  if(before===after||!next.preserve_physics_bones)return values;
+  if(after)return {...values,physics_roots:roots.filter(root=>!hangsFromGun(root,bones,roles,after))};
+  if(!next.automatic_secondary_motion)return values;
+  const back=physicsGroups(bones,weighted,next).map(g=>g.root).filter(root=>hangsFromGun(root,bones,roles,before)&&!roots.includes(root));
+  return back.length?{...values,physics_roots:[...roots,...back]}:values;
+}
+/** Groups hanging from a gun get the light charm part type unless a type was already chosen. */
+function withCharmKinds(bones:Bone[],options:PreparationOptions,groups:PhysicsGroup[]):PreparationOptions{
+  const roles=options.source_roles??{},kinds=options.physics_kinds??{};
+  const charms=groups.map(g=>g.root).filter(root=>options.physics_roots?.includes(root)&&!kinds[root]&&hangsFromGun(root,bones,roles));
+  return charms.length?{...options,physics_kinds:{...kinds,...Object.fromEntries(charms.map(root=>[root,'charm']))}}:options;
 }
 /** New models keep every detected group. When automatic motion is already on, groups detected for the
  * first time (for example after detection improves) are added; groups you were shown and left off stay off. */
 export function automaticPhysicsOptions(bones:Bone[],weighted:string[],options:PreparationOptions):PreparationOptions{
   if(options.preserve_physics_bones===false)return options;
   const groups=physicsGroups(bones,weighted,options);
-  if(options.preserve_physics_bones===undefined)return groups.length?{...options,preserve_physics_bones:true,physics_roots:groups.map(g=>g.root),automatic_secondary_motion:true}:options;
+  if(options.preserve_physics_bones===undefined)return groups.length?withCharmKinds(bones,{...options,preserve_physics_bones:true,physics_roots:groups.map(g=>g.root),automatic_secondary_motion:true},groups):options;
   if(!options.automatic_secondary_motion)return options;
   const roots=options.physics_roots??[],offered=new Set(Array.isArray(options.physics_offered)?options.physics_offered.filter((n):n is string=>typeof n==='string'):roots);
   const fresh=groups.map(g=>g.root).filter(root=>!offered.has(root)&&!roots.includes(root));
-  return fresh.length?{...options,physics_roots:[...roots,...fresh]}:options;
+  return withCharmKinds(bones,fresh.length?{...options,physics_roots:[...roots,...fresh]}:options,groups);
 }
 export function keptPhysicsBones(groups:PhysicsGroup[],options:PreparationOptions):Set<string>{
   return new Set(options.preserve_physics_bones?groups.filter(g=>options.physics_roots?.includes(g.root)).flatMap(g=>g.source_bones):[]);

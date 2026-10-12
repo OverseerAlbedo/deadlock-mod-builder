@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cleanup,fireEvent,render,screen } from '@testing-library/react';
 import { describe,expect,it,vi } from 'vitest';
 import { PhysicsBoneChoices } from './PhysicsBoneChoices';
-import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,breastBones,breastMotionOptions,PHYSICS_BINDING_POLICY } from './secondary-bones';
+import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,breastBones,breastMotionOptions,charmNamed,gunChoiceOptions,hangsFromGun,PHYSICS_BINDING_POLICY } from './secondary-bones';
 import type { Bone,PreparationOptions } from './models';
 import hanging from '../../src-tauri/crates/deadlock-preparation/tests/fixtures/hanging-chains.json';
 const physical={policy:PHYSICS_BINDING_POLICY,dynamic_bodies:['saved rigid'],kinematic_bodies:[]};
@@ -68,10 +68,49 @@ describe('unnamed and robe moving parts',()=>{
   it('adds groups detected for the first time to an automatic project but never re-adds one you left off',()=>{
     const roles=hanging.roles as PreparationOptions['source_roles'];
     const saved:PreparationOptions={source_roles:roles,target_roles:roles,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00']};
-    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,saved).physics_roots).toEqual(['Strap_00','Bone_Robe_L_00','Bone_Robe_R_00','Hair_Back_00','Hat_Ribbon_00']);
-    const declined={...saved,physics_offered:['Bone_Robe_L_00','Bone_Robe_R_00','Hair_Back_00','Hat_Ribbon_00','Strap_00']};
+    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,saved).physics_roots).toEqual(['Strap_00',...hanging.expected_roots.filter(r=>r!=='Strap_00')]);
+    const declined={...saved,physics_offered:hanging.expected_roots};
     expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,declined).physics_roots).toEqual(['Strap_00']);
     expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,{...saved,automatic_secondary_motion:false}).physics_roots).toEqual(['Strap_00']);
+  });
+});
+
+describe('gun charms',()=>{
+  const roles=hanging.roles as PreparationOptions['source_roles'],bones=hanging.bones as Bone[],gun=hanging.gun;
+  const fresh:PreparationOptions={source_roles:roles,target_roles:roles};
+  it('matches the native rule: chains hanging from the gun move, gun parts and parts on the hand do not',()=>{
+    const groups=physicsGroups(bones,hanging.weighted,fresh);
+    expect(groups.filter(g=>hangsFromGun(g.root,bones,roles!,gun)).map(g=>g.root)).toEqual(hanging.gun_charm_roots);
+    expect(groups.find(g=>g.root==='Pistol_Link_00')?.source_bones).toEqual(['Pistol_Link_00','Pistol_Link_01','Pistol_Link_02']);
+    expect(groups.flatMap(g=>g.source_bones).some(b=>/^(Pistol_Slide|Pistol_Mag|Pistol_Fin|Glove_Tag)/.test(b))).toBe(false);
+    // Without the inspection's gun marks only named charms move.
+    const unmarked=bones.map(b=>{const copy={...b};delete copy.weapon;return copy;});
+    expect(physicsGroups(unmarked,hanging.weighted,fresh).map(g=>g.root)).toEqual(hanging.expected_roots.filter(r=>!hanging.gun_charm_roots.includes(r)));
+    expect(charmNamed('Key_Chain_00')&&charmNamed('キーホルダー')&&!charmNamed('Keystone')).toBe(true);
+  });
+  it('gives gun charms the charm part type on a new model and keeps other part types',()=>{
+    const next=automaticPhysicsOptions(bones,hanging.weighted,fresh);
+    expect(next.physics_roots).toEqual(hanging.expected_roots);
+    expect(next.physics_kinds).toEqual({Pistol_Link_00:'charm',Pistol_Strap_00:'charm'});
+    expect(automaticPhysicsOptions(bones,hanging.weighted,{...fresh,physics_kinds:{Pistol_Strap_00:'cloth'}}).physics_kinds).toEqual({Pistol_Link_00:'charm',Pistol_Strap_00:'cloth'});
+  });
+  it('leaves gun charms out with the gun and offers them again when the gun comes back',()=>{
+    const kept={...automaticPhysicsOptions(bones,hanging.weighted,fresh),weapon:{enabled:true,action:'replace' as const,objects:[gun]}};
+    const out=gunChoiceOptions(bones,hanging.weighted,kept,{weapon:{...kept.weapon,action:'remove'}});
+    expect(out.physics_roots).toEqual(hanging.expected_roots.filter(r=>!hanging.gun_charm_roots.includes(r)));
+    const removed={...kept,...out};
+    expect(physicsGroups(bones,hanging.weighted,removed).map(g=>g.root)).toEqual(out.physics_roots);
+    expect(gunChoiceOptions(bones,hanging.weighted,removed,{weapon:{...kept.weapon,action:'keep'}}).physics_roots).toEqual([...out.physics_roots!,...hanging.gun_charm_roots]);
+    // Changing the fit only does not touch the moving parts.
+    expect(gunChoiceOptions(bones,hanging.weighted,kept,{weapon:{...kept.weapon,roll:15}})).toEqual({weapon:{...kept.weapon,roll:15}});
+  });
+  it('shows charms on a replaced gun hanging from the fitted gun',()=>{
+    const options={...automaticPhysicsOptions(bones,hanging.weighted,fresh),weapon:{enabled:true,action:'replace' as const,objects:[gun]}};
+    const groups=physicsGroups(bones,hanging.weighted,options);
+    render(<PhysicsBoneChoices groups={groups} gunParts={hanging.gun_charm_roots} options={options} change={vi.fn()} busy={false}/>);
+    expect(screen.getByLabelText('Pistol_Link_00 · 3 bones → the fitted gun')).toBeChecked();
+    expect(screen.getByLabelText('Key_Chain_00 · 2 bones → Bip001_L_Hand')).toBeChecked();
+    expect(screen.getByText(/Gun charms: Pistol_Link_00, Pistol_Strap_00 hang from the gun. They keep their own bones on the fitted gun/)).toBeVisible();
   });
 });
 

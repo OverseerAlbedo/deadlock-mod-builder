@@ -4,7 +4,7 @@ use crate::{
     source::{self, ManifestEntry},
 };
 use deadlock_project::{
-    Project,
+    PreparationOptions, Project,
     customization::{Face, Prop},
 };
 use serde::{Deserialize, Serialize};
@@ -133,6 +133,36 @@ pub fn check_clothing_selection(
         _ => Err(invalid(
             "Clothing selection changed. Import and prepare the garment again.",
         )),
+    }
+}
+/// The Weapon tab's gun file (`options.weapon_source`) and the SHA-256 of the
+/// original file and its textures when it was inspected.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WeaponFileSelection {
+    pub source: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_files: Vec<SourceProof>,
+}
+pub fn weapon_file_selection(options: &PreparationOptions) -> Result<Option<WeaponFileSelection>> {
+    let text = match options.values.get("weapon_source") {
+        None | Some(serde_json::Value::Null) => return Ok(None),
+        Some(value) => value.as_str().ok_or_else(|| invalid("The gun file must be a file path. Choose it again in the Weapon tab."))?,
+    };
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(WeaponFileSelection { source: path_text(&source::normalized_input(text)?)?, source_files: vec![] }))
+}
+/// A changed, moved-and-edited or removed gun file invalidates the preparation
+/// like a changed character source: inspect again.
+pub fn check_weapon_file_selection(options: &PreparationOptions, record: Option<&WeaponFileSelection>) -> Result<()> {
+    let changed = || invalid("The gun file changed since the source was inspected. Inspect the source again in Model preparation.");
+    match (weapon_file_selection(options)?, record) {
+        (None, None) => Ok(()),
+        (Some(now), Some(old)) if !old.source_files.is_empty() => {
+            verify_files(&now.source, &old.source, &old.source_files).map_err(|_| changed())
+        }
+        _ => Err(changed()),
     }
 }
 fn relative_path(path: &Path, parent: &Path) -> Result<String> {

@@ -17,11 +17,12 @@ from material_textures import texture_and_materials
 from source_helpers import mmd_helpers, helper_receipt, remove_workspace_helpers, uses_linked_libraries, physics_bone_bindings, helper_diagnostic
 from source_rigs import resolve_modular_rigs, append_saved_notice
 from source_compatibility import normalize as normalize_source_rig
-from secondary_bones import selection as secondary_selection, extend_target
+from secondary_bones import selection as secondary_selection, extend_target, on_gun as secondary_on_gun
 from arm_skinning import plan as arm_skin_plan, redistribute as arm_skin_weights, MODES as ARM_SKIN_MODES, POLICY as ARM_SKIN_POLICY
 from scene_isolation import isolate, last_receipt, apply_pending_modifiers
 from breast_bones import add_breast_bones
 import weapon_fit
+import weapon_source
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector, Quaternion
@@ -95,7 +96,7 @@ def select_source_rig(meshes, rigs, reports=None):
                       ' unused armatures and combined '+str(len(merged))+' equivalent rest rigs. All character meshes are retained.'})
     return selected
 
-def import_source(path,clear=True,allow_shape_keys=False,helper_reports=None,scene=None):
+def import_source(path,clear=True,allow_shape_keys=False,helper_reports=None,scene=None,weapon_model=False):
     if clear:bpy.ops.wm.read_factory_settings(use_empty=True)
     prior=set(bpy.context.scene.objects)
     suffix=Path(path).suffix.lower()
@@ -138,7 +139,7 @@ def import_source(path,clear=True,allow_shape_keys=False,helper_reports=None,sce
     # characters and scenery; repair modifiers, transforms and missing weights.
     # Only this temporary in-memory scene changes, never the user's file.
     meshes,rigs=isolate(bpy,imported,scene,allow_shape_keys,helper_reports,
-                        select_source_rig if clear else None,physics_helpers,rig_logic=clear)
+                        select_source_rig if clear else None,physics_helpers,rig_logic=clear,weapon_model=weapon_model)
     if clear:
         receipt=last_receipt()
         if helper_reports is not None and receipt and receipt['warning']:
@@ -253,7 +254,7 @@ def rest_rig_controls(rig, meshes):
             'baked_object_controls':baked}
 
 
-def describe(meshes,rigs):
+def describe(meshes,rigs,weapon_model=False):
     bones=[]
     if rigs:
         rig=rigs[0]
@@ -305,7 +306,7 @@ def describe(meshes,rigs):
         result['scene']=receipt
     if len(p):
         height=float(p[:,2].max()-p[:,2].min()) or 1.
-        result['weapons']=weapon_fit.candidates(meshes,rigs,height)
+        result['weapons']=weapon_fit.candidates(meshes,rigs,height,weapon_model)
     if bones:
         recovered = normalize_source_rig(rigs[0], meshes)
         hints = recovered['roles'] if recovered else {}
@@ -508,14 +509,25 @@ def prepare(job,meshes,rigs):
     kept = None
     if options.get('preserve_physics_bones') and mode != 'rigged_humanoid':
         raise ValueError('Keeping existing physics bones requires an already rigged source.')
+    gun_groups = set()
     if mode == 'rigged_humanoid' and not job.get('correction', False):
-        kept = secondary_selection(options, source_info['bones'], weighted_names, source_roles, target_roles, target)
+        # Charms hanging from the gun are found as at inspection: by the gun-bone
+        # marks of the inspection and with the gun objects' own weights.
+        for bone in source_info['bones']:
+            if bone['name'] in (job.get('gun_bones') or {}):
+                bone['weapon'] = list(job['gun_bones'][bone['name']])
+        gun_weighted = {name for obj in weapon_meshes for row in skin_rows(obj, deform) for name, _ in row}
+        kept = secondary_selection(options, source_info['bones'], weighted_names | gun_weighted, source_roles, target_roles, target, weapon_plan)
+        if kept and weapon_plan and weapon_plan.get('action') == 'replace':
+            gun_groups = {g['root'] for g in kept['groups']
+                          if secondary_on_gun(g['root'], source_info['bones'], source_roles, '+'.join(weapon_plan['objects']))}
     anchor_transforms = {}
     source_bones = source_info['bones'] if mode == 'rigged_humanoid' else None
     if kept:
         for group in kept['groups']:
             anchor, destination = group['source_anchor'], group['target_anchor']
-            anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints)[0])
+            if group['root'] not in gun_groups:
+                anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints)[0])
             for name in group['source_bones']:
                 following.pop(name, None)
                 mapping.pop(name, None)
@@ -526,10 +538,18 @@ def prepare(job,meshes,rigs):
                                       parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints)
     if kept:
         group_transforms = {}
+        if gun_groups:
+            # Charms move with the fitted gun. The fit maps raw source points;
+            # the source matrices here already carry the unit scale.
+            gun_transform = np.asarray(weapon_plan['matrix'], dtype=float).copy()
+            gun_transform[:3, :3] /= unit_scale
         for group in kept['groups']:
-            transform = anchor_transforms[group['source_anchor']]
-            if fit_mode == 'preserve_proportions' and fit_arm_joints:
-                transform = rigid_attachment_map(transform, np.asarray(source[group['root']])[:3,3])
+            if group['root'] in gun_groups:
+                transform = gun_transform
+            else:
+                transform = anchor_transforms[group['source_anchor']]
+                if fit_mode == 'preserve_proportions' and fit_arm_joints:
+                    transform = rigid_attachment_map(transform, np.asarray(source[group['root']])[:3,3])
             group_transforms[group['root']] = transform
             for name in group['source_bones']:
                 maps[name] = transform
@@ -613,16 +633,21 @@ def prepare(job,meshes,rigs):
                          'weights':weights,'faces':polygons,'deformation':checks,'tangents':tangents})
     weapon_receipt=None
     if weapon_meshes:
-        fitted=weapon_fit.apply(bpy,weapon_meshes,weapon_plan,[b['name'] for b in target],mat_paths)
+        # Charm vertices on the gun keep their charm bones; the rest follows the plan.
+        charms={n:kept['exported_bones'][n] for g in kept['groups'] if g['root'] in gun_groups for n in g['source_bones']} if gun_groups else {}
+        fitted=weapon_fit.apply(bpy,weapon_meshes,weapon_plan,[b['name'] for b in target],mat_paths,charms,deform)
         for mesh in fitted:
             weights,stats=normalize_weights(mesh['weights'],{n:n for n in target_matrices},target_matrices,options.get('influence_limit',4))
             mesh['weights']=weights;totals.append(stats)
         exported.extend(fitted)
         meshes=meshes+weapon_meshes
         weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[m['name'] for m in fitted],'objects':weapon_plan['objects'],
-                        'action':weapon_plan.get('action','replace'),'skin':weapon_plan['skin']['kind']}
+                        'action':weapon_plan.get('action','replace'),'skin':weapon_plan['skin']['kind'],'charms':sorted(gun_groups)}
         warnings.append('The gun ('+', '.join(weapon_plan['objects'])+') was fitted to the hero weapon and skinned to '+
                         (weapon_plan['skin'].get('bone') or 'the original weapon bones')+'. Check grip, aim and muzzle position in game.')
+        if gun_groups:
+            warnings.append('Moving parts on the gun ('+', '.join(sorted(gun_groups))+') hang from '+weapon_plan['anchor']+
+                            ' and keep their own bones for gun charm motion. Check how much they swing in game.')
     elif weapon_plan and weapon_plan.get('action')=='remove':
         weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[],'objects':weapon_plan['objects'],'action':'remove'}
         warnings.append('The gun ('+', '.join(weapon_plan['objects'])+') was left out of the converted character.')
@@ -741,7 +766,8 @@ def main():
         scene_choices=job.get('scene') if job['operation']=='inspect' else job.get('options',{}).get('scene')
         if job.get('correction'):
             scene_choices=None
-        meshes,rigs=import_source(job['source'],allow_shape_keys=job['operation'] in {'inspect','recover_materials'} or bool(job.get('face')) or shape_mode in {'current_static','basis_static'},helper_reports=helper_reports,scene=scene_choices)
+        weapon_model=job.get('mode')=='weapon'
+        meshes,rigs=import_source(job['source'],allow_shape_keys=job['operation'] in {'inspect','recover_materials'} or bool(job.get('face')) or shape_mode in {'current_static','basis_static'},helper_reports=helper_reports,scene=scene_choices,weapon_model=weapon_model)
         if job['operation']=='recover_materials':
             materials,_,warnings=texture_and_materials(meshes,Path(job['workspace'])/'textures',job['hero_root'])
             Path(job['result']).write_text(json.dumps({'status':'ok','materials':materials,'warnings':warnings},allow_nan=False),encoding='utf-8')
@@ -768,8 +794,13 @@ def main():
         breast_receipt=None
         if job.get('breast_bones') and not job.get('correction') and rigs:
             breast_receipt=add_breast_bones(rigs[0],meshes,job['breast_bones'])
+        # A gun from its own file joins the finished character scene, in the
+        # same place at inspection and conversion (corrections already hold it).
+        gun_receipt=None
+        if job.get('weapon_source') and not job.get('correction'):
+            meshes,gun_receipt=weapon_source.append(bpy,job['weapon_source'],meshes,rigs,scene_choices)
         if job['operation']=='inspect':
-            report=describe(meshes,rigs)
+            report=describe(meshes,rigs,weapon_model)
         elif job.get('mode')=='weapon':
             report=prepare_weapon_model(job,meshes,rigs)
         else:
@@ -777,6 +808,8 @@ def main():
         report['status']='ok'
         if breast_receipt:
             report['breast_bones']=breast_receipt
+        if gun_receipt:
+            report['weapon_file']=gun_receipt
         report['source_helpers']=helper_reports
         report.setdefault('warnings',[]).extend(item['warning'] for item in helper_reports if item['warning'])
         if face_receipt:

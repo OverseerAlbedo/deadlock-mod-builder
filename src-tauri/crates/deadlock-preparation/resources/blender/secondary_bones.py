@@ -26,6 +26,19 @@ RIGID_HINTS = ('halo','hat','cap','pin','pins','clip','clips','crown','tiara','c
                'accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪')
 # Breast bones move only when breast motion is turned on.
 BREAST_HINTS = ('breast','bust','boob','pectoral','oppai','おっぱい','乳')
+# Charms and other small hanging pieces, matched without separators (Key_Chain
+# is keychain). They move anywhere and override the rigid accessory words (a
+# dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and
+# src/preparation/secondary-bones.ts.
+CHARM_HINTS = ('charm','keychain','keyring','pendant','lanyard','dangle',
+               'チャーム','キーホルダー','ペンダント','根付','挂件','掛件','吊坠','吊墜','挂坠','掛墜','吊饰','吊飾')
+# Straps count as charms only when they hang from a gun bone.
+GUN_STRAP_HINTS = ('strap','ストラップ')
+# Moving gun parts (slide, magazine, trigger ...) are never charms.
+GUN_PART_HINTS = ('slide','mag','magazine','clip','bullet','bullets','shell','shells','ammo','round','rounds','cartridge',
+                  'casing','trigger','hammer','bolt','barrel','muzzle','cylinder','chamber','breech','sight','sights','scope',
+                  'stock','grip','handle','safety','lever','pump','drum','receiver','rail','laser','silencer','suppressor',
+                  'bayonet','blade','spring','guard','hopper','弾','弹','マガジン','スライド','トリガー','引き金','銃口','枪口')
 
 
 def tokens(name):
@@ -50,8 +63,63 @@ def tokens(name):
 def rigid_named(name):
     words, n = tokens(name), name.lower()
     rigid = any((h in words or (len(h) >= 6 and h in n)) if h.isascii() else h in n for h in RIGID_HINTS)
-    moving = any(h in n for h in HINTS if h not in ('hair','髪','发','髮','耳'))
+    moving = any(h in n for h in HINTS if h not in ('hair','髪','发','髮','耳')) or charm_named(name)
     return rigid and not moving
+
+
+def charm_named(name):
+    n = ''.join(c for c in name.lower() if c.isalnum())
+    return any(h in n for h in CHARM_HINTS)
+
+
+def gun_part_named(name):
+    words, n = tokens(name), name.lower()
+    return any(h in words if h.isascii() else h in n for h in GUN_PART_HINTS)
+
+
+def gun_marks(bone):
+    """Bones of a gun candidate carry the candidate ids under 'weapon'."""
+    marks = bone.get('weapon') if bone else None
+    return [m for m in marks if isinstance(m, str)] if isinstance(marks, list) else []
+
+
+def gun_charm(bone, byname, children, source_roles):
+    """Charms on a gun: a chain hanging from a bone of a gun candidate. Two to
+    four bones in one line whose tip hangs below their top by at least 40% of
+    their length, without gun-part names; a strap on the gun qualifies in any shape."""
+    roles = set(source_roles.values())
+    parent = byname.get(bone.get('parent'))
+    if parent is None or bone['name'] in roles or parent['name'] in roles or not gun_marks(parent):
+        return False
+    if any(h in bone['name'].lower() for h in GUN_STRAP_HINTS):
+        return True
+    distance = lambda a, b: math.sqrt(sum((a[k]-b[k])**2 for k in range(3)))
+    chain, cursor = [bone], bone['name']
+    while children.get(cursor):
+        following = children[cursor]
+        if len(following) != 1 or len(chain) > 4 or following[0] not in byname:
+            return False
+        cursor = following[0]
+        chain.append(byname[cursor])
+    path = sum(distance(a['position'], b['position']) for a, b in zip(chain, chain[1:]))
+    return (2 <= len(chain) <= 4 and path > 1e-6
+            and not any(b['name'] in roles or gun_part_named(b['name']) for b in chain)
+            and chain[0]['position'][2] - chain[-1]['position'][2] >= 0.4*path)
+
+
+def on_gun(root, bones, source_roles, gun):
+    """Whether the moving part at root hangs from the gun candidate gun: a bone
+    between the root and its body anchor belongs to that gun."""
+    byname = {b['name']: b for b in bones}
+    roles, steps = set(source_roles.values()), 0
+    cursor = byname.get((byname.get(root) or {}).get('parent'))
+    while cursor is not None:
+        if cursor['name'] in roles or steps >= MAX_BONES:
+            return False
+        if gun in gun_marks(cursor):
+            return True
+        cursor, steps = byname.get(cursor.get('parent')), steps + 1
+    return False
 
 
 def named_breast(name):
@@ -214,7 +282,9 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
     verified = set(physical)
     for bone in bones:
         if not (any(h in bone['name'].lower() for h in HINTS) or any(t in ('ear','ears') for t in re.split('[^a-z0-9]+',bone['name'].lower()))
-                or hanging_chain(bone, byname, children, weighted_set, source_roles)):
+                or charm_named(bone['name'])
+                or hanging_chain(bone, byname, children, weighted_set, source_roles)
+                or gun_charm(bone, byname, children, source_roles)):
             continue
         if rigid_named(bone['name']) or ring_chain(bone, byname, children, source_roles) or bone['name'] in breast_set:
             continue
@@ -273,7 +343,10 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
     return groups
 
 
-def selection(options, bones, weighted, source_roles, target_roles, target):
+def selection(options, bones, weighted, source_roles, target_roles, target, gun=None):
+    """gun: the weapon plan of this conversion. Moving parts hanging from a
+    replaced gun hang from its main weapon bone (plan anchor); those on a gun
+    that is left out are left out with it. Keep in sync with secondary_bones.rs."""
     enabled = options.get('preserve_physics_bones', False)
     if not isinstance(enabled, bool):
         raise ValueError('Keep existing physics bones must be on or off.')
@@ -282,6 +355,11 @@ def selection(options, bones, weighted, source_roles, target_roles, target):
     roots = options.get('physics_roots', [])
     if not isinstance(roots, list) or not roots or any(not isinstance(n, str) for n in roots) or len(set(roots)) != len(roots):
         raise ValueError('Choose the detected physics groups to keep.')
+    gun_id = '+'.join(gun.get('objects', [])) if gun else None
+    if gun and gun.get('action') == 'remove':
+        roots = [r for r in roots if not on_gun(r, bones, source_roles, gun_id)]
+        if not roots:
+            return None
     breasts = options.get('breast_motion')
     if breasts is not None and not isinstance(breasts, bool):
         raise ValueError('Breast motion must be on or off.')
@@ -289,6 +367,12 @@ def selection(options, bones, weighted, source_roles, target_roles, target):
     if any(root not in choices for root in roots):
         raise ValueError('Saved physics groups are stale or unsupported. Inspect the original source again.')
     groups = [choices[n] for n in sorted(roots)]
+    if gun and gun.get('action') == 'replace':
+        for group in groups:
+            if on_gun(group['root'], bones, source_roles, gun_id):
+                if not gun.get('anchor'):
+                    raise ValueError('The fitted gun has no weapon bone for its charms. Inspect the source again.')
+                group['target_anchor'] = gun['anchor']
     names = [n for g in groups for n in g['source_bones']]
     if len(names) != len(set(names)) or len(names) > MAX_BONES:
         raise ValueError('Selected physics branches overlap or exceed 512 bones.')
@@ -314,8 +398,12 @@ def extend_target(target, source, parents, plan, anchor_transforms, group_transf
             output = plan['exported_bones'][name]
             parent = group['target_anchor'] if name == group['root'] else plan['exported_bones'][parents[name]]
             mapped = transform @ np.asarray(source[name], dtype=float)
+            orientation = mapped[:3, :3]
+            size = abs(np.linalg.det(orientation)) ** (1. / 3.)
+            if abs(size - 1.) > 1e-6:
+                orientation = orientation / size  # a charm on a gun fitted at another scale
             # Reconstruct a proper frame from bpy float32 source orientations.
-            world = _local_matrix(mapped[:3, 3], _quaternion(mapped[:3, :3]), 1.)
+            world = _local_matrix(mapped[:3, 3], _quaternion(orientation), 1.)
             local = np.linalg.inv(worlds[parent]) @ world
             scale = math.sqrt(float(np.trace(local[:3, :3].T @ local[:3, :3])) / 3.)
             rotation = _quaternion(local[:3, :3] / scale)

@@ -143,6 +143,25 @@ hat band) is a ring, not a strand. During Build, `parts.rs` gives such groups
 the **Rigid** part type (they follow their bone without motion) when they come
 from source physics bindings.
 
+**Charms** move wherever they hang: names with charm, keychain (also `Key_Chain`;
+names are compared without separators), keyring, pendant, lanyard or dangle (also
+チャーム, キーホルダー, ペンダント, 根付, 挂件/掛件, 吊坠/吊墜, 挂坠/掛墜, 吊饰/吊飾). A
+charm word beats the rigid accessory words, so a dangle earring moves.
+
+**Gun charms** (`gun_charm` in the three detectors): Inspect marks the bones of
+every gun candidate it offers (the candidate's attach bone and every bone its
+objects are weighted to) with the candidate id (`weapon: ["Pistol"]` on the bone,
+`weapon::mark_gun_bones`). A chain hanging from such a bone (not a body role) is a
+moving part when it has two to four bones in one line, its tip hangs below its top
+by at least 40% of its length, and no bone in it is named as a gun part (slide,
+mag/magazine, clip, bullet, shell, ammo, trigger, hammer, bolt, barrel, muzzle,
+cylinder, sight, scope, stock, grip, handle, rail, spring, guard ... and 弾,
+マガジン, スライド, トリガー, 引き金, 銃口). A strap (`strap`, ストラップ) hanging from a gun
+bone counts in any shape and length. Like every automatic moving part a charm
+needs two weighted bones at different positions: a charm made of one weighted
+bone has nothing to swing around and stays rigid on the gun. A chain hanging
+straight from the hand bone is not a gun charm (unless it is named as a charm).
+
 **Breast motion** is optional and off by default (`breast_motion` in the
 preparation options; unset keeps earlier projects unchanged). Breast bones are
 weighted, short (at most three bones), non-role children of a torso bone (pelvis
@@ -218,7 +237,8 @@ Deadlock heroes carry their gun in one of two ways:
 * **A separate weapon model**: the hero model has no gun mesh; the gun is its
   own `.vmdl`.
 
-When the character file also contains a gun, the **Weapon** tab offers:
+When the character file also contains a gun (or a gun file is chosen, see
+below), the **Weapon** tab offers:
 
 | Choice | Result |
 | --- | --- |
@@ -228,9 +248,90 @@ When the character file also contains a gun, the **Weapon** tab offers:
 
 For a separate weapon model use **Appearance → Equipment → Weapon model**:
 *Find this hero's weapon models*, then *Create weapon project*. That creates a
-gun-only project (preparation mode **Weapon model**) from the same source file
-and links it as a bundled member, so one VPK contains the character and the gun.
-Open the new project and run Model preparation once.
+gun-only project (preparation mode **Weapon model**) and links it as a bundled
+member, so one VPK contains the character and the gun. Under *Take the gun from*
+choose the character file (the same source) or a separate gun file, which then
+becomes the weapon project's source (it starts from the Weapon tab's gun file
+when one is set). Open the new project and run Model preparation once.
+
+A weapon project's source may be a gun-only file. Inspect is told the project
+is a weapon model (`mode: weapon`): the gun may hold most of the scene's
+vertices, and when no object is recognisable as a gun (one unnamed, unrigged
+object such as `Cube`), the whole scene except ground planes and backdrops is
+offered as the gun (`attach_kind: whole_file`) and suggested. Without a rig, the
+scene is measured by its longest side and parts touching each other in a chain
+(barrel, suppressor) stay together.
+
+### Gun from a separate file
+
+The **Weapon** tab of a character project has an optional **Gun file**
+(`preparation_options.weapon_source`; Blender, FBX, GLB or glTF). Choosing,
+changing or clearing it asks for a new inspection.
+
+* Inspect stages the file like the source (`<preparation>/weapon-file`, a packed
+  copy for `.blend`) and records `Analysis.weapon_file`: the user's path with the
+  SHA-256 of the file and its textures, the staged copy and its SHA-256, and the
+  hand bone. After the normal inspection passes, one more Blender pass adds the
+  gun with the right hand the native recognition found (`hand_R`). Convert sends
+  the same request (`weapon_source`); corrections already hold the gun.
+* Blender (`weapon_source.py`) appends the file's objects after the character was
+  isolated, rotated and given breast bones, and renames them `gun_file_<name>`.
+  Cameras, lights and empties are ignored; hidden objects, the gun's own rig, bone
+  shapes, ground planes and backdrops (flat and gun-sized, or much larger than
+  the gun) and parts away from the gun are set aside, and each can be kept in
+  **Scene objects**. Shape keys, modifiers, constraints and mirrored transforms
+  are baked. With a hand bone the gun's grip (the handle below the barrel,
+  measured like `weapon.rs`) is moved to the middle of the hand unless the gun
+  already sits there, and the gun is rigidly weighted to the hand, so *Keep it in
+  the hand* works (its orientation stays as in the file). A rig without a right
+  hand attaches it to the nearest weighted bone; an unrigged character keeps it
+  where it is.
+* The gun-file objects are always offered, as one candidate (`gun_file: true`),
+  and are suggested before any gun in the character file. A gun that was moved
+  into the hand (`attach_kind: placed`) is fitted from its own handle, not from
+  the hand. A gun in the character file stays on the character unless you set it
+  aside in **Scene objects**.
+* The preparation receipt keeps `weapon_file_selection`. Convert, the review
+  check and Analyze/Build compare it with the current gun file: a changed (or
+  changed-texture), cleared or newly chosen gun file needs a new inspection; a
+  moved but identical file is accepted.
+
+### Charms on the gun
+
+Charms, keychains, pendants, straps and tassels hanging from the character's gun
+are found as moving parts (see **Gun charms** under Moving parts) and kept with
+the other moving parts. What happens to them follows the gun choice:
+
+| Gun choice | Charm |
+| --- | --- |
+| Replace the hero's gun | The charm's bones are kept (`dmb_secondary_*`) and hang from the hero bone the fitted gun mainly follows (`Plan.anchor`: the rigid bone, or the bone with the most of the original gun's weight). They are placed with the same rotation, scale and offset as the gun, and the charm's vertices keep their charm-bone weights (`weapon_fit.apply`); the rest of each gun vertex follows the gun's planned skin. |
+| Keep it in the hand | Unchanged path: the charm hangs from the hand like any accessory. |
+| Leave it out | The charm is left out with the gun (its groups are dropped from the kept moving parts; the Weapon tab removes them and offers them again when the gun comes back). |
+
+Rust and Blender compute the same plan (`secondary_bones::selection_for` and
+`selection(..., gun)`); Blender receives the inspection's gun-bone marks as
+`gun_bones` and counts the gun objects' own weights, and Convert checks that both
+plans agree. Corrections keep the gun of their conversion.
+
+During Build a part hanging from a hero weapon bone, a part with
+`physics_kinds: {root: "charm"}` (set for gun charms when they are first kept) or
+a charm-named part gets the **Charm** part type (`secondary_auto.rs`,
+`charm_parameters`): its pivot stays on the gun, the rest swings with goal
+0.5→0.35 along the charm, drag 0.3 so it settles within a few swings, no gravity
+so it never sags into the gun when the gun is held sideways, and a travel limit of
+about a third of the charm's reach (0.2–1.2 in). Stiffer is goal 0.7, drag 0.4,
+travel ×0.6; More movement is goal 0.35, drag 0.2, travel ×1.4. **These amounts
+are untested in game; they need an in-game check.** The **Physics** tab's **Gun
+charm motion** switch (`CharmMotion` in `SecondaryMotion.tsx`) turns the swing on
+or off (off sets the part type to Rigid, so the charm stays still on the gun) and
+sets one amount for all charms, without converting again.
+
+Separate weapon models cannot carry charm motion. None of the game's separate
+weapon models has cloth (`astro_gun`, `priest_gun_crossbow`: no physics block;
+`abrams_gun`, `werewolf/weapon_brk1`: `m_pFeModel = null`), weapon projects export
+only the gun against the weapon skeleton without extra bones, and whether the game
+simulates cloth on a weapon entity is unverified. A gun from a separate gun file
+loses its own rig when it is added (see above), so its charms stay rigid too.
 
 ### How the fit works (`weapon.rs`)
 
@@ -261,7 +362,11 @@ blender --background --factory-startup --python scripts/test_blender_any_humanoi
 The last command builds awkward sources (generic/Rigify/DAZ/CC/odd names,
 cluttered scenes, posed rigs with constraint-attached guns, Y-up exports,
 shape keys under subdivision, curve hair, collection instances, two scenes,
-FBX/GLB round trips, gun-only weapon models, an unrigged statue) and runs each
+FBX/GLB round trips, gun-only weapon models, a gun in a second file used by a
+character project (replace and keep) and as a weapon project's GLB source,
+a rigged two-part gun file with a curve strap, a hidden part and a floor,
+a pistol on its own gun bone carrying an unnamed two-link charm (replace and
+keep, with moving parts kept; `DMB_PROBE_PHYSICS`), an unrigged statue) and runs each
 through inspect → plan → prepare → native DMX validation against a captured
 196-bone hero skeleton.
 
@@ -272,4 +377,6 @@ position, elbow and knee bending, and clipping. Non-humanoid bodies
 (quadrupeds, characters without two legs and two arms), models whose limbs
 are not separated in the rest pose, and live rig controls that change the rest
 shape still need a manual source copy. A separately modelled gun replaces the
-weapon model for every hero that shares that model.
+weapon model for every hero that shares that model. Gun charms move only on guns
+that are part of the hero model, and their swing amount is not yet checked in
+game.

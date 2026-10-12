@@ -180,7 +180,7 @@ fn a_differently_shaped_gun_in_the_hand_is_fitted_onto_the_hero_gun() {
     let candidate = weapon::Candidate {
         id: "Rifle".into(), objects: vec!["Rifle".into()], vertices: sample.len() as u64,
         bounds: [[-0.8, -0.6, 1.3], [-0.7, 0.1, 1.6]], sample, attach_bone: Some("hand_R".into()),
-        attach_kind: "bone_parent".into(), keywords: vec![], elongation: 4.,
+        attach_kind: "bone_parent".into(), keywords: vec![], elongation: 4., gun_file: false, bones: vec![],
     };
     let fit = weapon::fit(&candidate, &reference, &weapon::Choice::default(), &source, &roles, &bones, None).unwrap();
     // The barrel lines up with the hero barrel, the grip sits at the hero grip.

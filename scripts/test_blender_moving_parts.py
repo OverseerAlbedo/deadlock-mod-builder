@@ -8,7 +8,7 @@ import json, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'src-tauri/crates/deadlock-preparation/resources/blender')]
-from secondary_bones import physics_groups, breast_bones
+from secondary_bones import physics_groups, breast_bones, on_gun, charm_named, rigid_named, selection
 
 data=json.loads((ROOT/'src-tauri/crates/deadlock-preparation/tests/fixtures/hanging-chains.json').read_text(encoding='utf-8'))
 bones,weighted,roles=data['bones'],data['weighted'],data['roles']
@@ -27,6 +27,27 @@ renamed=data['renamed_breast_bones']
 generic=[{**b,'name':renamed.get(b['name'],b['name'])} for b in bones]
 assert breast_bones(generic,[renamed.get(n,n) for n in weighted],roles)==[renamed.get(n,n) for n in data['breast_bones']]
 print('moving-part rules: ok')
+
+# Gun charms: chains hanging from the marked gun bones move; gun parts and parts
+# on the hand do not; without the marks only named charms move.
+gun,charms=data['gun'],data['gun_charm_roots']
+groups=physics_groups(bones,weighted,roles,roles)
+assert [g['root'] for g in groups if on_gun(g['root'],bones,roles,gun)]==charms
+link=next(g for g in groups if g['root']=='Pistol_Link_00')
+assert (link['source_anchor'],link['source_bones'])==('Bip001_L_Hand',['Pistol_Link_00','Pistol_Link_01','Pistol_Link_02']),link
+unmarked=[{k:v for k,v in b.items() if k!='weapon'} for b in bones]
+assert [g['root'] for g in physics_groups(unmarked,weighted,roles,roles)]==[r for r in data['expected_roots'] if r not in charms]
+assert charm_named('Key_Chain_00') and charm_named('キーホルダー') and not charm_named('Keystone')
+assert not rigid_named('Earring_Dangle_00') and rigid_named('Earring_00')
+options={'preserve_physics_bones':True,'physics_roots':data['expected_roots']}
+target=[{'name':n} for n in set(roles.values())|{'weapon'}]
+plan={'objects':[gun],'action':'replace','anchor':'weapon'}
+kept=selection(options,bones,weighted,roles,roles,target,plan)
+assert all((g['target_anchor']=='weapon')==(g['root'] in charms) for g in kept['groups']),kept['groups']
+left=selection(options,bones,weighted,roles,roles,target,{**plan,'action':'remove','anchor':''})
+assert [g['root'] for g in left['groups']]==[r for r in data['expected_roots'] if r not in charms]
+assert selection({**options,'physics_roots':charms},bones,weighted,roles,roles,target,{**plan,'action':'remove'}) is None
+print('gun charm rules: ok')
 
 # Adding breast bones to a rig without them (breast_bones.py): a synthetic torso
 # with two breasts gets a mirrored pair with weights confined to the breasts and

@@ -118,3 +118,67 @@ fn weapon_model_projects_only_need_a_gun_and_a_measurable_fit() {
     assert_eq!(plan.action, "weapon_model");
     assert_eq!(plan.replace, vec!["hero_body".to_string(), "hero_gun".to_string(), "hero_gun_lod1".to_string()]);
 }
+
+#[test]
+fn weapon_model_accepts_an_unrigged_gun_only_file_without_names() {
+    // A gun-only weapon source: one object called "Cube", no rig, no weapon
+    // words, lying along X. Blender offers the whole file as one candidate.
+    let mut analysis = analysis(true);
+    analysis.weapon_reference.as_mut().unwrap().separate_model = true;
+    let sample = pistol([0.2, 0., 0.1], [1., 0., 0.], [0., 0., 1.], 1.);
+    analysis.analysis.bones.clear();
+    analysis.analysis.weighted_bones.clear();
+    analysis.suggestions.source = None;
+    analysis.analysis.weapons = serde_json::from_value(json!([{
+        "id": "Cube", "objects": ["Cube"], "vertices": sample.len(), "bounds": [[0.1, -0.1, 0.], [0.5, 0.1, 0.2]],
+        "sample": sample, "attach_bone": null, "attach_kind": "whole_file", "keywords": [], "elongation": 0.
+    }]))
+    .unwrap();
+    let gun_project = project(ModelInputMode::Weapon);
+    let suggestion = service::weapon_suggestion(&gun_project, &analysis).unwrap();
+    assert_eq!((suggestion.action.as_str(), suggestion.objects.clone()), ("replace", vec!["Cube".to_string()]));
+    let choices: PreparationOptions = serde_json::from_value(json!({"reviewed": true, "weapon": suggestion})).unwrap();
+    assert!(service::review_issues(&gun_project, &analysis, &choices).unwrap().is_empty());
+    let plan = service::weapon_plan(&gun_project, &analysis, &choices).unwrap().unwrap();
+    assert_eq!(plan.action, "weapon_model");
+    // Without a hand bone the grip is the handle hanging below the barrel and
+    // the muzzle is the thinner front end.
+    let preview = service::weapon_preview(&gun_project, &analysis, &choices).unwrap();
+    let source = &preview.fit.source;
+    assert!(source.forward[0] > 0.99, "barrel {:?}", source.forward);
+    assert!(source.up[2] > 0.95, "up {:?}", source.up);
+    assert!(source.grip[2] < 0.1 && (source.grip[0] - 0.2).abs() < 0.05, "grip {:?}", source.grip);
+    // A character project still offers nothing for an unnamed loose object.
+    assert!(service::weapon_suggestion(&project(ModelInputMode::RiggedHumanoid), &analysis).is_none());
+}
+
+#[test]
+fn the_gun_file_gun_is_suggested_and_fitted_by_its_own_handle() {
+    let analysis = analysis(true);
+    let hero = project(ModelInputMode::RiggedHumanoid);
+    // The gun file's pistol was moved so its grip sits in the right hand.
+    let sample = pistol([-0.9, 0., 1.5], [0., -1., 0.], [0., 0., 1.], 1.);
+    let mut gun_file: weapon::Candidate = serde_json::from_value(json!({
+        "id": "gun_file_Cube", "objects": ["gun_file_Cube"], "vertices": sample.len(), "bounds": [[-1., -0.3, 1.3], [-0.8, 0.1, 1.6]],
+        "sample": sample, "attach_bone": "mixamorig:RightHand", "attach_kind": "placed", "keywords": ["gun"], "elongation": 3.,
+        "gun_file": true
+    }))
+    .unwrap();
+    let mut with_file = analysis.clone();
+    with_file.analysis.weapons.push(gun_file.clone());
+    // Preferred over the character file's own pistol.
+    let suggestion = service::weapon_suggestion(&hero, &with_file).unwrap();
+    assert_eq!((suggestion.action.as_str(), suggestion.objects.clone()), ("replace", vec!["gun_file_Cube".to_string()]));
+    let choices = options(&with_file, serde_json::to_value(&suggestion).unwrap());
+    assert!(weapon_issues(&hero, &with_file, &choices).is_empty());
+    assert_eq!(service::weapon_plan(&hero, &with_file, &choices).unwrap().unwrap().objects, vec!["gun_file_Cube".to_string()]);
+    // The hand is where the grip was put, not extra evidence: the fit is the
+    // same as for the same gun lying anywhere else.
+    let placed = service::weapon_preview(&hero, &with_file, &choices).unwrap().fit.source;
+    let measured = weapon::measure(&gun_file.sample, None, None).unwrap();
+    assert_eq!(placed.grip, measured.grip);
+    gun_file.attach_kind = "attached".into();
+    with_file.analysis.weapons[1] = gun_file;
+    let held = service::weapon_preview(&hero, &with_file, &choices).unwrap().fit.source;
+    assert_ne!(held.grip, measured.grip, "a gun already in the hand uses the hand");
+}

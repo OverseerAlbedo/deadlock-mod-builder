@@ -155,6 +155,80 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
 }
 
 #[test]
+fn charms_hang_from_the_gun_and_follow_its_fit_or_leave_with_it() {
+    use deadlock_preparation::weapon;
+    let data: Value = serde_json::from_str(include_str!("fixtures/hanging-chains.json")).unwrap();
+    let source: Vec<Bone> = serde_json::from_value(data["bones"].clone()).unwrap();
+    let weighted: Vec<String> = serde_json::from_value(data["weighted"].clone()).unwrap();
+    let roles: BTreeMap<String, String> = serde_json::from_value(data["roles"].clone()).unwrap();
+    let gun = data["gun"].as_str().unwrap();
+    let charms: Vec<String> = serde_json::from_value(data["gun_charm_roots"].clone()).unwrap();
+    let expected: Vec<String> = serde_json::from_value(data["expected_roots"].clone()).unwrap();
+    let groups = secondary::candidates(&source, &weighted, &roles, &roles).unwrap();
+    let on_gun: Vec<_> = groups.iter().filter(|g| secondary::on_gun(&g.root, &source, &roles, gun)).map(|g| g.root.clone()).collect();
+    assert_eq!(on_gun, charms);
+    // The charm keeps all its links; slide, magazine, a sideways fin and a tag on the hand stay put.
+    let link = groups.iter().find(|g| g.root == "Pistol_Link_00").unwrap();
+    assert_eq!((link.source_anchor.as_str(), link.source_bones.len()), ("Bip001_L_Hand", 3));
+    assert!(groups.iter().all(|g| !g.source_bones.iter().any(|b| ["Pistol_Slide", "Pistol_Mag", "Pistol_Fin", "Glove_Tag"].iter().any(|p| b.starts_with(p)))));
+    // Without the inspection's gun marks only the named parts move.
+    let unmarked: Vec<Bone> = source.iter().map(|b| { let mut b = b.clone(); b.details.remove("weapon"); b }).collect();
+    let named: Vec<_> = secondary::candidates(&unmarked, &weighted, &roles, &roles).unwrap().into_iter().map(|g| g.root).collect();
+    assert_eq!(named, expected.iter().filter(|r| !charms.contains(r)).cloned().collect::<Vec<_>>());
+    // Rigid accessory words lose to charm words; charm names do not need a gun.
+    assert!(!secondary::rigid_named("Earring_Dangle_00") && secondary::rigid_named("Earring_00"));
+    assert!(secondary::charm_named("Key_Chain_00") && secondary::charm_named("KeyRing") && secondary::charm_named("キーホルダー") && !secondary::charm_named("Keystone"));
+    // A replaced gun carries its charms; a removed gun takes them along.
+    let mut options = PreparationOptions::default();
+    options.values.insert("preserve_physics_bones".into(), json!(true));
+    options.values.insert("physics_roots".into(), json!(expected));
+    options.values.insert("source_roles".into(), json!(roles));
+    options.values.insert("target_roles".into(), json!(roles));
+    let mut target: Vec<Bone> = serde_json::from_value(json!([{"name":"weapon","parent":"Bip001_L_Hand","position":[0.5,0,1.09]}])).unwrap();
+    target.extend(source.iter().filter(|b| roles.values().any(|r| r == &b.name)).cloned());
+    let plan = weapon::Plan {
+        policy: weapon::POLICY.into(), objects: vec![gun.into()], action: "replace".into(),
+        matrix: [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]],
+        skin: weapon::Skin::Rigid { bone: "weapon".into() }, mesh_prefix: "weapon_".into(), replace: vec![], anchor: "weapon".into(),
+    };
+    let kept = secondary::selection_for(&source, &weighted, &target, &options, Some(&plan)).unwrap().unwrap();
+    assert_eq!(kept.groups.len(), expected.len());
+    for group in &kept.groups {
+        assert_eq!(group.target_anchor == "weapon", charms.contains(&group.root), "{}", group.root);
+    }
+    // Without a gun choice the charms stay on the hand, as when the gun is kept in the hand.
+    let hand = secondary::selection(&source, &weighted, &target, &options).unwrap().unwrap();
+    assert!(hand.groups.iter().filter(|g| charms.contains(&g.root)).all(|g| g.target_anchor == "Bip001_L_Hand"));
+    // Another candidate's plan does not move them.
+    let other = weapon::Plan { objects: vec!["Sword".into()], ..plan.clone() };
+    assert_eq!(secondary::selection_for(&source, &weighted, &target, &options, Some(&other)).unwrap(), Some(hand.clone()));
+    let removed = weapon::Plan { action: "remove".into(), anchor: String::new(), ..plan.clone() };
+    let left = secondary::selection_for(&source, &weighted, &target, &options, Some(&removed)).unwrap().unwrap();
+    assert_eq!(left.groups.iter().map(|g| g.root.clone()).collect::<Vec<_>>(), expected.iter().filter(|r| !charms.contains(r)).cloned().collect::<Vec<_>>());
+    let mut only = options.clone();
+    only.values.insert("physics_roots".into(), json!(charms));
+    assert_eq!(secondary::selection_for(&source, &weighted, &target, &only, Some(&removed)).unwrap(), None);
+    let unanchored = weapon::Plan { anchor: String::new(), ..plan };
+    assert!(secondary::selection_for(&source, &weighted, &target, &options, Some(&unanchored)).is_err());
+}
+
+#[test]
+fn inspection_marks_the_bones_of_offered_guns() {
+    use deadlock_preparation::weapon;
+    let mut bones: Vec<Bone> = serde_json::from_value(json!([
+        {"name":"hand_R","parent":null,"position":[0,0,0]},
+        {"name":"Gun","parent":"hand_R","position":[0,0,0]},
+        {"name":"Charm_0","parent":"Gun","position":[0,0,-0.02]},
+        {"name":"Hair","parent":null,"position":[0,0,1]}
+    ])).unwrap();
+    let candidate: weapon::Candidate = serde_json::from_value(json!({"id":"Pistol","objects":["Pistol"],"vertices":40,"bounds":[[0,0,0],[1,1,1]],"sample":[],
+        "attach_bone":null,"attach_kind":"skinned","bones":["Gun","Charm_0"]})).unwrap();
+    weapon::mark_gun_bones(&mut bones, &[candidate.clone(), candidate]);
+    assert_eq!(weapon::gun_marks(&bones), BTreeMap::from([("Charm_0".to_string(), vec!["Pistol".to_string()]), ("Gun".to_string(), vec!["Pistol".to_string()])]));
+    assert!(bones[3].details.get("weapon").is_none());
+}
+
+#[test]
 fn breast_bones_carrying_other_parts_still_count_as_existing_breasts() {
     // MMD-style rig (as in Yvonne): 胸上2.L/R carry the breast skin and also
     // hold ribbon and cape strips, so they are not single breasts, but the rig

@@ -16,6 +16,7 @@ pub enum AssetKind {
     Audio,
     Prop,
     VariantProject,
+    Weapon,
 }
 
 pub fn validate_asset_path(path: &Path, kind: AssetKind) -> Result<String> {
@@ -32,7 +33,7 @@ pub fn validate_asset_path(path: &Path, kind: AssetKind) -> Result<String> {
                 .to_ascii_lowercase();
             let allowed: &[&str] = match kind {
                 AssetKind::Physics => &["vmdl_c"],
-                AssetKind::Garment | AssetKind::Prop => &["blend", "glb", "gltf", "fbx"],
+                AssetKind::Garment | AssetKind::Prop | AssetKind::Weapon => &["blend", "glb", "gltf", "fbx"],
                 AssetKind::Icon => &["png", "jpg", "jpeg"],
                 AssetKind::Texture => &["png", "tga", "jpg", "jpeg", "tif", "tiff", "exr"],
                 AssetKind::Animation => &["vnmclip", "vnmclip_c", "blend", "fbx", "glb", "gltf"],

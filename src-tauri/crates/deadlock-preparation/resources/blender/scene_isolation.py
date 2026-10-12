@@ -444,8 +444,9 @@ def _remove_rigid_body(bpy, obj):
 
 
 def isolate(bpy, imported, scene_choices=None, allow_shape_keys=False, reports=None,
-            select_source_rig=None, helpers=frozenset(), rig_logic=True):
-    """Return (meshes, rigs) for the character; record a receipt for the UI."""
+            select_source_rig=None, helpers=frozenset(), rig_logic=True, weapon_model=False):
+    """Return (meshes, rigs) for the character (or, for a weapon model, the
+    gun); record a receipt for the UI."""
     receipt = Receipt()
     choices = _choices(scene_choices)
     realized = realize_instances(bpy, imported)
@@ -515,7 +516,7 @@ def isolate(bpy, imported, scene_choices=None, allow_shape_keys=False, reports=N
         meshes = _bind_loose(bpy, meshes, character, receipt, choices['include'])
         _complete_weights(meshes, character, receipt)
     elif rig_logic:
-        meshes = _isolate_unrigged(meshes, receipt)
+        meshes = _isolate_unrigged(meshes, receipt, weapon_model)
     for obj in meshes:
         if obj.name not in receipt.rows:
             receipt.mark(obj, 'included', 'character geometry')
@@ -829,11 +830,24 @@ def _scenery(box, height):
     return (thin and largest > height * .9) or float(max(size[0], size[1])) > height * 2.5
 
 
-def _isolate_unrigged(meshes, receipt):
-    """Without a rig, keep the main body cluster; set aside scenery."""
+def _isolate_unrigged(meshes, receipt, weapon_model=False):
+    """Without a rig, keep the main body cluster; set aside scenery.
+
+    A gun-only weapon source lies along its barrel, so it is measured by its
+    longest side; only flat or far larger pieces count as scenery, and parts
+    touching each other in a chain (barrel, suppressor) stay together."""
     sized = sorted(meshes, key=lambda m: len(m.data.vertices), reverse=True)
     main = bounds(world_points(sized[0]))
     height = max(float(main[1][2] - main[0][2]), 1e-6)
+    if weapon_model:
+        from weapon_source import backdrop, connected
+        size = max(float((main[1] - main[0]).max()), 1e-6)
+        flat = {m for m in sized if m is not sized[0] and backdrop(bounds(world_points(m)), size)}
+        joined, _ = connected([m for m in sized if m not in flat], ())
+        for mesh in sized:
+            if mesh not in joined:
+                receipt.mark(mesh, 'excluded', 'separate from the gun' + (' (ground plane or backdrop)' if mesh in flat else ''))
+        return [m for m in sized if m in joined]
     kept = []
     for mesh in sized:
         box = bounds(world_points(mesh))

@@ -20,6 +20,19 @@ pub const RIGID_HINTS: [&str; 38] = ["halo","hat","cap","pin","pins","clip","cli
     "飾","冠","帽","角","眼鏡","メガネ","輪"];
 /// Breast bones move only when breast motion is turned on.
 pub const BREAST_HINTS: [&str; 7] = ["breast","bust","boob","pectoral","oppai","おっぱい","乳"];
+/// Charms and other small hanging pieces, matched without separators (Key_Chain
+/// is keychain). They move anywhere and override the rigid accessory words (a
+/// dangle earring moves). Keep in sync with secondary_bones.py and
+/// src/preparation/secondary-bones.ts.
+pub const CHARM_HINTS: [&str; 18] = ["charm","keychain","keyring","pendant","lanyard","dangle",
+    "チャーム","キーホルダー","ペンダント","根付","挂件","掛件","吊坠","吊墜","挂坠","掛墜","吊饰","吊飾"];
+/// Straps count as charms only when they hang from a gun bone.
+pub const GUN_STRAP_HINTS: [&str; 2] = ["strap","ストラップ"];
+/// Moving gun parts (slide, magazine, trigger ...) are never charms.
+pub const GUN_PART_HINTS: [&str; 49] = ["slide","mag","magazine","clip","bullet","bullets","shell","shells","ammo","round","rounds","cartridge",
+    "casing","trigger","hammer","bolt","barrel","muzzle","cylinder","chamber","breech","sight","sights","scope","stock","grip","handle","safety",
+    "lever","pump","drum","receiver","rail","laser","silencer","suppressor","bayonet","blade","spring","guard","hopper",
+    "弾","弹","マガジン","スライド","トリガー","引き金","銃口","枪口"];
 fn tokens(name:&str)->Vec<String> {
     // Split on separators and camel case: HatBrim_L -> hat, brim, l.
     let mut out=vec![];let mut word=String::new();let mut previous_lower=false;
@@ -35,15 +48,60 @@ pub fn rigid_named(name:&str)->bool {
     let words=tokens(name);let n=name.to_lowercase();
     let rigid=RIGID_HINTS.iter().any(|h|if h.is_ascii(){words.iter().any(|w|w==h)||(h.len()>=6&&n.contains(h))}else{n.contains(h)});
     // Moving names other than hair and ears keep their motion (a ribbon on a hat).
-    let moving=HINTS.iter().filter(|h|!["hair","髪","发","髮","耳"].contains(h)).any(|h|n.contains(h));
+    let moving=HINTS.iter().filter(|h|!["hair","髪","发","髮","耳"].contains(h)).any(|h|n.contains(h))||charm_named(name);
     rigid&&!moving
+}
+pub fn charm_named(name:&str)->bool {
+    let n:String=name.to_lowercase().chars().filter(|c|c.is_alphanumeric()).collect();
+    CHARM_HINTS.iter().any(|h|n.contains(h))
+}
+fn gun_part_named(name:&str)->bool {
+    let words=tokens(name);let n=name.to_lowercase();
+    GUN_PART_HINTS.iter().any(|h|if h.is_ascii(){words.iter().any(|w|w==h)}else{n.contains(h)})
+}
+/// Bones of a gun candidate carry the candidate ids under `weapon` (see
+/// `weapon::mark_gun_bones`).
+fn gun_marks(bone:&Bone)->Vec<&str> {
+    bone.details.get("weapon").and_then(|v|v.as_array()).map(|a|a.iter().filter_map(|v|v.as_str()).collect()).unwrap_or_default()
+}
+/// Charms on a gun: a chain hanging from a bone of a gun candidate. Two to four
+/// bones in one line whose tip hangs below their top by at least 40% of their
+/// length, without gun-part names (slide, magazine, trigger); a strap hanging from
+/// the gun qualifies in any shape.
+fn gun_charm(bone:&Bone,names:&BTreeMap<&str,&Bone>,children:&BTreeMap<&str,Vec<&str>>,source_roles:&BTreeMap<String,String>)->bool {
+    let roles:BTreeSet<&str>=source_roles.values().map(String::as_str).collect();
+    let Some(parent)=bone.parent.as_deref().and_then(|p|names.get(p)) else {return false;};
+    if roles.contains(bone.name.as_str())||roles.contains(parent.name.as_str())||gun_marks(parent).is_empty() {return false;}
+    let lower=bone.name.to_lowercase();
+    if GUN_STRAP_HINTS.iter().any(|h|lower.contains(h)) {return true;}
+    let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
+    let mut chain=vec![bone];let mut cursor=bone.name.as_str();
+    while let Some(next)=children.get(cursor) {
+        if next.len()!=1||chain.len()>4 {return false;}
+        cursor=next[0];let Some(child)=names.get(cursor) else {return false;};chain.push(child);
+    }
+    let path:f64=chain.windows(2).map(|w|distance(&w[0].position,&w[1].position)).sum();
+    (2..=4).contains(&chain.len())&&path>1e-6&&!chain.iter().any(|b|roles.contains(b.name.as_str())||gun_part_named(&b.name))
+        &&chain[0].position[2]-chain[chain.len()-1].position[2]>=0.4*path
+}
+/// Whether the moving part at `root` hangs from the gun candidate `gun`: a bone
+/// between the root and its body anchor belongs to that gun.
+pub fn on_gun(root:&str,source:&[Bone],source_roles:&BTreeMap<String,String>,gun:&str)->bool {
+    let names:BTreeMap<&str,&Bone>=source.iter().map(|b|(b.name.as_str(),b)).collect();
+    let mut cursor=names.get(root).and_then(|b|b.parent.as_deref()).and_then(|p|names.get(p));let mut steps=0;
+    while let Some(bone)=cursor {
+        if source_roles.values().any(|r|r==&bone.name)||steps>=512 {return false;}
+        if gun_marks(bone).contains(&gun) {return true;}
+        cursor=bone.parent.as_deref().and_then(|p|names.get(p));steps+=1;
+    }
+    false
 }
 pub fn named_breast(name:&str)->bool {
     let n=name.to_lowercase();
     BREAST_HINTS.iter().any(|h|n.contains(h)) || (n.contains('胸')&&(n.contains('左')||n.contains('右')||tokens(name).iter().any(|t|["l","r","left","right"].contains(&t.as_str()))))
 }
 fn named_secondary(name:&str)->bool {
-    let n=name.to_lowercase();HINTS.iter().any(|s|n.contains(s)) || n.split(|c:char|!c.is_alphanumeric()).any(|s|["ear","ears"].contains(&s))
+    let n=name.to_lowercase();HINTS.iter().any(|s|n.contains(s)) || n.split(|c:char|!c.is_alphanumeric()).any(|s|["ear","ears"].contains(&s)) || charm_named(name)
 }
 /// A closed loop (halo, crown band, hat brim): the single chain that contains the
 /// bone, from below its body anchor, ends close to where it starts.
@@ -227,7 +285,7 @@ pub fn candidates_with(source: &[Bone], weighted: &[String], source_roles: &BTre
     // FBX/GLB rigs often have usable secondary chains without rigid bodies.
     // Require a semantic hint (or a long hanging chain) PLUS multiple weighted, spatially separated
     // joints. Existing physical rigs always retain their original boundaries.
-    let automatic=source.iter().filter(|b|(named_secondary(&b.name)||hanging_chain(b,&names,&children,&weighted_set,source_roles))
+    let automatic=source.iter().filter(|b|(named_secondary(&b.name)||hanging_chain(b,&names,&children,&weighted_set,source_roles)||gun_charm(b,&names,&children,source_roles))
         && !rigid_named(&b.name) && !ring_chain(b,&names,&children,source_roles) && !breast_set.contains(b.name.as_str()));
     for bone in automatic {
         let mut branch=BTreeSet::new();let mut pending=vec![bone.name.as_str()];
@@ -274,6 +332,12 @@ pub fn candidates_with(source: &[Bone], weighted: &[String], source_roles: &BTre
     Ok(groups)
 }
 pub fn selection(source: &[Bone], weighted: &[String], target: &[Bone], options: &PreparationOptions) -> Result<Option<PreservationPlan>> {
+    selection_for(source, weighted, target, options, None)
+}
+/// `gun`: the fitted or removed gun of this conversion. Moving parts hanging from
+/// a replaced gun hang from its main weapon bone (`Plan::anchor`); those on a gun
+/// that is left out are left out with it. Keep in sync with secondary_bones.py.
+pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], options: &PreparationOptions, gun: Option<&crate::weapon::Plan>) -> Result<Option<PreservationPlan>> {
     let enabled = match options.values.get("preserve_physics_bones") {
         None => false,
         Some(v) => v.as_bool().ok_or_else(|| invalid("Keep existing physics bones must be on or off."))?,
@@ -281,9 +345,20 @@ pub fn selection(source: &[Bone], weighted: &[String], target: &[Bone], options:
     if !enabled { return Ok(None); }
     let roots: Vec<String> = serde_json::from_value(options.values.get("physics_roots").cloned().unwrap_or_default()).map_err(|_| invalid("Choose the detected physics groups to keep."))?;
     if roots.is_empty() || roots.iter().collect::<BTreeSet<_>>().len() != roots.len() { return Err(invalid("Choose the detected physics groups to keep.")); }
-    let groups = candidates_with(source, weighted, &roles(options,"source_roles")?, &roles(options,"target_roles")?, breast_motion(options)?)?;
+    let source_roles = roles(options,"source_roles")?;
+    let gun_id = gun.map(|g| g.objects.join("+"));
+    let removed = gun.is_some_and(|g| g.action == "remove");
+    let roots: Vec<String> = roots.into_iter().filter(|r| !removed || !gun_id.as_deref().is_some_and(|id| on_gun(r, source, &source_roles, id))).collect();
+    if roots.is_empty() { return Ok(None); }
+    let groups = candidates_with(source, weighted, &source_roles, &roles(options,"target_roles")?, breast_motion(options)?)?;
     if roots.iter().any(|r| !groups.iter().any(|g| &g.root == r)) { return Err(invalid("Saved physics groups are stale or unsupported. Inspect the original source again.")); }
-    let groups: Vec<_> = groups.into_iter().filter(|g| roots.contains(&g.root)).collect();
+    let mut groups: Vec<_> = groups.into_iter().filter(|g| roots.contains(&g.root)).collect();
+    if let (Some(plan), Some(id)) = (gun.filter(|g| g.action == "replace"), gun_id.as_deref()) {
+        for group in groups.iter_mut().filter(|g| on_gun(&g.root, source, &source_roles, id)) {
+            if plan.anchor.is_empty() { return Err(invalid("The fitted gun has no weapon bone for its charms. Inspect the source again.")); }
+            group.target_anchor = plan.anchor.clone();
+        }
+    }
     let mut exported = BTreeMap::new();
     for group in &groups {
         if !target.iter().any(|b| b.name == group.target_anchor) { return Err(invalid("Choose a valid target attachment for source physics bones.")); }

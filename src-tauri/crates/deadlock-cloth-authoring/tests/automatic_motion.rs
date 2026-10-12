@@ -64,7 +64,7 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
     let source = binding(&d, b"test authority");
     let mut p = project(vec!["garment_root".into()]);
     let mut settings = BTreeMap::new();
-    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory", "breast", "rigid"] {
+    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory", "breast", "charm", "rigid"] {
         p.customization
             .secondary_motion
             .as_mut()
@@ -96,7 +96,7 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .collect::<Vec<_>>();
         // A breast group's hanging parts move like accessories (checked below).
         assert!(kind == "breast" || active.iter().all(|g| *g
-            == if ["hair", "ear", "rigid"].contains(&kind) {
+            == if ["hair", "ear", "charm", "rigid"].contains(&kind) {
                 0.
             } else {
                 1.
@@ -133,6 +133,17 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
                 assert!(drag[i] <= 0.1 + 1e-6 && gravity[i] == 0. && radius[i] >= 0.4 && radius[i] <= 1.5);
             }
             assert!((0..enable.len()).filter(|i| enable[*i] > 0. && !breast.contains(i)).all(|i| gravity[i] == 1.));
+        }
+        if kind == "charm" {
+            // A light, quick-settling swing: the pivot stays on its anchor, the
+            // rest swings with damping, no gravity and a small travel limit.
+            let drag = stream(&proxy, "cloth_drag$0");
+            let radius = stream(&proxy, "cloth_stray_radius$0");
+            let swinging = (0..enable.len()).filter(|i| enable[*i] > 0. && goals[*i] < 1.).collect::<Vec<_>>();
+            assert!(!swinging.is_empty());
+            for &i in &swinging {
+                assert!(goals[i] >= 0.3 && goals[i] <= 0.5 + 1e-6 && drag[i] >= 0.3 - 1e-6 && radius[i] >= 0.2 && radius[i] <= 1.6, "{i}");
+            }
         }
         if kind == "rigid" {
             assert!(enable.iter().zip(&goals).filter(|(v, _)| **v > 0.).all(|(_, g)| *g == 1.));

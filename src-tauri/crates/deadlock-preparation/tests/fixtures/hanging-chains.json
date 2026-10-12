@@ -1,5 +1,5 @@
 {
- "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too.",
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too. A pistol in the left hand (its bones are marked as gun bones at inspection) carries an unnamed three-link charm hanging below it and a strap, which move; its slide, magazine and a sideways fin stay on the gun. Named charms move anywhere: a key chain on the hand, a necklace pendant and a dangle earring (dangle wins over earring). An unnamed tag hanging from the hand stays a body bone.",
  "bones": [
   {
    "name": "Bip001_Pelvis",
@@ -387,6 +387,231 @@
     -0.04,
     1.14
    ]
+  },
+  {
+   "name": "Pistol",
+   "parent": "Bip001_L_Hand",
+   "position": [
+    0.5,
+    -0.02,
+    1.09
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Slide",
+   "parent": "Pistol",
+   "position": [
+    0.5,
+    -0.1,
+    1.11
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Mag",
+   "parent": "Pistol",
+   "position": [
+    0.5,
+    -0.01,
+    1.06
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Mag_Bullet",
+   "parent": "Pistol_Mag",
+   "position": [
+    0.5,
+    -0.01,
+    1
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Link_00",
+   "parent": "Pistol",
+   "position": [
+    0.5,
+    0.02,
+    1.05
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Link_01",
+   "parent": "Pistol_Link_00",
+   "position": [
+    0.505,
+    0.025,
+    0.99
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Link_02",
+   "parent": "Pistol_Link_01",
+   "position": [
+    0.51,
+    0.03,
+    0.95
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Fin_00",
+   "parent": "Pistol",
+   "position": [
+    0.5,
+    -0.05,
+    1.13
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Fin_01",
+   "parent": "Pistol_Fin_00",
+   "position": [
+    0.5,
+    -0.12,
+    1.13
+   ],
+   "weapon": [
+    "Pistol"
+   ]
+  },
+  {
+   "name": "Pistol_Strap_00",
+   "parent": "Pistol",
+   "position": [
+    0.52,
+    0.03,
+    1.06
+   ]
+  },
+  {
+   "name": "Pistol_Strap_01",
+   "parent": "Pistol_Strap_00",
+   "position": [
+    0.56,
+    0.06,
+    1.05
+   ]
+  },
+  {
+   "name": "Pistol_Strap_02",
+   "parent": "Pistol_Strap_01",
+   "position": [
+    0.6,
+    0.09,
+    1.04
+   ]
+  },
+  {
+   "name": "Pistol_Strap_03",
+   "parent": "Pistol_Strap_02",
+   "position": [
+    0.64,
+    0.12,
+    1.03
+   ]
+  },
+  {
+   "name": "Pistol_Strap_04",
+   "parent": "Pistol_Strap_03",
+   "position": [
+    0.68,
+    0.15,
+    1.02
+   ]
+  },
+  {
+   "name": "Key_Chain_00",
+   "parent": "Bip001_L_Hand",
+   "position": [
+    0.47,
+    0.03,
+    1.06
+   ]
+  },
+  {
+   "name": "Key_Chain_01",
+   "parent": "Key_Chain_00",
+   "position": [
+    0.47,
+    0.035,
+    1
+   ]
+  },
+  {
+   "name": "Glove_Tag_00",
+   "parent": "Bip001_L_Hand",
+   "position": [
+    0.46,
+    0.04,
+    1.07
+   ]
+  },
+  {
+   "name": "Glove_Tag_01",
+   "parent": "Glove_Tag_00",
+   "position": [
+    0.46,
+    0.045,
+    1.01
+   ]
+  },
+  {
+   "name": "Necklace_Pendant_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0,
+    -0.08,
+    1.4
+   ]
+  },
+  {
+   "name": "Necklace_Pendant_01",
+   "parent": "Necklace_Pendant_00",
+   "position": [
+    0,
+    -0.09,
+    1.33
+   ]
+  },
+  {
+   "name": "Earring_Dangle_00",
+   "parent": "Bip001_Head",
+   "position": [
+    0.07,
+    0,
+    1.52
+   ]
+  },
+  {
+   "name": "Earring_Dangle_01",
+   "parent": "Earring_Dangle_00",
+   "position": [
+    0.07,
+    0,
+    1.48
+   ]
   }
  ],
  "weighted": [
@@ -430,7 +655,29 @@
   "Hat_Ribbon_01",
   "Hat_Ribbon_02",
   "lPectoral",
-  "rPectoral"
+  "rPectoral",
+  "Pistol",
+  "Pistol_Slide",
+  "Pistol_Mag",
+  "Pistol_Mag_Bullet",
+  "Pistol_Link_00",
+  "Pistol_Link_01",
+  "Pistol_Link_02",
+  "Pistol_Fin_00",
+  "Pistol_Fin_01",
+  "Pistol_Strap_00",
+  "Pistol_Strap_01",
+  "Pistol_Strap_02",
+  "Pistol_Strap_03",
+  "Pistol_Strap_04",
+  "Key_Chain_00",
+  "Key_Chain_01",
+  "Glove_Tag_00",
+  "Glove_Tag_01",
+  "Necklace_Pendant_00",
+  "Necklace_Pendant_01",
+  "Earring_Dangle_00",
+  "Earring_Dangle_01"
  ],
  "roles": {
   "pelvis": "Bip001_Pelvis",
@@ -442,8 +689,13 @@
  "expected_roots": [
   "Bone_Robe_L_00",
   "Bone_Robe_R_00",
+  "Earring_Dangle_00",
   "Hair_Back_00",
   "Hat_Ribbon_00",
+  "Key_Chain_00",
+  "Necklace_Pendant_00",
+  "Pistol_Link_00",
+  "Pistol_Strap_00",
   "Strap_00"
  ],
  "expected_roots_with_breast_motion": [
@@ -451,8 +703,13 @@
   "Bone_Breast_R_00",
   "Bone_Robe_L_00",
   "Bone_Robe_R_00",
+  "Earring_Dangle_00",
   "Hair_Back_00",
   "Hat_Ribbon_00",
+  "Key_Chain_00",
+  "Necklace_Pendant_00",
+  "Pistol_Link_00",
+  "Pistol_Strap_00",
   "Strap_00",
   "lPectoral",
   "rPectoral"
@@ -466,5 +723,10 @@
  "renamed_breast_bones": {
   "Bone_Breast_L_00": "Bone_C_L_00",
   "Bone_Breast_R_00": "Bone_C_R_00"
- }
+ },
+ "gun": "Pistol",
+ "gun_charm_roots": [
+  "Pistol_Link_00",
+  "Pistol_Strap_00"
+ ]
 }

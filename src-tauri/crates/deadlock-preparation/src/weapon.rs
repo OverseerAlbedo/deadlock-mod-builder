@@ -34,6 +34,48 @@ pub struct Candidate {
     pub keywords: Vec<String>,
     #[serde(default)]
     pub elongation: f64,
+    /// The gun comes from the Weapon tab's gun file, not the character file.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub gun_file: bool,
+    /// Deform bones the gun objects are weighted to (its own bones and charms).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bones: Vec<String>,
+}
+
+/// Marks the bones of each offered gun candidate (its attach bone and the bones
+/// its objects are weighted to) with the candidate id under `weapon`, so moving
+/// parts can tell a charm hanging from the gun (see secondary_bones).
+pub fn mark_gun_bones(bones: &mut [Bone], candidates: &[Candidate]) {
+    for candidate in candidates {
+        for bone in bones.iter_mut().filter(|b| candidate.attach_bone.as_ref() == Some(&b.name) || candidate.bones.contains(&b.name)) {
+            let marks = bone.details.entry("weapon".into()).or_insert_with(|| serde_json::json!([]));
+            if let Some(list) = marks.as_array_mut().filter(|l| !l.iter().any(|v| v == &candidate.id)) {
+                list.push(candidate.id.clone().into());
+            }
+        }
+    }
+}
+
+/// The marks of `mark_gun_bones`, sent to Blender with the conversion.
+pub fn gun_marks(bones: &[Bone]) -> BTreeMap<String, Vec<String>> {
+    bones
+        .iter()
+        .filter_map(|b| {
+            let ids: Vec<String> = b.details.get("weapon")?.as_array()?.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+            (!ids.is_empty()).then(|| (b.name.clone(), ids))
+        })
+        .collect()
+}
+
+/// Blender request to add the gun file's meshes to the scene (inspection and
+/// conversion send the same one).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GunFile {
+    /// Staged copy of the gun file in the preparation workspace.
+    pub source: String,
+    /// Character bone that holds the gun (the right hand), when the rig has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hand: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -139,6 +181,9 @@ pub struct Plan {
     pub mesh_prefix: String,
     /// Original render meshes the fitted gun replaces.
     pub replace: Vec<String>,
+    /// The hero bone the fitted gun mainly follows; charms hang from it.
+    #[serde(default)]
+    pub anchor: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -162,6 +207,9 @@ pub struct Fit {
     pub muzzle_offset_mm: f64,
     pub skin: String,
     pub skin_bones: Vec<String>,
+    /// The bone with the most of the gun's skin weight.
+    #[serde(default)]
+    pub anchor: String,
     pub notes: Vec<String>,
 }
 
@@ -585,7 +633,9 @@ pub fn fit(
     body_scale: Option<f64>,
 ) -> Result<Fit> {
     let mut notes = vec![];
-    let grip_hint = source_grip(candidate, source, source_roles);
+    // A gun from the gun file that was moved into the hand sits there because
+    // of its measured grip, so the hand adds nothing: measure the handle.
+    let grip_hint = if candidate.attach_kind == "placed" { None } else { source_grip(candidate, source, source_roles) };
     let mut source_frame = measure(&candidate.sample, grip_hint, None)?;
     let target_frame = target_frame(reference, target)?;
     if choice.flip {
@@ -645,7 +695,19 @@ pub fn fit(
         notes.push(format!("The muzzle ends {:.0} mm from the original muzzle. Shots and muzzle flashes still come from the original position.", muzzle_offset_mm));
     }
     let (skin, skin_bones) = skin_choice(reference, choice, target)?;
-    Ok(Fit { policy: POLICY.into(), source: source_frame, target: target_frame, matrix, scale, muzzle_offset_mm, skin, skin_bones, notes })
+    let anchor = if skin == "transfer" { heaviest_bone(reference).unwrap_or_else(|| skin_bones[0].clone()) } else { skin_bones[0].clone() };
+    Ok(Fit { policy: POLICY.into(), source: source_frame, target: target_frame, matrix, scale, muzzle_offset_mm, skin, skin_bones, anchor, notes })
+}
+
+/// The bone carrying the most of the original gun's skin weight.
+fn heaviest_bone(reference: &Reference) -> Option<String> {
+    let mut totals: BTreeMap<&str, f64> = BTreeMap::new();
+    for row in &reference.weights {
+        for (name, weight) in row {
+            *totals.entry(name.as_str()).or_default() += weight;
+        }
+    }
+    totals.iter().filter(|(_, w)| **w > 0.).max_by(|a, b| a.1.total_cmp(b.1)).map(|(n, _)| n.to_string())
 }
 
 fn skin_choice(reference: &Reference, choice: &Choice, target: &[Bone]) -> Result<(String, Vec<String>)> {
@@ -694,6 +756,7 @@ pub fn plan(fit: &Fit, candidate: &Candidate, reference: &Reference, action: &st
         skin,
         mesh_prefix: "weapon_".into(),
         replace: if reference.separate_model { reference.model_meshes.clone() } else { reference.meshes.clone() },
+        anchor: fit.anchor.clone(),
     }
 }
 
@@ -706,6 +769,7 @@ pub fn removal(candidate: &Candidate) -> Plan {
         skin: Skin::Rigid { bone: String::new() },
         mesh_prefix: "weapon_".into(),
         replace: vec![],
+        anchor: String::new(),
     }
 }
 
@@ -751,6 +815,17 @@ pub fn best_candidate<'a>(candidates: &'a [Candidate], source: &[Bone], roles: &
         .filter(|(s, _)| *s >= 3.5)
         .max_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, c)| c)
+}
+
+/// The gun a fresh inspection suggests: the gun file's gun, then a clear
+/// candidate; a weapon model falls back to its largest candidate (a gun-only
+/// file with an unnamed, unrigged gun is one whole-file candidate).
+pub fn suggest<'a>(candidates: &'a [Candidate], source: &[Bone], roles: &BTreeMap<String, String>, weapon_model: bool) -> Option<&'a Candidate> {
+    candidates
+        .iter()
+        .find(|c| c.gun_file)
+        .or_else(|| best_candidate(candidates, source, roles))
+        .or_else(|| if weapon_model { candidates.iter().max_by_key(|c| c.vertices) } else { None })
 }
 
 pub fn preview(fit: &Fit, candidate: &Candidate, reference: &Reference) -> Preview {
@@ -977,7 +1052,7 @@ mod tests {
         let candidate = Candidate {
             id: "Pistol".into(), objects: vec!["Pistol".into()], vertices: source_points.len() as u64,
             bounds: [[-0.8, -0.2, 1.3], [-0.7, 0.2, 1.6]], sample: source_points.clone(),
-            attach_bone: Some("hand_R".into()), attach_kind: "bone_parent".into(), keywords: vec!["pistol".into()], elongation: 3.,
+            attach_bone: Some("hand_R".into()), attach_kind: "bone_parent".into(), keywords: vec!["pistol".into()], elongation: 3., gun_file: false, bones: vec![],
         };
         let reference = Reference {
             policy: POLICY.into(), source: "meshes".into(), points: reference_points.clone(),

@@ -9,7 +9,7 @@ import type { Project } from '../models';
 import sourceFixture from '../../src-tauri/crates/deadlock-preparation/tests/fixtures/reference.json';
 import projectFixture from '../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json';
 
-const native=vi.hoisted(()=>({preparationInspect:vi.fn(),preparationResume:vi.fn(),preparationSuggest:vi.fn(),preparationReview:vi.fn(),preparationConvert:vi.fn(),preparationAccept:vi.fn(),preparationSaveMappingPreset:vi.fn(),preparationWeaponPreview:vi.fn()}));
+const native=vi.hoisted(()=>({preparationInspect:vi.fn(),preparationResume:vi.fn(),preparationSuggest:vi.fn(),preparationReview:vi.fn(),preparationConvert:vi.fn(),preparationAccept:vi.fn(),preparationSaveMappingPreset:vi.fn(),preparationWeaponPreview:vi.fn(),validateAssetPath:vi.fn()}));
 vi.mock('../api',async original=>({...await original<typeof import('../api')>(),api:native}));
 vi.mock('./WeaponViewport',()=>({default:()=><div>gun viewport</div>}));
 
@@ -98,5 +98,66 @@ describe('Preparation page with a gun in the source',()=>{
     fireEvent.click(screen.getByRole('tab',{name:/Body roles/}));
     fireEvent.click(screen.getByRole('button',{name:/Open section/}));
     expect(screen.getByRole('tab',{name:/Weapon/})).toHaveAttribute('aria-selected','true');
+  });
+});
+
+// Native paths: the picker returns canonical (\\?\) spellings.
+const verbatim='\\\\?\\',gunPath='C:\\guns\\pistol.blend',workspaceGun='C:\\workspace\\weapon-file\\pistol.blend';
+describe('Gun file',()=>{
+  function Harness({analysis,start={},reinspect=()=>undefined,mode='rigged_humanoid'}:{analysis:PreparationAnalysis;start?:PreparationOptions;reinspect?:()=>void;mode?:Project['model_input_mode']}){const[options,setOptions]=useState<PreparationOptions>(start);return <><WeaponPanel project={{...project,model_input_mode:mode}} analysis={analysis} options={options} change={values=>setOptions(current=>JSON.parse(JSON.stringify({...current,...values})) as PreparationOptions)} busy={false} operate={async(_,task)=>task()} reinspect={reinspect}/><output data-testid="options">{JSON.stringify(options)}</output></>;}
+  const current=()=>JSON.parse(screen.getByTestId('options').textContent!) as PreparationOptions;
+  const fromFile:WeaponCandidate={...pistol,id:'gun_file_Cube',objects:['gun_file_Cube'],keywords:['gun'],attach_kind:'placed',gun_file:true};
+  const inspected=(source:string):PreparationAnalysis=>{const analysis=withGun(heroGun);return {...analysis,weapon_suggestion:{enabled:true,action:'replace',objects:['gun_file_Cube']},
+    weapon_file:{selection:{source},source:workspaceGun,source_sha256:'c'.repeat(64),hand:'hand_R'},
+    analysis:{...analysis.analysis,weapons:[pistol,fromFile],weapon_file:{policy:'gun-file-v1',file:'pistol.blend',objects:['gun_file_Cube'],bone:'hand_R',hand:'hand_R',placed:true}}};};
+  it('takes the gun from another file and asks for a new inspection',async()=>{
+    native.validateAssetPath.mockImplementation(async(path:string)=>verbatim+path);
+    const reinspect=vi.fn();
+    const analysis={...base,analysis:{...base.analysis,weapons:[],scene:receipt},weapon_reference:heroGun} as PreparationAnalysis;
+    render(<Harness analysis={analysis} start={{reviewed:true,weapon:{enabled:true,action:'keep',objects:['Old']}}} reinspect={reinspect}/>);
+    expect(screen.getByText(/No gun was found in the character file. Choose a gun file above/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Gun file'),{target:{value:gunPath}});
+    fireEvent.blur(screen.getByLabelText('Gun file'));
+    await vi.waitFor(()=>expect(current().weapon_source).toBe(verbatim+gunPath));
+    expect(native.validateAssetPath).toHaveBeenCalledWith(gunPath,'weapon');
+    // The old gun choice named objects of the previous inspection.
+    expect(current().weapon).toBeUndefined();
+    expect(current().reviewed).toBe(false);
+    expect(screen.getByText('Inspect the source again to load the gun from this file.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button',{name:'Inspect again with this gun file'}));
+    expect(reinspect).toHaveBeenCalledOnce();
+  });
+  it('offers the inspected gun file gun first and says where it was put',()=>{
+    const analysis=inspected(gunPath.toUpperCase());
+    render(<Harness analysis={analysis} start={{weapon_source:verbatim+'c:/guns/pistol.blend',weapon:weaponDefaults(analysis,undefined)}}/>);
+    expect(screen.queryByText(/Inspect the source again/)).not.toBeInTheDocument();
+    expect(screen.getByText('From pistol.blend: gun_file_Cube, moved into the right hand (hand_R).')).toBeVisible();
+    expect(screen.getByText(/Your character file also has a gun \(Pistol\)\. It stays on the character unless you set it aside in Scene objects/)).toBeVisible();
+    expect(screen.getByLabelText('Gun in your file')).toHaveDisplayValue('gun_file_Cube · 24 vertices · from your gun file · held by hand_R');
+    expect(screen.getByLabelText(/Replace the hero's gun with it/)).toBeChecked();
+    expect(current().weapon).toMatchObject({action:'replace',objects:['gun_file_Cube']});
+  });
+  it('asks for a new inspection after the gun file is cleared',()=>{
+    render(<Harness analysis={inspected(gunPath)} start={{}}/>);
+    expect(screen.getByText("Inspect the source again to remove the gun file's gun.")).toBeVisible();
+  });
+  it('weapon projects take the gun file as their source instead',()=>{
+    render(<Harness analysis={{...base,analysis:{...base.analysis,weapons:[]},weapon_reference:{...heroGun,separate_model:true}} as PreparationAnalysis} mode="weapon"/>);
+    expect(screen.queryByLabelText('Gun file')).not.toBeInTheDocument();
+    expect(screen.getByText(/To use a gun from another file, choose that file as the source path and inspect again/)).toBeVisible();
+  });
+});
+
+describe('Preparation page with a gun file',()=>{
+  it('keeps the gun file through inspection and shows the Weapon tab without a gun in the source',async()=>{
+    const start={...project,preparation_options:{weapon_source:gunPath}} as unknown as Project;
+    function Harness(){const[current,setCurrent]=useState(start);return <><PreparationPage project={current} update={setCurrent} busy={false} operate={async(_,task)=>task()}/><output data-testid="project">{JSON.stringify(current.preparation_options)}</output></>;}
+    const analysis={...base,analysis:{...base.analysis,weapons:[],scene:receipt},weapon_reference:heroGun} as PreparationAnalysis;
+    native.preparationInspect.mockResolvedValue(analysis);native.preparationSuggest.mockResolvedValue(analysis.suggestions);
+    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Inspect source'}));await screen.findByText('Source inspection');
+    expect(native.preparationInspect.mock.calls[0][0].preparation_options.weapon_source).toBe(gunPath);
+    expect(JSON.parse(screen.getByTestId('project').textContent!).weapon_source).toBe(gunPath);
+    fireEvent.click(screen.getByRole('tab',{name:/Weapon/}));
+    expect(screen.getByText('Inspect the source again to load the gun from this file.')).toBeVisible();
   });
 });

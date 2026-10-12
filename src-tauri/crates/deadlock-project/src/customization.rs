@@ -255,7 +255,7 @@ impl Customization {
             if motion.profiles.as_ref().is_some_and(|p| p.len() > 128 || p.iter().any(|(k,v)| k.is_empty() || !["automatic", "balanced", "stiff", "soft"].contains(&v.as_str()))) {
                 return Err(error("Secondary group movement must be automatic, balanced, stiff or soft."));
             }
-            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !["hair","streamer","tail","ear","cloth","long_skirt","accessory","breast","rigid"].contains(&v.as_str()))) {
+            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !["hair","streamer","tail","ear","cloth","long_skirt","accessory","breast","charm","rigid"].contains(&v.as_str()))) {
                 return Err(error("Choose a supported moving-part type."));
             }
             if self.active() && motion.enabled == Some(true) && self.physics.as_ref().is_some_and(|p| p.enabled == Some(true)) {

@@ -60,6 +60,9 @@ pub struct Inspection {
     /// Result of adding breast bones for breast motion, when requested.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub breast_bones: Option<serde_json::Value>,
+    /// The gun file's objects added to the scene, and the bone holding them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weapon_file: Option<serde_json::Value>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceInput {
@@ -72,6 +75,21 @@ pub struct ClothingRecord {
     pub selection: ClothingSelection,
     pub source: String,
     pub source_sha256: String,
+}
+/// The gun file of an inspection: the user's file with its hashes, the staged
+/// copy Blender reads, and the bone that holds the gun.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WeaponFileRecord {
+    pub selection: provenance::WeaponFileSelection,
+    pub source: String,
+    pub source_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hand: Option<String>,
+}
+impl WeaponFileRecord {
+    pub fn request(&self) -> crate::weapon::GunFile {
+        crate::weapon::GunFile { source: self.source.clone(), hand: self.hand.clone() }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Analysis {
@@ -100,6 +118,9 @@ pub struct Analysis {
     /// Breast bones added in Blender; conversion repeats this request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub breast_generation: Option<serde_json::Value>,
+    /// The Weapon tab's gun file; conversion adds it the same way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weapon_file: Option<WeaponFileRecord>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyAudit {
@@ -143,6 +164,9 @@ pub struct Receipt {
     pub geometry_customization: GeometryRecord,
     #[serde(default)]
     pub attached_prop_meshes: Vec<String>,
+    /// The gun file (path and hashes) this preparation used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weapon_file_selection: Option<provenance::WeaponFileSelection>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreparationResult {
@@ -269,6 +293,19 @@ impl PreparationService {
         } else {
             None
         };
+        let weapon_file = provenance::weapon_file_selection(&project.preparation_options)?;
+        let gun = match &weapon_file {
+            Some(selection) => {
+                let gun = source::resolve_source(&selection.source)?;
+                if gun == source {
+                    return Err(invalid(
+                        "The gun file is the character source itself. Clear the gun file and choose the gun in the Weapon tab instead.",
+                    ));
+                }
+                Some(gun)
+            }
+            None => None,
+        };
         self.step("Verify Blender launch", || {
             crate::blender::validate(&self.bridge.executable, self.bridge.executor.as_ref())
         })?;
@@ -297,6 +334,25 @@ impl PreparationService {
                 selection,
                 source: path_text(&local)?,
                 source_sha256: digest(&local)?,
+            })
+        } else {
+            None
+        };
+        let mut weapon_file = if let (Some(mut selection), Some(gun)) = (weapon_file, gun) {
+            let local = self.step("Stage gun file and dependencies", || {
+                source::stage_source_with_cancel(
+                    &path_text(&gun)?,
+                    &root.join("weapon-file"),
+                    Some(&self.bridge),
+                    &self.cancel,
+                )
+            })?;
+            selection.source_files = provenance::source_proof(&gun, &local)?;
+            Some(WeaponFileRecord {
+                selection,
+                source: path_text(&local)?,
+                source_sha256: digest(&local)?,
+                hand: None,
             })
         } else {
             None
@@ -358,17 +414,16 @@ impl PreparationService {
                 analysis: info,
             });
         }
-        let scene = project.preparation_options.values.get("scene").cloned();
+        let weapon_model = project.model_input_mode == ModelInputMode::Weapon;
+        let mut inputs = crate::blender::InspectInputs {
+            garment: clothing.as_ref().map(|c| PathBuf::from(&c.source)),
+            scene: project.preparation_options.values.get("scene").cloned(),
+            weapon_model,
+            ..Default::default()
+        };
         let mut rotation = rotation;
         let mut info: Inspection = self.step("Inspect source geometry in Blender", || {
-            self.bridge.inspect(
-                &local,
-                &root.join("analysis"),
-                rotation,
-                clothing.as_ref().map(|c| Path::new(&c.source)),
-                scene.clone(),
-                None,
-            )
+            self.bridge.inspect_with(&local, &root.join("analysis"), rotation, &inputs)
         })?;
         // Sources exported lying down (Y-up without axis conversion, or on
         // their side) are turned upright automatically when the user did not
@@ -378,14 +433,7 @@ impl PreparationService {
             if let Some(turn) = crate::structure::orientation(&info.bones, &info.weighted_bones, &named.roles) {
                 rotation = turn.rotation;
                 info = self.step("Inspect upright source geometry in Blender", || {
-                    self.bridge.inspect(
-                        &local,
-                        &root.join("analysis-upright"),
-                        rotation,
-                        clothing.as_ref().map(|c| Path::new(&c.source)),
-                        scene.clone(),
-                        None,
-                    )
+                    self.bridge.inspect_with(&local, &root.join("analysis-upright"), rotation, &inputs)
                 })?;
                 info.warnings.push(format!(
                     "The source was not standing upright, so it was rotated {}° (X, Y, Z) before inspection. Check the mapping preview; set Source orientation yourself to override this.",
@@ -411,15 +459,9 @@ impl PreparationService {
                 }));
             } else if secondary_bones::breast_bones(&info.bones, &info.weighted_bones, &named.roles).is_empty() {
                 if let Some(request) = secondary_bones::breast_request(&info.bones, &named.roles) {
+                    let with_breasts = crate::blender::InspectInputs { breast_bones: Some(request.clone()), ..inputs.clone() };
                     let added: Inspection = self.step("Add breast bones in Blender", || {
-                        self.bridge.inspect(
-                            &local,
-                            &root.join("analysis-breasts"),
-                            rotation,
-                            clothing.as_ref().map(|c| Path::new(&c.source)),
-                            scene.clone(),
-                            Some(&request),
-                        )
+                        self.bridge.inspect_with(&local, &root.join("analysis-breasts"), rotation, &with_breasts)
                     })?;
                     let receipt = added.breast_bones.clone().unwrap_or_default();
                     if receipt.get("status").and_then(|v| v.as_str()) == Some("added") {
@@ -438,15 +480,36 @@ impl PreparationService {
                 }
             }
         }
+        // The gun file joins the finished scene in a last pass, held by the
+        // right hand the native recognition found; conversion repeats it.
+        if let Some(record) = &mut weapon_file {
+            record.hand = if info.bones.is_empty() {
+                None
+            } else {
+                crate::automap::roles(&info.bones, &info.weighted_bones, &Default::default())?.roles.get("hand_R").cloned()
+            };
+            inputs.breast_bones = breast_generation.clone();
+            inputs.weapon_source = Some(record.request());
+            let with_gun: Inspection = self.step("Add the gun file in Blender", || {
+                self.bridge.inspect_with(&local, &root.join("analysis-gun"), rotation, &inputs)
+            })?;
+            let mut warnings = info.warnings.clone();
+            warnings.extend(with_gun.warnings.iter().filter(|w| !info.warnings.contains(w)).cloned());
+            let breast_bones = info.breast_bones.take();
+            info = Inspection { warnings, breast_bones: with_gun.breast_bones.clone().or(breast_bones), ..with_gun };
+        }
         let bones: Vec<_> = target.iter().map(Bone::from).collect();
         let mut complete = PreparationOptions::default();
         complete.values.insert("complete_mapping".into(), true.into());
         let suggestions = crate::automap::suggest(&info.bones, &info.weighted_bones, &bones, &complete)?;
-        if project.model_input_mode != ModelInputMode::Weapon {
+        if !weapon_model {
             // Only objects that plausibly are a held gun (named, hand-held or on a
             // weapon bone) are offered; rigid hairpins and badges are not guns.
+            // The gun file's gun is always offered.
             let roles = suggestions.source.as_ref().map(|s| s.roles.clone()).unwrap_or_default();
-            info.weapons.retain(|c| crate::weapon::score(c, &info.bones, &roles) >= 2.5);
+            info.weapons.retain(|c| c.gun_file || crate::weapon::score(c, &info.bones, &roles) >= 2.5);
+            // Charms hanging from an offered gun are recognised by these marks.
+            crate::weapon::mark_gun_bones(&mut info.bones, &info.weapons);
         }
         let analysis = Analysis {
             source: path_text(&local)?,
@@ -474,6 +537,7 @@ impl PreparationService {
             weapon_reference: self.weapon_reference.clone(),
             weapon_suggestion: None,
             breast_generation,
+            weapon_file,
         };
         let mut analysis = analysis;
         analysis.weapon_suggestion = weapon_suggestion(project, &analysis);
@@ -494,8 +558,11 @@ impl PreparationService {
             validate_review(project, analysis, &options)
         })?;
         let original_options = options.clone();
-        let preservation = secondary_bones::selection(&analysis.analysis.bones, &analysis.analysis.weighted_bones,
-            &analysis.target.iter().map(Bone::from).collect::<Vec<_>>(), &options)?;
+        // Moving parts hanging from the gun follow the fitted gun or are left
+        // out with it; corrections keep the gun of their conversion.
+        let gun = weapon_plan(project, analysis, &options);
+        let preservation = secondary_bones::selection_for(&analysis.analysis.bones, &analysis.analysis.weighted_bones,
+            &analysis.target.iter().map(Bone::from).collect::<Vec<_>>(), &options, gun.as_ref().ok().and_then(Option::as_ref))?;
         let mut prepared_target = analysis.target.clone();
         let (root, allowed) = self.step("Verify preparation input provenance", || {
             let root = asset_paths::resolve(Path::new(&analysis.root))?;
@@ -537,6 +604,14 @@ impl PreparationService {
                     "Workspace garment changed; import it again.",
                 )?;
             }
+            provenance::check_weapon_file_selection(&options, analysis.weapon_file.as_ref().map(|w| &w.selection))?;
+            if let Some(gun) = &analysis.weapon_file {
+                same_hash(
+                    Path::new(&gun.source),
+                    &gun.source_sha256,
+                    "Workspace gun file changed; inspect the source again.",
+                )?;
+            }
             if analysis.target_scale_audit.policy != transforms::SCALE_POLICY {
                 return Err(invalid(
                     "Analysis predates exact target bone scale preservation; import again.",
@@ -563,8 +638,9 @@ impl PreparationService {
             }
             if preservation.is_some() {
                 let previous: Receipt = load(Path::new(&project.preparation_report))?;
-                let previous_plan = secondary_bones::selection(&analysis.analysis.bones, &analysis.analysis.weighted_bones,
-                    &analysis.target.iter().map(Bone::from).collect::<Vec<_>>(), &previous.options)?;
+                let previous_gun = weapon_plan(project, analysis, &previous.options).ok().flatten();
+                let previous_plan = secondary_bones::selection_for(&analysis.analysis.bones, &analysis.analysis.weighted_bones,
+                    &analysis.target.iter().map(Bone::from).collect::<Vec<_>>(), &previous.options, previous_gun.as_ref())?;
                 if previous_plan != preservation {
                     return Err(invalid("Physics bone choices changed. Convert from the original source before re-exporting corrections."));
                 }
@@ -608,7 +684,7 @@ impl PreparationService {
             options.values.remove("mapping_anchors");
             options.values.remove("follow_motion_reviewed");
         }
-        let weapon_plan = if correction { None } else { weapon_plan(project, analysis, &options)? };
+        let weapon_plan = if correction { None } else { gun? };
         let props = if correction {
             vec![]
         } else {
@@ -643,7 +719,9 @@ impl PreparationService {
             },
             props,
             weapon: weapon_plan.clone(),
+            gun_bones: if correction { BTreeMap::new() } else { crate::weapon::gun_marks(&analysis.analysis.bones) },
             breast_bones: if correction { None } else { analysis.breast_generation.clone() },
+            weapon_source: if correction { None } else { analysis.weapon_file.as_ref().map(WeaponFileRecord::request) },
         };
         let mut report: PreparedResponse = self.step(
             if correction {
@@ -766,6 +844,7 @@ impl PreparationService {
             clothing_selection: analysis.clothing.as_ref().map(|c| c.selection.clone()),
             geometry_customization: analysis.geometry_customization.clone(),
             attached_prop_meshes: attached,
+            weapon_file_selection: analysis.weapon_file.as_ref().map(|w| w.selection.clone()),
         };
         let report_path = destination.join("preparation-report.json");
             Ok((receipt,report_path))
@@ -789,13 +868,20 @@ pub fn review_issues(
     options: &PreparationOptions,
 ) -> Result<Vec<algorithms::ReviewIssue>> {
     let issue = |tab: &str, message: String| algorithms::ReviewIssue { tab: tab.into(), message, scope: None, roles: vec![], bones: vec![] };
+    // A gun file chosen, changed or cleared after the inspection needs a new one.
+    let gun_file = provenance::check_weapon_file_selection(options, analysis.weapon_file.as_ref().map(|w| &w.selection))
+        .err()
+        .map(|error| issue("weapon", error.to_string()));
     if project.model_input_mode == ModelInputMode::Weapon {
         // A separate weapon model needs a chosen gun and a computable fit only.
         return Ok(match weapon_plan(project, analysis, options) {
             Ok(Some(_)) => vec![],
             Ok(None) => vec![issue("weapon", "Choose the gun to use for this weapon model in the Weapon tab.".into())],
             Err(error) => vec![issue("weapon", error.to_string())],
-        });
+        }
+        .into_iter()
+        .chain(gun_file)
+        .collect());
     }
     let target: Vec<_> = analysis.target.iter().map(Bone::from).collect();
     let mode = serde_json::to_value(project.model_input_mode)?;
@@ -811,6 +897,7 @@ pub fn review_issues(
     if let Err(error) = weapon_plan(project, analysis, options) {
         issues.push(issue("weapon", error.to_string()));
     }
+    issues.extend(gun_file);
     let shape_mode = options.values.get("shape_key_mode");
     if let Err(error) = crate::fitting::mode(options) {
         issues.push(algorithms::ReviewIssue {
@@ -848,8 +935,7 @@ pub fn weapon_suggestion(project: &Project, analysis: &Analysis) -> Option<crate
     }
     let roles = analysis.suggestions.source.as_ref().map(|s| s.roles.clone()).unwrap_or_default();
     let weapon_model = project.model_input_mode == ModelInputMode::Weapon;
-    let best = crate::weapon::best_candidate(candidates, &analysis.analysis.bones, &roles)
-        .or_else(|| weapon_model.then(|| candidates.iter().max_by_key(|c| c.vertices)).flatten())?;
+    let best = crate::weapon::suggest(candidates, &analysis.analysis.bones, &roles, weapon_model)?;
     let reference = analysis.weapon_reference.as_ref();
     let action = if weapon_model || reference.is_some_and(|r| !r.meshes.is_empty()) {
         "replace"
@@ -1127,6 +1213,7 @@ pub fn check_handoff(project: &Project) -> Result<()> {
     }
     provenance::check_clothing_selection(project, receipt.clothing_selection.as_ref())?;
     provenance::check_customization_selection(project, &receipt.geometry_customization)?;
+    provenance::check_weapon_file_selection(&project.preparation_options, receipt.weapon_file_selection.as_ref())?;
     if ![REST_POLICY, crate::following::POLICY, crate::fitting::PROPORTIONS_POLICY, crate::weapon::POLICY]
         .contains(&receipt.prepared.rest_alignment.policy.as_str())
     {
@@ -1178,6 +1265,9 @@ pub fn resume(project: &Project) -> Result<(Analysis, PreparationResult, Receipt
     analysis.source = moved(&root.join("source"), &analysis.source)?;
     if let Some(c) = &mut analysis.clothing {
         c.source = moved(&root.join("clothing"), &c.source)?;
+    }
+    if let Some(gun) = &mut analysis.weapon_file {
+        gun.source = moved(&root.join("weapon-file"), &gun.source)?;
     }
     for (i, prop) in analysis.geometry_customization.props.iter_mut().enumerate() {
         prop.source = moved(&root.join("props").join(i.to_string()), &prop.source)?;

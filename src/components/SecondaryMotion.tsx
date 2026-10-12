@@ -2,7 +2,7 @@ import type { JsonValue, Project, SecondaryMotionChoices } from '../models';
 import type { ProjectInspection } from '../build/models';
 import { Disclosure, StateLabel } from './Primitives';
 import { SelectField } from './CustomizationPages';
-import { namedBreast } from '../preparation/secondary-bones';
+import { charmNamed, namedBreast } from '../preparation/secondary-bones';
 export function preparedMotionRoots(project:Project):string[]{
   const roots=project.preparation_options.physics_roots;
   return project.preparation_options.preserve_physics_bones===true&&Array.isArray(roots)?roots.filter((r):r is string=>typeof r==='string'):[];
@@ -38,6 +38,30 @@ export function BreastMotion({project,update,preparation,openPreparation,disable
     </>:<p className="hint">{wanted?'The prepared model has no breast bones that can move yet. In Model preparation, inspect again (breast bones are added where the chest has breasts) and convert, then click Use prepared model.':'Turn on to give the breasts a soft bounce. Model preparation then keeps or adds breast bones when you convert.'}{wanted&&openPreparation&&<> <button type="button" className="tertiary" disabled={disabled} onClick={openPreparation}>Open Model preparation</button></>}</p>}
   </div>;
 }
+/** Moving-part groups that are charms (gun charms, keychains, pendants): by name, by the preparation's part type for
+ * parts hanging from the gun, or by the last Analyze (a part on a fitted gun's weapon bone). */
+export function charmGroups(project:Project,report:ProjectInspection|null):string[]{
+  const kinds=(project.preparation_options.physics_kinds??{}) as Record<string,unknown>;
+  const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
+  return preparedMotionRoots(project).filter(root=>charmNamed(root)||kinds[root]==='charm'||analyzed.some(p=>p.root===root&&p.kind==='charm'));
+}
+/** Gun charm motion on or off, and how much. Off holds the charms still on the gun (part type Rigid); no conversion needed. */
+export function CharmMotion({project,update,disabled,report}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null}){
+  const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project),selected=cfg.roots??roots;
+  const charms=charmGroups(project,report),kinds={...cfg.part_kinds};
+  if(!charms.length)return null;
+  const on=charms.every(root=>kinds[root]!=='rigid'&&selected.includes(root));
+  const amount=(cfg.profiles?.[charms[0]]??'automatic') as Movement;
+  function toggle(enabled:boolean){
+    for(const root of charms)kinds[root]=enabled?'charm':'rigid';
+    update({part_kinds:kinds,...(cfg.roots&&enabled?{roots:[...new Set([...cfg.roots,...charms])]}:{})});
+  }
+  return <div className="breast-motion-control">
+    <label className="checkbox checkbox-line"><input type="checkbox" checked={on} disabled={disabled} onChange={event=>toggle(event.target.checked)}/>Gun charm motion</label>
+    <p className="hint">{on?`On for ${charms.join(', ')}: a light swing that settles quickly and does not sag into the gun. Applies at the next Analyze and Build; check the amount in game.`:`Off: ${charms.join(', ')} stay still on the gun.`}</p>
+    {on&&<SelectField label="Charm movement" value={amount} values={[["automatic","Automatic light swing"],["soft","More movement"],["stiff","Stiffer"]]} onChange={value=>update({profiles:{...cfg.profiles,...Object.fromEntries(charms.map(root=>[root,value as Movement]))}})} disabled={disabled}/>}
+  </div>;
+}
 export function SecondaryMotion({project,update,disabled,report,fresh,preparation,openPreparation}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void}){
   const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project);
   const selected=cfg.roots??roots,reference=cfg.preset==='tangtang_reference',tang=reference||cfg.preset==='tangtang_r2';
@@ -53,6 +77,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
     </div>
     {roots.length===0?<p role="status">No prepared physics groups are saved. Use Model preparation → Keep existing physics bones, convert, then use the prepared model.</p>:<p><StateLabel tone={checked?'ready':'neutral'}>{checked?`${checked.groups.length} groups checked · native fitting checked during Build`:`${tang?roots.length:selected.length} groups selected · ${waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check'}`}</StateLabel></p>}
     {!tang&&<BreastMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
+    {!tang&&<CharmMotion project={project} update={update} disabled={disabled} report={fresh?report:null}/>}
     <div className="motion-status-grid">
     {checked?.parts&&<p role="status">Detected: {Object.entries(checked.parts.reduce<Record<string,number>>((counts,p)=>({...counts,[p.kind]:(counts[p.kind]??0)+1}),{})).map(([kind,n])=>`${n} ${kind.replaceAll('_',' ')}`).join(' · ')}. {checked.parts.filter(p=>p.review_recommended).length>0?'Some parts need review; check their type and twist protection under Adjust moving parts.':''}</p>}
     {checked?.parts&&<p role="status">Twist protection planned for {protectedCount} {protectedCount===1?'group':'groups'} · checked during Build.</p>}
@@ -66,7 +91,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
     </div>
     <p className="hint">This mode replaces the original hero’s cloth simulation. Skeleton, animations and rigid-body physics are retained. Body collision for the new moving parts is not added.</p>
     {!tang&&roots.length>0&&<Disclosure title="Adjust moving parts" hint="Optional · choose groups and how freely each moves">
-      <div className="table-scroll"><table><thead><tr><th scope="col">Moving part</th><th scope="col">Part type</th><th scope="col">Movement</th></tr></thead><tbody>{roots.map(root=><tr key={root}><td><label><input type="checkbox" checked={selected.includes(root)} disabled={disabled||(selected.length===1&&selected.includes(root))} onChange={e=>{const next=e.target.checked?[...selected,root]:selected.filter(r=>r!==root);const profiles=Object.fromEntries(Object.entries(cfg.profiles??{}).filter(([r])=>next.includes(r)));const part_kinds=Object.fromEntries(Object.entries(cfg.part_kinds??{}).filter(([r])=>next.includes(r)));update({roots:next,profiles,part_kinds});}}/> {root}</label></td><td><SelectField label={`Part type for ${root}`} value={cfg.part_kinds?.[root]??'automatic'} values={[["automatic",`Automatic${checked?.parts?.find(p=>p.root===root)?' — '+checked.parts.find(p=>p.root===root)!.kind.replaceAll('_',' '):''}`],["hair","Hair"],["streamer","Streamer / ribbon"],["tail","Tail"],["ear","Ear"],["cloth","Cloth"],["long_skirt","Long skirt"],["accessory","Accessory"],["breast","Breast (gentle spring)"],["rigid","Rigid — follows its bone"]]} onChange={value=>{const part_kinds={...cfg.part_kinds};if(value==='automatic')delete part_kinds[root];else part_kinds[root]=value as NonNullable<SecondaryMotionChoices['part_kinds']>[string];update({part_kinds});}} disabled={disabled||!selected.includes(root)}/>{checked?.parts?.find(p=>p.root===root)&&<p className="hint">{checked.parts.find(p=>p.root===root)!.reason}. {checked.parts.find(p=>p.root===root)!.roll_locked?'Twist protection planned.':checked.parts.find(p=>p.root===root)!.review_recommended?'Review this part.':''}</p>}</td><td><SelectField label={`Movement for ${root}`} value={cfg.profiles?.[root]??'automatic'} values={[["automatic","Automatic for this part"],["balanced","Balanced"],["stiff","Stiffer"],["soft","More movement"]]} onChange={value=>update({profiles:{...cfg.profiles,[root]:value as 'automatic'|'balanced'|'stiff'|'soft'}})} disabled={disabled||!selected.includes(root)}/></td></tr>)}</tbody></table></div>
+      <div className="table-scroll"><table><thead><tr><th scope="col">Moving part</th><th scope="col">Part type</th><th scope="col">Movement</th></tr></thead><tbody>{roots.map(root=><tr key={root}><td><label><input type="checkbox" checked={selected.includes(root)} disabled={disabled||(selected.length===1&&selected.includes(root))} onChange={e=>{const next=e.target.checked?[...selected,root]:selected.filter(r=>r!==root);const profiles=Object.fromEntries(Object.entries(cfg.profiles??{}).filter(([r])=>next.includes(r)));const part_kinds=Object.fromEntries(Object.entries(cfg.part_kinds??{}).filter(([r])=>next.includes(r)));update({roots:next,profiles,part_kinds});}}/> {root}</label></td><td><SelectField label={`Part type for ${root}`} value={cfg.part_kinds?.[root]??'automatic'} values={[["automatic",`Automatic${checked?.parts?.find(p=>p.root===root)?' — '+checked.parts.find(p=>p.root===root)!.kind.replaceAll('_',' '):''}`],["hair","Hair"],["streamer","Streamer / ribbon"],["tail","Tail"],["ear","Ear"],["cloth","Cloth"],["long_skirt","Long skirt"],["accessory","Accessory"],["breast","Breast (gentle spring)"],["charm","Charm (light swing)"],["rigid","Rigid — follows its bone"]]} onChange={value=>{const part_kinds={...cfg.part_kinds};if(value==='automatic')delete part_kinds[root];else part_kinds[root]=value as NonNullable<SecondaryMotionChoices['part_kinds']>[string];update({part_kinds});}} disabled={disabled||!selected.includes(root)}/>{checked?.parts?.find(p=>p.root===root)&&<p className="hint">{checked.parts.find(p=>p.root===root)!.reason}. {checked.parts.find(p=>p.root===root)!.roll_locked?'Twist protection planned.':checked.parts.find(p=>p.root===root)!.review_recommended?'Review this part.':''}</p>}</td><td><SelectField label={`Movement for ${root}`} value={cfg.profiles?.[root]??'automatic'} values={[["automatic","Automatic for this part"],["balanced","Balanced"],["stiff","Stiffer"],["soft","More movement"]]} onChange={value=>update({profiles:{...cfg.profiles,[root]:value as 'automatic'|'balanced'|'stiff'|'soft'}})} disabled={disabled||!selected.includes(root)}/></td></tr>)}</tbody></table></div>
     </Disclosure>}
     <p className="hint">Run Analyze, then Build. No proxy export or manual file copying is needed. Check the compiled character’s movement in game.</p>
   </div>;

@@ -4,12 +4,15 @@ import type { Project } from '../models';
 import { Check, SelectField } from '../components/CustomizationPages';
 import { NumberField } from '../components/MaterialEditor';
 import { Section } from '../components/Primitives';
+import { FilePathInput } from '../components/FilePathInput';
 import type { PreparationAnalysis, PreparationOptions, Vec3, WeaponCandidate, WeaponChoice, WeaponPreview } from './models';
 const WeaponViewport=lazy(()=>import('./WeaponViewport'));
 type Operate=(label:string,operation:()=>Promise<void>,cancel?:boolean)=>Promise<unknown>;
 
-export const candidateLabel=(c:WeaponCandidate)=>`${c.objects.join(' + ')} · ${c.vertices.toLocaleString()} vertices${c.attach_bone?` · held by ${c.attach_bone}`:''}`;
+export const candidateLabel=(c:WeaponCandidate)=>`${c.objects.join(' + ')} · ${c.vertices.toLocaleString()} vertices${c.gun_file?' · from your gun file':''}${c.attach_bone?` · held by ${c.attach_bone}`:''}`;
 export const sameObjects=(a:string[]|undefined,b:string[])=>Boolean(a)&&a!.length===b.length&&[...a!].sort().every((n,i)=>n===[...b].sort()[i]);
+/** Windows paths compared as the native side resolves them (no \\?\ prefix, any case or slash). */
+export const samePath=(a:string,b:string)=>{const plain=(p:string)=>p.trim().replace(/^\\\\\?\\/,'').replace(/\//g,'\\').toLowerCase();return plain(a)===plain(b);};
 
 /** Default gun choice for a fresh inspection, keeping a still-valid earlier choice. */
 export function weaponDefaults(analysis:PreparationAnalysis,current:WeaponChoice|undefined):WeaponChoice|undefined{
@@ -18,9 +21,13 @@ export function weaponDefaults(analysis:PreparationAnalysis,current:WeaponChoice
   return analysis.weapon_suggestion??undefined;
 }
 
-export function WeaponPanel({project,analysis,options,change,busy,operate}:{project:Project;analysis:PreparationAnalysis;options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;operate:Operate}){
+export function WeaponPanel({project,analysis,options,change,busy,operate,reinspect}:{project:Project;analysis:PreparationAnalysis;options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;operate:Operate;reinspect?:()=>void}){
   const [preview,setPreview]=useState<{key:string;value:WeaponPreview}|null>(null);
   const candidates=analysis.analysis.weapons??[],reference=analysis.weapon_reference,choice=options.weapon??{};
+  const gunFile=options.weapon_source??'',inspectedFile=analysis.weapon_file?.selection.source??'',added=analysis.analysis.weapon_file;
+  const gunFilePending=gunFile||inspectedFile?!samePath(gunFile,inspectedFile):false;
+  const ownGuns=candidates.filter(c=>!c.gun_file);
+  const fail=(title:string,error:unknown)=>{void operate(title,async()=>{throw error;});};
   const weaponModel=project.model_input_mode==='weapon';
   const heroGun=Boolean(reference&&reference.meshes.length>0),separate=Boolean(reference&&!reference.separate_model&&reference.meshes.length===0);
   const selected=candidates.find(c=>sameObjects(choice.objects,c.objects));
@@ -38,7 +45,14 @@ export function WeaponPanel({project,analysis,options,change,busy,operate}:{proj
       :heroGun?<>This hero's gun is part of the hero model ({reference!.meshes.join(', ')}). Your gun can replace it: it is fitted to the original gun's grip, barrel and size, and follows the same weapon bones.</>
       :separate?<>This hero's gun is a separate model. To replace it, create a weapon project in <strong>Appearance → Equipment → Weapon model</strong>. Here you can leave your gun out of the character or let it follow the hand.</>
       :<>The hero's original gun could not be read from the game files, so your gun can only be left out or kept in the hand.</>}</p>
-    {!candidates.length?<p className="hint">{weaponModel?'No gun was found in the source. Check Scene objects: the gun must be a visible mesh.':'No gun was found in the source.'}</p>:<>
+    {!weaponModel&&<div className="prep-gun-file">
+      <FilePathInput label="Gun file" kind="weapon" value={gunFile} disabled={busy} fail={fail} update={path=>change({weapon_source:path||undefined,weapon:undefined,reviewed:false})}/>
+      <p className="hint">Optional: use the gun from another Blender, FBX or glTF file. Inspection adds it to your character, puts its grip in the right hand and offers it as the gun below. That file is never changed.</p>
+      {gunFilePending?<div className="prep-gun-file-status" role="status"><p>{gunFile?'Inspect the source again to load the gun from this file.':'Inspect the source again to remove the gun file\'s gun.'}</p>{reinspect&&<button disabled={busy} onClick={reinspect}>Inspect again with this gun file</button>}</div>
+        :added&&<p className="hint">From {added.file}: {added.objects.join(', ')}, {added.placed?`moved into the right hand (${added.bone})`:added.bone?`held by ${added.bone}`:'kept where it is in the file'}.</p>}
+      {Boolean(gunFile)&&!gunFilePending&&ownGuns.length>0&&<p className="hint">Your character file also has a gun ({ownGuns.map(c=>c.objects.join(' + ')).join(', ')}). It stays on the character unless you set it aside in Scene objects.</p>}
+    </div>}
+    {!candidates.length?<p className="hint">{weaponModel?'No gun was found in the source. Check Scene objects: the gun must be a visible mesh. To use a gun from another file, choose that file as the source path and inspect again.':'No gun was found in the character file. Choose a gun file above to use a gun from another file.'}</p>:<>
       <SelectField label="Gun in your file" value={selected?selected.id:''} values={[["","No gun in this file"],...candidates.map(c=>[c.id,candidateLabel(c)] as const)]} disabled={busy} onChange={id=>{const c=candidates.find(x=>x.id===id);set({objects:c?c.objects:[],enabled:Boolean(c)});}}/>
       {selected&&!weaponModel&&<fieldset className="prep-weapon-actions" disabled={busy}><legend>What should happen to it?</legend>
         <label className="checkbox checkbox-line"><input type="radio" name="weapon-action" checked={action==='replace'} disabled={!heroGun} onChange={()=>set({action:'replace'})}/>Replace the hero's gun with it (fitted to the original){!heroGun&&<small className="hint"> — not available: {separate?'this hero\'s gun is a separate model':'the original gun was not found'}</small>}</label>
