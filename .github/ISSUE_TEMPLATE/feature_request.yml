@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an improvement to model preparation, motion, appearance, extras or packaging.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do and what gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How it could work. Mention affected heroes or rigs if relevant.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Screenshots, example models or references (for example other games' behavior).

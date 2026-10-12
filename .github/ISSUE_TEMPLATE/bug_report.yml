@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in Deadlock Mod Builder fails or behaves unexpectedly.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Settings → About this build (for example 0.13.0-alpha.51).
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Character and source
+      description: Selected hero and model path, and the source file format (Blender, FBX, GLB, prepared DMX).
+  - type: textarea
+    id: error
+    attributes:
+      label: What happened
+      description: The exact error text, and which step (Inspect, Convert, Analyze, Build, Install, in game).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open project ...
+        2. Model preparation → ...
+        3. Build
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Logs → Save log, and Step timings for the failing operation. Remove private paths before attaching.
