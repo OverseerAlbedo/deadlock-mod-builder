@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 afterEach(cleanup);
+// Slow CI machines need longer than the 1 s default for findBy/waitFor.
+configure({ asyncUtilTimeout: 5000 });
 class ResizeObserverStub { observe() {} unobserve() {} disconnect() {} }
 globalThis.ResizeObserver = ResizeObserverStub;
 // jsdom has no layout engine; hit testing is provided explicitly by drop tests.

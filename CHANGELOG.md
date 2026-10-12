@@ -14,7 +14,7 @@
 - Halos, hats, crowns, hairpins, hair ornaments and other rigid accessories no longer receive hair motion; ring-shaped chains are not treated as hair strands. A new **Rigid** part type keeps a part on its bone.
 - Experimental color editor: **Appearance → Surface changes → Adjust colors** shifts hue, saturation and brightness of a material's base color with an approximate preview. Build adjusts a copy of the base-color image (or plain color); source files and other materials are unchanged.
 - Character targets follow the installed game's hero definitions. Rem's main target is now `familiar_wip.vmdl` (the model the game loads); `familiar.vmdl` is listed as *Not used in game*, and Analyze explains when a saved project targets a model the game does not load.
-- Tests: a Windows setup test compared a short 8.3 temp path with the app's resolved long path and failed only on GitHub's build machines.
+- Tests: a Windows setup test compared a short 8.3 temp path with the app's resolved long path and failed only on GitHub's build machines, and UI tests got time limits suited to slower 2-core build machines (30 s per test, 5 s for on-screen waits).
 
 ## 0.13.0-alpha.51 — 2026-10-11
 
