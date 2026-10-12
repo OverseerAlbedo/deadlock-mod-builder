@@ -409,6 +409,9 @@ impl<'a> ModelPipeline<'a> {
             // Do not substitute the whole-template audit as build authority.
             let secondary_waiting_for_mesh_mapping = deadlock_cloth_authoring::secondary::active(p)
                 && binding.is_none() && !unresolved_meshes.is_empty();
+            if deadlock_cloth_authoring::secondary::active(p) && deadlock_preparation::service::moving_parts_changed(p) {
+                return Err(invalid(deadlock_preparation::service::MOVING_PARTS_CHANGED));
+            }
             let secondary_motion = if secondary_waiting_for_mesh_mapping { None } else {
                 deadlock_cloth_authoring::secondary::setup(p,&dmx,binding.as_ref(),self.cancel).map_err(map_error)?
             };

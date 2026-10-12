@@ -145,13 +145,36 @@ from source physics bindings.
 
 **Breast motion** is optional and off by default (`breast_motion` in the
 preparation options; unset keeps earlier projects unchanged). Breast bones are
-weighted, short (at most three bones), non-role children of the chest or spine
-that are named breast/bust/boob/oppai/乳 (or 胸 with a side), or form a mirrored
-pair in front of the chest between the spine and the neck. Turning it on keeps
-them as moving parts and records `physics_kinds: {root: "breast"}`; Build gives
-them the **Breast** part type: a damped spring (goal 0.6, drag 0.3, no gravity)
-with a bounded travel radius, so they settle quickly and never sag. Amounts are
-adjustable per part under Motion → Adjust moving parts and need an in-game check.
+weighted, short (at most three bones), non-role children of a torso bone (pelvis
+to neck) that are named breast/bust/boob/pectoral/oppai/乳 (or 胸 with a side), or
+form a mirrored pair in front of the chest between the spine and the neck.
+Turning it on keeps them as moving parts and records `physics_kinds: {root: "breast"}`.
+
+**Models without breast bones** (`resources/blender/breast_bones.py`): with breast
+motion on, Inspect asks Blender to add `DMB_Breast_L/R` under the chest when the
+chest has breasts. The front of the torso skin is measured on a smoothed grid;
+each side's bulge must stand well out from the ribcage below it (or clearly out
+with a cleavage), and the two sides must mirror each other, so flat, male and
+child chests and asymmetric clothing get none (the receipt says why). The bones
+sit near the chest wall at the bulge centres, and skin weight near each breast
+moves from the torso bones to them with a smooth falloff, keeping every vertex's
+total. Only the temporary scene changes; Convert repeats the same request
+(`Analysis.breast_generation`). Turning breast motion off maps the added bones
+back to the chest until the next inspection. Tested on Ghist (with its own breast
+bones removed), Daki, Yvonne and TangTang (added) and Paimon and Endmin (none);
+Daki's added bones passed conversion and native DMX validation.
+
+Build gives breast groups the **Breast** part type, a bounce in the style of
+stylized action games rather than a dangling strand (`secondary_auto.rs`,
+`append_breast`): one moving ring sized to the breast (so small node offsets do
+not become large rotations), a fixed ring straight behind it toward the chest
+(the sideways part toward the midline is removed using the other breast), and a
+link between the left and right rings so the pair moves together and cannot
+swing into each other. Settings: goal 0.45, drag 0.1, no gravity, no tether,
+travel about 45% of the breast radius (0.4–1.5 in). Stiffer is goal 0.62 and
+travel ×0.7; More movement is goal 0.3 and travel ×1.35 (Physics → Automatic
+motion → Adjust moving parts). The first tuning (goal 0.8, drag 0.5, travel
+0.3 in) barely moved in game. Amounts need an in-game check.
 
 ### Mesh mapping (Build page)
 

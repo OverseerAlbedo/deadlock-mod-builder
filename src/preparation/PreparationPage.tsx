@@ -136,7 +136,7 @@ export function PreparationPage({project,update,busy,operate}:{project:Project;u
             </tr>)}</tbody></table></div>
           </Section>
           </PreparationPanel>
-          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} options={options} change={changeOptions} busy={busy} breasts={{count:breastBones(analysis.analysis.bones,analysis.analysis.weighted_bones,options.source_roles??{}).length,toggle:enabled=>changeOptions(breastMotionOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,enabled))}}/></PreparationPanel>}
+          {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="physics" active={activePanel}><PhysicsBoneChoices groups={physics} options={options} change={changeOptions} busy={busy} breasts={{count:breastBones(analysis.analysis.bones,analysis.analysis.weighted_bones,options.source_roles??{}).length,toggle:enabled=>changeOptions(breastMotionOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,enabled)),added:Boolean(analysis.breast_generation),result:analysis.analysis.breast_bones,reinspect:()=>void inspect()}}/></PreparationPanel>}
           {project.model_input_mode==='rigged_humanoid'&&<PreparationPanel id="mapping" active={activePanel}>
           {project.model_input_mode==='rigged_humanoid'&&<Section title="Weighted bone mapping" className="prep-card prep-mapping-card">
             <p><strong>{unmapped}</strong> weighted bones still need a target. Every weighted bone must be resolved before conversion.</p>

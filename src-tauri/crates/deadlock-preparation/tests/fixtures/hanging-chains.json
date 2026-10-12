@@ -1,5 +1,5 @@
 {
- "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest.",
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too.",
  "bones": [
   {
    "name": "Bip001_Pelvis",
@@ -369,6 +369,24 @@
     0.13,
     1.42
    ]
+  },
+  {
+   "name": "lPectoral",
+   "parent": "Bip001_Spine",
+   "position": [
+    0.06,
+    -0.04,
+    1.14
+   ]
+  },
+  {
+   "name": "rPectoral",
+   "parent": "Bip001_Spine",
+   "position": [
+    -0.06,
+    -0.04,
+    1.14
+   ]
   }
  ],
  "weighted": [
@@ -410,7 +428,9 @@
   "HairLoop_05",
   "Hat_Ribbon_00",
   "Hat_Ribbon_01",
-  "Hat_Ribbon_02"
+  "Hat_Ribbon_02",
+  "lPectoral",
+  "rPectoral"
  ],
  "roles": {
   "pelvis": "Bip001_Pelvis",
@@ -433,11 +453,15 @@
   "Bone_Robe_R_00",
   "Hair_Back_00",
   "Hat_Ribbon_00",
-  "Strap_00"
+  "Strap_00",
+  "lPectoral",
+  "rPectoral"
  ],
  "breast_bones": [
   "Bone_Breast_L_00",
-  "Bone_Breast_R_00"
+  "Bone_Breast_R_00",
+  "lPectoral",
+  "rPectoral"
  ],
  "renamed_breast_bones": {
   "Bone_Breast_L_00": "Bone_C_L_00",

@@ -57,6 +57,9 @@ pub struct Inspection {
     /// Objects in the source that look like a held gun.
     #[serde(default)]
     pub weapons: Vec<crate::weapon::Candidate>,
+    /// Result of adding breast bones for breast motion, when requested.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub breast_bones: Option<serde_json::Value>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceInput {
@@ -94,6 +97,9 @@ pub struct Analysis {
     /// Automatic gun choice for a fresh inspection (the user can change it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weapon_suggestion: Option<crate::weapon::Choice>,
+    /// Breast bones added in Blender; conversion repeats this request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub breast_generation: Option<serde_json::Value>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyAudit {
@@ -332,6 +338,7 @@ impl PreparationService {
                         [0.; 3],
                         None,
                         None,
+                        None,
                     )
                 },
             )?;
@@ -360,6 +367,7 @@ impl PreparationService {
                 rotation,
                 clothing.as_ref().map(|c| Path::new(&c.source)),
                 scene.clone(),
+                None,
             )
         })?;
         // Sources exported lying down (Y-up without axis conversion, or on
@@ -376,12 +384,50 @@ impl PreparationService {
                         rotation,
                         clothing.as_ref().map(|c| Path::new(&c.source)),
                         scene.clone(),
+                        None,
                     )
                 })?;
                 info.warnings.push(format!(
                     "The source was not standing upright, so it was rotated {}° (X, Y, Z) before inspection. Check the mapping preview; set Source orientation yourself to override this.",
                     rotation.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ")
                 ));
+            }
+        }
+        // Breast motion on a rig without breast bones: Blender adds them where
+        // the chest has breasts (a flat chest gets none), and conversion repeats
+        // the same request. The user's file is never changed.
+        let mut breast_generation = None;
+        if project.preparation_options.values.get("breast_motion").and_then(|v| v.as_bool()) == Some(true)
+            && !info.bones.is_empty()
+        {
+            let named = crate::automap::roles(&info.bones, &info.weighted_bones, &Default::default())?;
+            if secondary_bones::breast_bones(&info.bones, &info.weighted_bones, &named.roles).is_empty() {
+                if let Some(request) = secondary_bones::breast_request(&info.bones, &named.roles) {
+                    let added: Inspection = self.step("Add breast bones in Blender", || {
+                        self.bridge.inspect(
+                            &local,
+                            &root.join("analysis-breasts"),
+                            rotation,
+                            clothing.as_ref().map(|c| Path::new(&c.source)),
+                            scene.clone(),
+                            Some(&request),
+                        )
+                    })?;
+                    let receipt = added.breast_bones.clone().unwrap_or_default();
+                    if receipt.get("status").and_then(|v| v.as_str()) == Some("added") {
+                        let warnings = info.warnings.clone();
+                        info = added;
+                        info.warnings = warnings;
+                        info.warnings.push("Breast motion: added two breast bones where the chest has breasts. Check the bounce in game.".into());
+                        breast_generation = Some(request);
+                    } else {
+                        info.breast_bones = Some(receipt.clone());
+                        info.warnings.push(format!(
+                            "Breast motion: no breast bones were added. {}",
+                            receipt.get("reason").and_then(|v| v.as_str()).unwrap_or("The chest shape could not be measured.")
+                        ));
+                    }
+                }
             }
         }
         let bones: Vec<_> = target.iter().map(Bone::from).collect();
@@ -419,6 +465,7 @@ impl PreparationService {
             clothing,
             weapon_reference: self.weapon_reference.clone(),
             weapon_suggestion: None,
+            breast_generation,
         };
         let mut analysis = analysis;
         analysis.weapon_suggestion = weapon_suggestion(project, &analysis);
@@ -588,6 +635,7 @@ impl PreparationService {
             },
             props,
             weapon: weapon_plan.clone(),
+            breast_bones: if correction { None } else { analysis.breast_generation.clone() },
         };
         let mut report: PreparedResponse = self.step(
             if correction {
@@ -1033,6 +1081,19 @@ fn prior_geometry(project: &Project) -> Option<GeometryRecord> {
     let value: serde_json::Value = load(Path::new(&project.preparation_report)).ok()?;
     serde_json::from_value(value.get("geometry_customization")?.clone()).ok()
 }
+fn kept_choices(o: &PreparationOptions) -> serde_json::Value {
+    if o.values.get("preserve_physics_bones").and_then(|v| v.as_bool()) != Some(true) { return serde_json::Value::Null; }
+    let roots = o.values.get("physics_roots").and_then(|v| v.as_array()).map(|v| v.iter().filter_map(|n| n.as_str()).collect::<std::collections::BTreeSet<_>>());
+    serde_json::json!(roots)
+}
+/// Moving-part choices (including breast motion) changed after the accepted
+/// conversion: the project's model does not have the bones they need yet.
+pub fn moving_parts_changed(project: &Project) -> bool {
+    !project.preparation_report.is_empty()
+        && load::<Receipt>(Path::new(&project.preparation_report))
+            .is_ok_and(|receipt| kept_choices(&receipt.options) != kept_choices(&project.preparation_options))
+}
+pub const MOVING_PARTS_CHANGED: &str = "Moving parts or breast motion changed after this model was prepared, so the model in use does not have their bones yet. In Model preparation, convert again and click Use prepared model, then Analyze.";
 pub fn check_handoff(project: &Project) -> Result<()> {
     let selection = provenance::customization_selection(project)?;
     if project.model_input_mode == ModelInputMode::Prepared
@@ -1053,11 +1114,6 @@ pub fn check_handoff(project: &Project) -> Result<()> {
     if receipt.prepared.rest_alignment.policy != crate::weapon::POLICY {
         crate::fitting::check_policy(&receipt.options, &receipt.prepared.rest_alignment.policy)?;
     }
-    let kept_choices = |o: &PreparationOptions| {
-        if o.values.get("preserve_physics_bones").and_then(|v| v.as_bool()) != Some(true) { return serde_json::Value::Null; }
-        let roots = o.values.get("physics_roots").and_then(|v| v.as_array()).map(|v| v.iter().filter_map(|n| n.as_str()).collect::<std::collections::BTreeSet<_>>());
-        serde_json::json!(roots)
-    };
     if kept_choices(&receipt.options) != kept_choices(&project.preparation_options) {
         return Err(invalid("Physics bone choices changed. Convert the original source and choose Use prepared model before building."));
     }

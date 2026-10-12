@@ -103,7 +103,8 @@ pub fn detect() -> Option<PathBuf> {
     candidates.sort();
     candidates.pop()
 }
-const SCRIPTS: [(&str, &[u8]); 19] = [
+const SCRIPTS: [(&str, &[u8]); 20] = [
+    ("breast_bones.py", include_bytes!("../resources/blender/breast_bones.py")),
     ("scene_isolation.py", include_bytes!("../resources/blender/scene_isolation.py")),
     ("weapon_fit.py", include_bytes!("../resources/blender/weapon_fit.py")),
     ("source_compatibility.py", include_bytes!("../resources/blender/source_compatibility.py")),
@@ -204,6 +205,9 @@ pub enum Request {
         /// Explicit scene-object choices (include/exclude/character rig).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         scene: Option<serde_json::Value>,
+        /// Add breast bones where the chest has breasts (breast motion).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        breast_bones: Option<serde_json::Value>,
     },
     StageBlend {
         source: String,
@@ -226,6 +230,9 @@ pub enum Request {
         /// Fitted gun meshes: source objects, source->target transform and skinning.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         weapon: Option<crate::weapon::Plan>,
+        /// The breast-bone request the inspection used, repeated here.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        breast_bones: Option<serde_json::Value>,
     },
 }
 impl BlenderBridge {
@@ -288,6 +295,7 @@ impl BlenderBridge {
         rotation: [f64; 3],
         garment: Option<&Path>,
         scene: Option<serde_json::Value>,
+        breast_bones: Option<&serde_json::Value>,
     ) -> Result<R> {
         if !rotation.iter().all(|v| v.is_finite()) {
             return Err(invalid("Source rotation must contain finite values."));
@@ -298,6 +306,7 @@ impl BlenderBridge {
                 rotation,
                 garment_source: garment.map(path_text).transpose()?,
                 scene,
+                breast_bones: breast_bones.cloned(),
             },
             destination,
         )

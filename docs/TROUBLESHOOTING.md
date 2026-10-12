@@ -43,7 +43,7 @@ Choose the main hero model unless an alternate variant is intended. A valid VPK 
 
 Automatic mode operates on preserved secondary groups and available mesh evidence. Narrow straps, long streamers, broad skirt panels and upper attachments have different treatment. An explicit override can intentionally prevent automatic classification. Re-analyze a changed project and rebuild to apply a new plan.
 
-Halos, hats, crowns, hairpins and other rigid accessories stay on the head instead of receiving hair motion. Breast motion is optional (Model preparation → moving parts, off by default); after turning it on, convert again and adjust the amount under Motion → Adjust moving parts.
+Halos, hats, crowns, hairpins and other rigid accessories stay on the head instead of receiving hair motion. Breast motion is optional (Model preparation → moving parts, off by default). For a model without breast bones, turn it on and click **Inspect again to add breast bones**; the builder adds them where the chest has breasts and says why when it cannot. Then convert again, click **Use prepared model**, and adjust the amount under Physics → Automatic motion → Adjust moving parts (**More movement** for a bigger bounce, **Stiffer** for less).
 
 Vindicta, Daki, TangTang and Graves have accepted user-tested configurations. This is not certification of every combination of source character, target hero, motion, and game version. Native test fixtures, standalone previews and compiler success do not replace gameplay verification.
 

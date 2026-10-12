@@ -36,6 +36,9 @@ pub(crate) fn parameters(
     radius: f64,
     choice: Option<&str>,
 ) -> Result<Maps> {
+    if kind == Kind::Breast {
+        return breast_parameters(length, choice);
+    }
     let (mut goal, mut drag, gravity) = match kind {
         Kind::Hair => (if root { 1. } else { 0.6 - 0.2 * t }, 0., 0.),
         Kind::Ear => (if root { 1. } else { 0.6 - 0.2 * t }, 0., 0.),
@@ -47,9 +50,7 @@ pub(crate) fn parameters(
             1.,
         ),
         Kind::Tail | Kind::Accessory => (0.65 - 0.30 * t, 0.15, 1.),
-        // A gentle spring: it settles back quickly, is damped, and does not sag.
-        Kind::Breast => (0.6, 0.3, 0.),
-        Kind::Rigid => (1., 0., 0.),
+        Kind::Rigid | Kind::Breast => (1., 0., 0.),
     };
     match choice.unwrap_or("automatic") {
         "automatic" => {}
@@ -73,9 +74,6 @@ pub(crate) fn parameters(
         } else {
             length * t * 0.60 + radius
         }
-    } else if kind == Kind::Breast {
-        // Bounded movement keeps the jiggle natural (inches).
-        (length * 0.25).clamp(0.3, 0.8)
     } else {
         0.
     };
@@ -84,6 +82,21 @@ pub(crate) fn parameters(
     // accumulated chain stretch. Accepted reference presets bypass this path.
     let tether = if kind == Kind::Streamer { 1. } else { 0. };
     Ok([goal, drag, 1., gravity, travel, 0., tether, 0.])
+}
+/// Breast motion in the style of stylized action games: a visible, springy
+/// bounce that lags the body and settles after a few swings, without sagging.
+/// The travel limit (about half the breast radius) caps the swing so the pair
+/// never folds into the chest. In game, the first tuning (pull 0.8, damping 0.5,
+/// travel 0.3 in) barely moved. `size` is the breast radius in inches.
+fn breast_parameters(size: f64, choice: Option<&str>) -> Result<Maps> {
+    let (goal, drag, travel_scale) = match choice.unwrap_or("automatic") {
+        "automatic" | "balanced" => (0.45, 0.1, 1.),
+        "stiff" => (0.62, 0.15, 0.7),
+        "soft" => (0.3, 0.06, 1.35),
+        _ => return Err(invalid("Unknown part movement setting.")),
+    };
+    let travel = ((size * 0.45).clamp(0.4, 1.5) * travel_scale).min(2.);
+    Ok([goal, drag, 1., 0., travel, 0., 0., 0.])
 }
 pub(crate) fn point(
     s: &mut Surface,
@@ -139,9 +152,13 @@ pub(crate) fn append(
     choice: Option<&str>,
     skirt: Option<&crate::long_skirt::SkirtGroup>,
     maps: &mut Vec<Maps>,
-) -> Result<()> {
+    partner: Option<[f64; 3]>,
+) -> Result<Option<[usize; 3]>> {
     if let Some(skirt) = skirt {
-        return crate::skirt_surface::append(s,group,part,slots,lookup,sk,state,choice,skirt,maps);
+        return crate::skirt_surface::append(s,group,part,slots,lookup,sk,state,choice,skirt,maps).map(|_| None);
+    }
+    if part.kind == Kind::Breast {
+        return append_breast(s, group, part, slots, lookup, state, choice, maps, partner).map(Some);
     }
     let pos = |name: &str| std::array::from_fn::<_, 3, _>(|r| state.world[lookup[name]][r][3]);
     let axis = |name: &str, c: usize| {
@@ -328,7 +345,78 @@ pub(crate) fn append(
             frames.insert(name.clone(), ids);
         }
     }
-    Ok(())
+    Ok(None)
+}
+/// Breast proxy: a soft-body bounce rather than a dangling strand. The fixed
+/// ring sits behind the breast toward the chest (not along the bone's own axis,
+/// which points sideways on mirrored rigs and pulled both breasts inward). The
+/// moving ring is sized to the breast so small node offsets do not become large
+/// rotations. `partner` is the other breast on the same anchor, if any. Returns
+/// the moving ring so a left/right pair can be linked.
+fn append_breast(
+    s: &mut Surface,
+    group: &Group,
+    part: &Part,
+    slots: &BTreeMap<&str, usize>,
+    lookup: &BTreeMap<&str, usize>,
+    state: &BindState,
+    choice: Option<&str>,
+    maps: &mut Vec<Maps>,
+    partner: Option<[f64; 3]>,
+) -> Result<[usize; 3]> {
+    let pos = |name: &str| std::array::from_fn::<_, 3, _>(|r| state.world[lookup[name]][r][3]);
+    let bone = part.weighted_chain.first().unwrap_or(&group.root);
+    let center = pos(bone);
+    // Breast size from its weighted vertices; a sensible default otherwise.
+    let size = if part.shape_radii_inches[0] > 0.3 { part.shape_radii_inches[0].clamp(0.8, 4.) } else { 1.5 };
+    let anchor = pos(&group.anchor);
+    let toward = sub(anchor, center);
+    let up = [0., 0., 1.];
+    let mut back = [toward[0], toward[1], 0.];
+    // The chest anchor is on the midline; with the other breast known, keep only
+    // the backward part so the spring does not lean toward the cleavage.
+    if let Some(other) = partner {
+        let lateral = [other[0] - center[0], other[1] - center[1], 0.];
+        if norm(lateral) > size * 0.05 {
+            let lateral = unit(lateral)?;
+            back = sub(back, lateral.map(|v| v * dot(back, lateral)));
+        }
+    }
+    if norm(back) < size * 0.05 {
+        back = [0., 1., 0.];
+    }
+    let back = unit(back)?;
+    let side = unit(cross(back, up))?;
+    let lift = unit(cross(side, back))?;
+    let radius = (size * 0.35).clamp(0.3, 1.2);
+    let offset = (size * 0.6).clamp(0.5, 2.);
+    let static_maps = [0., 0., 1., 0., 0., 0., 0., 0.];
+    let fixed = ring(
+        s,
+        maps,
+        std::array::from_fn(|k| center[k] + back[k] * offset),
+        side,
+        lift,
+        radius,
+        slots[group.anchor.as_str()],
+        false,
+        static_maps,
+    );
+    let settings = parameters(Kind::Breast, 0., true, size, radius, choice)?;
+    let moving = ring(s, maps, center, side, lift, radius, slots[bone.as_str()], true, settings);
+    connect(s, fixed, moving);
+    Ok(moving)
+}
+/// Link the moving rings of a left/right breast pair on the same anchor, so the
+/// two move together and keep their spacing instead of swinging into each other.
+pub(crate) fn link_breast_pairs(s: &mut Surface, rings: &[(String, [usize; 3])]) {
+    let mut by_anchor: BTreeMap<&str, Vec<[usize; 3]>> = BTreeMap::new();
+    for (anchor, ring) in rings {
+        by_anchor.entry(anchor.as_str()).or_default().push(*ring);
+    }
+    for pair in by_anchor.values().filter(|v| v.len() == 2) {
+        connect(s, pair[0], pair[1]);
+    }
 }
 pub(crate) fn connect(s: &mut Surface, a: [usize; 3], b: [usize; 3]) {
     let cost = |k: usize| {
@@ -392,4 +480,46 @@ pub(crate) fn write_maps(raw: &[u8], maps: &[Maps]) -> Result<Vec<u8>> {
         return Err(invalid("Automatic maps changed the skeleton."));
     }
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod breast_tests {
+    use super::*;
+    fn surface() -> Surface {
+        Surface {
+            points: vec![],
+            faces: vec![],
+            influences: vec![],
+            enabled: vec![],
+            initial_proxy_positions: 0,
+            fixed_positions_not_on_dynamic_faces: 0,
+            components: 0,
+            degenerate_triangles_excluded: 0,
+            overlay_followers: serde_json::Value::Null,
+        }
+    }
+    #[test]
+    fn a_left_right_pair_on_one_anchor_is_linked_and_single_breasts_are_not() {
+        let mut s = surface();
+        let mut maps = vec![];
+        let settings = breast_parameters(2., None).unwrap();
+        let left = ring(&mut s, &mut maps, [2., -2., 50.], [1., 0., 0.], [0., 0., 1.], 0.5, 1, true, settings);
+        let right = ring(&mut s, &mut maps, [-2., -2., 50.], [1., 0., 0.], [0., 0., 1.], 0.5, 2, true, settings);
+        let lone = ring(&mut s, &mut maps, [0., -2., 40.], [1., 0., 0.], [0., 0., 1.], 0.5, 3, true, settings);
+        let before = s.faces.len();
+        link_breast_pairs(&mut s, &[("chest".into(), left), ("chest".into(), right), ("pelvis".into(), lone)]);
+        let added = &s.faces[before..];
+        assert_eq!(added.len(), 6);
+        assert!(added.iter().all(|f| f.iter().all(|i| left.contains(i) || right.contains(i))));
+    }
+    #[test]
+    fn breast_settings_are_a_damped_bounce_without_sag() {
+        for choice in [None, Some("balanced"), Some("stiff"), Some("soft")] {
+            let [goal, drag, _, gravity, travel, _, tether, _] = breast_parameters(2.5, choice).unwrap();
+            assert!((0.25..=0.65).contains(&goal) && drag <= 0.2 && gravity == 0. && tether == 0.);
+            assert!(travel >= 0.4 && travel <= 2.);
+        }
+        assert!(breast_parameters(2.5, Some("soft")).unwrap()[4] > breast_parameters(2.5, Some("stiff")).unwrap()[4]);
+        assert!(breast_parameters(2.5, Some("wild")).is_err());
+    }
 }

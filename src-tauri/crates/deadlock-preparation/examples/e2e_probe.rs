@@ -108,7 +108,10 @@ fn main() {
             });
             if std::env::var_os("DMB_PROBE_PHYSICS").is_some() {
                 // Same default as the UI: keep every detected moving part.
-                let groups = secondary_bones::candidates(&inspection.bones, &inspection.weighted_bones, &source_roles, &suggestions.target.roles).expect("moving parts");
+                // DMB_PROBE_BREASTS: breast motion on, as when the UI checkbox is ticked.
+                let breasts = std::env::var_os("DMB_PROBE_BREASTS").map(|_| true);
+                let groups = secondary_bones::candidates_with(&inspection.bones, &inspection.weighted_bones, &source_roles, &suggestions.target.roles, breasts).expect("moving parts");
+                if breasts.is_some() { options["breast_motion"] = true.into(); }
                 eprintln!("moving parts: {:?}", groups.iter().map(|g| (&g.root, &g.source_anchor, g.source_bones.len())).collect::<Vec<_>>());
                 if !groups.is_empty() {
                     options["preserve_physics_bones"] = true.into();
@@ -141,7 +144,7 @@ fn main() {
             let job = json!({
                 "operation": "prepare", "source": inspection_source(&a[1]), "mode": if mode == "weapon" { "weapon" } else { "rigged_humanoid" },
                 "target": target, "hero_root": "models/heroes_wip/test", "options": options, "rotation": inspect_job["rotation"].clone(),
-                "correction": false, "weapon": plan,
+                "correction": false, "weapon": plan, "breast_bones": inspect_job["breast_bones"].clone(),
                 "result": workspace.join("result.json"), "workspace": workspace,
             });
             fs::create_dir_all(workspace).unwrap();

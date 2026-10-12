@@ -258,7 +258,8 @@ fn automatic_motion_cannot_use_whole_source_authority_when_only_body_meshes_are_
     // Completing mapping still runs the existing group and ancestry checks.
     f.project.meshes.insert("body".into(), MeshMapping::One("Tangtang_mesh".into()));
     f.project.preparation_options.values.insert("physics_roots".into(), serde_json::json!(["missing_group"]));
-    assert!(f.inspection_error().contains("Prepared secondary group is missing"));
+    let error = f.inspection_error();
+    assert!(error.contains("convert again") && error.contains("Use prepared model"), "{error}");
 }
 
 #[test]

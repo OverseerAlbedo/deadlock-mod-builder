@@ -81,12 +81,12 @@ describe('optional breast motion',()=>{
   it('is off by default and adds or removes only the breast groups with the breast part type',()=>{
     expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles}).physics_roots).not.toContain('Bone_Breast_L_00');
     const on=breastMotionOptions(hanging.bones as Bone[],hanging.weighted,base,true);
-    expect(on).toMatchObject({breast_motion:true,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00','Bone_Breast_L_00','Bone_Breast_R_00'],physics_kinds:{Bone_Breast_L_00:'breast',Bone_Breast_R_00:'breast'}});
+    expect(on).toMatchObject({breast_motion:true,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00','Bone_Breast_L_00','Bone_Breast_R_00','lPectoral','rPectoral'],physics_kinds:{Bone_Breast_L_00:'breast',Bone_Breast_R_00:'breast',lPectoral:'breast',rPectoral:'breast'}});
     const off=breastMotionOptions(hanging.bones as Bone[],hanging.weighted,on,false);
     expect(off).toMatchObject({breast_motion:false,physics_roots:['Strap_00'],physics_kinds:{}});
     expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,off).map(g=>g.root)).toEqual(hanging.expected_roots);
   });
-  it('offers the checkbox only when breast bones were found',()=>{
+  it('offers breast motion with or without breast bones and explains each state',()=>{
     const toggle=vi.fn();
     render(<PhysicsBoneChoices groups={[]} options={base} change={vi.fn()} busy={false} breasts={{count:2,toggle}}/>);
     fireEvent.click(screen.getByLabelText('Breast motion (optional)'));
@@ -94,6 +94,23 @@ describe('optional breast motion',()=>{
     expect(screen.getByText(/2 breast bones were found; they follow the chest/)).toBeVisible();
     cleanup();
     render(<PhysicsBoneChoices groups={[]} options={base} change={vi.fn()} busy={false} breasts={{count:0,toggle}}/>);
-    expect(screen.queryByLabelText('Breast motion (optional)')).toBeNull();
+    expect(screen.getByText(/turning this on adds them where the chest has breasts/)).toBeVisible();
+    cleanup();
+    const reinspect=vi.fn();
+    render(<PhysicsBoneChoices groups={[]} options={{...base,breast_motion:true}} change={vi.fn()} busy={false} breasts={{count:0,toggle,reinspect}}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Inspect again to add breast bones'}));
+    expect(reinspect).toHaveBeenCalled();
+    cleanup();
+    render(<PhysicsBoneChoices groups={[]} options={{...base,breast_motion:true}} change={vi.fn()} busy={false} breasts={{count:0,toggle,result:{status:'flat',reason:'The chest is too flat for breast motion.'}}}/>);
+    expect(screen.getByText(/No breast bones were added: The chest is too flat/)).toBeVisible();
+    expect(screen.queryByRole('button',{name:'Inspect again to add breast bones'})).toBeNull();
+    cleanup();
+    render(<PhysicsBoneChoices groups={[]} options={{...base,breast_motion:true}} change={vi.fn()} busy={false} breasts={{count:2,toggle,added:true}}/>);
+    expect(screen.getByText(/Breast bones were added where the chest has breasts/)).toBeVisible();
+  });
+  it('returns added breast bones to the chest when breast motion is turned off',()=>{
+    const bones=[...hanging.bones as Bone[],{name:'DMB_Breast_L',parent:'Bip001_Spine1',position:[0.05,-0.03,1.23]},{name:'DMB_Breast_R',parent:'Bip001_Spine1',position:[-0.05,-0.03,1.23]}] as Bone[];
+    const off=breastMotionOptions(bones,[...hanging.weighted,'DMB_Breast_L','DMB_Breast_R'],{...base,target_roles:{chest:'spine_3'}},false);
+    expect(off.mapping).toMatchObject({DMB_Breast_L:'spine_3',DMB_Breast_R:'spine_3'});
   });
 });

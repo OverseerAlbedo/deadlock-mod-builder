@@ -9,7 +9,7 @@ const namedSecondary=(name:string)=>SECONDARY_HINTS.some(s=>name.toLowerCase().i
  * other motion names such as ribbon or tassel still win. Keep in sync with secondary_bones.rs (RIGID_HINTS) and secondary_bones.py. */
 export const RIGID_HINTS=['halo','hat','cap','pin','pins','clip','clips','crown','tiara','circlet','horn','horns','helmet','helm','glasses','goggles','goggle','spectacles','visor','mask','earring','earrings','piercing','hairpin','hairclip','barrette','hairband','headband','ornament','accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪'];
 /** Breast bones move only when breast motion is turned on. */
-export const BREAST_HINTS=['breast','bust','boob','oppai','おっぱい','乳'];
+export const BREAST_HINTS=['breast','bust','boob','pectoral','oppai','おっぱい','乳'];
 const isAscii=(text:string)=>/^[\x00-\x7f]*$/.test(text);
 /** Split on separators and camel case: HatBrim_L -> hat, brim, l. */
 function tokens(name:string):string[]{
@@ -46,13 +46,20 @@ function facing(names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles
     for(const child of children.get(foot.name)??[]){const c=names.get(child);if(c){f[0]+=c.position[0]-foot.position[0];f[1]+=c.position[1]-foot.position[1];}}}
   const n=Math.sqrt(f[0]**2+f[1]**2);return n<1e-6?[0,-1]:[f[0]/n,f[1]/n];
 }
-/** Breast bones: weighted, short, non-role children of the chest (or spine) that are named as breasts,
+/** Torso bones between the pelvis and the neck (or head), where breast bones hang. */
+function torsoChain(names:Map<string,Bone>,sourceRoles:Partial<Record<string,string>>):string[]{
+  const chain:string[]=[];const start=names.get(sourceRoles.neck??sourceRoles.head??'');
+  let cursor=start?.parent?names.get(start.parent):undefined;
+  while(cursor&&chain.length<64){chain.push(cursor.name);if(cursor.name===sourceRoles.pelvis)break;cursor=cursor.parent?names.get(cursor.parent):undefined;}
+  return chain;
+}
+/** Breast bones: weighted, short, non-role children of a torso bone that are named as breasts,
  * or form a mirrored pair in front of the chest between the spine and the neck. */
 function breastRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):Set<string>{
   const roleNames=new Set(Object.values(sourceRoles).filter((n):n is string=>Boolean(n)));
   const pelvis=names.get(sourceRoles.pelvis??''),head=names.get(sourceRoles.head??'');if(!pelvis||!head)return new Set();
   const torso=distance(pelvis.position,head.position);if(torso<=1e-6)return new Set();
-  const parents=['chest','spine'].map(r=>sourceRoles[r]).filter((n):n is string=>Boolean(n));
+  const parents=torsoChain(names,sourceRoles);
   const low=(names.get(sourceRoles.spine??'')??pelvis).position[2],high=(names.get(sourceRoles.neck??'')??head).position[2];
   const short=(bone:Bone)=>{const branch=[bone.name];for(let at=0;at<branch.length;at++){if(branch.length>3)return false;branch.push(...(children.get(branch[at])??[]));}
     return branch.length<=3&&branch.every(n=>!roleNames.has(n)&&names.has(n)&&distance(names.get(n)!.position,bone.position)<=0.15*torso);};
@@ -133,12 +140,18 @@ export function keptPhysicsBones(groups:PhysicsGroup[],options:PreparationOption
 }
 /** Optional breast motion, off by default. Turning it on keeps the detected breast bones as moving parts with the gentle
  * breast part type (other groups are unchanged); turning it off returns them to the body. Convert again afterwards. */
+/** Names of breast bones the builder adds in Blender (resources/blender/breast_bones.py). */
+export const GENERATED_BREAST_PREFIX='DMB_Breast_';
 export function breastMotionOptions(bones:Bone[],weighted:string[],options:PreparationOptions,enabled:boolean):PreparationOptions{
   const breasts=breastBones(bones,weighted,options.source_roles??{});
   const roots=(options.physics_roots??[]).filter(r=>!breasts.includes(r));
   const kinds=Object.fromEntries(Object.entries(options.physics_kinds??{}).filter(([root])=>!breasts.includes(root)));
   const next:PreparationOptions={...options,breast_motion:enabled,physics_roots:roots,physics_kinds:kinds,reviewed:false};
-  if(!enabled)return next;
+  if(!enabled){
+    // Breast bones the builder added go back to the chest until the next inspection removes them.
+    const chest=options.target_roles?.chest??options.target_roles?.spine,added=bones.map(b=>b.name).filter(n=>n.startsWith(GENERATED_BREAST_PREFIX));
+    return chest&&added.length?{...next,mapping:{...options.mapping,...Object.fromEntries(added.map(n=>[n,chest]))}}:next;
+  }
   const added=physicsGroups(bones,weighted,next).map(g=>g.root).filter(root=>breasts.includes(root));
   const kept=options.preserve_physics_bones===undefined?physicsGroups(bones,weighted,next).map(g=>g.root):[...roots,...added];
   return {...next,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:kept,physics_kinds:{...kinds,...Object.fromEntries(added.map(root=>[root,'breast']))}};

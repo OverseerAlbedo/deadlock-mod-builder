@@ -146,7 +146,7 @@ pub fn reviewed_groups(d: &Dmx, roots: &[String], source: &SourceBinding) -> Res
     let mut groups = vec![];
     for source_root in roots {
         let name = format!("{PREFIX}{source_root}");
-        let &root=lookup.get(name.as_str()).ok_or_else(||invalid(format!("Prepared secondary group is missing: {source_root}. Prepare with Keep existing physics bones.")))?;
+        let &root=lookup.get(name.as_str()).ok_or_else(||invalid(format!("The prepared model has no moving-part bones for {source_root}. If you changed moving parts or breast motion, convert again in Model preparation and click Use prepared model; otherwise enable Keep existing physics bones and convert.")))?;
         let parent = sk.parents[root];
         if parent < 0 || allowed.contains(&sk.names[parent as usize]) {
             return Err(invalid(
@@ -465,6 +465,11 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts
     let mut ranges = vec![];
     let mut frames = BTreeMap::new();
     let mut part_maps=vec![];
+    let mut breast_rings=vec![];
+    // Each breast of a left/right pair on one anchor knows where the other is.
+    let breasts:Vec<(usize,&str,[f64;3])>=parts.map(|parts|groups.iter().zip(parts).enumerate()
+        .filter(|(_,(_,p))|p.kind==crate::parts::Kind::Breast)
+        .map(|(i,(g,p))|(i,g.anchor.as_str(),position(lookup[p.weighted_chain.first().unwrap_or(&g.root).as_str()]))).collect()).unwrap_or_default();
     for (ordinal,group) in groups.iter().enumerate() {
         cancel.check()?;
         let root = lookup[group.root.as_str()];
@@ -492,7 +497,11 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts
         let offset = (radius * 3.).max((pitch * 0.25).min(1.));
         let first = s.points.len();
         if let Some(part)=parts.map(|p|&p[ordinal]) {
-            crate::secondary_auto::append(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps)?;
+            let pair:Vec<_>=breasts.iter().filter(|b|b.1==group.anchor).collect();
+            let partner=if pair.len()==2 {pair.iter().find(|b|b.0!=ordinal).map(|b|b.2)} else {None};
+            if let Some(ring)=crate::secondary_auto::append(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps,partner)? {
+                breast_rings.push((group.anchor.clone(),ring));
+            }
             continue;
         }
         let fixed = frame(
@@ -533,6 +542,7 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts
             )?,
         ));
     }
+    crate::secondary_auto::link_breast_pairs(&mut s, &breast_rings);
     if let Some(plan) = long_skirt { crate::long_skirt::couple(&mut s, &slots, plan)?; }
     let positions = s.points.len();
     let dynamic = s.enabled.iter().filter(|v| **v).count();

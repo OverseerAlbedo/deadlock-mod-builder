@@ -64,7 +64,7 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
     let source = binding(&d, b"test authority");
     let mut p = project(vec!["garment_root".into()]);
     let mut settings = BTreeMap::new();
-    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory"] {
+    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory", "breast", "rigid"] {
         p.customization
             .secondary_motion
             .as_mut()
@@ -95,7 +95,7 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .map(|(_, g)| *g)
             .collect::<Vec<_>>();
         assert!(active.iter().all(|g| *g
-            == if kind == "hair" || kind == "ear" {
+            == if ["hair", "ear", "breast", "rigid"].contains(&kind) {
                 0.
             } else {
                 1.
@@ -116,6 +116,19 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
                 assert!(goals[i]>=0.0599,"Streamers must not use the old 0.02 tip return");
                 assert!(radius[i] as f64 <= setup.parts[0].chain_length_inches*0.60+0.451);
             }}
+        }
+        if kind == "breast" {
+            // One breast-sized ring: a springy, lightly damped bounce with bounded travel.
+            assert_eq!(setup.dynamic_positions, 3);
+            let drag = stream(&proxy, "cloth_drag$0");
+            let radius = stream(&proxy, "cloth_stray_radius$0");
+            for i in (0..enable.len()).filter(|i| enable[*i] > 0.) {
+                assert!((goals[i] - 0.45).abs() < 1e-6 && drag[i] <= 0.1 + 1e-6, "{} {}", goals[i], drag[i]);
+                assert!(radius[i] >= 0.4 && radius[i] <= 1.5);
+            }
+        }
+        if kind == "rigid" {
+            assert!(enable.iter().zip(&goals).filter(|(v, _)| **v > 0.).all(|(_, g)| *g == 1.));
         }
         settings.insert(kind, goals);
     }

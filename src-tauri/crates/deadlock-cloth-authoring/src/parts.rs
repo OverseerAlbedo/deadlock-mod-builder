@@ -341,7 +341,7 @@ mod tests {
         let maps = crate::secondary_auto::parameters(Kind::Rigid, 0.5, false, 4., 0.2, None).unwrap();
         assert_eq!((maps[0], maps[3]), (1., 0.));
         let breast = crate::secondary_auto::parameters(Kind::Breast, 0., true, 2., 0.2, None).unwrap();
-        assert!(breast[0] < 1. && breast[3] == 0. && breast[4] > 0. && breast[4] <= 0.8);
+        assert!(breast[0] < 1. && breast[3] == 0. && breast[4] >= 0.4 && breast[4] <= 1.5);
     }
     #[test]
     fn shape_is_rotation_invariant() {

@@ -20,6 +20,7 @@ from source_compatibility import normalize as normalize_source_rig
 from secondary_bones import selection as secondary_selection, extend_target
 from arm_skinning import plan as arm_skin_plan, redistribute as arm_skin_weights, MODES as ARM_SKIN_MODES, POLICY as ARM_SKIN_POLICY
 from scene_isolation import isolate, last_receipt, apply_pending_modifiers
+from breast_bones import add_breast_bones
 import weapon_fit
 import bpy
 import numpy as np
@@ -762,6 +763,11 @@ def main():
             for obj in bpy.context.scene.objects:
                 if not obj.parent:obj.matrix_world=rot@obj.matrix_world
             bpy.context.view_layer.update()
+        # Optional breast bones for breast motion. Inspection and conversion
+        # repeat the same request on the same scene, so both see the same bones.
+        breast_receipt=None
+        if job.get('breast_bones') and not job.get('correction') and rigs:
+            breast_receipt=add_breast_bones(rigs[0],meshes,job['breast_bones'])
         if job['operation']=='inspect':
             report=describe(meshes,rigs)
         elif job.get('mode')=='weapon':
@@ -769,6 +775,8 @@ def main():
         else:
             report=prepare(job,meshes,rigs)
         report['status']='ok'
+        if breast_receipt:
+            report['breast_bones']=breast_receipt
         report['source_helpers']=helper_reports
         report.setdefault('warnings',[]).extend(item['warning'] for item in helper_reports if item['warning'])
         if face_receipt:

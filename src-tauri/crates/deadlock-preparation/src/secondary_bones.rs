@@ -19,7 +19,7 @@ pub const HINTS: [&str; 28] = ["hair","ponytail","braid","ribbon","streamer","sk
 pub const RIGID_HINTS: [&str; 38] = ["halo","hat","cap","pin","pins","clip","clips","crown","tiara","circlet","horn","horns","helmet","helm","glasses","goggles","goggle","spectacles","visor","mask","earring","earrings","piercing","hairpin","hairclip","barrette","hairband","headband","ornament","accessory","acc",
     "飾","冠","帽","角","眼鏡","メガネ","輪"];
 /// Breast bones move only when breast motion is turned on.
-pub const BREAST_HINTS: [&str; 6] = ["breast","bust","boob","oppai","おっぱい","乳"];
+pub const BREAST_HINTS: [&str; 7] = ["breast","bust","boob","pectoral","oppai","おっぱい","乳"];
 fn tokens(name:&str)->Vec<String> {
     // Split on separators and camel case: HatBrim_L -> hat, brim, l.
     let mut out=vec![];let mut word=String::new();let mut previous_lower=false;
@@ -74,7 +74,19 @@ fn facing(names:&BTreeMap<&str,&Bone>,children:&BTreeMap<&str,Vec<&str>>,roles:&
     let n=(f[0]*f[0]+f[1]*f[1]).sqrt();
     if n<1e-6 {[0.,-1.]} else {[f[0]/n,f[1]/n]}
 }
-/// Breast bones: weighted, short, non-role children of the chest (or spine) that
+/// Torso bones between the pelvis and the neck (or head), where breast bones hang.
+fn torso_chain<'a>(names:&BTreeMap<&str,&'a Bone>,roles:&BTreeMap<String,String>)->Vec<&'a str> {
+    let mut chain=vec![];
+    let mut cursor=roles.get("neck").or_else(||roles.get("head")).and_then(|n|names.get(n.as_str())).and_then(|b|b.parent.as_deref()).and_then(|p|names.get(p));
+    while let Some(bone)=cursor {
+        if chain.len()>=64 {break;}
+        chain.push(bone.name.as_str());
+        if roles.get("pelvis").is_some_and(|p|p==&bone.name) {break;}
+        cursor=bone.parent.as_deref().and_then(|p|names.get(p));
+    }
+    chain
+}
+/// Breast bones: weighted, short, non-role children of a torso bone that
 /// are named as breasts, or form a mirrored pair in front of the chest between
 /// the spine and the neck.
 fn breast_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&BTreeMap<&str,Vec<&str>>,weighted:&BTreeSet<&str>,roles:&BTreeMap<String,String>)->BTreeSet<&'a str> {
@@ -83,7 +95,7 @@ fn breast_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&B
     let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
     let torso=distance(&pelvis.position,&head.position);
     if torso<=1e-6 {return BTreeSet::new();}
-    let parents:Vec<&str>=["chest","spine"].iter().filter_map(|r|roles.get(*r).map(String::as_str)).collect();
+    let parents=torso_chain(names,roles);
     let low=roles.get("spine").and_then(|n|names.get(n.as_str())).unwrap_or(pelvis).position[2];
     let high=roles.get("neck").and_then(|n|names.get(n.as_str())).unwrap_or(head).position[2];
     let short=|bone:&Bone|{
@@ -153,6 +165,20 @@ pub fn breast_motion(options: &PreparationOptions) -> Result<Option<bool>> {
     options.values.get("breast_motion").map(|v| v.as_bool().ok_or_else(|| invalid("Breast motion must be on or off."))).transpose()
 }
 /// Detected breast bones (named or a mirrored pair in front of the chest).
+/// What Blender needs to add breast bones where the chest has breasts, for a
+/// rig without them (see resources/blender/breast_bones.py).
+pub fn breast_request(source: &[Bone], source_roles: &BTreeMap<String,String>) -> Option<serde_json::Value> {
+    let names: BTreeMap<_,_> = source.iter().map(|b| (b.name.as_str(),b)).collect();
+    let mut children=BTreeMap::<&str,Vec<&str>>::new();
+    for bone in source{if let Some(parent)=bone.parent.as_deref(){children.entry(parent).or_default().push(&bone.name);}}
+    let chest=source_roles.get("chest").or_else(||source_roles.get("spine"))?;
+    let (pelvis,head)=(source_roles.get("pelvis")?,source_roles.get("head")?);
+    let high=source_roles.get("neck").unwrap_or(head);
+    let mut chain=vec![high.clone()];
+    chain.extend(torso_chain(&names,source_roles).into_iter().map(str::to_owned));
+    if chain.last()!=Some(pelvis) || !chain.contains(chest) {return None;}
+    Some(serde_json::json!({"chest":chest,"pelvis":pelvis,"head":head,"high":high,"torso":chain,"forward":facing(&names,&children,source_roles)}))
+}
 pub fn breast_bones(source: &[Bone], weighted: &[String], source_roles: &BTreeMap<String,String>) -> Vec<String> {
     let names: BTreeMap<_,_> = source.iter().map(|b| (b.name.as_str(),b)).collect();
     let mut children=BTreeMap::<&str,Vec<&str>>::new();

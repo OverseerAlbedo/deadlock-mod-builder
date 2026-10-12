@@ -72,7 +72,13 @@ The four planned items and the Rem target issue are implemented; see the
   stay per project.
 - **Breast motion**: `breast_motion` preparation option (unset = old behavior),
   `breast_roots` in the three detectors, `physics_kinds` option read by
-  `secondary::setup`, `Kind::Breast` parameters in `secondary_auto.rs`.
+  `secondary::setup`; `append_breast` and `link_breast_pairs` in `secondary_auto.rs`
+  build the breast proxy (ring behind each breast, linked left/right pair).
+  Rigs without breast bones: `resources/blender/breast_bones.py` adds
+  `DMB_Breast_L/R` at Inspect when `breast_motion` is on
+  (`secondary_bones::breast_request`, `Analysis.breast_generation`, repeated at
+  Convert). Tuning was loosened after the first in-game test barely moved
+  (now goal 0.45, drag 0.1, travel ~45% of breast radius).
 - **Rigid accessories**: `RIGID_HINTS`, `rigid_named`, `ring_chain` in the three
   detectors; `Kind::Rigid` and the ring rule in `parts.rs`.
 - **Color editor**: `hue`/`saturation`/`brightness` on `AppearanceMaterial`,

@@ -25,7 +25,7 @@ RIGID_HINTS = ('halo','hat','cap','pin','pins','clip','clips','crown','tiara','c
                'earrings','piercing','hairpin','hairclip','barrette','hairband','headband','ornament',
                'accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪')
 # Breast bones move only when breast motion is turned on.
-BREAST_HINTS = ('breast','bust','boob','oppai','おっぱい','乳')
+BREAST_HINTS = ('breast','bust','boob','pectoral','oppai','おっぱい','乳')
 
 
 def tokens(name):
@@ -93,8 +93,21 @@ def facing(byname, children, source_roles):
     return [0., -1.] if n < 1e-6 else [f[0]/n, f[1]/n]
 
 
+def torso_chain(byname, source_roles):
+    """Torso bones between the pelvis and the neck (or head), where breast bones hang."""
+    chain = []
+    start = byname.get(source_roles.get('neck') or source_roles.get('head'))
+    cursor = byname.get(start.get('parent')) if start else None
+    while cursor is not None and len(chain) < 64:
+        chain.append(cursor['name'])
+        if cursor['name'] == source_roles.get('pelvis'):
+            break
+        cursor = byname.get(cursor.get('parent'))
+    return chain
+
+
 def breast_roots(bones, byname, children, weighted, source_roles):
-    """Breast bones: weighted, short, non-role children of the chest (or spine)
+    """Breast bones: weighted, short, non-role children of a torso bone
     that are named as breasts, or form a mirrored pair in front of the chest
     between the spine and the neck."""
     role_names = set(source_roles.values())
@@ -105,7 +118,7 @@ def breast_roots(bones, byname, children, weighted, source_roles):
     torso = distance(pelvis['position'], head['position'])
     if torso <= 1e-6:
         return set()
-    parents = [source_roles[r] for r in ('chest', 'spine') if r in source_roles]
+    parents = torso_chain(byname, source_roles)
     low = byname.get(source_roles.get('spine'), pelvis)['position'][2]
     high = byname.get(source_roles.get('neck'), head)['position'][2]
 

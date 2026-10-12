@@ -411,7 +411,7 @@ fn no_fresh_receipt_cannot_reuse_prior_success() {
     )
     .unwrap();
     let result: deadlock_preparation::Result<Value> =
-        bridge.inspect(Path::new("input.gltf"), temp.path(), [0.; 3], None, None);
+        bridge.inspect(Path::new("input.gltf"), temp.path(), [0.; 3], None, None, None);
     assert!(result.is_err());
     assert!(!temp.path().join("blender-result.json").exists());
 }
