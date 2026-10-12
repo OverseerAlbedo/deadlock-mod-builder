@@ -1,6 +1,6 @@
 [package]
 name = "deadlock-pipeline"
-version = "0.13.0-alpha.51"
+version = "0.13.0-alpha.52"
 edition = "2021"
 publish = false
 

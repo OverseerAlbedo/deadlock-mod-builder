@@ -1,33 +1,28 @@
-# Deadlock Mod Builder 0.13.0-alpha.51
+# Deadlock Mod Builder 0.13.0-alpha.52
 
-This update fixes missing character images in **Extras** and makes model preparation work with far more source files.
+This update frees disk space, adds optional breast motion, keeps halos and hats from swinging like hair, adds an experimental color editor, and makes sure your mod replaces the model the game actually loads.
 
-## Model preparation
+## Storage
 
-- **Almost any rigged humanoid.** Game rips, cluttered Blender scenes and rigs with unusual bone names are recognised. **Scene objects** lists every object and what happened to it; you can keep or leave out any of them. A detached prop on its own rig can be kept and is attached to the nearest bone.
-- **Gun customization.** Replace the hero's gun with one from your file, leave it out, or keep it in hand. Separate weapon models can be built as gun-only projects.
-- **Textures.** Base-colour images from game rips (wired straight into the material output, or into a Diffuse, Emission or Toon colour) now reach **Appearance** automatically.
-- **Moving parts.** Robes, sashes, scarves, cloaks and similar chains are recognised as moving parts, as are long unnamed chains hanging from the body.
-- **Mesh mapping.** Checkboxes replace the Ctrl+click list. A suggested mapping can be applied with one click, and source meshes that no render node uses are named with a one-click fix, because they would be missing in game.
+- **Settings → Storage** shows how much space each project uses, including the working copies in the CSDK and model toolset folders. **Clean up all projects** removes data the builder can recreate; **Remove…** deletes everything of a project you no longer need. Data a saved or open project uses and built VPKs are kept.
+- Old model preparations and backups are pruned automatically, and extracted original hero files are shared between projects of the same hero.
 
-## Extras icons
+## Motion
 
-- Recognize the game's older image names for Abrams, Lady Geist, Dynamo, Vyper, Seven and Mo & Krill.
-- Follow the selected hero's image and ability references in the installed game, so artwork no longer needs the character's name in its filename to be found. Retain alternate and unused images discovered by name.
-- Show compiled vector artwork, including hero-name logos, with previews. Vector artwork is view-only; normal texture replacement remains available.
-- Label potentially shared images and require **Include this shared replacement** before replacing them.
-- Explain when a game definition refers to an image that is absent from the selected archive.
+- **Breast motion** (optional, off by default). Turn it on and choose the amount on **Physics → Automatic motion**. It gives a springy bounce that does not sag; the two breasts move together and cannot swing into each other. Models without breast bones get them added where the chest has breasts (Model preparation → **Keep or add breast bones**, then **Inspect again**).
+- **Halos, hats, crowns and hairpins** stay on the head instead of moving like hair.
+- Fixes for builds that failed on MMD-style rigs: ribbons or cape strips hanging from breast bones ("Native secondary fitting is incomplete") and tip bones beside their bone ("Native float32 precision collapses or reverses a cloth proxy face").
 
-## Test this build
+## Appearance
 
-Install the Windows x64 setup EXE. Open your project, select a character, go to **Extras**, click **Reload assets** (or **Load character assets** if the catalog is empty), and select **Icons**. Test Abrams and Lady Geist first, then switch characters and reload their assets. Use the original game's `pak01_dir.vpk` configured in Settings.
+- **Adjust colors (experimental)** in **Appearance → Surface changes** shifts a material's hue, saturation and brightness, with a preview. Your image files are not changed.
 
-Projects prepared before this update keep working. To pick up the new texture and moving-part detection, press **Inspect source** again on the **Prepare** page and prepare once more, then check **Mesh mapping** on **Build**. The accepted cloth/hair implementation is preserved.
+## Character targets
 
-## Coverage and limits
+- The character picker follows the installed game's hero definitions. **Rem** now targets `familiar_wip.vmdl`, the model the game loads; the older `familiar.vmdl` is marked *Not used in game*. Analyze warns when a project targets a model the game does not load.
 
-The inventory check covered all 44 heroes and 3 alternate model entries in the app against a game snapshot dated October 11, 2026. No available image explicitly referenced by their hero and reachable ability definitions was omitted. Abrams has 18 textures and 3 vectors; Lady Geist has 19 textures and 5 vectors in that snapshot. Counts may change with game updates.
+## After updating
 
-Three portrait references have no corresponding file in that game inventory: Deadman Danny (`deadpack_card`), Nurse Harrow (`nurse_card`) and Violet (`artist_card`). Their available images are still listed, and the missing references produce a notice.
-
-The inventory audit verifies filenames and reference discovery. It does not certify every image payload or Windows rendering. Frontend tests, component tests, real compiled vector/definition fixtures and installer checks are documented in **RELEASE_VALIDATION.md**. Windows and Deadlock were not executed here. No public release or Git tag was published.
+- Projects with breast motion: open **Physics**, check **Breast motion** and the amount, then **Analyze** and **Build**.
+- Yvonne-style rigs that failed before: press **Inspect source** again in Model preparation, convert, click **Use prepared model**, then Analyze and Build.
+- The amount of breast motion, rigid accessories and color edits still need an in-game check.

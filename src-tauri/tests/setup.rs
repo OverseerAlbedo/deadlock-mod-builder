@@ -54,7 +54,12 @@ fn toolset_selection_preserves_other_settings_and_requires_explicit_persistence(
     assert_eq!(next.resourcecompiler, settings.resourcecompiler);
     assert_eq!(next.model_backend, "cswin");
     assert_eq!(next.model_format, "auto");
-    assert_eq!(Path::new(&next.cswin), root);
+    // Saved settings use the resolved long spelling; CI temp folders can be
+    // 8.3 short names (C:\Users\RUNNER~1\...), so compare resolved paths.
+    assert_eq!(
+        Path::new(&next.cswin),
+        deadlock_project::asset_paths::resolve(&root).unwrap()
+    );
     assert_eq!(app.settings().unwrap(), settings);
     app.save_settings(&next).unwrap();
     assert_eq!(app.settings().unwrap(), next);

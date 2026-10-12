@@ -4,9 +4,9 @@ A release requires an explicit user request. Normal development never increments
 
 ## Current handoff
 
-Version: **0.13.0-alpha.46**. Intended tag: **v0.13.0-alpha.46**. This preserves the accepted Alpha 46 application behavior. The new release work changes repository organization, CI, documentation, and packaging of notices.
+Version: **0.13.0-alpha.52**. Tag: **v0.13.0-alpha.52**. Repository: the private `OverseerAlbedo/deadlock-mod-builder` on GitHub (default branch `main`). The release is a GitHub pre-release with the Windows installer attached; the installer was built locally with `scripts/build-windows.ps1 -Release` (all tests and the portable startup check) from the tagged commit.
 
-No repository destination was supplied with this handoff. No remote was pushed, no tag was created, and no GitHub release or hosted Windows check is claimed. See [validation record](RELEASE_VALIDATION.md).
+Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
 
 ## GitHub Desktop: initial upload
 

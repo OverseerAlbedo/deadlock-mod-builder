@@ -25,6 +25,15 @@ build `-p deadlock-preparation --example e2e_probe`, then run
 `scripts/test_blender_any_humanoid.py` with Blender (see DEVELOPMENT.md).
 `src-tauri/target` grows to tens of GB; `cargo clean` is safe.
 
+## Repository and release
+
+Private GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`.
+0.13.0-alpha.52 (tag `v0.13.0-alpha.52`) is published as a GitHub pre-release with
+the installer .exe attached. Releases follow `docs/RELEASING.md`: bump all version
+files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, build with
+`scripts/build-windows.ps1 -Release`, tag the tested commit, publish a pre-release.
+CI (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
+
 ## State as of 0.13.0-alpha.51 (October 11, 2026)
 
 Alpha 51 = Extras icon discovery (from a separate branch) merged with:

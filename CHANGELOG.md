@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (after 0.13.0-alpha.51)
+## 0.13.0-alpha.52 — 2026-10-11
 
 - **Settings → Storage** shows disk use per project and per kind of data, including the per-project working copies in the CSDK and model toolset, and clears what the builder can recreate: unused model preparations, older backups, build caches and staging, compiler working folders and leftovers of interrupted operations. **Remove…** deletes all data of a project that is not open; **Find saved projects in a folder…** recognises project files saved by earlier versions. Data that a saved or open project uses, built VPKs and locked workspaces are never removed.
 - Automatic retention: Inspect, Convert and Accept keep only the preparation the project uses (and, by default, the previous one); replaced VPKs and original-source backups keep the newest one per file (adjustable). Optionally clear build caches and compiler folders after each successful build (off by default).
@@ -14,6 +14,7 @@
 - Halos, hats, crowns, hairpins, hair ornaments and other rigid accessories no longer receive hair motion; ring-shaped chains are not treated as hair strands. A new **Rigid** part type keeps a part on its bone.
 - Experimental color editor: **Appearance → Surface changes → Adjust colors** shifts hue, saturation and brightness of a material's base color with an approximate preview. Build adjusts a copy of the base-color image (or plain color); source files and other materials are unchanged.
 - Character targets follow the installed game's hero definitions. Rem's main target is now `familiar_wip.vmdl` (the model the game loads); `familiar.vmdl` is listed as *Not used in game*, and Analyze explains when a saved project targets a model the game does not load.
+- Tests: a Windows setup test compared a short 8.3 temp path with the app's resolved long path and failed only on GitHub's build machines.
 
 ## 0.13.0-alpha.51 — 2026-10-11
 
