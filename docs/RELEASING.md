@@ -1,36 +1,22 @@
 # Releases
 
-A release requires an explicit user request. Normal development never increments a public version, creates a tag, or publishes a release. The Windows workflow has read-only repository permission and uploads temporary CI artifacts only.
+A release requires an explicit user request. Normal development never increments a public version, creates a tag, or publishes a release. Only the manually started Release workflow can publish.
 
-## Current handoff
+## How releases work
 
-Version: **0.13.0-alpha.52**. Tag: **v0.13.0-alpha.52**. Repository: the private `OverseerAlbedo/deadlock-mod-builder` on GitHub (default branch `main`). The release is a GitHub pre-release with the Windows installer attached; the installer was built locally with `scripts/build-windows.ps1 -Release` (all tests and the portable startup check) from the tagged commit.
+- **Every push** runs **Windows tests and portable application** (`.github/workflows/windows.yml`): tests, build and startup check, with temporary artifacts only. It has read-only permission and never publishes.
+- **A release** runs only when started by hand: **Actions → Release → Run workflow** (`.github/workflows/release.yml`), or `gh workflow run release.yml -f version=X.Y.Z-alpha.N`. On `main` only, it checks that the version matches `package.json`, that `CHANGELOG.md` has a section for it and that the tag and release do not exist yet. Then it runs the full build with the installer (`scripts/build-windows.ps1 -Release`: all tests and the portable startup check), creates the tag `vX.Y.Z-alpha.N` on that commit and publishes a GitHub pre-release titled `Deadlock Mod Builder X.Y.Z-alpha.N` with the installer `.exe` attached. The notes are `docs/RELEASE_NOTES.md` plus the installer's SHA-256. If any step fails, nothing is published. Published releases and tags are never replaced.
 
-Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
+## Preparing a release
 
-## GitHub Desktop: initial upload
+1. Change the version together in all version files (see below) and run `node scripts/check-repository.mjs`.
+2. Turn the changelog's unreleased section into `## X.Y.Z-alpha.N — date`, and write `docs/RELEASE_NOTES.md` for players.
+3. Commit and push to `main`, and let the push check pass.
+4. Run the **Release** workflow with that version. A run takes about 30 minutes of Windows build time, which counts double against the free Actions minutes of a private repository.
 
-1. Create the intended repository in GitHub Desktop. Copy the **contents** of the supplied source folder into its repository root. `README.md`, `package.json`, `src/`, `src-tauri/`, and `.github/` must be directly at that root.
-2. Do not copy `release-assets/`, installers, portable ZIPs, generated `artifacts/`, or the outer handoff ZIP into Git history. The supplied `.gitignore` covers generated directories.
-3. Review Changes and the intended repository/branch. Suggested summary: `chore: prepare Deadlock Mod Builder GitHub release`.
-4. Commit and publish/push to the intended repository. Repository visibility and permissions are the owner's choice.
-5. In GitHub Actions, open **Windows tests and portable application** and wait for its **windows** job on that exact commit. Inspect the first failing step and validation artifact if it fails. Do not call the hosted check passed based on local cross-compilation.
+## Current release
 
-## Requested installer build
-
-After the portable push check passes, run the same workflow manually for the exact intended commit with its **release** checkbox enabled to also produce the installer, or run `pwsh -NoProfile -File scripts/build-windows.ps1 -Release` on Windows. This is an explicit one-time build action and still does not publish.
-
-## One-time publication
-
-After the requested version/destination is confirmed and the exact commit passes:
-
-1. Select/create tag `v0.13.0-alpha.46` at that tested commit. If it already exists elsewhere, stop and resolve the version; do not overwrite a published tag.
-2. Draft a release titled `Deadlock Mod Builder 0.13.0-alpha.46` and mark it **Pre-release**.
-3. Use the manual release-build CI artifact's installer, portable ZIP, and `SHA256SUMS.txt` for the tested commit. Prepared cross-built assets are also included with this handoff, but do not imply they were executed on Windows here.
-4. Paste [release notes](RELEASE_NOTES.md), attach the files individually, and publish only this requested release.
-5. Check the tag target, prerelease flag, asset names, downloadable files, and checksums.
-
-Future releases require a new explicit request. There is no automatic release workflow.
+Version **0.13.0-alpha.52** (tag `v0.13.0-alpha.52`) in the private `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`; the first release made by the Release workflow. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
 
 ## Version consistency
 
