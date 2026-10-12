@@ -153,3 +153,29 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     let generic_weighted: Vec<String> = weighted.iter().map(rename).collect();
     assert_eq!(secondary::breast_bones(&generic, &generic_weighted, &roles), breasts.iter().map(rename).collect::<Vec<_>>());
 }
+
+#[test]
+fn breast_bones_carrying_other_parts_still_count_as_existing_breasts() {
+    // MMD-style rig (as in Yvonne): 胸上2.L/R carry the breast skin and also
+    // hold ribbon and cape strips, so they are not single breasts, but the rig
+    // must never be given extra breast bones.
+    let source: Vec<Bone> = serde_json::from_value(json!([
+        {"name":"pelvis","parent":null,"position":[0,0,0.92]},
+        {"name":"chest","parent":"pelvis","position":[0,0,1.19]},
+        {"name":"head","parent":"chest","position":[0,0,1.47]},
+        {"name":"胸上2.L","parent":"chest","position":[0.06,-0.05,1.25]},
+        {"name":"胸先.L","parent":"胸上2.L","position":[0.07,-0.1,1.24]},
+        {"name":"ribbon_L_01","parent":"胸上2.L","position":[0.08,-0.14,1.28]},
+        {"name":"ribbon_L_02","parent":"ribbon_L_01","position":[0.08,-0.15,1.23]},
+        {"name":"胸上2.R","parent":"chest","position":[-0.06,-0.05,1.25]},
+        {"name":"ribbon_R_01","parent":"胸上2.R","position":[-0.08,-0.14,1.28]},
+        {"name":"ribbon_R_02","parent":"ribbon_R_01","position":[-0.08,-0.15,1.23]},
+        {"name":"breast_L_01_jnt","parent":"chest","position":[0.04,-0.05,1.25]}
+    ])).unwrap();
+    let weighted: Vec<String> = ["pelvis","chest","head","胸上2.L","ribbon_L_01","ribbon_L_02","胸上2.R","ribbon_R_01","ribbon_R_02"].map(String::from).to_vec();
+    let roles = BTreeMap::from([("pelvis".into(),"pelvis".into()),("chest".into(),"chest".into()),("head".into(),"head".into())]);
+    assert!(secondary::breast_bones(&source, &weighted, &roles).is_empty());
+    // The unweighted breast_L_01_jnt does not count; the weighted 胸上2 bones do.
+    assert_eq!(secondary::breast_named_bones(&source, &weighted), vec!["胸上2.L".to_string(), "胸上2.R".to_string()]);
+    assert!(secondary::breast_request(&source, &roles).is_some());
+}

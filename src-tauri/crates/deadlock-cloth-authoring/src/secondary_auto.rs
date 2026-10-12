@@ -158,7 +158,7 @@ pub(crate) fn append(
         return crate::skirt_surface::append(s,group,part,slots,lookup,sk,state,choice,skirt,maps).map(|_| None);
     }
     if part.kind == Kind::Breast {
-        return append_breast(s, group, part, slots, lookup, state, choice, maps, partner).map(Some);
+        return append_breast(s, group, part, slots, lookup, sk, state, choice, maps, partner).map(Some);
     }
     let pos = |name: &str| std::array::from_fn::<_, 3, _>(|r| state.world[lookup[name]][r][3]);
     let axis = |name: &str, c: usize| {
@@ -272,10 +272,11 @@ pub(crate) fn append(
         let x = axis(&group.root, 0);
         let y = axis(&group.root, 1);
         let z = axis(&group.root, 2);
+        let fixed_center: [f64; 3] = std::array::from_fn(|r| center[r] - y[r] * offset);
         let fixed = ring(
             s,
             maps,
-            std::array::from_fn(|r| center[r] - y[r] * offset),
+            fixed_center,
             x,
             z,
             radius,
@@ -323,12 +324,18 @@ pub(crate) fn append(
                 settings[4] = skirt.travel_radius_by_bone[name];
                 settings[6] = 1.;
             }
+            let from = if name == &group.root {
+                fixed_center
+            } else {
+                pos(&sk.names[sk.parents[i] as usize])
+            };
+            let (ring_x, ring_z) = ring_axes(axis(name, 0), axis(name, 2), from, p);
             let ids = ring(
                 s,
                 maps,
                 p,
-                axis(name, 0),
-                axis(name, 2),
+                ring_x,
+                ring_z,
                 radius,
                 slots[name.as_str()],
                 true,
@@ -359,6 +366,7 @@ fn append_breast(
     part: &Part,
     slots: &BTreeMap<&str, usize>,
     lookup: &BTreeMap<&str, usize>,
+    sk: &Skeleton,
     state: &BindState,
     choice: Option<&str>,
     maps: &mut Vec<Maps>,
@@ -405,6 +413,37 @@ fn append_breast(
     let settings = parameters(Kind::Breast, 0., true, size, radius, choice)?;
     let moving = ring(s, maps, center, side, lift, radius, slots[bone.as_str()], true, settings);
     connect(s, fixed, moving);
+    // Everything else in the group (ribbons or cape strips hanging from the
+    // breast, an unweighted helper above it) still needs its own nodes, or it
+    // would be frozen; it moves like a hanging accessory from the breast.
+    let mut frames = BTreeMap::from([(bone.clone(), moving)]);
+    let others: Vec<&String> = group.bones.iter().filter(|n| *n != bone).collect();
+    if !others.is_empty() {
+        let parent_of = |name: &str| {
+            let at = sk.parents[lookup[name]];
+            (at >= 0).then(|| sk.names[at as usize].clone())
+        };
+        let reach = others.iter().map(|n| norm(sub(pos(n), center))).fold(0f64, f64::max).max(1e-3);
+        let pitch = others
+            .iter()
+            .filter_map(|n| parent_of(n).filter(|p| lookup.contains_key(p.as_str())).map(|p| norm(sub(pos(n), pos(&p)))))
+            .fold(0f64, f64::max)
+            .max(0.1);
+        let small = (pitch * 0.08).clamp(0.05, 0.45);
+        let axis = |name: &str, c: usize| {
+            std::array::from_fn::<_, 3, _>(|r| state.world[lookup[name]][r][c] / state.accumulated[lookup[name]])
+        };
+        for name in others {
+            let t = (norm(sub(pos(name), center)) / reach).clamp(0., 1.);
+            let maps_for = parameters(Kind::Accessory, t, false, reach, small, choice.filter(|c| *c != "automatic"))?;
+            let from = parent_of(name).filter(|p| lookup.contains_key(p.as_str())).map_or(center, |p| pos(&p));
+            let (ring_x, ring_z) = ring_axes(axis(name, 0), axis(name, 2), from, pos(name));
+            let ids = ring(s, maps, pos(name), ring_x, ring_z, small, slots[name.as_str()], true, maps_for);
+            let parent = parent_of(name).and_then(|p| frames.get(&p).copied()).unwrap_or(fixed);
+            connect(s, parent, ids);
+            frames.insert(name.clone(), ids);
+        }
+    }
     Ok(moving)
 }
 /// Link the moving rings of a left/right breast pair on the same anchor, so the
@@ -418,13 +457,47 @@ pub(crate) fn link_breast_pairs(s: &mut Surface, rings: &[(String, [usize; 3])])
         connect(s, pair[0], pair[1]);
     }
 }
+/// The plane a bone's ring lies in: the bone's own X/Z frame, unless the chain
+/// runs within that plane (rigs whose bone Y is not along the bone, such as MMD
+/// tip bones). Then the ring would lie flat against its neighbour and its
+/// connecting faces would collapse, so it is drawn across the chain instead.
+/// Ordinary rigs keep exactly their own frame.
+pub(crate) fn ring_axes(x: [f64; 3], z: [f64; 3], from: [f64; 3], at: [f64; 3]) -> ([f64; 3], [f64; 3]) {
+    let step = sub(at, from);
+    let (length, normal) = (norm(step), cross(x, z));
+    if length <= 1e-6 || norm(normal) <= 1e-9 {
+        return (x, z);
+    }
+    let along = step.map(|v| v / length);
+    if (dot(along, normal) / norm(normal)).abs() >= 0.5 {
+        return (x, z);
+    }
+    let mut across = sub(x, along.map(|v| v * dot(x, along)));
+    if norm(across) < 0.3 {
+        across = sub(z, along.map(|v| v * dot(z, along)));
+    }
+    let across = across.map(|v| v / norm(across));
+    (across, cross(along, across))
+}
 pub(crate) fn connect(s: &mut Surface, a: [usize; 3], b: [usize; 3]) {
     let cost = |k: usize| {
         (0..3)
             .map(|i| norm(sub(s.points[a[i]], s.points[b[(i + k) % 3]])).powi(2))
             .sum::<f64>()
     };
-    let shift = (0..3).min_by(|&a, &b| cost(a).total_cmp(&cost(b))).unwrap();
+    // The closest pairing, but never one whose faces collapse to a line.
+    let area = |p: usize, q: usize, r: usize| norm(cross(sub(s.points[q], s.points[p]), sub(s.points[r], s.points[p])));
+    let flat = |k: usize| {
+        let scale = cost(k).max(1e-12);
+        (0..3).any(|i| {
+            let j = (i + 1) % 3;
+            area(a[i], b[(i + k) % 3], b[(j + k) % 3]) <= 1e-9 * scale || area(a[i], b[(j + k) % 3], a[j]) <= 1e-9 * scale
+        })
+    };
+    let shift = (0..3)
+        .filter(|&k| !flat(k))
+        .min_by(|&p, &q| cost(p).total_cmp(&cost(q)))
+        .unwrap_or_else(|| (0..3).min_by(|&p, &q| cost(p).total_cmp(&cost(q))).unwrap());
     let b: [usize; 3] = std::array::from_fn(|i| b[(i + shift) % 3]);
     for i in 0..3 {
         let j = (i + 1) % 3;
@@ -511,6 +584,32 @@ mod breast_tests {
         let added = &s.faces[before..];
         assert_eq!(added.len(), 6);
         assert!(added.iter().all(|f| f.iter().all(|i| left.contains(i) || right.contains(i))));
+    }
+    #[test]
+    fn chains_running_within_a_ring_plane_get_a_crossing_ring_and_no_collapsed_faces() {
+        // MMD tip bones (尻2.L -> 尻2錘.L in janeVen): the tip lies along -Z,
+        // inside the X/Z ring plane. The old rings were coplanar and one
+        // connecting face collapsed to a line.
+        let (x, z) = ([0., 1., 0.], [-0.764, 0., 0.645]);
+        let from = [-1.123, 5.706, 59.3];
+        let at = [-0.335, 5.706, 58.636];
+        let (rx, rz) = ring_axes(x, z, from, at);
+        let along = { let d = sub(at, from); d.map(|v| v / norm(d)) };
+        assert!(dot(rx, along).abs() < 1e-9 && dot(rz, along).abs() < 1e-9 && (norm(rx) - 1.).abs() < 1e-9);
+        // An ordinary chain along the ring normal keeps the bone's own frame.
+        let normal = cross(x, z);
+        assert_eq!(ring_axes(x, z, from, std::array::from_fn(|k| from[k] + normal[k])), (x, z));
+        // Even coplanar rings connect without a collapsed face.
+        let mut s = surface();
+        let mut maps = vec![];
+        let settings = breast_parameters(2., None).unwrap();
+        let a = ring(&mut s, &mut maps, from, x, z, 0.2, 1, true, settings);
+        let b = ring(&mut s, &mut maps, at, x, z, 0.2, 2, true, settings);
+        connect(&mut s, a, b);
+        for f in &s.faces[1..] {
+            let area = norm(cross(sub(s.points[f[1]], s.points[f[0]]), sub(s.points[f[2]], s.points[f[0]])));
+            assert!(area > 1e-6, "{f:?}");
+        }
     }
     #[test]
     fn breast_settings_are_a_damped_bounce_without_sag() {

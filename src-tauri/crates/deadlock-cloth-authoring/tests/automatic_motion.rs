@@ -94,8 +94,9 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .filter(|(v, _)| **v > 0.)
             .map(|(_, g)| *g)
             .collect::<Vec<_>>();
-        assert!(active.iter().all(|g| *g
-            == if ["hair", "ear", "breast", "rigid"].contains(&kind) {
+        // A breast group's hanging parts move like accessories (checked below).
+        assert!(kind == "breast" || active.iter().all(|g| *g
+            == if ["hair", "ear", "rigid"].contains(&kind) {
                 0.
             } else {
                 1.
@@ -118,14 +119,20 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             }}
         }
         if kind == "breast" {
-            // One breast-sized ring: a springy, lightly damped bounce with bounded travel.
-            assert_eq!(setup.dynamic_positions, 3);
+            // One breast-sized ring (a springy, lightly damped bounce with bounded
+            // travel, no sag); every other bone of the group, such as a ribbon
+            // hanging from the breast, still gets its own moving nodes.
+            assert_eq!(setup.dynamic_positions, 3 * setup.groups[0].bones.len());
             let drag = stream(&proxy, "cloth_drag$0");
             let radius = stream(&proxy, "cloth_stray_radius$0");
-            for i in (0..enable.len()).filter(|i| enable[*i] > 0.) {
-                assert!((goals[i] - 0.45).abs() < 1e-6 && drag[i] <= 0.1 + 1e-6, "{} {}", goals[i], drag[i]);
-                assert!(radius[i] >= 0.4 && radius[i] <= 1.5);
+            let breast = (0..enable.len())
+                .filter(|i| enable[*i] > 0. && (goals[*i] - 0.45).abs() < 1e-6)
+                .collect::<Vec<_>>();
+            assert_eq!(breast.len(), 3);
+            for &i in &breast {
+                assert!(drag[i] <= 0.1 + 1e-6 && gravity[i] == 0. && radius[i] >= 0.4 && radius[i] <= 1.5);
             }
+            assert!((0..enable.len()).filter(|i| enable[*i] > 0. && !breast.contains(i)).all(|i| gravity[i] == 1.));
         }
         if kind == "rigid" {
             assert!(enable.iter().zip(&goals).filter(|(v, _)| **v > 0.).all(|(_, g)| *g == 1.));

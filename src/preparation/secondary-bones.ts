@@ -28,7 +28,7 @@ function rigidNamed(name:string):boolean{
   const moving=SECONDARY_HINTS.filter(h=>!['hair','髪','发','髮','耳'].includes(h)).some(h=>n.includes(h));
   return rigid&&!moving;
 }
-const namedBreast=(name:string)=>{const n=name.toLowerCase();return BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t))));};
+export const namedBreast=(name:string)=>{const n=name.toLowerCase();return BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t))));};
 const distance=(a:Vec3,b:Vec3)=>Math.sqrt(a.reduce((s,v,k)=>s+(v-b[k])**2,0));
 /** A closed loop (halo, crown band, hat brim): the single chain that contains the bone, from below its body anchor, ends close to where it starts. */
 function ringChain(bone:Bone,names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>):boolean{

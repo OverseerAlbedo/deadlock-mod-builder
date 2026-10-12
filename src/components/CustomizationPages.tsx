@@ -21,7 +21,7 @@ export function Check({label,value,onChange,disabled}:{label:string;value:boolea
 export function SelectField({label,value,values,onChange,disabled}:{label:string;value:string;values:readonly(readonly[string,string])[];onChange:(value:string)=>void;disabled:boolean}){
   const id=useId();return <div className="field"><label htmlFor={id}>{label}</label><select id={id} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)}>{values.map(([key,text])=><option value={key} key={key}>{text}</option>)}</select></div>;
 }
-export function PhysicsPage({project,update,disabled,fail,summary,children,report=null,fresh=false}:{report?:ProjectInspection|null;fresh?:boolean;summary:ModelSummary|null;children?:ReactNode}&Props){
+export function PhysicsPage({project,update,disabled,fail,summary,children,report=null,fresh=false,openPreparation}:{report?:ProjectInspection|null;fresh?:boolean;summary:ModelSummary|null;children?:ReactNode;openPreparation?:()=>void}&Props){
   const physics=project.customization.physics??{},cloth=project.customization.cloth_setup??{},clothing=project.customization.clothing??{};
   const physicsUpdate=(values:Partial<PhysicsChoices>)=>update(changeCustomization(project,{physics:{...physics,...values,hero_path:project.original_model},...(values.enabled?{secondary_motion:{...project.customization.secondary_motion,enabled:false}}:{})}));
   const secondaryUpdate=(values:Partial<SecondaryMotionChoices>)=>update(changeCustomization(project,{secondary_motion:{...project.customization.secondary_motion,...values},physics:{...physics,enabled:false}}));
@@ -43,7 +43,7 @@ export function PhysicsPage({project,update,disabled,fail,summary,children,repor
       {!modelEnabled(project)&&<p className="hint">This project keeps the original model. Enable the replacement model in Extras to use tested cloth physics.</p>}
       {!project.customization.enabled&&physics.enabled&&<p className="hint">A tested setup is saved but inactive while project customization is off.</p>}
     </Section>
-    {generated&&<Section title="Automatic motion" className="automatic-motion-section"><SecondaryMotion project={project} update={secondaryUpdate} disabled={disabled} report={report} fresh={fresh}/></Section>}
+    {generated&&<Section title="Automatic motion" className="automatic-motion-section"><SecondaryMotion project={project} update={secondaryUpdate} disabled={disabled} report={report} fresh={fresh} preparation={values=>update({...project,preparation_options:{...project.preparation_options,...values}})} openPreparation={openPreparation}/></Section>}
     {qualified&&<div className="included-cloth-summary"><StateLabel tone="ready">Vindicta balanced cloth</StateLabel><p>Included hair and skirt reference · source binding checked. Compiled output is validated during build.</p></div>}
     {wanted&&<div className="cloth-selection-summary"><StateLabel tone={tested&&physics.source?'neutral':'attention'}>{tested&&physics.source?'Replacement reference selected':!modelEnabled(project)?'Replacement model required':'Choose a tested reference'}</StateLabel>{physics.source&&<PathValue path={physics.source}/>}</div>}
     <Disclosure title="Configure replacement cloth" hint="Tested compiled reference and activation setting" open={wanted&&!physics.source?true:undefined}>

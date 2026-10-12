@@ -6,13 +6,13 @@ import type { PhysicsGroup } from './secondary-bones';
 /** Breast motion for the current inspection: detected breast bones, whether
  * they were added by the builder, and the result when none could be added. */
 export interface BreastChoice {count:number;toggle:(enabled:boolean)=>void;added?:boolean;result?:{status:string;reason?:string};reinspect?:()=>void}
-const amount='Change the amount under Physics → Automatic motion → Adjust moving parts and check it in game.';
+const amount='Turn the bounce on or off and choose the amount on the Physics tab.';
 function breastHint(breasts:BreastChoice,on:boolean):string{
   const bones=`${breasts.count} breast ${breasts.count===1?'bone':'bones'}`;
-  if(on&&breasts.count>0)return breasts.added?`Breast bones were added where the chest has breasts. They bounce with a soft spring. ${amount}`:`A soft bounce for ${bones}. ${amount}`;
+  if(on&&breasts.count>0)return breasts.added?`Breast bones were added where the chest has breasts. ${amount}`:`Kept: ${bones}. ${amount}`;
   if(on&&breasts.result)return `No breast bones were added: ${breasts.result.reason??'the chest shape could not be measured.'}`;
   if(on)return 'This model has no breast bones. Inspect again to add them where the chest has breasts.';
-  return breasts.count>0?`Off. ${bones} ${breasts.count===1?'was':'were'} found; they follow the chest.`:'Off. This model has no breast bones; turning this on adds them where the chest has breasts (inspect again afterwards).';
+  return breasts.count>0?`Off. ${bones} ${breasts.count===1?'was':'were'} found; they follow the chest.`:"Off. This model has no breast bones; turning this on adds them where the chest has breasts (inspect again afterwards). Breast bones that come with the rig's own physics are kept either way; the Physics tab decides whether they bounce.";
 }
 
 export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts}:{groups:PhysicsGroup[];options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;breasts?:BreastChoice}){
@@ -23,7 +23,7 @@ export function PhysicsBoneChoices({groups,options,change:apply,busy,breasts}:{g
     <p className="hint">Uses existing physics bindings or recognizable secondary bone chains with skin weights. Supported groups are selected automatically when you inspect a new model.</p>
     <Check label="Keep existing physics bones (rig only)" value={enabled} disabled={busy||(!groups.length&&!enabled)} onChange={value=>change({preserve_physics_bones:value,physics_roots:roots.length?roots:groups.map(g=>g.root),reviewed:false})}/>
     {breasts&&<div className="prep-breast-motion">
-      <Check label="Breast motion (optional)" value={options.breast_motion===true} disabled={busy} onChange={breasts.toggle}/>
+      <Check label="Keep or add breast bones (for breast motion)" value={options.breast_motion===true} disabled={busy} onChange={breasts.toggle}/>
       <p className="hint">{breastHint(breasts,options.breast_motion===true)} After changing this, convert again and click Use prepared model.</p>
       {options.breast_motion===true&&breasts.count===0&&!breasts.result&&breasts.reinspect&&<button disabled={busy} onClick={breasts.reinspect}>Inspect again to add breast bones</button>}
     </div>}

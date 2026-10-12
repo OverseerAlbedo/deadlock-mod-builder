@@ -160,9 +160,12 @@ sit near the chest wall at the bulge centres, and skin weight near each breast
 moves from the torso bones to them with a smooth falloff, keeping every vertex's
 total. Only the temporary scene changes; Convert repeats the same request
 (`Analysis.breast_generation`). Turning breast motion off maps the added bones
-back to the chest until the next inspection. Tested on Ghist (with its own breast
-bones removed), Daki, Yvonne and TangTang (added) and Paimon and Endmin (none);
-Daki's added bones passed conversion and native DMX validation.
+back to the chest until the next inspection. A rig with weighted breast-named
+bones (`breast_named_bones`, including ones that carry ribbons or cape strips,
+such as Yvonne's `胸上2.L/R`) is never given extra bones. Tested on Daki and
+TangTang (added), Ghist and Yvonne with their own breast bones removed (added
+close to the real ones), and Paimon and Endmin (none); Daki's added bones passed
+conversion and native DMX validation.
 
 Build gives breast groups the **Breast** part type, a bounce in the style of
 stylized action games rather than a dangling strand (`secondary_auto.rs`,
@@ -170,11 +173,29 @@ stylized action games rather than a dangling strand (`secondary_auto.rs`,
 not become large rotations), a fixed ring straight behind it toward the chest
 (the sideways part toward the midline is removed using the other breast), and a
 link between the left and right rings so the pair moves together and cannot
-swing into each other. Settings: goal 0.45, drag 0.1, no gravity, no tether,
+swing into each other. Other bones in a breast group (parts hanging from the
+breast) get their own rings and move like accessories from the breast ring;
+without them the native fit leaves those bones unfitted and Build stops.
+Settings: goal 0.45, drag 0.1, no gravity, no tether,
 travel about 45% of the breast radius (0.4–1.5 in). Stiffer is goal 0.62 and
-travel ×0.7; More movement is goal 0.3 and travel ×1.35 (Physics → Automatic
-motion → Adjust moving parts). The first tuning (goal 0.8, drag 0.5, travel
-0.3 in) barely moved in game. Amounts need an in-game check.
+travel ×0.7; More movement is goal 0.3 and travel ×1.35. The first tuning (goal
+0.8, drag 0.5, travel 0.3 in) barely moved in game. Amounts need an in-game check.
+
+Two places, two jobs: Model preparation's **Keep or add breast bones** (the
+`breast_motion` option) decides whether breast bones are in the converted model.
+The **Physics** tab's **Breast motion** switch (`BreastMotion` in
+`SecondaryMotion.tsx`) decides whether they bounce and how much: off sets the
+breast groups' part type to Rigid (they stay in the model, so the next
+conversion's saved groups stay valid), on sets Breast, and one amount control
+sets both sides. That needs no conversion. Breast groups there are found by name,
+by `physics_kinds` or by the last Analyze, so breast bones from a rig's own
+physics (MMD-style `胸上2.L/R`) count even when the preparation option is off.
+
+Rings follow each bone's own X/Z frame, except when the chain runs within that
+plane (rigs whose bone Y is not along the bone, such as MMD tip bones like
+`尻2.L` → `尻2錘.L`): then the ring is drawn across the chain (`ring_axes`), and
+`connect` never picks a pairing with a collapsed face. Without this, coplanar
+rings made a degenerate face that the native float32 check rejects.
 
 ### Mesh mapping (Build page)
 

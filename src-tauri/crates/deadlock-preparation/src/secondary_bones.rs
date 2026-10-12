@@ -179,6 +179,24 @@ pub fn breast_request(source: &[Bone], source_roles: &BTreeMap<String,String>) -
     if chain.last()!=Some(pelvis) || !chain.contains(chest) {return None;}
     Some(serde_json::json!({"chest":chest,"pelvis":pelvis,"head":head,"high":high,"torso":chain,"forward":facing(&names,&children,source_roles)}))
 }
+/// Breast-named bones that carry skin weight themselves or below them, even when
+/// other parts hang from them. A rig with these is never given added breast bones.
+pub fn breast_named_bones(source: &[Bone], weighted: &[String]) -> Vec<String> {
+    let weighted: BTreeSet<&str> = weighted.iter().map(String::as_str).collect();
+    let mut children = BTreeMap::<&str, Vec<&str>>::new();
+    for bone in source { if let Some(parent) = bone.parent.as_deref() { children.entry(parent).or_default().push(&bone.name); } }
+    source.iter().filter(|b| named_breast(&b.name) && {
+        let mut pending = vec![b.name.as_str()];
+        let mut seen = BTreeSet::new();
+        let mut found = false;
+        while let Some(n) = pending.pop() {
+            if !seen.insert(n) || seen.len() > 512 { break; }
+            if weighted.contains(n) { found = true; break; }
+            pending.extend(children.get(n).into_iter().flatten().copied());
+        }
+        found
+    }).map(|b| b.name.clone()).collect()
+}
 pub fn breast_bones(source: &[Bone], weighted: &[String], source_roles: &BTreeMap<String,String>) -> Vec<String> {
     let names: BTreeMap<_,_> = source.iter().map(|b| (b.name.as_str(),b)).collect();
     let mut children=BTreeMap::<&str,Vec<&str>>::new();

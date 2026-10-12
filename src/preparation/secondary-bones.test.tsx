@@ -89,7 +89,7 @@ describe('optional breast motion',()=>{
   it('offers breast motion with or without breast bones and explains each state',()=>{
     const toggle=vi.fn();
     render(<PhysicsBoneChoices groups={[]} options={base} change={vi.fn()} busy={false} breasts={{count:2,toggle}}/>);
-    fireEvent.click(screen.getByLabelText('Breast motion (optional)'));
+    fireEvent.click(screen.getByLabelText('Keep or add breast bones (for breast motion)'));
     expect(toggle).toHaveBeenCalledWith(true);
     expect(screen.getByText(/2 breast bones were found; they follow the chest/)).toBeVisible();
     cleanup();
@@ -106,7 +106,7 @@ describe('optional breast motion',()=>{
     expect(screen.queryByRole('button',{name:'Inspect again to add breast bones'})).toBeNull();
     cleanup();
     render(<PhysicsBoneChoices groups={[]} options={{...base,breast_motion:true}} change={vi.fn()} busy={false} breasts={{count:2,toggle,added:true}}/>);
-    expect(screen.getByText(/Breast bones were added where the chest has breasts/)).toBeVisible();
+    expect(screen.getByText(/Breast bones were added where the chest has breasts. Turn the bounce on or off/)).toBeVisible();
   });
   it('returns added breast bones to the chest when breast motion is turned off',()=>{
     const bones=[...hanging.bones as Bone[],{name:'DMB_Breast_L',parent:'Bip001_Spine1',position:[0.05,-0.03,1.23]},{name:'DMB_Breast_R',parent:'Bip001_Spine1',position:[-0.05,-0.03,1.23]}] as Bone[];

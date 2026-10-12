@@ -79,3 +79,37 @@ describe('Generated secondary motion',()=>{
  it('switches modes without erasing references, tuning or other changes',()=>{render(<Harness/>);fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));expect(saved().customization.physics).toMatchObject({enabled:false,source:'saved.vmdl_c'});expect(saved().customization.audio).toEqual([{source:'sound.vsnd_c'}]);fireEvent.click(screen.getByText('Adjust moving parts',{selector:'summary > span'}));fireEvent.change(screen.getByLabelText('Movement for tail'),{target:{value:'soft'}});fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'tangtang_r2'}});expect(screen.getByText(/exact R2 setup/)).toBeVisible();fireEvent.click(screen.getByRole('radio',{name:/Preserve original physics/}));expect(saved().customization.secondary_motion).toMatchObject({enabled:false,preset:'tangtang_r2',profiles:{tail:'soft'}});fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'automatic'}});expect(screen.getByLabelText('Movement for tail')).toHaveValue('soft');});
  it('explains missing preparation rather than promising a static DMX will move',()=>{const project={...original,preparation_options:{},customization:{enabled:true,secondary_motion:{enabled:true}}};render(<PhysicsPage project={project} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null}/>);expect(screen.getByRole('status')).toHaveTextContent('No prepared physics groups');});
 });
+describe('Breast motion on the Physics tab',()=>{
+ const base={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['胸上2.L','胸上2.R','hair']},customization:{enabled:true,secondary_motion:{enabled:true}}} as unknown as Project;
+ it('turns existing breast groups on and off and sets their amount together, without a conversion',()=>{
+   const update=vi.fn(),preparation=vi.fn();
+   const {rerender}=render(<SecondaryMotion project={base} update={update} preparation={preparation} disabled={false} report={null} fresh={false}/>);
+   const box=screen.getByLabelText('Breast motion');
+   expect(box).toBeChecked();
+   expect(screen.getByText(/On for 胸上2.L, 胸上2.R. Applies at the next Analyze and Build; no conversion needed/)).toBeVisible();
+   fireEvent.change(screen.getByLabelText('Breast movement'),{target:{value:'soft'}});
+   expect(update).toHaveBeenLastCalledWith({profiles:{'胸上2.L':'soft','胸上2.R':'soft'}});
+   fireEvent.click(box);
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{'胸上2.L':'rigid','胸上2.R':'rigid'}});
+   expect(preparation).not.toHaveBeenCalled();
+   const off={...base,customization:{...base.customization,secondary_motion:{enabled:true,part_kinds:{'胸上2.L':'rigid' as const,'胸上2.R':'rigid' as const}}}} as Project;
+   rerender(<SecondaryMotion project={off} update={update} preparation={preparation} disabled={false} report={null} fresh={false}/>);
+   expect(screen.getByLabelText('Breast motion')).not.toBeChecked();
+   expect(screen.getByText(/follow the chest without bouncing/)).toBeVisible();
+   fireEvent.click(screen.getByLabelText('Breast motion'));
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{'胸上2.L':'breast','胸上2.R':'breast'}});
+   expect(preparation).toHaveBeenCalledWith({breast_motion:true});
+ });
+ it('asks Model preparation for breast bones when the prepared model has none',()=>{
+   const project={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['hair']}} as unknown as Project;
+   const preparation=vi.fn(),openPreparation=vi.fn();
+   const {rerender}=render(<SecondaryMotion project={project} update={vi.fn()} preparation={preparation} openPreparation={openPreparation} disabled={false} report={null} fresh={false}/>);
+   fireEvent.click(screen.getByLabelText('Breast motion'));
+   expect(preparation).toHaveBeenCalledWith({breast_motion:true});
+   const wanted={...project,preparation_options:{...project.preparation_options,breast_motion:true}} as unknown as Project;
+   rerender(<SecondaryMotion project={wanted} update={vi.fn()} preparation={preparation} openPreparation={openPreparation} disabled={false} report={null} fresh={false}/>);
+   expect(screen.getByText(/no breast bones that can move yet/)).toBeVisible();
+   fireEvent.click(screen.getByRole('button',{name:'Open Model preparation'}));
+   expect(openPreparation).toHaveBeenCalled();
+ });
+});

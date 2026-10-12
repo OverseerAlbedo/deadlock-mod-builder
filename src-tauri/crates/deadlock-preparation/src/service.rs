@@ -401,7 +401,15 @@ impl PreparationService {
             && !info.bones.is_empty()
         {
             let named = crate::automap::roles(&info.bones, &info.weighted_bones, &Default::default())?;
-            if secondary_bones::breast_bones(&info.bones, &info.weighted_bones, &named.roles).is_empty() {
+            let existing = secondary_bones::breast_named_bones(&info.bones, &info.weighted_bones);
+            if secondary_bones::breast_bones(&info.bones, &info.weighted_bones, &named.roles).is_empty() && !existing.is_empty() {
+                // Breast bones that carry other parts (a ribbon or cape strip) are
+                // not single breasts, but the rig has them: never add more.
+                info.breast_bones = Some(serde_json::json!({
+                    "policy": "generated-breast-bones-v1", "status": "present",
+                    "reason": format!("this rig already has breast bones ({}).", existing.join(", ")),
+                }));
+            } else if secondary_bones::breast_bones(&info.bones, &info.weighted_bones, &named.roles).is_empty() {
                 if let Some(request) = secondary_bones::breast_request(&info.bones, &named.roles) {
                     let added: Inspection = self.step("Add breast bones in Blender", || {
                         self.bridge.inspect(

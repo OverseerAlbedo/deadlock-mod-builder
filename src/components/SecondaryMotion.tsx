@@ -1,12 +1,44 @@
-import type { Project, SecondaryMotionChoices } from '../models';
+import type { JsonValue, Project, SecondaryMotionChoices } from '../models';
 import type { ProjectInspection } from '../build/models';
 import { Disclosure, StateLabel } from './Primitives';
 import { SelectField } from './CustomizationPages';
+import { namedBreast } from '../preparation/secondary-bones';
 export function preparedMotionRoots(project:Project):string[]{
   const roots=project.preparation_options.physics_roots;
   return project.preparation_options.preserve_physics_bones===true&&Array.isArray(roots)?roots.filter((r):r is string=>typeof r==='string'):[];
 }
-export function SecondaryMotion({project,update,disabled,report,fresh}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean}){
+type Movement='automatic'|'balanced'|'stiff'|'soft';
+/** Moving-part groups that are breasts: by name, by the preparation choice, or by the last Analyze. */
+export function breastGroups(project:Project,report:ProjectInspection|null):string[]{
+  const kinds=(project.preparation_options.physics_kinds??{}) as Record<string,unknown>;
+  const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
+  return preparedMotionRoots(project).filter(root=>namedBreast(root)||kinds[root]==='breast'||analyzed.some(p=>p.root===root&&p.kind==='breast'));
+}
+/** One place to turn breast motion on or off and set its amount. It applies at
+ * the next Analyze and Build when the prepared model already has breast bones;
+ * otherwise it says what Model preparation needs to do. */
+export function BreastMotion({project,update,preparation,openPreparation,disabled,report}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void;disabled:boolean;report:ProjectInspection|null}){
+  const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project),selected=cfg.roots??roots;
+  const breasts=breastGroups(project,report),kinds={...cfg.part_kinds};
+  const on=breasts.length>0&&breasts.every(root=>kinds[root]!=='rigid'&&selected.includes(root));
+  const wanted=project.preparation_options.breast_motion===true;
+  const amount=(cfg.profiles?.[breasts[0]]??'automatic') as Movement;
+  function toggle(enabled:boolean){
+    if(!breasts.length){preparation?.({breast_motion:enabled});return;}
+    // Off holds the breast bones still (they stay in the model); on bounces them.
+    for(const root of breasts){if(enabled)kinds[root]='breast';else kinds[root]='rigid';}
+    update({part_kinds:kinds,...(cfg.roots&&enabled?{roots:[...new Set([...cfg.roots,...breasts])]}:{})});
+    if(enabled&&!wanted)preparation?.({breast_motion:true});
+  }
+  return <div className="breast-motion-control">
+    <label className="checkbox checkbox-line"><input type="checkbox" checked={on||(!breasts.length&&wanted)} disabled={disabled} onChange={event=>toggle(event.target.checked)}/>Breast motion</label>
+    {breasts.length>0?<>
+      <p className="hint">{on?`On for ${breasts.join(', ')}. Applies at the next Analyze and Build; no conversion needed.`:`Off: ${breasts.join(', ')} follow the chest without bouncing.`}</p>
+      {on&&<SelectField label="Breast movement" value={amount} values={[["automatic","Automatic bounce"],["soft","More movement"],["stiff","Stiffer"]]} onChange={value=>update({profiles:{...cfg.profiles,...Object.fromEntries(breasts.map(root=>[root,value as Movement]))}})} disabled={disabled}/>}
+    </>:<p className="hint">{wanted?'The prepared model has no breast bones that can move yet. In Model preparation, inspect again (breast bones are added where the chest has breasts) and convert, then click Use prepared model.':'Turn on to give the breasts a soft bounce. Model preparation then keeps or adds breast bones when you convert.'}{wanted&&openPreparation&&<> <button type="button" className="tertiary" disabled={disabled} onClick={openPreparation}>Open Model preparation</button></>}</p>}
+  </div>;
+}
+export function SecondaryMotion({project,update,disabled,report,fresh,preparation,openPreparation}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void}){
   const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project);
   const selected=cfg.roots??roots,reference=cfg.preset==='tangtang_reference',tang=reference||cfg.preset==='tangtang_r2';
   const checked=fresh&&report&&'dmx' in report?report.secondary_motion:null;
@@ -20,6 +52,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh}:{project:
     <p className="hint">{reference?'Accepted back streamers: flexible along their length, with anti-twist, damping and travel limits. Hair, ears, white cloth and tail keep their accepted tuning. Analyze fits the preset to compatible TangTang conversions, including Preserve source proportions.':tang?'Uses the exact R2 setup: accepted hair and tail, stiffer top ears, more movement in the back strips. Analyze fits the preset to compatible TangTang conversions.':'Build creates and compiles motion for the physics groups kept during model preparation. Body joints are excluded. Hair, streamers, tails, ears, long skirts, cloth and optional breast motion receive separate defaults. Halos, hats and hairpins stay rigid. Hair, tail and streamer chains receive automatic twist protection.'}</p>
     </div>
     {roots.length===0?<p role="status">No prepared physics groups are saved. Use Model preparation → Keep existing physics bones, convert, then use the prepared model.</p>:<p><StateLabel tone={checked?'ready':'neutral'}>{checked?`${checked.groups.length} groups checked · native fitting checked during Build`:`${tang?roots.length:selected.length} groups selected · ${waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check'}`}</StateLabel></p>}
+    {!tang&&<BreastMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
     <div className="motion-status-grid">
     {checked?.parts&&<p role="status">Detected: {Object.entries(checked.parts.reduce<Record<string,number>>((counts,p)=>({...counts,[p.kind]:(counts[p.kind]??0)+1}),{})).map(([kind,n])=>`${n} ${kind.replaceAll('_',' ')}`).join(' · ')}. {checked.parts.filter(p=>p.review_recommended).length>0?'Some parts need review; check their type and twist protection under Adjust moving parts.':''}</p>}
     {checked?.parts&&<p role="status">Twist protection planned for {protectedCount} {protectedCount===1?'group':'groups'} · checked during Build.</p>}
