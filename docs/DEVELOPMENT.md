@@ -54,6 +54,8 @@ Use your actual supported Blender path and a fresh output folder. These probes a
 
 The workflow selects the Windows Server 2022 image, Node 24 and Rust 1.99.0. Before startup testing, it checks Microsoft's documented WebView2 registry locations and installs the Microsoft-signed Evergreen bootstrapper only if the runtime is missing. This prerequisite step is separate from ordinary local builds.
 
+The runner's default `TEMP` is an 8.3 short path (`C:\Users\RUNNER~1\...`). The app resolves paths to their long spelling, and several Rust tests compare those with their temporary folder, so the workflows point `TEMP` and `TMP` at `runner.temp`. Locally, if your `TEMP` contains a `~1` component, set it to a folder without one before running the Rust tests.
+
 References: [Tauri Windows build prerequisites](https://v2.tauri.app/start/prerequisites/), [Tauri Windows distribution](https://v2.tauri.app/distribute/windows-installer/), [Microsoft WebView2 runtime distribution](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution).
 
 ## Rest-skeleton recovery regressions

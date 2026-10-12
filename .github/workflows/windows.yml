@@ -51,6 +51,11 @@ jobs:
       - name: Ensure WebView2 Runtime for the Windows startup test
         run: ./scripts/ensure-webview2.ps1
       - name: Test, build and validate Windows distribution
+        # The runner's default TEMP is an 8.3 short path (C:\Users\RUNNER~1\...)
+        # that the app resolves to its long spelling; tests expect one spelling.
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: |
           if ($env:DMB_RELEASE_BUILD -eq 'true') {
             ./scripts/build-windows.ps1 -Release

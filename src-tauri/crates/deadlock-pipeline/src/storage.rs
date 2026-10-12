@@ -1026,9 +1026,12 @@ mod tests {
             unused_shared: false,
         };
         assert!(clear(&settings, &known, &remove, &cancel).is_err());
+        // Removal reports the resolved long spelling; CI temp folders can be
+        // 8.3 short names (C:\Users\RUNNER~1\...).
+        let resolved = deadlock_project::asset_paths::resolve(&root).unwrap();
         let closed = BTreeMap::new();
         let result = clear(&settings, &closed, &remove, &cancel).unwrap();
-        assert_eq!(result.removed, vec![root.to_string_lossy().into_owned()]);
+        assert_eq!(result.removed, vec![resolved.to_string_lossy().into_owned()]);
         assert!(!root.exists());
     }
 
