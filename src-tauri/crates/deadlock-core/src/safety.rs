@@ -186,11 +186,27 @@ pub fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     atomic_write(path, data)
 }
 
+/// `write_json` without indentation, for large machine-read files.
+pub fn write_json_compact(path: &Path, value: &impl Serialize) -> Result<()> {
+    let mut data = serde_json::to_vec(value)?;
+    data.push(b'\n');
+    atomic_write(path, data)
+}
+
 pub fn atomic_copy(source: &Path, target: &Path, cancel: &CancellationToken) -> Result<()> {
+    copy_verified(source, target, cancel).map(|_| ())
+}
+
+/// Copy `source` to `target` atomically and return the SHA-256 of what was
+/// copied. The source is hashed as it is read and the staged copy is read back
+/// and compared, so the file is read twice in all (not five times as a copy
+/// followed by separate digests of both sides).
+pub fn copy_verified(source: &Path, target: &Path, cancel: &CancellationToken) -> Result<String> {
     cancel.check()?;
     let mut input =
         File::open(source).map_err(|e| CoreError::io(format!("Open {}", source.display()), e))?;
     let mut temporary = temporary_for(target)?;
+    let mut hash = Sha256::new();
     let mut buffer = vec![0; 1024 * 1024];
     loop {
         cancel.check()?;
@@ -200,6 +216,7 @@ pub fn atomic_copy(source: &Path, target: &Path, cancel: &CancellationToken) -> 
         if count == 0 {
             break;
         }
+        hash.update(&buffer[..count]);
         temporary
             .write_all(&buffer[..count])
             .map_err(|e| CoreError::io("Copy staged archive", e))?;
@@ -207,13 +224,15 @@ pub fn atomic_copy(source: &Path, target: &Path, cancel: &CancellationToken) -> 
     temporary
         .flush()
         .map_err(|e| CoreError::io("Flush staged archive", e))?;
-    if digest_with_cancel(temporary.path(), cancel)? != digest_with_cancel(source, cancel)? {
+    let expected = format!("{:x}", hash.finalize());
+    if digest_with_cancel(temporary.path(), cancel)? != expected {
         return Err(CoreError::Integrity(
             "Staged copy does not match the source archive".into(),
         ));
     }
     cancel.check()?;
-    publish(temporary, target)
+    publish(temporary, target)?;
+    Ok(expected)
 }
 
 pub fn copy_tree(source: &Path, target: &Path, cancel: &CancellationToken) -> Result<()> {

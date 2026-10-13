@@ -21,16 +21,62 @@ pub struct PreparedReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreparedMesh {
     pub name: String,
+    #[serde(default)]
     pub positions: Vec<[f64; 3]>,
+    #[serde(default)]
     pub normals: Vec<[f64; 3]>,
+    #[serde(default)]
     pub uvs: Vec<Vec<[f64; 2]>>,
+    #[serde(default)]
     pub colors: Vec<Vec<[f64; 4]>>,
     #[serde(default)]
     pub tangents: Vec<[f64; 4]>,
+    #[serde(default)]
     pub weights: Vec<Vec<(String, f64)>>,
+    #[serde(default)]
     pub faces: Vec<PreparedFace>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
+}
+impl PreparedMesh {
+    fn count(&self, key: &str) -> usize {
+        self.extra.get(key).and_then(|v| v.as_u64()).unwrap_or(0) as usize
+    }
+    /// Vertices of the mesh, also for a copy without geometry (see `slim`).
+    pub fn vertex_count(&self) -> usize {
+        if self.positions.is_empty() { self.count("vertices") } else { self.positions.len() }
+    }
+    pub fn polygon_count(&self) -> usize {
+        if self.faces.is_empty() { self.count("polygons") } else { self.faces.len() }
+    }
+    /// The mesh without its geometry: the name, the vertex and polygon
+    /// counts, the materials and bones it uses and its audit fields. Receipts
+    /// keep this once the DMX holds the geometry (a full copy of every
+    /// position, normal and weight was hundreds of MB per preparation).
+    pub fn slim(&self) -> PreparedMesh {
+        let mut extra = self.extra.clone();
+        extra.insert("vertices".into(), self.vertex_count().into());
+        extra.insert("polygons".into(), self.polygon_count().into());
+        if !self.faces.is_empty() {
+            let materials: BTreeSet<&str> = self.faces.iter().map(|f| f.material.as_str()).collect();
+            extra.insert("materials".into(), materials.into_iter().collect::<Vec<_>>().into());
+        }
+        if !self.weights.is_empty() {
+            let bones: BTreeSet<&str> = self.weights.iter().flatten().map(|(n, _)| n.as_str()).collect();
+            extra.insert("bones".into(), bones.into_iter().collect::<Vec<_>>().into());
+        }
+        PreparedMesh {
+            name: self.name.clone(),
+            positions: vec![],
+            normals: vec![],
+            uvs: vec![],
+            colors: vec![],
+            tangents: vec![],
+            weights: vec![],
+            faces: vec![],
+            extra,
+        }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreparedFace {

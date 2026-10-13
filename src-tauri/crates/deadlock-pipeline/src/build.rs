@@ -164,6 +164,7 @@ impl BuildService<'_> {
                 cancel,
                 clock,
                 log: self.model.log,
+                inventory: Default::default(),
             };
             clock.measure("Build materials", None, |span| {
                 for material in &targets {

@@ -26,6 +26,8 @@ pub struct CompilerService<'a> {
     pub cancel: &'a CancellationToken,
     pub clock: &'a TimingRecorder,
     pub log: &'a dyn Fn(&str),
+    /// Hashes of the compiled files, kept between materials of one build.
+    pub inventory: std::cell::RefCell<deadlock_materials::InventoryCache>,
 }
 fn material_error(error: deadlock_materials::Error) -> CoreError {
     match error {
@@ -91,7 +93,9 @@ impl CompilerService<'_> {
                 "Inventory compiled material dependencies",
                 Some(span.id()),
                 |_| {
-                    deadlock_materials::compiled_inventory(game, self.cancel)
+                    self.inventory
+                        .borrow_mut()
+                        .inventory(game, self.cancel)
                         .map_err(material_error)
                 },
             )?;
@@ -110,11 +114,17 @@ impl CompilerService<'_> {
             let saved = if plan.cacheable {
                 self.clock
                     .measure("Save verified material cache", Some(span.id()), |_| {
-                        deadlock_materials::store_compiled(
+                        let after = self
+                            .inventory
+                            .borrow_mut()
+                            .inventory(game, self.cancel)
+                            .map_err(material_error)?;
+                        deadlock_materials::store_compiled_with(
                             &cache,
                             material,
                             game,
                             &before,
+                            after,
                             self.cancel,
                         )
                         .map_err(material_error)

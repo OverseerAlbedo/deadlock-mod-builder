@@ -303,7 +303,8 @@ impl SourceService<'_> {
                     let dest = safety::inside(game, &reference)?;
                     safety::require_native_path(&dest)?;
                     safety::atomic_write(&dest, &raw)?;
-                    hashes.insert(reference, safety::digest_with_cancel(&dest, self.cancel)?);
+                    // The bytes just written, hashed in memory rather than read back.
+                    hashes.insert(reference, crate::inspect::hash(&raw));
                     pending.extend(
                         deadlock_vpk::resource_references(&raw)
                             .map_err(vpk_error)?

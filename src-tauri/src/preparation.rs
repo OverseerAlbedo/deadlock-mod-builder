@@ -76,8 +76,8 @@ impl From<&Receipt> for PreparationReview {
                 .iter()
                 .map(|mesh| PreparedMeshSummary {
                     name: mesh.name.clone(),
-                    vertices: mesh.positions.len(),
-                    polygons: mesh.faces.len(),
+                    vertices: mesh.vertex_count(),
+                    polygons: mesh.polygon_count(),
                 })
                 .collect(),
             rest_alignment_policy: receipt.prepared.rest_alignment.policy.clone(),

@@ -5,14 +5,13 @@ use crate::{
     sources::{files, read_text},
     vpk_error,
 };
-use deadlock_core::{safety, CancellationToken, CoreError, Result};
+use deadlock_core::{safety, CancellationToken, Result};
 use deadlock_dmx::{split, Dmx};
 use deadlock_model::{self as model, SourcePaths};
 use deadlock_project::{LodStrategy, Project};
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
-    fs,
     path::{Path, PathBuf},
 };
 
@@ -133,6 +132,9 @@ impl ModelPipeline<'_> {
             let texture_sizes=self.clock.measure("Adapt texture dimensions",Some(parent.id()),|_|deadlock_materials::normalize_staged_textures(&content,&report.materials.keys().cloned().collect::<Vec<_>>(),self.cancel).map_err(material_error))?;
             safety::write_json(&root.join("texture-dimensions.json"),&texture_sizes)?;
             if !texture_sizes.resized.is_empty(){(self.log)(&format!("Resized {} copied textures to power-of-two dimensions for the native compiler; original images and UVs are unchanged.",texture_sizes.resized.len()));}
+            // Textures the compiler makes are named after their material; a
+            // path past the Windows limit fails late and cryptically otherwise.
+            self.clock.measure("Check compiler path lengths",Some(parent.id()),|_|deadlock_materials::check_native_paths(&content,&report.materials.keys().cloned().collect::<Vec<_>>()).map_err(material_error))?;
             // Recheck all original evidence after copying and generated writes.
             // A cancellation or changed source cannot publish a prepared receipt.
             self.clock.measure("Verify preparation source stability",Some(parent.id()),|_|report.verify_sources(self.cancel))?;
@@ -149,33 +151,26 @@ impl ModelPipeline<'_> {
 
 /// Stable checked copies reused by model compilation. Inputs and outputs are
 /// hashed, and complete source inventory is checked before and after tree copy.
+/// Copy one file and return its SHA-256 (the copy is verified against it).
 pub(crate) fn copy_file_verified(
     source: &Path,
     destination: &Path,
     cancel: &CancellationToken,
-) -> Result<()> {
+) -> Result<String> {
     deadlock_vpk::check_unlinked_path(source, false).map_err(vpk_error)?;
     deadlock_vpk::check_unlinked_path(destination, true).map_err(vpk_error)?;
     safety::require_native_path(destination)?;
-    let expected = safety::digest_with_cancel(source, cancel)?;
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| CoreError::io("Create generated source parent", e))?;
-    }
-    fs::copy(source, destination).map_err(|e| CoreError::io("Copy prepared source", e))?;
-    if safety::digest_with_cancel(source, cancel)? != expected
-        || safety::digest_with_cancel(destination, cancel)? != expected
-    {
-        return Err(invalid("Source changed while staging generated output."));
-    }
-    Ok(())
+    safety::copy_verified(source, destination, cancel)
+        .map_err(|_| invalid("Source changed while staging generated output."))
 }
+/// Copy a source tree; every file is read while it is copied and the tree is
+/// hashed once afterwards, so a file that changed during the copy is caught.
 pub(crate) fn copy_tree_verified(
     source: &Path,
     destination: &Path,
     cancel: &CancellationToken,
 ) -> Result<()> {
-    let before = crate::sources::inventory(source, cancel)?;
+    let mut copied = BTreeMap::new();
     for file in files(source, cancel)? {
         let relative = file
             .strip_prefix(source)
@@ -186,9 +181,12 @@ pub(crate) fn copy_tree_verified(
         if relative == ".deadlock-builder.json" {
             continue;
         }
-        copy_file_verified(&file, &safety::inside(destination, &relative)?, cancel)?;
+        let hash = copy_file_verified(&file, &safety::inside(destination, &relative)?, cancel)?;
+        copied.insert(relative, hash);
     }
-    if crate::sources::inventory(source, cancel)? != before {
+    let mut after = crate::sources::inventory(source, cancel)?;
+    after.remove(".deadlock-builder.json");
+    if after != copied {
         return Err(invalid("Source tree changed during preparation."));
     }
     Ok(())

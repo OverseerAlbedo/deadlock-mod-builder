@@ -446,6 +446,14 @@ pub fn material_text(config: &MaterialChoices, paths: &BTreeMap<String, String>)
     out.push_str("}\n");
     Ok(out)
 }
+/// Characters of a source image name kept in its staged copy's name.
+const BUILDER_NAME_CHARS: usize = 32;
+/// `name` with its stem cut to `chars` characters; the extension is kept.
+fn short_name(name: &str, chars: usize) -> String {
+    let (stem, extension) = name.rsplit_once('.').unwrap_or((name, ""));
+    let stem: String = stem.chars().take(chars).collect();
+    if extension.is_empty() { stem } else { format!("{stem}.{extension}") }
+}
 pub fn generate(
     plans: &Plans,
     content: &Path,
@@ -507,7 +515,9 @@ pub fn generate(
                     path_text(&deadlock_project::asset_paths::resolve(&source)?)?.as_bytes()
                 )
             );
-            let rel = format!("{hero_root}/textures/builder/{}_{slug}", &tag[..10]);
+            // The compiler names the texture it makes after this file, so a
+            // long name is cut (the tag keeps it unique).
+            let rel = format!("{hero_root}/textures/builder/{}_{}", &tag[..10], short_name(&slug, BUILDER_NAME_CHARS));
             copies.push((source, inside(content, &rel)?));
             paths.insert(channel.clone(), rel);
         }

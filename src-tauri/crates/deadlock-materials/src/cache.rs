@@ -157,17 +157,42 @@ pub fn plan_cache(
 }
 /// Capture opaque compiler outputs before invocation, for changed-output discovery.
 pub fn compiled_inventory(game: &Path, cancel: &CancellationToken) -> Result<Hashes> {
-    let mut files = Hashes::new();
-    if !game.is_dir() {
-        return Ok(files);
-    }
-    for file in walk_files(game, cancel)? {
-        let rel = relative_file(game, &file)?;
-        if rel.ends_with("_c") {
-            files.insert(rel, safety::digest_with_cancel(&file, cancel)?);
+    InventoryCache::default().inventory(game, cancel)
+}
+/// `compiled_inventory` across several calls: a file keeps its hash while its
+/// size and modification time are unchanged, so a build that compiles many
+/// materials rehashes only what the compiler wrote since the last call. A
+/// stale entry cannot pass unnoticed: `store_compiled` digests every file it
+/// copies against these hashes.
+#[derive(Default)]
+pub struct InventoryCache {
+    known: std::collections::HashMap<std::path::PathBuf, (u64, Option<std::time::SystemTime>, String)>,
+}
+impl InventoryCache {
+    pub fn inventory(&mut self, game: &Path, cancel: &CancellationToken) -> Result<Hashes> {
+        let mut files = Hashes::new();
+        if !game.is_dir() {
+            return Ok(files);
         }
+        for file in walk_files(game, cancel)? {
+            let rel = relative_file(game, &file)?;
+            if !rel.ends_with("_c") {
+                continue;
+            }
+            let metadata = file.metadata()?;
+            let stamp = (metadata.len(), metadata.modified().ok());
+            let hash = match self.known.get(&file) {
+                Some((len, modified, hash)) if (*len, *modified) == stamp => hash.clone(),
+                _ => {
+                    let hash = safety::digest_with_cancel(&file, cancel)?;
+                    self.known.insert(file.clone(), (stamp.0, stamp.1, hash.clone()));
+                    hash
+                }
+            };
+            files.insert(rel, hash);
+        }
+        Ok(files)
     }
-    Ok(files)
 }
 fn compiled_references(path: &Path) -> Result<Vec<String>> {
     if path.metadata()?.len() > deadlock_vpk::MAX_READ_BYTES {
@@ -235,9 +260,20 @@ pub fn store_compiled(
     before: &Hashes,
     cancel: &CancellationToken,
 ) -> Result<CacheStoreReceipt> {
+    let after = compiled_inventory(game, cancel)?;
+    store_compiled_with(cache, material, game, before, after, cancel)
+}
+/// `store_compiled` with the inventory after compilation already taken.
+pub fn store_compiled_with(
+    cache: &Path,
+    material: &str,
+    game: &Path,
+    before: &Hashes,
+    after: Hashes,
+    cancel: &CancellationToken,
+) -> Result<CacheStoreReceipt> {
     let material = safety::relative_asset(material)?;
     let model = format!("{material}_c");
-    let after = compiled_inventory(game, cancel)?;
     let mut entries: Hashes = after
         .iter()
         .filter(|(rel, hash)| *rel == &model || before.get(*rel) != Some(*hash))

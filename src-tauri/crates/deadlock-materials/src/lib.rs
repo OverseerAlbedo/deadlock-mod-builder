@@ -3,6 +3,7 @@
 mod appearance;
 mod cache;
 pub mod color_adjust;
+mod native_paths;
 mod overlay;
 mod planner;
 mod source_zip;
@@ -11,10 +12,12 @@ mod texture_size;
 pub use appearance::{apply_materials, patch_materials, patch_text, validate_appearance};
 pub use cache::{
     cache_key_from_inputs, compiled_inventory, plan_cache, restore_cached, store_compiled,
-    CachePlan, CacheStoreReceipt, EngineFingerprint, EngineInput,
+    store_compiled_with, CachePlan, CacheStoreReceipt, EngineFingerprint, EngineInput,
+    InventoryCache,
 };
 pub use deadlock_project::MaterialChoices;
 pub use overlay::{effective_sources, texture_references, validate_materials, MaterialAudit};
+pub use native_paths::{check_native_paths, NATIVE_PATH_LIMIT};
 pub use planner::{generate, material_text, plan, plan_with_bindings, texture_candidates, CHANNELS, PRESETS};
 pub use source_zip::{import_zip, SourcePackageSelection};
 pub use texture_size::{normalize_staged_textures, TextureResize, TextureSizeReceipt, TEXTURE_SIZE_POLICY};
