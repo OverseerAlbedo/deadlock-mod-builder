@@ -19,7 +19,7 @@ ROLES = ('pelvis','spine','chest','neck','head') + tuple(r+'_'+s for s in ('L','
 CHAINS = [('pelvis','spine','chest','neck','head')] + [(a+'_'+s,b+'_'+s,c+'_'+s) for s in ('L','R') for a,b,c in [('upperarm','forearm','hand'),('thigh','shin','foot')]]
 
 
-def name_role(name):
+def _name_role(name):
     name = name.split(':')[-1].lower()
     name = re.sub(r'^valvebiped[_. -]*','',name)
     name = re.sub(r'^(?:def)[_. -]+','',name)
@@ -33,6 +33,18 @@ def name_role(name):
             if compact in variants:
                 return role
     return None
+
+
+_ROLE_CACHE = {}
+
+
+def name_role(name):
+    """_name_role, remembered per name (it runs for every bone of every call)."""
+    try:
+        return _ROLE_CACHE[name]
+    except KeyError:
+        role = _ROLE_CACHE[name] = _name_role(name)
+        return role
 
 
 def identify(bones, overrides=None):
@@ -167,18 +179,32 @@ def estimate_landmarks(vertices):
 def deformation_checks(points, faces, weights, transforms):
     """Probe mapped bones one at a time; edge strain is diagnostic, never artistic proof."""
     p=np.asarray(points,dtype=float);checks=[]
-    edges={tuple(sorted((face[i],face[(i+1)%len(face)]))) for face in faces for i in range(len(face))}
+    pairs=[(face[i],face[(i+1)%len(face)]) for face in faces for i in range(len(face))]
+    if pairs:
+        edges=np.unique(np.sort(np.asarray(pairs,dtype=np.int64),axis=1),axis=0)
+        lengths=np.linalg.norm(p[edges[:,0]]-p[edges[:,1]],axis=1)
+        edges=edges[lengths>1e-8];lengths=lengths[lengths>1e-8]
+    else:
+        edges=np.zeros((0,2),dtype=np.int64);lengths=np.zeros(0)
+    # (vertex, bone, weight) columns of the rows, once for every probe.
+    counts=np.fromiter((len(r) for r in weights),dtype=np.int64,count=len(weights))
+    vertex=np.repeat(np.arange(len(weights)),counts)
+    names=[n for row in weights for n,_ in row]
+    ws=np.fromiter((w for row in weights for _,w in row),dtype=float,count=len(names))
+    bone_ids={n:i for i,n in enumerate(sorted(set(names)))}
+    ids=np.fromiter((bone_ids[n] for n in names),dtype=np.int64,count=len(names))
     for name,matrix in transforms.items():
         out=p.copy();branch=matrix if isinstance(matrix,dict) else {name:matrix}
-        matrices={n:np.asarray(m) for n,m in branch.items()}
-        for i,row in enumerate(weights):
-            for n,w in row:
-                if n in matrices and w:out[i]+=w*((matrices[n]@np.r_[p[i],1])[:3]-p[i])
-        ratios=[]
-        for a,b in edges:
-            length=np.linalg.norm(p[a]-p[b])
-            if length>1e-8:ratios.append(np.linalg.norm(out[a]-out[b])/length)
-        extreme=int(sum(r>4 or r<.1 for r in ratios))
+        matrices={n:np.asarray(m,dtype=float) for n,m in branch.items()}
+        for bone,m in matrices.items():
+            if bone not in bone_ids:continue
+            picked=(ids==bone_ids[bone])&(ws!=0)
+            if not picked.any():continue
+            v=vertex[picked]
+            moved=p[v]@m[:3,:3].T+m[:3,3]-p[v]
+            np.add.at(out,v,moved*ws[picked,None])
+        ratios=np.linalg.norm(out[edges[:,0]]-out[edges[:,1]],axis=1)/lengths if len(edges) else np.zeros(0)
+        extreme=int(((ratios>4)|(ratios<.1)).sum())
         checks.append({'bone':name,'status':'WARNING' if extreme else 'PASS','severe_edge_strain':extreme,
                        'finite':bool(np.isfinite(out).all())})
     return checks

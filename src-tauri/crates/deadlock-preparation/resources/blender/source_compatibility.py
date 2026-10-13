@@ -183,7 +183,8 @@ def normalize(rig, meshes, reports=None):
     if METADATA_KEY in rig:
         return None
     bones = inspect_roles(rig)
-    weighted = {obj.vertex_groups[g.group].name for obj in meshes for v in obj.data.vertices for g in v.groups if g.weight > 0}
+    from mesh_export import used_group_names
+    weighted = used_group_names(meshes)
     proposal = plan(bones, weighted)
     if proposal is None:
         return None

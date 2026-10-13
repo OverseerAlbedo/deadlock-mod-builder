@@ -10,7 +10,10 @@ POLICY = 'parallel-leg-skin-chains-v1'
 PARTS = ('thigh', 'shin', 'foot')
 
 
-def role(name):
+_ROLES = {}
+
+
+def _role(name):
     name = name.rsplit(':', 1)[-1].removeprefix('DEF-')
     found = name_role(name)
     if found and found.split('_')[0] in PARTS:
@@ -22,6 +25,15 @@ def role(name):
                 if compact in (base + suffix + side.lower(), ('左' if side == 'L' else '右') + base + suffix):
                     return part + '_' + side
     return None
+
+
+def role(name):
+    """_role, remembered per name."""
+    try:
+        return _ROLES[name]
+    except KeyError:
+        found = _ROLES[name] = _role(name)
+        return found
 
 
 def equivalents(bones, roles):

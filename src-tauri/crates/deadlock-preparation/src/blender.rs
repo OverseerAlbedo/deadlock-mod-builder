@@ -103,7 +103,8 @@ pub fn detect() -> Option<PathBuf> {
     candidates.sort();
     candidates.pop()
 }
-const SCRIPTS: [(&str, &[u8]); 21] = [
+const SCRIPTS: [(&str, &[u8]); 22] = [
+    ("mesh_export.py", include_bytes!("../resources/blender/mesh_export.py")),
     ("breast_bones.py", include_bytes!("../resources/blender/breast_bones.py")),
     ("scene_isolation.py", include_bytes!("../resources/blender/scene_isolation.py")),
     ("weapon_fit.py", include_bytes!("../resources/blender/weapon_fit.py")),
