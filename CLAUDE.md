@@ -28,25 +28,32 @@ build `-p deadlock-preparation --example e2e_probe`, then run
 ## Repository and release
 
 Private GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`.
-0.13.0-alpha.52 (tag `v0.13.0-alpha.52`) is a GitHub pre-release with the
-installer .exe attached. Releases follow `docs/RELEASING.md`: bump all version
+0.13.0-beta.1 (tag `v0.13.0-beta.1`, October 13, 2026) is the latest GitHub
+pre-release, with the installer .exe attached; alpha.52 preceded it. The
+repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
 the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-alpha.51 (October 11, 2026)
+## State as of 0.13.0-beta.1 (October 13, 2026)
 
-Alpha 51 = Extras icon discovery (from a separate branch) merged with:
-any-humanoid preparation and scene isolation, gun customization, Windows path and
-snapshot fixes, texture recovery for game rips, moving-part detection (robes,
-sashes, unnamed hanging chains), and the checkbox Mesh mapping with suggested
-mapping and an unused-mesh warning. Rust workspace 476 passed / 27 ignored, UI
-141 passed on Linux. Windows build and in-game checks are pending.
+Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
+target) plus: the five-step flow with automatic preparation, guns from a
+separate file, dual-wield heroes, gun charms, the solid fit preview, textured
+gun fixes (UV map order, tint, shared materials), finger curl, short material
+names with a compiler path check, live VPK slot state, restyled setup pages,
+and the performance pass (bulk mesh export, slim receipts, fewer file reads).
+Rust workspace 493 passed / 27 ignored, UI 178 passed, Blender harness 28/28.
 
-Test project: "Ghist" (Lady Geist, `geist.vmdl_c`), source
-`CH10027_01_Rigged.blend` (modular rig: Body_Rig + Face_Rig, detached props Rose
-and Arti10027, robe streamers `Bone_Robe_L/R_00-04`).
+Test projects on the user's PC (`C:\Users\edome\OneDrive\Documents\DML_Projects`):
+"YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
+from `Artzy_Tyrannical_Textures_and_Models.zip`), "Ghist" (Lady Geist,
+`CH10027_01_Rigged.blend`), "janeVen", "paimonRem".
+
+Not yet checked in game: the finger bend around the gun, the charm swing
+amount, dual-gun aim during animations, breast motion amounts, rigid
+accessories, color edits and a Rem build.
 
 ## Rules that are easy to break
 
@@ -84,41 +91,3 @@ and Arti10027, robe streamers `Bone_Robe_L/R_00-04`).
 - Do not update dependencies or lockfiles unless the change needs it.
 - Version must agree in package.json, package-lock.json, Cargo.toml files and
   tauri.conf.json (`node scripts/check-repository.mjs` checks this).
-
-## Implemented after Alpha 51 (uncommitted on master; needs Windows and in-game checks)
-
-The four planned items and the Rem target issue are implemented; see the
-`Unreleased` section of CHANGELOG.md.
-
-- **Storage**: `deadlock-pipeline/src/storage.rs` (classification, report, clear,
-  retention; never removes paths a project references, locked workspaces, or
-  compiler folders whose `.deadlock-builder.json` names another project) and
-  `src-tauri/src/storage.rs` (commands `storage_report`, `storage_clear`,
-  `storage_find_projects`; registry `known-projects.json` in the app config dir;
-  pruning after Inspect/Convert/Accept). UI: `src/components/StorageSection.tsx`.
-  Settings fields `keep_backups`, `keep_previous_preparation`,
-  `clear_build_data_after_build`. Game-archive original hero sources are shared in
-  `<workspace>/shared-originals/<key>` (`sources::base_dir`); imported folders
-  stay per project.
-- **Breast motion**: `breast_motion` preparation option (unset = old behavior),
-  `breast_roots` in the three detectors, `physics_kinds` option read by
-  `secondary::setup`; `append_breast` and `link_breast_pairs` in `secondary_auto.rs`
-  build the breast proxy (ring behind each breast, linked left/right pair).
-  Rigs without breast bones: `resources/blender/breast_bones.py` adds
-  `DMB_Breast_L/R` at Inspect when `breast_motion` is on
-  (`secondary_bones::breast_request`, `Analysis.breast_generation`, repeated at
-  Convert). Tuning was loosened after the first in-game test barely moved
-  (now goal 0.45, drag 0.1, travel ~45% of breast radius).
-- **Rigid accessories**: `RIGID_HINTS`, `rigid_named`, `ring_chain` in the three
-  detectors; `Kind::Rigid` and the ring rule in `parts.rs`.
-- **Color editor**: `hue`/`saturation`/`brightness` on `AppearanceMaterial`,
-  `deadlock-materials/src/color_adjust.rs` (adjusted copy of the staged
-  base-color image), UI in `MaterialEditor.tsx` (the CSS preview is approximate).
-- **Game targets (Rem)**: `heroes::GameModels` reads `scripts/heroes.vdata`;
-  `get_heroes` returns `hero` and `game` per model; Analyze warns on a target the
-  game does not load; the roster's Rem main entry is `familiar_wip.vmdl`.
-
-Still to do: Windows build (`scripts/build-windows.ps1`), in-game checks of
-breast motion amounts, rigid accessories, color edits and a Rem build, and a real
-Storage cleanup on the user's PC (dry run: 37 GB total, 28 GB clearable).
-
