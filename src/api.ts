@@ -10,10 +10,13 @@ export interface ToolLogFile {path:string;bytes:number;kind:string}
 export interface WeaponModel {path:string;target:string;label:string;hero:string;supported:boolean;requires_model_project:boolean;kind?:string}
 export interface ToolLogPage {text:string;next_offset:number;eof:boolean}
 let imageQueue:Promise<unknown>=Promise.resolve();
+export interface VpkSlots {configured_slot:number;configured_slot_occupied:boolean;available_slot:number|null;occupied_slots:number[];previous_outputs:number[];scanned_folders:string[]}
 export const api = {
   previewImage: (path:string,maxDimension=1024) => {const result=imageQueue.then(()=>invoke<ArrayBuffer>('preview_image',{path,maxDimension}));imageQueue=result.catch(()=>undefined);return result;},
   previewSource: (path:string) => invoke<ArrayBuffer>('preview_source',{path}),
-  chooseFreeSlot: (project:Project) => invoke<{slot:number;filename:string;occupied_slots:number[];scanned_folders:string[]}>('choose_free_vpk_slot',{project}),
+  chooseFreeSlot: (project:Project) => invoke<{slot:number;filename:string;occupied_slots:number[];previous_outputs:number[];scanned_folders:string[]}>('choose_free_vpk_slot',{project}),
+  /** Scan the game's addons folder and the project's output folder for VPK slots (fresh every call). */
+  vpkSlots: (project:Project) => invoke<VpkSlots>('get_vpk_slots',{project}),
   openOutput: (project:Project) => invoke<string>('open_output_folder',{project}),
   discoverComponents: (project:Project) => invoke<ComponentCatalog>('discover_components',{project}),
   discoverExtras: (project:Project) => invoke<ComponentCatalog>('discover_extras',{project}),

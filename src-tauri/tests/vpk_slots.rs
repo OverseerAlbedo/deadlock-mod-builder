@@ -40,13 +40,18 @@ fn scans_both_folders_chunks_and_case_without_reading_archive_bytes() {
     fs::create_dir(output.join("pak05_099.vpk")).unwrap();
     project.vpk_number = 2;
     let choice = app.choose_free_vpk_slot(project.clone()).unwrap();
-    assert_eq!(choice.slot, 6);
-    assert_eq!(choice.filename, "pak06_dir.vpk");
-    assert_eq!(choice.occupied_slots, [1, 2, 3, 4, 5]);
+    // The project's own earlier outputs (4, 5) are not another mod's slots.
+    assert_eq!(choice.slot, 4);
+    assert_eq!(choice.filename, "pak04_dir.vpk");
+    assert_eq!(choice.occupied_slots, [1, 2, 3]);
+    assert_eq!(choice.previous_outputs, [4, 5]);
     assert_eq!(
         choice.scanned_folders,
-        [addons.to_str().unwrap(), output.to_str().unwrap()]
+        [output.to_str().unwrap(), addons.to_str().unwrap()]
     );
+    // Deleting a VPK from the game folder frees its slot at the next scan.
+    fs::remove_file(addons.join("PAK02_DIR.VPK")).unwrap();
+    assert_eq!(app.choose_free_vpk_slot(project.clone()).unwrap().slot, 2);
     assert_eq!(
         project.vpk_number, 2,
         "an explicit choice does not mutate the supplied draft"

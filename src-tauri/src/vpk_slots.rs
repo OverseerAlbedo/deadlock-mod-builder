@@ -8,9 +8,15 @@ use std::{collections::BTreeSet, fs, path::PathBuf};
 #[derive(Debug, Clone, Serialize)]
 pub struct VpkSlots {
     pub configured_slot: u32,
+    /// Another VPK of that number is in the game's addons folder now.
     pub configured_slot_occupied: bool,
     pub available_slot: Option<u32>,
+    /// Slots used in the game's addons folder (scanned at every call).
     pub occupied_slots: Vec<u32>,
+    /// Slots of this project's own earlier builds in its output folder; they
+    /// are this project's files, not another mod's, so they do not count as
+    /// occupied (Build asks before replacing an output).
+    pub previous_outputs: Vec<u32>,
     pub scanned_folders: Vec<String>,
 }
 
@@ -19,6 +25,7 @@ pub struct VpkSlotChoice {
     pub slot: u32,
     pub filename: String,
     pub occupied_slots: Vec<u32>,
+    pub previous_outputs: Vec<u32>,
     pub scanned_folders: Vec<String>,
 }
 
@@ -41,10 +48,53 @@ fn filename_slot(name: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
-fn scan(folders: Vec<PathBuf>, preferred: u32, cancel: &CancellationToken) -> Result<VpkSlots> {
+/// Slot numbers of the VPK files in one folder (read fresh every time).
+fn slots_in(folder: &PathBuf, cancel: &CancellationToken) -> Result<BTreeSet<u32>> {
+    let mut slots = BTreeSet::new();
+    let text = folder.to_str().ok_or_else(|| {
+        AppError::validation(
+            "Could not check VPK slots",
+            "The folder path cannot be represented losslessly.",
+        )
+    })?;
+    let entries = match fs::read_dir(folder) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(slots),
+        Err(error) => {
+            return Err(AppError::io(
+                &format!("Could not check VPK slots in {text}"),
+                error,
+            ))
+        }
+    };
+    for entry in entries {
+        cancel.check()?;
+        let entry = entry.map_err(|error| {
+            AppError::io(&format!("Could not check VPK slots in {text}"), error)
+        })?;
+        // Non-Unicode names cannot match this ASCII-only filename grammar.
+        if let Some(slot) = entry.file_name().to_str().and_then(filename_slot) {
+            slots.insert(slot);
+        }
+    }
+    Ok(slots)
+}
+
+/// `folders` occupy slots (the game's addons); `output` is this project's own
+/// output folder, reported separately.
+fn scan(folders: Vec<PathBuf>, output: Option<PathBuf>, preferred: u32, cancel: &CancellationToken) -> Result<VpkSlots> {
     let mut occupied = BTreeSet::new();
     let mut seen = BTreeSet::new();
     let mut scanned = Vec::new();
+    let mut previous = BTreeSet::new();
+    if let Some(folder) = output {
+        cancel.check()?;
+        previous = slots_in(&folder, cancel)?;
+        if let Some(text) = folder.to_str() {
+            scanned.push(text.to_owned());
+        }
+        seen.insert(folder);
+    }
     for folder in folders {
         cancel.check()?;
         if !seen.insert(folder.clone()) {
@@ -57,26 +107,7 @@ fn scan(folders: Vec<PathBuf>, preferred: u32, cancel: &CancellationToken) -> Re
             )
         })?;
         scanned.push(text.to_owned());
-        let entries = match fs::read_dir(&folder) {
-            Ok(entries) => entries,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => {
-                return Err(AppError::io(
-                    &format!("Could not check VPK slots in {text}"),
-                    error,
-                ))
-            }
-        };
-        for entry in entries {
-            cancel.check()?;
-            let entry = entry.map_err(|error| {
-                AppError::io(&format!("Could not check VPK slots in {text}"), error)
-            })?;
-            // Non-Unicode names cannot match this ASCII-only filename grammar.
-            if let Some(slot) = entry.file_name().to_str().and_then(filename_slot) {
-                occupied.insert(slot);
-            }
-        }
+        occupied.extend(slots_in(&folder, cancel)?);
     }
     // pak01 remains reserved by the native app; this helper never chooses it.
     let available_slot = if (2..=99).contains(&preferred) && !occupied.contains(&preferred) {
@@ -89,6 +120,7 @@ fn scan(folders: Vec<PathBuf>, preferred: u32, cancel: &CancellationToken) -> Re
         configured_slot_occupied: occupied.contains(&preferred),
         available_slot,
         occupied_slots: occupied.into_iter().collect(),
+        previous_outputs: previous.into_iter().collect(),
         scanned_folders: scanned,
     })
 }
@@ -105,15 +137,13 @@ impl Application {
                 "No Deadlock folder is configured.",
             ));
         }
-        let mut folders = vec![PathBuf::from(&settings.deadlock).join("game/citadel/addons")];
-        if !settings.workspace.is_empty() {
-            folders.push(
-                PathBuf::from(&settings.workspace)
-                    .join(&project.id)
-                    .join("output"),
-            );
-        }
-        scan(folders, project.vpk_number, cancel)
+        let folders = vec![PathBuf::from(&settings.deadlock).join("game/citadel/addons")];
+        let output = (!settings.workspace.is_empty()).then(|| {
+            PathBuf::from(&settings.workspace)
+                .join(&project.id)
+                .join("output")
+        });
+        scan(folders, output, project.vpk_number, cancel)
     }
 
     /// Snapshot availability only. Existing build/install overwrite gates remain
@@ -137,7 +167,7 @@ impl Application {
                     "All addon VPK slots 02–99 are occupied",
                     "Free a slot, or choose an existing number manually and confirm replacement when building. Slot 01 is reserved."))?;
                 Ok(VpkSlotChoice { slot, filename: format!("pak{slot:02}_dir.vpk"),
-                    occupied_slots: slots.occupied_slots, scanned_folders: slots.scanned_folders })
+                    occupied_slots: slots.occupied_slots, previous_outputs: slots.previous_outputs, scanned_folders: slots.scanned_folders })
             })
         })?;
         Ok(choice)
