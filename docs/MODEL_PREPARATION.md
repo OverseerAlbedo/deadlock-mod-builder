@@ -5,13 +5,17 @@ preparation step does automatically so that almost any rigged humanoid works.
 
 ## Where preparation sits in the app
 
-| Stage | Where | What happens |
+The sidebar leads through five numbered steps (a check mark shows a finished
+step); Motion and Extras are optional, Step timings, Logs and Settings are tools.
+
+| Step | Where | What happens |
 | --- | --- | --- |
 | Setup | `src/setup`, `src-tauri/src/setup.rs` | Game VPK, Source2Viewer CLI, compilers, Blender. |
-| Overview | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`). The picker labels models from the installed game's hero definitions (`scripts/heroes.vdata`, `m_strModelName`): the model a hero definition loads is that hero's main target, and roster models the game does not load are marked *Not used in game* (Rem loads `familiar_wip.vmdl`). Analyze warns when a project targets such a model. |
-| **Model preparation** | `src/preparation`, `deadlock-preparation` crate, embedded Blender scripts | Turn the source file into a DMX bound to the hero's exact skeleton. |
-| Appearance / Physics / Extras | `src/components`, `deadlock-materials`, `deadlock-cloth*`, `deadlock-components` | Materials, mesh mapping, equipment, secondary motion, icons, sounds. |
-| Review & build | `deadlock-pipeline` | Inspect the project, compile model/materials, pack the VPK, install. |
+| 1. Character & model | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`), your model file and, optionally, a gun file. The picker labels models from the installed game's hero definitions (`scripts/heroes.vdata`, `m_strModelName`): the model a hero definition loads is that hero's main target, and roster models the game does not load are marked *Not used in game* (Rem loads `familiar_wip.vmdl`). Analyze warns when a project targets such a model. A Blender, FBX or glTF model goes straight to step 2 and is prepared automatically (`dmb-model-source` event with `auto: true`); a DMX is analysed as before. |
+| **2. Prepare model** | `src/preparation`, `deadlock-preparation` crate, embedded Blender scripts | Turn the source file into a DMX bound to the hero's exact skeleton. **Prepare automatically** inspects, applies the suggestions, checks (`preparation_review`), converts and uses the model in one go and continues to step 3; it stops where a choice is needed. **Prepare model** does the same from the review tabs: the click is the review (`reviewed: true`, plus `follow_motion_reviewed` when joints follow the body), and the check runs again right before converting. Choices that need a new inspection (the gun file, Scene objects) re-run it automatically. A prepared project, or one that started from a DMX, says so and offers to continue. |
+| 3. Appearance & weapons | `src/components/Appearance.tsx`, `src/preparation/WeaponsSection.tsx`, `deadlock-materials` | Materials, textures, mesh mapping, equipment, and the gun of the prepared model (the saved preparation is reopened with `preparation_resume`; **Apply gun changes** prepares again in one click and refreshes the 3D preview of the character). |
+| 4. Physics & preview | `src/components/CustomizationPages.tsx` (`PhysicsPage`), `deadlock-cloth*` | Secondary motion (hair, cloth, breasts, gun charms) and a 3D view of the prepared character. |
+| 5. Build & install | `deadlock-pipeline` | Inspect the project, compile model/materials, pack the VPK, install. |
 
 The desktop app is Rust (Tauri) with a React UI. Blender is only used as a
 geometry engine: the Rust crate `deadlock-preparation` writes a `job.json`, runs
@@ -41,6 +45,17 @@ roles (`retarget.py`: *match hero proportions* or *preserve source
 proportions*), vertices are moved into the hero's rest pose, weights are mapped
 to hero bones, and the result is exported with `deadlock-skeleton`'s exact-bind
 DMX exporter, which validates binds and skinning before the hand-off.
+
+Mesh data crosses the Blender boundary through `mesh_export.py` (bulk
+`foreach_get`/`foreach_set` readers, one cached pass over the vertex groups per
+object, vectorized blend matrices and normals); the per-element loops it
+replaced took most of a conversion. Once the DMX is written, the receipt
+(`preparation-report.json`, compact JSON) keeps each mesh as `PreparedMesh::slim`
+(name, vertex and polygon counts, materials, bones and audit fields) and
+`blender-result.json` is removed, so a preparation folder holds the DMX, the
+`.blend`, textures and small JSON files rather than three copies of the
+geometry. Older receipts with full geometry still load (the geometry fields
+default to empty).
 
 ## Automatic handling of awkward source files
 
@@ -109,6 +124,15 @@ independent bones when **Moving parts** is enabled. Everything stays editable
 in **Bone mapping**, and the review confirmation covers the loss of
 independent motion.
 
+Mapped finger segments are bent to the hero's resting direction
+(`retarget.py finger_curl`, option `fit_finger_curl`, on by default; **Bend
+fingers like the hero** in Conversion review). Hero rest poses have bent fingers
+(Haze about 45–55° per finger) and the game adds the grip to that pose, so
+straight source fingers stayed open around a gun. Each segment keeps its source
+length and turns about its joint (the hero joint in *Match hero proportions*,
+otherwise where its bent parent puts it); a segment that would turn more than
+100° is left as it is and reported (a finger mapped to the wrong hero finger).
+
 ### Textures (`material_textures.py`)
 
 Each material's base colour is found from its node graph: the image feeding
@@ -119,6 +143,31 @@ it as the base colour. Channel suffixes (`_n`, `_nrm`, `_orm`, `_mask` ...)
 choose the other slots. Prepared material names have the form
 `Mesh__Material`; the Appearance planner also matches an image named like the
 source material inside that name.
+
+A texture connected to the Principled Base Color is not tinted: the material
+gets a white tint, since Blender ignores the colour behind a connected socket
+(materials without a base-color image keep their colour, MMD materials their
+diffuse colour). The game textures with the first UV map, so before export the
+UV map a part's materials read their images with (a UV Map node, or the render
+UV map) is moved to the front (`scene_isolation.py sampled_uv_first`; baked
+atlases often live on a second map such as `BakeUV`). Gun parts whose materials
+the conversion reads identically (same images on the same inputs, same values)
+share the most used of them (`weapon_fit.py share_materials`), so a gun baked
+to one atlas becomes one game material instead of one per part colour, each with
+its own combined normal/roughness texture.
+
+A prepared material's file name keeps at most 24 readable characters of the
+Blender material name plus an 8-digit hash of the full name
+(`optional_frost___translu_2362886d.vmat`). The compiler names the textures it
+makes after the material (`<material>_vmat_g_tnormalroughness_<hash>.vtex`), and
+Windows tools fail on paths of 260 characters or more, which a deep CSDK folder
+reached with long names. The hash is the identity: when a model prepared with
+longer names is prepared again, its material choices and surface changes follow
+the hash to the new path (`service.rs renamed_materials`). Staged texture copies
+keep at most 32 characters of the image name. Before compiling, Build checks the
+compiler's paths for every material and its images (`deadlock-materials
+native_paths.rs`) and says whether preparing again or a shorter CSDK folder fixes
+an overflow.
 
 ### Moving parts (`secondary_bones.rs`, `secondary_bones.py`, `secondary-bones.ts`)
 
@@ -229,30 +278,91 @@ main node.
 
 ## Gun customization
 
-Deadlock heroes carry their gun in one of two ways:
+Deadlock heroes carry their gun in one of three ways:
 
 * **Part of the hero model**: render meshes skinned to weapon bones such as
   `weaponPivot → weapon → … → muzzle_fx`. The app finds them in the decompiled
   hero model by their skin weights (and names) together with their lower LODs.
+* **A gun in each hand** (Haze: `haze_gun_l`, `haze_gun_r`): every gun mesh is
+  weighted to one hand's bones (`weapon_hand_L`, `magazine_L`, `cocking_handle_L`
+  …). `reference_from_sources` then splits the reference into `sides` (right and
+  left, each with its meshes of all LODs, points and weights); `Reference::hand`
+  gives one hand's reference, and `target_frame` measures each hand's gun from its
+  own grip and muzzle hints (bones of the other hand never count).
 * **A separate weapon model**: the hero model has no gun mesh; the gun is its
   own `.vmdl`.
 
-When the character file also contains a gun (or a gun file is chosen, see
-below), the **Weapon** tab offers:
+Decompiled gun meshes can lack a named bind list or have a null `bindState`
+(Haze's guns); `deadlock-preview` then uses the joints' own transforms and the
+mesh's `currentState`, so such guns are measured instead of being taken for a
+separate model. Gun meshes that still cannot be read are listed in
+`Reference.unreadable` and explained in the Weapon tab.
+
+The **Weapon** tab (`WeaponPanel.tsx`, helpers in `gun.ts`) starts with a plain
+summary of the hero's gun, your gun(s) and what will happen, then one choice:
 
 | Choice | Result |
 | --- | --- |
-| Replace the hero's gun | Available when the gun is part of the hero model. Your gun is fitted onto the original and replaces those meshes (all LODs) in the mesh mapping. |
-| Leave it out | Your gun is removed from the converted character. |
-| Keep it in the hand | Old behaviour: it follows the hand like any accessory. |
+| Use my gun(s) instead of the hero's (recommended, preselected) | Your gun is fitted onto the original and replaces those meshes (all LODs) in the mesh mapping. A dual-wield hero gets a gun in each hand: **Right hand** and **Left hand** pick your gun for each (the left hand can also use *a copy of the right-hand gun* or keep *the hero's own left gun*), and **Swap hands** exchanges them with their adjustments. |
+| Keep the hero's gun(s) | Your gun is left out of the converted character. |
+| More options → Keep my gun in the hand as an accessory | Old behaviour: it follows the hand like any accessory; the hero's gun stays too. |
 
-For a separate weapon model use **Appearance → Equipment → Weapon model**:
-*Find this hero's weapon models*, then *Create weapon project*. That creates a
-gun-only project (preparation mode **Weapon model**) and links it as a bundled
-member, so one VPK contains the character and the gun. Under *Take the gun from*
-choose the character file (the same source) or a separate gun file, which then
-becomes the weapon project's source (it starts from the Weapon tab's gun file
-when one is set). Open the new project and run Model preparation once.
+While fitting, a 3D preview updates by itself after every change (no Blender run,
+`preparation_weapon_preview`): your right gun as a solid amber shape and your left
+gun teal, the hero's original guns see-through and the hero's body faintly, with
+arrows along the line of fire (white from the original muzzle, coloured from your
+gun's muzzle). The shapes are simplified meshes saved with the inspection: the
+hero's guns and body from the decompiled DMX (`Reference.shape`, `Side.shape`,
+`Reference.body_shape`, `weapon::simplify`) and each candidate gun from Blender
+(`Candidate.shape`, `weapon_fit.py _shape`); both use vertex clustering to a
+triangle budget. The preview places your gun with the fit matrix itself. View
+buttons (Angled, Front, Side, Top) and Show buttons (this hand, both guns, whole
+body) frame it; it opens on the hand you adjust, keeps the camera while you adjust,
+and keeps the last result on screen while the next one is computed. Inspections
+from before the shapes show point samples. Beginner buttons (Flip direction, Turn 90°, Smaller/Bigger,
+Back/Forward/Up/Down/Left/Right, Reset) adjust the selected hand; **Advanced gun
+settings** keeps size mode, skinning, the weapon bone, exact numbers per hand,
+the parts list and **Join each gun's parts into one mesh**.
+
+`weapon::plan_choice` is the one planner (the service and the e2e probe use it):
+`Choice.left` holds the left hand's gun and adjustments (`objects` empty = copy the
+right gun, `keep` = the hero's own left gun); the plan for the right (or only) gun
+carries `left` (the left hand's plan, `mesh_prefix: weapon_l_`, `copy` when it
+duplicates the right gun's objects), `merge`, and `drop` (gun-file guns no hand
+uses, left out). `suggest_choice` puts the gun file's right gun in the right hand
+and its left gun in the left hand. Blender (`weapon_fit.split_hands`) separates
+each hand's objects (duplicating them for a copy before anything is fitted),
+removes dropped guns and fits each hand with its own matrix and skin. The weapon
+receipt lists `hands` (side, meshes); `record_replacements` adds each hand's
+replaced original meshes and `receipt_mappings` maps each hand's fitted gun onto
+that hand's original gun only.
+
+**Merging** (`weapon_fit.merge_parts`, on by default): a gun's parts are joined into
+one mesh (`weapon_gun`, `weapon_l_gun`; chunks stay under 200,000 corners, far
+below the engine's 524,288). Vertex groups merge by name (bone weights and charm
+weights stay), materials by slot, UV maps by position (renamed by index first);
+each part's world-space corner normals are stored in a `dmb_normal` corner
+attribute before joining and used for the export, and the joined counts are
+checked. Parts with shape keys are left as they are. The harness compares a merged
+and an unmerged conversion corner by corner (`gun_merge_is_lossless`).
+
+Faces with more than four corners (n-gons) are split into triangles right before
+export when the mesh has UVs (`scene_isolation.triangulate_ngons`): Blender
+computes tangents only for triangles and quads, and the game triangulates anyway.
+Triangles and quads, vertices, weights, UVs and custom normals stay; meshes without
+n-gons (or with shape keys) are not touched. This applies to gun meshes, body
+meshes, attached props and weapon-model corrections.
+
+For a **separate weapon model**, the Weapon tab's **Use my gun instead of the
+hero's** (`SeparateGun.tsx`) finds the hero's gun model (particle and effect models
+are never offered), saves the project if it was never saved, creates
+`<project>.gun-<model>.dmb.json` next to it (preparation mode **Weapon model**,
+source = the gun file or the character file), inspects, picks the gun, checks,
+converts and accepts it, links it as an equipment variant (one VPK holds the
+character and the gun) and sets the character's own gun to *leave out*. The same
+preview and adjust buttons work on the gun project; **Apply changes** makes the gun
+model again. **Appearance → Equipment → Weapon model** (*Find this hero's weapon
+models*, *Create weapon project*) remains for manual setups.
 
 A weapon project's source may be a gun-only file. Inspect is told the project
 is a weapon model (`mode: weapon`): the gun may hold most of the scene's
@@ -264,9 +374,10 @@ scene is measured by its longest side and parts touching each other in a chain
 
 ### Gun from a separate file
 
-The **Weapon** tab of a character project has an optional **Gun file**
-(`preparation_options.weapon_source`; Blender, FBX, GLB or glTF). Choosing,
-changing or clearing it asks for a new inspection.
+The **Weapon** tab of a character project (and step 1, Character & model) has an
+optional **Gun from another file** (`preparation_options.weapon_source`; Blender,
+FBX, GLB or glTF). Choosing, changing or clearing it re-runs the inspection by
+itself.
 
 * Inspect stages the file like the source (`<preparation>/weapon-file`, a packed
   copy for `.blend`) and records `Analysis.weapon_file`: the user's path with the
@@ -286,11 +397,35 @@ changing or clearing it asks for a new inspection.
   the hand* works (its orientation stays as in the file). A rig without a right
   hand attaches it to the nearest weighted bone; an unrigged character keeps it
   where it is.
-* The gun-file objects are always offered, as one candidate (`gun_file: true`),
-  and are suggested before any gun in the character file. A gun that was moved
-  into the hand (`attach_kind: placed`) is fitted from its own handle, not from
-  the hand. A gun in the character file stays on the character unless you set it
-  aside in **Scene objects**.
+* A file with **a pair of guns** gives a right and a left gun: parts are sorted by
+  their hand, read from the original object name (tags `[L]`/`[R]`, `(L)`, `.L`,
+  `_R` first, then the words left/right, l/r, 左/右; `weapon_source.side_of`, the
+  same rules as `weapon.rs side_of`) or from the gun rig bone they are weighted to,
+  before the parts are frozen. Each gun is its largest part and what touches it;
+  parts without a hand join the gun they touch. The right gun goes to the right
+  hand and the left gun to the left hand (the request carries `hand` and
+  `left_hand`); receipt rows and candidates carry `side`, and the summary lists
+  `guns`.
+* The gun-file objects are always offered, one candidate per gun (`gun_file:
+  true`), and are suggested before any gun in the character file (the right-hand
+  gun first). A gun that was moved into the hand (`attach_kind: placed`) is fitted
+  from its own handle, not from the hand. A gun-file gun that no hand uses is left
+  out (`Plan.drop`). A gun in the character file stays on the character unless you
+  set it aside in **Scene objects**.
+* Ground planes and backdrops are found by comparing each flat part with
+  everything else in the file (`weapon_source.backdrops`), so flat gun parts such
+  as grip panels, rims or decals are never taken for the floor.
+* **Charms in the gun file keep their bones**: before the parts are frozen,
+  `capture_charms` reads the gun rig's charm chains (a bone named as a charm,
+  keychain, pendant, strap, tassel or ribbon whose parent is not one, with the bones
+  below it) and each part's charm weights. `keep_charms` then adds the chain to the
+  character rig under a non-deforming holder bone (the gun's own bone above the
+  charm, e.g. `gun_file_weapon_root.L`) that hangs from the hand holding that gun,
+  moved like the gun, and gives the charm vertices their charm weights back (the
+  rest stays on the hand). The holder is listed as a gun bone (`gun_bones` on the
+  receipt rows), so the charm is recognised as hanging from that gun and follows
+  the gun fit and charm motion like a charm on the character's own gun. A part
+  whose vertex count changed while freezing keeps its charm rigid.
 * The preparation receipt keeps `weapon_file_selection`. Convert, the review
   check and Analyze/Build compare it with the current gun file: a changed (or
   changed-texture), cleared or newly chosen gun file needs a new inspection; a
@@ -309,9 +444,13 @@ the other moving parts. What happens to them follows the gun choice:
 | Leave it out | The charm is left out with the gun (its groups are dropped from the kept moving parts; the Weapon tab removes them and offers them again when the gun comes back). |
 
 Rust and Blender compute the same plan (`secondary_bones::selection_for` and
-`selection(..., gun)`); Blender receives the inspection's gun-bone marks as
+`selection(..., gun)`, with `Plan::hands`/`Plan::removed_ids` and
+`gun_hands`/`removed_guns`); Blender receives the inspection's gun-bone marks as
 `gun_bones` and counts the gun objects' own weights, and Convert checks that both
-plans agree. Corrections keep the gun of their conversion.
+plans agree. Each fitted gun carries its own charms (its hand's anchor and fit);
+a gun that copies the right gun keeps the copied charm rigid; charms on left-out
+or unused guns are left out (the UI mirror is `removedGuns` in
+`secondary-bones.ts`). Corrections keep the gun of their conversion.
 
 During Build a part hanging from a hero weapon bone, a part with
 `physics_kinds: {root: "charm"}` (set for gun charms when they are first kept) or
@@ -331,14 +470,22 @@ weapon models has cloth (`astro_gun`, `priest_gun_crossbow`: no physics block;
 `abrams_gun`, `werewolf/weapon_brk1`: `m_pFeModel = null`), weapon projects export
 only the gun against the weapon skeleton without extra bones, and whether the game
 simulates cloth on a weapon entity is unverified. A gun from a separate gun file
-loses its own rig when it is added (see above), so its charms stay rigid too.
+keeps its charm bones (see above) when it replaces a gun that is part of the hero
+model.
 
 ### How the fit works (`weapon.rs`)
 
 Both guns are measured the same way: the barrel axis (principal axis refined
-on the front of the gun), the muzzle end (muzzle bones/attachments, the end
-away from the hand, or the thinner end), the up direction (the grip hangs below
-the barrel), the grip (the hand holding it, or the handle) and the length.
+on the front of the gun), the muzzle end (muzzle bones/attachments, part names,
+the end away from the hand, or the thinner end), the up direction (the grip
+hangs below the barrel), the grip (the hand holding it, parts named as the grip,
+or the handle) and the length. Part names count as whole words: Muzzle, Barrel,
+Nose, Front, Emitter, Suppressor, Silencer and Compensator for the front; Rear,
+Back, Stock and Butt for the rear; Grip, Handle and Handgrip for the grip
+(`weapon_fit.py _hints` gives their centres, charms are skipped; `weapon.rs fit`
+uses front minus rear). `Frame.direction` records how the front was found and the
+fit line shows it; **Flip direction** moves the muzzle to the other end, and a
+flip against the front the part names gave is pointed out.
 The source gun is rotated so barrel and up match, uniformly scaled to the
 original gun's length (or kept at the character's scale), and moved so the
 grips coincide. The original gun's skin weights are copied by proximity, so the
@@ -364,9 +511,14 @@ cluttered scenes, posed rigs with constraint-attached guns, Y-up exports,
 shape keys under subdivision, curve hair, collection instances, two scenes,
 FBX/GLB round trips, gun-only weapon models, a gun in a second file used by a
 character project (replace and keep) and as a weapon project's GLB source,
-a rigged two-part gun file with a curve strap, a hidden part and a floor,
+a rigged two-part gun file with a curve strap, a hidden part and a floor (merged,
+and compared corner by corner with an unmerged conversion; `DMB_PROBE_MERGE=0`),
 a pistol on its own gun bone carrying an unnamed two-link charm (replace and
-keep, with moving parts kept; `DMB_PROBE_PHYSICS`), an unrigged statue) and runs each
+keep, with moving parts kept; `DMB_PROBE_PHYSICS`), a dual gun file with an `[L]`
+and an `[R]` pistol each carrying a two-bone charm on a dual-wield hero
+(`DMB_PROBE_DUAL`; a gun and a swinging charm in each hand), on a one-gun hero
+(the left gun left out) and as one gun copied into both hands
+(`DMB_PROBE_LEFT=copy`), an unrigged statue) and runs each
 through inspect → plan → prepare → native DMX validation against a captured
 196-bone hero skeleton.
 
@@ -379,4 +531,5 @@ are not separated in the rest pose, and live rig controls that change the rest
 shape still need a manual source copy. A separately modelled gun replaces the
 weapon model for every hero that shares that model. Gun charms move only on guns
 that are part of the hero model, and their swing amount is not yet checked in
-game.
+game. Dual-wield fits (Haze) are checked against synthetic and decompiled data;
+grip, aim and the two-gun animations still need an in-game check.

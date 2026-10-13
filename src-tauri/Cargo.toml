@@ -5,7 +5,7 @@ resolver = "2"
 [package]
 name = "deadlock-desktop"
 default-run = "deadlock-mod-builder"
-version = "0.13.0-alpha.52"
+version = "0.13.0-beta.1"
 edition = "2021"
 publish = false
 description = "Native character mod preparation, validation and packaging"

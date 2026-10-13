@@ -1,137 +1,148 @@
 # Deadlock Mod Builder
 
-A Windows desktop application for creating Deadlock character replacement mods. Prepare a custom model, map it to a hero, review materials and movement, compile a VPK, and install it from one interface.
+[![Windows tests and portable application](https://github.com/OverseerAlbedo/deadlock-mod-builder/actions/workflows/windows.yml/badge.svg)](https://github.com/OverseerAlbedo/deadlock-mod-builder/actions/workflows/windows.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-The application uses **Tauri, React, TypeScript, and Rust**. Blender performs optional model conversion through its own Python interpreter. A separate Python installation is not needed to run the app.
+Turn a character model into a Deadlock hero replacement mod: pick the hero, drop in your model, review the guns, materials and movement, then build and install a VPK, all from one desktop application.
+
+Built with **Tauri, Rust, React and TypeScript**. Blender runs in the background as a geometry engine for model preparation; no separate Python installation is needed.
 
 ![Physics workspace with an example project](docs/images/physics-workspace.png)
-*Current Physics components rendered with sample project data for UI review. This screenshot is not an in-game simulation or a Windows startup test.*
+*The Physics step with sample project data. UI capture, not an in-game simulation.*
+
+## Table of contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
+- [Building from source](#building-from-source)
+- [Project structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- Hero selection with model paths and separate entries for alternate models.
-- Drag-and-drop model import, prepared-DMX projects, and humanoid conversion.
-- Automatic body-role and weighted-bone suggestions, common rig naming conventions, structural recognition for rigs with generic or unusual bone names, automatic upright rotation, qualified recovery of disconnected rest skeletons, mapping previews, source-proportion preservation, and review before conversion.
-- Character isolation: cameras, lights, hidden alternates, other characters, scenery and helper objects are set aside automatically; common mesh problems (generative modifiers, instanced or mirrored meshes, missing weights or materials, bone-parented props) are repaired in the workspace copy. See [model preparation](docs/MODEL_PREPARATION.md).
-- Gun customization: fit the gun from your character file onto the hero's own gun (matching its grip, barrel and size and following its weapon bones), leave it out, or build a separate weapon model from the same file.
-- Material and image previews, texture recovery, image fitting, and **Accept all** for resolved image choices.
-- Automatic secondary motion for supported hair, tails, ears, streamers, skirts, and clothing. Includes twist protection, long-hair softening, stretch restraints, connected garment fitting, and upper-attachment limits.
-- A qualified Vindicta cloth reference and preserved character-specific setups.
-- Model preview and supported motion/animation inspection. Live game physics must still be checked in Deadlock.
-- Extras with icon previews and replacement across ordinary Panorama image formats, including padded icons and fallback-image metadata; audio playback, drag-and-drop sound replacement, and **0–200%** replacement volume.
-- Integrity checks, Source 2 compilation, VPK packaging, and validated installation.
-- Cancelable operations, build progress, step timings, complete tool logs, and guided settings.
+- **Five guided steps:** Character & model → Prepare model → Appearance & weapons → Physics & preview → Build & install, with automatic preparation of Blender, FBX and glTF models and plain-language explanations at every stop.
+- **Works with real-world rigs:** common naming conventions (Mixamo, Rigify, DAZ, Character Creator, MMD, ValveBiped), rigs with unusual bone names, cluttered scenes (cameras, lights, scenery, other characters), game rips and models with shape keys. See [model preparation](docs/MODEL_PREPARATION.md).
+- **Guns:** replace the hero's gun with the one in your model or in a separate gun file, including dual-wield heroes (one gun per hand), gun charms that swing, a live 3D fit preview with simple adjustment buttons, and separate weapon models built into the same mod.
+- **Materials:** textures recovered from the model's materials, baked texture atlases, decals, a color editor and texture replacement, with a review list before building.
+- **Movement:** automatic secondary motion for hair, tails, ears, skirts, cloth, streamers and gun charms, optional breast motion, rigid accessories, and qualified physics references.
+- **Extras:** hero icons, ability images and sounds, with previews and drag-and-drop replacement.
+- **Trustworthy builds:** every stage is hash-verified, compiled with the official Source 2 toolset, validated against the installed game, packaged as a VPK and installed in place, with complete tool logs and step timings.
 
-Compatibility depends on the input model, game resource format, and configured tools. See [limitations and troubleshooting](docs/TROUBLESHOOTING.md).
-
-## Installation
-
-When a release has been published, open this repository's **Releases** page and download one Windows x64 asset:
-
-| Asset | Use |
-| --- | --- |
-| `DeadlockModBuilder-v<version>-windows-x64-setup.exe` | Run the installer, then launch Deadlock Mod Builder. |
-| `DeadlockModBuilder-v<version>-windows-x64-portable.zip` | Extract the entire ZIP and run `DeadlockModBuilder/deadlock-mod-builder.exe`. Keep its resource folders alongside it. |
-
-The ZIP build does not require installation, but settings and workspaces still use the normal Windows user-profile locations. It is not a self-contained USB profile. Both builds require Microsoft Edge WebView2 Runtime. The installer can obtain it; portable users must have it installed.
-
-If no release is published yet, use [Build from source](#build-from-source). Successful CI runs also provide temporary build artifacts under **Actions**; those are not published releases.
-
-On first launch, open **Settings**, configure the game and tools, save the settings, and run the setup checks. The onboarding and model-toolset guides are available there.
+Compatibility depends on the input model, the game's current resource formats and the configured tools. See [troubleshooting](docs/TROUBLESHOOTING.md).
 
 ## Requirements
 
-| Requirement | When needed | Included? |
+| Requirement | Needed for | Included |
 | --- | --- | --- |
-| Windows 11 x64 | Tested user environment | No |
-| Microsoft Edge WebView2 Runtime | Desktop interface | Installer can obtain it |
-| Deadlock installation and original game archive | Select a hero and build/install a mod | No |
-| Compatible Source 2 model compiler and material compiler | Native compilation | No |
-| Source2Viewer CLI | Configured extraction/decompilation workflows | No |
-| Blender **4.2–4.5, 5.0, or 5.2 LTS** | Humanoid preparation and supported import/conversion operations | No |
-| Full-precision cloth reader | Independent native-resource verification | Yes, self-contained Windows executable |
-| Qualified physics references | Included-reference workflow | Yes |
+| Windows 11 x64 | Running the app | — |
+| [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) | The interface (installed on current Windows) | Installer can add it |
+| Deadlock installation | Choosing heroes, building and installing | No |
+| Source 2 model and material compilers (Reduced CSDK) | Compiling | No |
+| Source2Viewer CLI | Extracting and decompiling game assets | No |
+| Blender 4.2–4.5, 5.0 or 5.2 LTS | Preparing Blender, FBX and glTF models | No |
+| Cloth reader, physics references | Independent verification of movement setups | Yes |
 
-Blender versions listed above are accepted by the current bridge. A successful version check does not certify every rig, add-on, constraint, or file written by a newer Blender version. Prepared-DMX workflows can avoid Blender conversion.
+The app does not include Valve tools, game files or third-party character models. **Setup** inside the app checks every configured tool and explains what is missing.
 
-Source 2 model and material compilers can require different toolsets. Follow the app's setup checks and toolset guide; do not mix arbitrary compiler DLL versions. No CSDK, Valve compiler, game installation, or third-party character model is included in the application installer.
+## Installation
 
-## First project
+Download one Windows x64 asset from the [Releases](https://github.com/OverseerAlbedo/deadlock-mod-builder/releases) page:
 
-1. **Settings:** configure Deadlock, its original archive, the compilation tools, a workspace, and Blender if needed. Save and check the setup.
-2. **Overview:** create/name a project and choose the hero and exact model to replace. Save the project.
-3. **Import a model:** choose a source file or drop it into the app.
-4. **Choose preparation:** use an already prepared DMX with the required hero skeleton, or inspect a humanoid source in **Model preparation**. Check **Scene objects** (what was kept or set aside), then review body roles, moving parts, bone mapping, the **Weapon** tab if the file contains a gun, and fit before converting. Use source-proportion preservation when the source should retain its shape.
-5. **Appearance:** review mesh replacements, materials, and images. Resolve ambiguous choices before accepting them.
-6. **Physics / Motion / Extras:** choose the supported movement setup and optional replacements. Automatic physics uses the secondary groups preserved during preparation; review its report.
-7. **Review & build:** analyze the current project, complete required checks, and build the VPK. Check the preview and use the output/log controls if a stage fails.
-8. **Install and test:** use the validated installation action, then inspect the character in Deadlock. Check movement, jumping, dodging, clipping, and the selected model variant.
+| Asset | Use |
+| --- | --- |
+| `DeadlockModBuilder-v<version>-windows-x64-setup.exe` | Run the installer, then start Deadlock Mod Builder. |
+| `DeadlockModBuilder-v<version>-windows-x64-portable.zip` | Extract the whole ZIP and run `DeadlockModBuilder\deadlock-mod-builder.exe`. Keep the folders next to it. |
 
-A prepared project already has the skeleton/mapping needed by the target workflow. Humanoid conversion creates that prepared result from a source rig. An unrigged model requires the preparation/weighting workflow; selecting a file does not make arbitrary geometry automatically game-ready.
+Settings and workspaces live in the normal Windows user profile for both builds. Current releases are pre-releases: they are tested on the developer's machine and in CI, and in-game checks are listed in the [release notes](docs/RELEASE_NOTES.md).
 
-## Build from source
+## Quick start
 
-For Windows development, install:
+1. **Setup** (first start): point the app at Deadlock, the Source 2 compilers, Source2Viewer and Blender, then run the setup checks.
+2. **Character & model:** choose the hero to replace and your model file. Optionally choose a separate gun file. Preparation starts automatically.
+3. **Prepare model:** usually finishes on its own; if it stops, it lists what to decide (a joint match, a shape-key choice) with a button to each spot.
+4. **Appearance & weapons:** check the gun fit in the 3D preview, review the materials and textures, and accept them.
+5. **Physics & preview:** switch movement on or off per part and preview the character.
+6. **Build & install:** analyze, build and install; then check the character in Deadlock.
 
-- Node.js **24** with npm (selected by `.node-version`).
-- Rust **1.99.0** with the **MSVC** target (selected by `rust-toolchain.toml`).
-- Microsoft Visual Studio Build Tools with **Desktop development with C++** and a Windows SDK.
-- Microsoft Edge WebView2 Runtime.
-- PowerShell 7 for the release/check scripts.
+Projects are saved as `.dmb.json` files. The full walkthrough, with what each step does, is in [docs/MODEL_PREPARATION.md](docs/MODEL_PREPARATION.md).
 
-From the repository root:
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [Model preparation](docs/MODEL_PREPARATION.md) | The five steps, scene isolation, bone mapping, textures, moving parts, gun customization, verification |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Compatibility limits and fixes for common failures |
+| [Development](docs/DEVELOPMENT.md) | Build, test and Blender harness commands |
+| [Releasing](docs/RELEASING.md) · [Release validation](docs/RELEASE_VALIDATION.md) | Release procedure and the checks a release needs |
+| [Release notes](docs/RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) | What changed, and what is still unverified in game |
+| [Third-party notices](docs/THIRD_PARTY.md) | Licenses of bundled components |
+
+## Building from source
+
+Prerequisites on Windows:
+
+- Node.js 24 with npm (`.node-version`)
+- Rust 1.99.0, MSVC target (`rust-toolchain.toml`)
+- Visual Studio Build Tools with *Desktop development with C++* and a Windows SDK
+- Microsoft Edge WebView2 Runtime
+- PowerShell 7 for the build and release scripts
 
 ```powershell
 npm ci
+node scripts/check-repository.mjs
 npm test -- --maxWorkers=2
-npm run build
 cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
 npm run tauri -- dev
 ```
 
-`npm run dev` opens only the browser frontend; native model operations require `npm run tauri -- dev`.
+`npm run dev` serves only the browser frontend; native operations need `npm run tauri -- dev`.
 
-For the same Windows tests, portable ZIP, and startup check used by push CI:
+The same tests, portable ZIP and startup check as CI:
 
 ```powershell
 pwsh -NoProfile -File scripts/build-windows.ps1
 ```
 
-`Build-Windows.cmd` invokes that script. Add `-Release` only when intentionally building a requested installer. Ordinary pushes create portable test artifacts without generating a release installer. Outputs are in `artifacts/release/`; diagnostic logs are in `artifacts/validation/`. This command builds local files and does **not** publish a GitHub release. See [development](docs/DEVELOPMENT.md) and [release procedure](docs/RELEASING.md).
+Outputs land in `artifacts/release/` (ZIP and checksums) and `artifacts/validation/` (logs). Add `-Release` to also build the installer. Nothing is published by this script; releases go through the manual **Release** workflow described in [docs/RELEASING.md](docs/RELEASING.md). The optional Blender harness that runs 28 awkward rigs through the whole preparation is described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Project structure
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | React interface, previews, and frontend tests |
-| `src-tauri/` | Tauri desktop host, Rust pipeline crates, and regression fixtures |
-| `src-tauri/crates/deadlock-preparation/resources/blender/` | Active Python scripts embedded for Blender |
-| `resources/` | Hero catalog, tool recipe, and hash-pinned native readers |
-| `physics-references/` | Required qualified references; not a game dump |
-| `tools/cloth-reader/` | Source and locked dependencies for the independent reader |
-| `scripts/` | Repository checks, Windows packaging, startup check, and optional Blender probes |
-| `legacy/python/` | Minimal reference helpers used by Blender integration tests; no retired GUI |
-| `.github/workflows/` | Read-only test/build CI |
-| `docs/` | Usage, development, release, troubleshooting and [model preparation](docs/MODEL_PREPARATION.md) guidance |
+| `src/` | React interface and its tests |
+| `src-tauri/src/` | Tauri desktop host and commands |
+| `src-tauri/crates/` | Rust pipeline: preparation, materials, skeleton/DMX export, cloth, compilation, VPK, storage |
+| `src-tauri/crates/deadlock-preparation/resources/blender/` | Python scripts embedded into the app and run inside Blender |
+| `resources/` | Hero catalog, tool recipe and hash-pinned native readers |
+| `physics-references/` | Qualified movement references used by validation |
+| `tools/cloth-reader/` | Source of the independent cloth reader |
+| `scripts/` | Repository checks, Windows packaging, startup check and Blender test harnesses |
+| `docs/` | Documentation |
+| `.github/workflows/` | CI: tests and portable build on push; manual release workflow |
 | `licenses/` | Third-party notices |
-
-The retired Python desktop app, old installers/wheels, migration checkpoints, and bulky historical logs are not part of this repository layout. Active Blender scripts, the reader's rebuild sources, runtime resources, and Rust/React tests remain included.
 
 ## Troubleshooting
 
-- **Blender not configured:** select its actual executable in Settings, save, and validate it. The supported version alone does not establish input compatibility.
-- **Import or mapping fails:** review the named object/bone and the full log. Ambiguous rigs and unsupported live controls may require a baked/exported source.
-- **Compiler missing or fails:** recheck the separate model/material tool paths and their complete toolsets. Save full stdout/stderr from Logs.
-- **Validation blocks a build:** fix the reported input or mapping issue; bypassing integrity checks can produce a corrupt or unchanged mod.
-- **Wrong character/model in game:** check the exact hero model path, installed VPK slot, and conflicting mods.
-- **Physics differs in game:** preserve the prepared secondary groups, select the intended Physics mode, analyze again, then rebuild. Automatic classification does not guarantee every unfamiliar garment.
+- **A tool is "not configured":** choose the actual executable in Setup and run the checks again; a passing version check does not make every input file compatible.
+- **Preparation stops:** the Prepare model step names the object or joint and offers a button to it. Rigs driven by live controls may need a baked export.
+- **Build fails in the compiler:** keep the complete toolset together (do not mix compiler DLL versions) and copy the full log from **Logs**.
+- **A validation blocks the build:** fix the reported input; bypassing a check produces a broken or unchanged mod.
+- **Wrong model in game:** check the hero's model path, the VPK slot and conflicting mods.
+- **Movement differs in game:** keep the prepared moving parts, choose the intended Physics mode, analyze and build again.
 
-More detail: [troubleshooting and compatibility](docs/TROUBLESHOOTING.md).
+More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
-## Contributing and licensing
+## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused and preserve the accepted Vindicta, Daki, TangTang, and Graves workflows. Report the app version, source format, selected hero/model, reproduction steps, and relevant logs.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused, run the checks above, and in bug reports include the app version, the source file format, the hero and model, the steps and the relevant logs.
 
-Application source is covered by [MIT](LICENSE). Third-party components retain their own licenses; see [third-party and asset notes](docs/THIRD_PARTY.md). The source license does not grant rights to Valve assets or user models/textures.
+## License
 
-This is an unofficial third-party tool, not affiliated with or endorsed by Valve. Deadlock and its game assets belong to their respective owners.
+The application source is licensed under the [MIT License](LICENSE). Bundled third-party components keep their own licenses; see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md). The license grants no rights to Valve assets or to users' models and textures.
+
+This is an unofficial tool, not affiliated with or endorsed by Valve. Deadlock and its assets belong to their respective owners.

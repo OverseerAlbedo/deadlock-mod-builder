@@ -60,6 +60,26 @@ and Arti10027, robe streamers `Bone_Robe_L/R_00-04`).
   `named_breast` and `rigid_named` from `secondary_bones.rs`.
 - `scripts/test_blender_moving_parts.py` checks the Python detector against the
   shared fixture (run it with Blender).
+- Gun planning is `weapon::plan_choice` / `suggest_choice` / `preview_choice`
+  (the service and `examples/e2e_probe.rs` both use them). Which guns are left out
+  and which hand carries a charm exists three times and must stay identical:
+  Rust `secondary_bones::selection_for` (`Plan::hands`, `Plan::removed_ids`),
+  Python `secondary_bones.selection` (`gun_hands`, `removed_guns`) and TS
+  `removedGuns` in `src/preparation/secondary-bones.ts`. The left/right name rules
+  exist twice: `weapon.rs side_of` and `weapon_source.py side_of`.
+- Gun preview shapes are simplified twice with the same vertex clustering and
+  rounding: `weapon.rs simplify` (hero guns and body) and `weapon_fit.py _shape`
+  (candidate guns). Part-name words for a gun's front, rear and grip are in
+  `weapon_fit.py` (`_hints`); `weapon.rs fit` uses them.
+- Blender export loops go through `resources/blender/mesh_export.py` (bulk
+  readers, cached vertex-group rows); do not add per-corner Python loops to
+  `worker.py`/`weapon_fit.py`. Receipts hold `PreparedMesh::slim` meshes (no
+  geometry) after Convert; read geometry from the DMX, never from the receipt.
+  Profile a conversion with cProfile around `runpy.run_path(worker.py)`.
+- Prepared material names keep `NAME_CHARS` (24) readable characters
+  (`material_textures.py`); `deadlock-materials native_paths.rs`
+  `PREPARED_NAME_CHARS` must match. The 8-digit hash is the material's identity
+  (`service.rs renamed_materials` carries choices over by it).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
 - Do not update dependencies or lockfiles unless the change needs it.
 - Version must agree in package.json, package-lock.json, Cargo.toml files and
