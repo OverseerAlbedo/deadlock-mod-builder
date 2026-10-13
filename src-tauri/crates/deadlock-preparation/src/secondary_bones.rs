@@ -346,17 +346,19 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
     let roots: Vec<String> = serde_json::from_value(options.values.get("physics_roots").cloned().unwrap_or_default()).map_err(|_| invalid("Choose the detected physics groups to keep."))?;
     if roots.is_empty() || roots.iter().collect::<BTreeSet<_>>().len() != roots.len() { return Err(invalid("Choose the detected physics groups to keep.")); }
     let source_roles = roles(options,"source_roles")?;
-    let gun_id = gun.map(|g| g.objects.join("+"));
-    let removed = gun.is_some_and(|g| g.action == "remove");
-    let roots: Vec<String> = roots.into_iter().filter(|r| !removed || !gun_id.as_deref().is_some_and(|id| on_gun(r, source, &source_roles, id))).collect();
+    // Guns left out (a left-out hand or an unused gun-file gun) take their moving parts with them.
+    let removed = gun.map(crate::weapon::Plan::removed_ids).unwrap_or_default();
+    let roots: Vec<String> = roots.into_iter().filter(|r| !removed.iter().any(|id| on_gun(r, source, &source_roles, id))).collect();
     if roots.is_empty() { return Ok(None); }
     let groups = candidates_with(source, weighted, &source_roles, &roles(options,"target_roles")?, breast_motion(options)?)?;
     if roots.iter().any(|r| !groups.iter().any(|g| &g.root == r)) { return Err(invalid("Saved physics groups are stale or unsupported. Inspect the original source again.")); }
     let mut groups: Vec<_> = groups.into_iter().filter(|g| roots.contains(&g.root)).collect();
-    if let (Some(plan), Some(id)) = (gun.filter(|g| g.action == "replace"), gun_id.as_deref()) {
-        for group in groups.iter_mut().filter(|g| on_gun(&g.root, source, &source_roles, id)) {
-            if plan.anchor.is_empty() { return Err(invalid("The fitted gun has no weapon bone for its charms. Inspect the source again.")); }
-            group.target_anchor = plan.anchor.clone();
+    // Each fitted gun carries its own charms (a copied gun's charms stay on the original gun).
+    for hand in gun.map(crate::weapon::Plan::hands).unwrap_or_default().into_iter().filter(|h| h.action == "replace" && !h.copy) {
+        let id = hand.objects.join("+");
+        for group in groups.iter_mut().filter(|g| on_gun(&g.root, source, &source_roles, &id)) {
+            if hand.anchor.is_empty() { return Err(invalid("The fitted gun has no weapon bone for its charms. Inspect the source again.")); }
+            group.target_anchor = hand.anchor.clone();
         }
     }
     let mut exported = BTreeMap::new();

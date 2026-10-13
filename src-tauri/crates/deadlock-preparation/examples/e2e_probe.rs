@@ -4,7 +4,7 @@
 //!   e2e_probe plan INSPECTION TARGET_FIXTURE WORKSPACE MODE[hero|weapon] ACTION[replace|remove|keep|none] FIT[match_target|preserve_proportions]
 //!   e2e_probe validate INSPECTION TARGET_FIXTURE OPTIONS REPORT OUTPUT.dmx
 //!   e2e_probe orient INSPECTION      (prints the upright rotation or null)
-//!   e2e_probe hand INSPECTION        (prints the right-hand bone that holds a gun file, or null)
+//!   e2e_probe hand INSPECTION        (prints {"hand": right hand, "left_hand": left hand} that hold a gun file)
 //!
 //! The hero gun reference here is synthetic (built at the hero's weapon bones);
 //! production measures the decompiled original gun meshes instead.
@@ -87,6 +87,50 @@ fn synthetic_reference(target: &[Bone]) -> weapon::Reference {
         ..Default::default()
     }
 }
+/// A dual-wield hero (Haze): a pistol in each hand on that hand's weapon bone.
+fn synthetic_dual_reference(target: &[Bone]) -> weapon::Reference {
+    let find = |n: &str| target.iter().find(|b| b.name == n).map(|b| b.position).expect("hand bone");
+    let gun = |hand: [f64; 3], bone: &str| -> (Vec<[f64; 3]>, Vec<Vec<(String, f64)>>) {
+        let (mut points, mut weights) = (vec![], vec![]);
+        // Barrel along -Y (forward), grip below the hand.
+        for i in 0..=30 {
+            for (a, b) in [(-1., -1.), (-1., 1.), (1., -1.), (1., 1.)] {
+                points.push([hand[0] + 0.6 * b, hand[1] - 2.0 - 7.0 * i as f64 / 30., hand[2] + 1.5 + 0.6 * a]);
+                weights.push(vec![(bone.to_string(), 1.)]);
+            }
+        }
+        for i in 0..=12 {
+            for (a, b) in [(-1., -1.), (-1., 1.), (1., -1.), (1., 1.)] {
+                points.push([hand[0] + 0.5 * b, hand[1] - 1.0 + 0.8 * a, hand[2] + 1.5 - 3.0 * i as f64 / 12.]);
+                weights.push(vec![(bone.to_string(), 1.)]);
+            }
+        }
+        (points, weights)
+    };
+    let (right_points, right_weights) = gun(find("hand_R"), "weaponHand_R");
+    let (left_points, left_weights) = gun(find("hand_L"), "weaponHand_L");
+    let side = |name: &str, points: &[[f64; 3]], weights: &[Vec<(String, f64)>], bone: &str| weapon::Side {
+        side: name.into(),
+        meshes: vec![format!("hero_gun_{name}"), format!("hero_gun_{name}_lod1")],
+        primary: vec![format!("hero_gun_{name}")],
+        points: points.to_vec(),
+        weights: weights.to_vec(),
+        bones: vec![bone.into()],
+        shape: Default::default(),
+    };
+    weapon::Reference {
+        policy: weapon::POLICY.into(),
+        source: "meshes".into(),
+        meshes: ["right", "left"].iter().flat_map(|s| [format!("hero_gun_{s}"), format!("hero_gun_{s}_lod1")]).collect(),
+        primary: vec!["hero_gun_right".into(), "hero_gun_left".into()],
+        model_meshes: vec!["hero_body".into(), "hero_gun_right".into(), "hero_gun_left".into()],
+        points: [right_points.clone(), left_points.clone()].concat(),
+        weights: [right_weights.clone(), left_weights.clone()].concat(),
+        bones: vec!["weaponHand_L".into(), "weaponHand_R".into()],
+        sides: vec![side("right", &right_points, &right_weights, "weaponHand_R"), side("left", &left_points, &left_weights, "weaponHand_L")],
+        ..Default::default()
+    }
+}
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     match a.first().map(String::as_str) {
@@ -127,21 +171,36 @@ fn main() {
             }
             let mut plan = None;
             if action != "none" {
-                // Same choice as a fresh inspection: the gun file first, then a clear candidate.
-                let candidate = weapon::suggest(&inspection.weapons, &inspection.bones, &source_roles, mode == "weapon").expect("gun candidate");
+                // Same choice and plan as the app: the gun file first (each hand of a pair), then a clear candidate.
+                // DMB_PROBE_DUAL: a dual-wield hero (a gun in each hand); DMB_PROBE_LEFT=keep|copy changes its left hand.
                 let reference = if mode == "weapon" {
                     weapon::Reference { separate_model: true, ..synthetic_reference(&target_bones) }
+                } else if std::env::var_os("DMB_PROBE_DUAL").is_some() {
+                    synthetic_dual_reference(&target_bones)
                 } else {
                     synthetic_reference(&target_bones)
                 };
-                let choice = weapon::Choice { enabled: true, action: action.into(), objects: candidate.objects.clone(), ..Default::default() };
+                let offered: Vec<_> = if mode == "weapon" {
+                    inspection.weapons.clone()
+                } else {
+                    inspection.weapons.iter().filter(|c| c.gun_file || weapon::score(c, &inspection.bones, &source_roles) >= 2.5).cloned().collect()
+                };
+                let cx = weapon::Context { candidates: &offered, reference: Some(&reference), source: &inspection.bones, roles: &source_roles, target: &target_bones, body_scale: None, weapon_model: mode == "weapon" };
+                let mut choice = weapon::suggest_choice(&cx).expect("gun candidate");
+                choice.action = action.into();
+                match std::env::var("DMB_PROBE_LEFT").as_deref() {
+                    Ok("keep") => choice.left.keep = true,
+                    Ok("copy") => choice.left.objects.clear(),
+                    _ => {}
+                }
+                // DMB_PROBE_MERGE=0: keep the gun's parts as separate meshes.
+                if std::env::var("DMB_PROBE_MERGE").as_deref() == Ok("0") {
+                    choice.merge = false;
+                }
                 options["weapon"] = serde_json::to_value(&choice).unwrap();
-                if action == "remove" {
-                    plan = Some(weapon::removal(candidate));
-                } else if action == "replace" {
-                    let fit = weapon::fit(candidate, &reference, &choice, &inspection.bones, &source_roles, &target_bones, None).expect("fit");
-                    eprintln!("fit scale {:.3} muzzle offset {:.1} mm skin {} {:?} notes {:?}", fit.scale, fit.muzzle_offset_mm, fit.skin, fit.skin_bones, fit.notes);
-                    plan = Some(weapon::plan(&fit, candidate, &reference, if mode == "weapon" { "weapon_model" } else { "replace" }));
+                plan = weapon::plan_choice(&choice, &cx).expect("weapon plan");
+                for hand in plan.iter().flat_map(weapon::Plan::hands) {
+                    eprintln!("gun {} {:?} -> replaces {:?}, anchor {}, copy {}, merge {}", hand.side, hand.objects.len(), hand.replace, hand.anchor, hand.copy, hand.merge);
                 }
             }
             if let Some(shape) = a.get(7).filter(|s| !s.is_empty()) {
@@ -169,14 +228,14 @@ fn main() {
             }
         }
         Some("hand") => {
-            // The bone the service asks Blender to put the gun file in.
+            // The bones the service asks Blender to put the gun file in (the left hand holds a pair's left gun).
             let inspection: Inspection = read(&a[1]);
-            let hand = if inspection.bones.is_empty() {
-                None
+            let roles = if inspection.bones.is_empty() {
+                BTreeMap::new()
             } else {
-                automap::roles(&inspection.bones, &inspection.weighted_bones, &Default::default()).expect("roles").roles.get("hand_R").cloned()
+                automap::roles(&inspection.bones, &inspection.weighted_bones, &Default::default()).expect("roles").roles
             };
-            println!("{}", serde_json::to_string(&hand).unwrap());
+            println!("{}", serde_json::to_string(&json!({"hand": roles.get("hand_R"), "left_hand": roles.get("hand_L")})).unwrap());
         }
         Some("validate") => {
             let mut inspection: Inspection = read(&a[1]);

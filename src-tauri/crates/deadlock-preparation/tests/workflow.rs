@@ -461,16 +461,17 @@ fn gun_file_is_added_at_inspect_and_convert_and_its_hash_binds_the_preparation()
     let record = analysis.weapon_file.clone().expect("gun file record");
     assert!(record.source.ends_with("pistol.gltf") && Path::new(&record.source).starts_with(&analysis.root));
     assert_eq!(record.hand.as_deref(), Some("mixamorig:RightHand"));
+    assert_eq!(record.left_hand.as_deref(), Some("mixamorig:LeftHand"));
     assert_eq!(record.selection.source_files.len(), 2, "{:?}", record.selection.source_files);
     // Ordinary passes inspect the character alone; the last pass adds the gun.
     let inspections: Vec<Value> = tool.calls.lock().unwrap().iter().filter(|j| j["operation"] == "inspect").cloned().collect();
     assert!(inspections[..inspections.len() - 1].iter().all(|j| j.get("weapon_source").is_none()));
-    assert_eq!(inspections.last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand"}));
+    assert_eq!(inspections.last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand", "left_hand": "mixamorig:LeftHand"}));
     let mut options: PreparationOptions = serde_json::from_value(json!({"reviewed":true,"source_roles":analysis.suggestions.source.as_ref().unwrap().roles,"target_roles":analysis.suggestions.target.roles,"mapping":analysis.suggestions.mapping})).unwrap();
     options.values.insert("weapon_source".into(), json!(gun.to_str().unwrap()));
     assert!(service::review_issues(&project, &analysis, &options).unwrap().is_empty());
     let result = svc.prepare(&project, &analysis, options.clone(), false, &compiled).unwrap();
-    assert_eq!(tool.calls.lock().unwrap().last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand"}));
+    assert_eq!(tool.calls.lock().unwrap().last().unwrap()["weapon_source"], json!({"source": record.source, "hand": "mixamorig:RightHand", "left_hand": "mixamorig:LeftHand"}));
     let receipt: Value = serde_json::from_slice(&fs::read(&result.report).unwrap()).unwrap();
     assert_eq!(receipt["weapon_file_selection"], serde_json::to_value(&record.selection).unwrap());
     let accepted = service::handoff(&project, &result).unwrap();

@@ -80,9 +80,10 @@ def run_case(name, source, mode='hero', action='none', fit='match_target', shape
         inspected = folder / 'inspect' / 'result.json'
     if gun_file:
         # As the app does: a last pass adds the gun file, held by the right
-        # hand the native recognition found; conversion repeats the request.
-        hand = json.loads(probe('hand', inspected))
-        report = inspect(source, folder / 'gun', rotation or (0, 0, 0), weapon_source={'source': str(gun_file), 'hand': hand}, **extra)
+        # hand the native recognition found (a pair's left gun by the left
+        # hand); conversion repeats the request.
+        hands = json.loads(probe('hand', inspected))
+        report = inspect(source, folder / 'gun', rotation or (0, 0, 0), weapon_source={'source': str(gun_file), **hands}, **extra)
         assert report['status'] == 'ok', (name, report.get('error'))
         inspected = folder / 'gun' / 'result.json'
     workspace = folder / 'prepare'
@@ -152,6 +153,10 @@ results = []
 for style in ('generic', 'rigify', 'daz', 'cc', 'odd', 'mixamo', 'unreal'):
     source = build('clean_' + style, lambda style=style: F.humanoid(style))
     report, prepared, validated = run_case('clean_' + style, source)
+    # Mapped fingers are bent to the hero's resting curl (none skipped).
+    curl = prepared['rest_alignment'].get('finger_curl') or {}
+    fingers = [d for d in json.loads((OUT / ('clean_' + style) / 'prepare' / 'options.json').read_text(encoding='utf-8')).get('mapping', {}).values() if d.startswith('finger_')]
+    assert not curl.get('skipped') and (curl.get('segments') or not fingers), (style, curl)
     results.append({'case': 'clean_' + style, 'validated': validated})
 
 source = build('messy_odd_gun', lambda: messy_gun('odd'))
@@ -246,8 +251,39 @@ rows = {r['name']: r['status'] for r in report['scene']['objects'] if r['name'].
 assert rows == {'gun_file_Frame': 'bound', 'gun_file_Slide': 'bound', 'gun_file_Strap_mesh': 'bound', 'gun_file_Strap': 'converted',
                 'gun_file_GunRig': 'excluded', 'gun_file_Old': 'excluded', 'gun_file_Plane': 'excluded'}, rows
 assert [w['objects'] for w in report['weapons'] if w.get('gun_file')] == [['gun_file_Frame', 'gun_file_Slide', 'gun_file_Strap_mesh']], report['weapons']
-assert sorted(m['name'] for m in prepared['meshes'] if m['name'].startswith('weapon_')) == ['weapon_gun_file_Frame', 'weapon_gun_file_Slide', 'weapon_gun_file_Strap_mesh']
+# The gun's three parts are joined into one mesh; every part's material stays.
+assert sorted(m['name'] for m in prepared['meshes'] if m['name'].startswith('weapon_')) == ['weapon_gun']
+merged = next(m for m in prepared['meshes'] if m['name'] == 'weapon_gun')
+assert len({face['material'] for face in merged['faces']}) >= 2, {face['material'] for face in merged['faces']}
 results.append({'case': 'gun_file_rigged_parts', 'validated': validated})
+
+
+def gun_corners(meshes):
+    """Every corner of the fitted gun: position, normal, first UV, material and weights.
+    A part without UVs reads texture coordinate (0, 0), as it gets when merged."""
+    out = []
+    for mesh in meshes:
+        if not mesh['name'].startswith('weapon_'):
+            continue
+        uv = mesh['uvs'][0] if mesh['uvs'] else None
+        for face in mesh['faces']:
+            for vertex, corner in zip(face['vertices'], face['corners']):
+                out.append((tuple(round(v, 3) for v in mesh['positions'][vertex]), tuple(round(v, 3) for v in mesh['normals'][corner]),
+                            tuple(round(v, 4) for v in uv[corner]) if uv else (0., 0.), face['material'],
+                            tuple(sorted((name, round(w, 3)) for name, w in mesh['weights'][vertex]))))
+    return sorted(out)
+
+
+# Merging is lossless: the same gun converted with its parts kept separate has
+# exactly the same corners (positions, normals, UVs, materials and weights).
+os.environ['DMB_PROBE_MERGE'] = '0'
+try:
+    _, unmerged, _ = run_case('gun_file_rigged_parts_unmerged', build('gun_file_rigify', lambda: F.humanoid('rigify')), action='replace', gun_file=rigged_gun)
+finally:
+    os.environ.pop('DMB_PROBE_MERGE', None)
+assert len([m for m in unmerged['meshes'] if m['name'].startswith('weapon_')]) == 3
+assert gun_corners(prepared['meshes']) == gun_corners(unmerged['meshes'])
+results.append({'case': 'gun_merge_is_lossless', 'compared': len(gun_corners(prepared['meshes']))})
 
 # Gun charm: a pistol on its own gun bone carries an unnamed two-link charm
 # (part of the pistol mesh). Replacing the hero's gun keeps the charm's bones on
@@ -286,6 +322,78 @@ try:
     hand = json.loads((OUT / 'charmed_pistol_keep' / 'prepare' / 'options.json').read_text(encoding='utf-8'))['target_roles']['hand_R']
     assert bones['dmb_secondary_Gun_Link_0']['parent'] == hand, (bones['dmb_secondary_Gun_Link_0']['parent'], hand)
     results.append({'case': 'charmed_pistol_keep', 'validated': validated})
+
+    # A pair of guns in one file (a dual weapon rig, each gun with a charm).
+    dual_blend = build('dual_gun_file', F.dual_gun_file)
+    character = build('dual_gun_character', lambda: F.humanoid('mixamo'))
+
+    def charm_anchors(prepared):
+        kept = prepared.get('preserved_physics_bones') or {'groups': []}
+        return {g['root']: g['target_anchor'] for g in kept['groups'] if 'charm' in g['root']}
+
+    def weapon_meshes(prepared):
+        return sorted(m['name'] for m in prepared['meshes'] if m['name'].startswith('weapon_'))
+
+    # A dual-wield hero (Haze): each gun goes to its own hand and replaces the
+    # hero's gun in that hand; each gun's parts are joined into one mesh, and
+    # each charm keeps its bones and hangs from its own gun's weapon bone.
+    os.environ['DMB_PROBE_DUAL'] = '1'
+    try:
+        report, prepared, validated = run_case('dual_gun_character', character, action='replace', gun_file=dual_blend)
+    finally:
+        os.environ.pop('DMB_PROBE_DUAL', None)
+    guns = report['weapon_file']['guns']
+    assert [(g['side'], g['bone']) for g in guns] == [('right', 'mixamorig:RightHand'), ('left', 'mixamorig:LeftHand')], guns
+    assert sorted(guns[0]['charm_bones'] + guns[1]['charm_bones']) == sorted(
+        'gun_file_charm_' + part + '.' + tag for part in ('pivot', 'body') for tag in 'LR'), guns
+    assert sorted(w.get('side') for w in report['weapons'] if w.get('gun_file')) == ['left', 'right'], report['weapons']
+    for gun in (w for w in report['weapons'] if w.get('gun_file')):
+        # Each gun has a solid preview shape, and its named front (the
+        # emitter) at the barrel end tells the fit which way it points.
+        shape, hints = gun['shape'], gun.get('hints', {})
+        assert shape['triangles'] and len(shape['triangles']) % 3 == 0 and max(shape['triangles']) < len(shape['positions']) // 3, gun['id']
+        assert hints.get('front') and hints['front'][0] > (gun['bounds'][0][0] + gun['bounds'][1][0]) / 2, hints
+    assert weapon_meshes(prepared) == ['weapon_gun', 'weapon_l_gun'], weapon_meshes(prepared)
+    # The baked frames and slides of both guns read one texture: one material,
+    # not tinted with the colour behind its connected Base Color, textured with
+    # the UV map the material reads ("BakeUV", exported first).
+    baked = {f['material'] for m in prepared['meshes'] if m['name'].startswith('weapon_') for f in m['faces'] if 'baked' in f['material']}
+    assert len(baked) == 1, baked
+    material = next(iter(baked))
+    assert prepared['materials'][material]['color'] == [1.0, 1.0, 1.0] and prepared['materials'][material]['textures'].get('color'), prepared['materials'][material]
+    for mesh in (m for m in prepared['meshes'] if m['name'].startswith('weapon_')):
+        corners = [c for f in mesh['faces'] if f['material'] == material for c in f['corners']]
+        assert corners and all(tuple(round(v, 3) for v in mesh['uvs'][0][c]) == (.25, .75) for c in corners), mesh['name']
+    assert any('became one material' in w for w in prepared['warnings']), prepared['warnings']
+    assert [h['side'] for h in prepared['weapon']['hands']] == ['right', 'left'], prepared['weapon']
+    assert charm_anchors(prepared) == {'gun_file_charm_pivot.R': 'weaponHand_R', 'gun_file_charm_pivot.L': 'weaponHand_L'}, charm_anchors(prepared)
+    for side, mesh in (('R', 'weapon_gun'), ('L', 'weapon_l_gun')):
+        exported = next(m for m in prepared['meshes'] if m['name'] == mesh)
+        charm = {name for row in exported['weights'] for name, _ in row if 'charm' in name}
+        assert charm == {'dmb_secondary_gun_file_charm_pivot.' + side, 'dmb_secondary_gun_file_charm_body.' + side}, (mesh, charm)
+    results.append({'case': 'dual_gun_character', 'validated': validated})
+
+    # A hero with one gun: the right gun of the pair is used and the left gun
+    # (with its charm) is left out.
+    report, prepared, validated = run_case('dual_gun_single_hero', character, action='replace', gun_file=dual_blend)
+    assert weapon_meshes(prepared) == ['weapon_gun'], weapon_meshes(prepared)
+    assert not any(m['name'].startswith('gun_file_') for m in prepared['meshes']), [m['name'] for m in prepared['meshes']]
+    assert charm_anchors(prepared) == {'gun_file_charm_pivot.R': 'weapon'}, charm_anchors(prepared)
+    results.append({'case': 'dual_gun_single_hero', 'validated': validated})
+
+    # One gun in both hands: the left hand gets a copy of the right gun (its
+    # charm stays rigid on the copy); the file's left gun is left out.
+    os.environ['DMB_PROBE_DUAL'] = '1'
+    os.environ['DMB_PROBE_LEFT'] = 'copy'
+    try:
+        report, prepared, validated = run_case('dual_gun_copy', character, action='replace', gun_file=dual_blend)
+    finally:
+        os.environ.pop('DMB_PROBE_DUAL', None)
+        os.environ.pop('DMB_PROBE_LEFT', None)
+    assert weapon_meshes(prepared) == ['weapon_gun', 'weapon_l_gun'], weapon_meshes(prepared)
+    assert prepared['weapon']['hands'][1]['copy'], prepared['weapon']
+    assert charm_anchors(prepared) == {'gun_file_charm_pivot.R': 'weaponHand_R'}, charm_anchors(prepared)
+    results.append({'case': 'dual_gun_copy', 'validated': validated})
 finally:
     os.environ.pop('DMB_PROBE_PHYSICS', None)
 

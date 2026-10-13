@@ -85,10 +85,13 @@ pub struct WeaponFileRecord {
     pub source_sha256: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hand: Option<String>,
+    /// The left hand, which holds the second gun of a pair.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub left_hand: Option<String>,
 }
 impl WeaponFileRecord {
     pub fn request(&self) -> crate::weapon::GunFile {
-        crate::weapon::GunFile { source: self.source.clone(), hand: self.hand.clone() }
+        crate::weapon::GunFile { source: self.source.clone(), hand: self.hand.clone(), left_hand: self.left_hand.clone() }
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -353,6 +356,7 @@ impl PreparationService {
                 source: path_text(&local)?,
                 source_sha256: digest(&local)?,
                 hand: None,
+                left_hand: None,
             })
         } else {
             None
@@ -481,13 +485,16 @@ impl PreparationService {
             }
         }
         // The gun file joins the finished scene in a last pass, held by the
-        // right hand the native recognition found; conversion repeats it.
+        // right hand the native recognition found (a pair's second gun by the
+        // left hand); conversion repeats it.
         if let Some(record) = &mut weapon_file {
-            record.hand = if info.bones.is_empty() {
-                None
+            let roles = if info.bones.is_empty() {
+                BTreeMap::new()
             } else {
-                crate::automap::roles(&info.bones, &info.weighted_bones, &Default::default())?.roles.get("hand_R").cloned()
+                crate::automap::roles(&info.bones, &info.weighted_bones, &Default::default())?.roles
             };
+            record.hand = roles.get("hand_R").cloned();
+            record.left_hand = roles.get("hand_L").cloned();
             inputs.breast_bones = breast_generation.clone();
             inputs.weapon_source = Some(record.request());
             let with_gun: Inspection = self.step("Add the gun file in Blender", || {
@@ -542,7 +549,7 @@ impl PreparationService {
         let mut analysis = analysis;
         analysis.weapon_suggestion = weapon_suggestion(project, &analysis);
         self.step("Save preparation analysis", || {
-            write_json(&root.join("analysis.json"), &analysis)
+            Ok(deadlock_core::safety::write_json_compact(&root.join("analysis.json"), &analysis)?)
         })?;
         Ok(analysis)
     }
@@ -739,11 +746,9 @@ impl PreparationService {
             crate::fitting::check_policy(&options, &report.rest_alignment.policy)?;
         }
         if let Some(plan) = &weapon_plan {
-            // Record which original meshes the fitted gun replaces for the hand-off.
+            // Record which original meshes each fitted gun replaces for the hand-off.
             let mut audit = report.algorithm_audits.get("weapon").cloned().unwrap_or(serde_json::Value::Null);
-            if let Some(object) = audit.as_object_mut() {
-                object.insert("replace".into(), serde_json::to_value(&plan.replace)?);
-            }
+            crate::weapon::record_replacements(&mut audit, plan);
             report.algorithm_audits.insert("weapon".into(), audit);
         } else if correction {
             // Corrections keep the previous gun fit and its mesh mapping.
@@ -807,6 +812,9 @@ impl PreparationService {
                 ));
             }
         }
+        // The DMX holds the geometry now; the receipt keeps each mesh's name,
+        // counts, materials, bones and audits (a full copy was hundreds of MB).
+        report.meshes = report.meshes.iter().map(export::PreparedMesh::slim).collect();
         let mut export_validation: ValidationReceipt =
             serde_json::from_value(serde_json::to_value(exported)?)?;
         // The compile template/reference retains only original hero authority.
@@ -850,7 +858,13 @@ impl PreparationService {
             Ok((receipt,report_path))
         })?;
         self.step("Save preparation provenance", || {
-            write_json(&report_path, &receipt)
+            deadlock_core::safety::write_json_compact(&report_path, &receipt)?;
+            // The Blender result is in the receipt and the DMX now.
+            let raw = destination.join("blender-result.json");
+            if raw.is_file() {
+                fs::remove_file(&raw)?;
+            }
+            Ok(())
         })?;
         Ok(PreparationResult {
             dmx: path_text(&dmx)?,
@@ -927,24 +941,46 @@ pub fn review_issues(
     }
     Ok(issues)
 }
-/// Default gun handling for a fresh inspection.
+/// Default gun handling for a fresh inspection (a gun in each hand of a
+/// dual-wield hero).
 pub fn weapon_suggestion(project: &Project, analysis: &Analysis) -> Option<crate::weapon::Choice> {
-    let candidates = &analysis.analysis.weapons;
-    if candidates.is_empty() {
+    if analysis.analysis.weapons.is_empty() {
         return None;
     }
     let roles = analysis.suggestions.source.as_ref().map(|s| s.roles.clone()).unwrap_or_default();
-    let weapon_model = project.model_input_mode == ModelInputMode::Weapon;
-    let best = crate::weapon::suggest(candidates, &analysis.analysis.bones, &roles, weapon_model)?;
-    let reference = analysis.weapon_reference.as_ref();
-    let action = if weapon_model || reference.is_some_and(|r| !r.meshes.is_empty()) {
-        "replace"
-    } else if reference.is_some_and(|r| r.notes.iter().any(|n| n.contains("separate model"))) {
-        "remove"
-    } else {
-        "keep"
-    };
-    Some(crate::weapon::Choice { enabled: true, action: action.into(), objects: best.objects.clone(), ..Default::default() })
+    let target = target_bones(analysis);
+    crate::weapon::suggest_choice(&gun_context(project, analysis, &roles, &target, None))
+}
+
+/// Hero bones with their bind matrices, as the gun fit measures them.
+fn target_bones(analysis: &Analysis) -> Vec<Bone> {
+    analysis
+        .target
+        .iter()
+        .map(|b| {
+            let mut bone = Bone::from(b);
+            bone.details.insert("matrix".into(), serde_json::to_value(b.matrix).unwrap_or_default());
+            bone
+        })
+        .collect()
+}
+
+fn gun_context<'a>(
+    project: &Project,
+    analysis: &'a Analysis,
+    roles: &'a BTreeMap<String, String>,
+    target: &'a [Bone],
+    body_scale: Option<f64>,
+) -> crate::weapon::Context<'a> {
+    crate::weapon::Context {
+        candidates: &analysis.analysis.weapons,
+        reference: analysis.weapon_reference.as_ref(),
+        source: &analysis.analysis.bones,
+        roles,
+        target,
+        body_scale,
+        weapon_model: project.model_input_mode == ModelInputMode::Weapon,
+    }
 }
 
 /// Body scale used by "keep the gun's size relative to the body".
@@ -963,76 +999,22 @@ fn body_scale(analysis: &Analysis, options: &PreparationOptions) -> Option<f64> 
     Some(target / source)
 }
 
-/// The gun fit requested in options.weapon, or None when the gun is not customized.
+/// The gun fit requested in options.weapon (each hand of a dual-wield hero),
+/// or None when the gun is not customized.
 pub fn weapon_plan(project: &Project, analysis: &Analysis, options: &PreparationOptions) -> Result<Option<crate::weapon::Plan>> {
     let choice = crate::weapon::choice(options)?;
-    let weapon_model = project.model_input_mode == ModelInputMode::Weapon;
-    if !weapon_model && (!choice.enabled || choice.action == "keep" || choice.action.is_empty()) {
-        return Ok(None);
-    }
-    if choice.objects.is_empty() {
-        if weapon_model {
-            return Ok(None);
-        }
-        return Err(invalid("Choose which object in the source is the gun (Weapon tab)."));
-    }
-    let wanted: std::collections::BTreeSet<_> = choice.objects.iter().collect();
-    let candidate = analysis
-        .analysis
-        .weapons
-        .iter()
-        .find(|c| c.objects.iter().collect::<std::collections::BTreeSet<_>>() == wanted)
-        .ok_or_else(|| invalid("The chosen gun is no longer in the inspected source. Inspect the source again and choose the gun in the Weapon tab."))?;
-    if choice.action == "remove" && !weapon_model {
-        return Ok(Some(crate::weapon::removal(candidate)));
-    }
-    let reference = analysis
-        .weapon_reference
-        .as_ref()
-        .ok_or_else(|| invalid("The hero's original gun has not been measured. Inspect the source again."))?;
-    if !weapon_model && reference.meshes.is_empty() {
-        return Err(invalid(
-            "This hero's gun is a separate model, so it cannot be replaced from the character file. Use Equipment → Weapon model to create a weapon project for it, and choose 'Leave it out' here.",
-        ));
-    }
     let source_roles: BTreeMap<String, String> = options.values.get("source_roles").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
-    let target: Vec<Bone> = analysis
-        .target
-        .iter()
-        .map(|b| {
-            let mut bone = Bone::from(b);
-            bone.details.insert("matrix".into(), serde_json::to_value(b.matrix).unwrap_or_default());
-            bone
-        })
-        .collect();
-    let fit = crate::weapon::fit(candidate, reference, &choice, &analysis.analysis.bones, &source_roles, &target, body_scale(analysis, options))?;
-    Ok(Some(crate::weapon::plan(&fit, candidate, reference, if weapon_model { "weapon_model" } else { "replace" })))
+    let target = target_bones(analysis);
+    crate::weapon::plan_choice(&choice, &gun_context(project, analysis, &source_roles, &target, body_scale(analysis, options)))
 }
 
-/// Fit preview for the Weapon tab (no Blender run).
+/// Fit preview for the Weapon tab (no Blender run): each hand of a dual-wield
+/// hero, with the hero's body around the guns.
 pub fn weapon_preview(project: &Project, analysis: &Analysis, options: &PreparationOptions) -> Result<crate::weapon::Preview> {
     let choice = crate::weapon::choice(options)?;
-    let wanted: std::collections::BTreeSet<_> = choice.objects.iter().collect();
-    let candidate = analysis
-        .analysis
-        .weapons
-        .iter()
-        .find(|c| c.objects.iter().collect::<std::collections::BTreeSet<_>>() == wanted)
-        .ok_or_else(|| invalid("Choose which object in the source is the gun."))?;
-    let reference = analysis.weapon_reference.as_ref().ok_or_else(|| invalid("The hero's original gun has not been measured. Inspect the source again."))?;
-    let _ = project;
     let source_roles: BTreeMap<String, String> = options.values.get("source_roles").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
-    let target: Vec<Bone> = analysis
-        .target
-        .iter()
-        .map(|b| {
-            let mut bone = Bone::from(b);
-            bone.details.insert("matrix".into(), serde_json::to_value(b.matrix).unwrap_or_default());
-            bone
-        })
-        .collect();
-    let fit = crate::weapon::fit(candidate, reference, &choice, &analysis.analysis.bones, &source_roles, &target, body_scale(analysis, options))?;
-    Ok(crate::weapon::preview(&fit, candidate, reference))
+    let target = target_bones(analysis);
+    crate::weapon::preview_choice(&choice, &gun_context(project, analysis, &source_roles, &target, body_scale(analysis, options)))
 }
 
 pub fn validate_review(
@@ -1095,6 +1077,28 @@ pub fn mesh_template(bones: &[PreparedBone], meshes: &[export::PreparedMesh]) ->
         render.join(" ")
     ))
 }
+/// Prepared materials whose path changed but kept their identity (the hash of
+/// the full Blender material name at the end): old path -> new path.
+fn renamed_materials<'a>(old: impl Iterator<Item = &'a String>, new: &BTreeMap<String, MaterialChoices>) -> BTreeMap<String, String> {
+    let identity = |path: &str| -> Option<String> {
+        let (folder, file) = path.rsplit_once('/')?;
+        let (_, hash) = file.strip_suffix(".vmat")?.rsplit_once('_')?;
+        (folder.ends_with("/materials/prepared") && hash.len() == 8 && hash.bytes().all(|b| b.is_ascii_hexdigit())).then(|| format!("{folder}/{hash}"))
+    };
+    let mut by_identity: BTreeMap<String, Vec<&String>> = BTreeMap::new();
+    for path in new.keys() {
+        if let Some(key) = identity(path) {
+            by_identity.entry(key).or_default().push(path);
+        }
+    }
+    old.filter(|path| !new.contains_key(*path))
+        .filter_map(|path| {
+            let found = by_identity.get(&identity(path)?)?;
+            (found.len() == 1).then(|| (path.clone(), found[0].clone()))
+        })
+        .collect()
+}
+
 pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project> {
     if result.target_model != project.original_model {
         return Err(invalid("Prepared result targets another hero."));
@@ -1128,15 +1132,22 @@ pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project>
             }
         }
         p.review_lods = project.review_lods && p.meshes.len() == project.meshes.len();
+        // A material whose readable name was shortened keeps its identity
+        // hash; its choices and surface changes follow it to the new path.
+        let renamed = renamed_materials(project.materials.keys(), &p.materials);
         for (name, settings) in &project.materials {
+            let name = renamed.get(name).unwrap_or(name);
             if p.materials.contains_key(name) { p.materials.insert(name.clone(), settings.clone()); }
+        }
+        if let Some(rows) = p.customization.appearance.as_mut().and_then(|a| a.materials.as_mut()) {
+            for row in rows {
+                if let Some(path) = row.target.as_ref().and_then(|t| renamed.get(t)) { row.target = Some(path.clone()); }
+            }
         }
         if !project.textures.is_empty() { p.textures = project.textures.clone(); }
     }
     if let Some(weapon) = report.prepared.algorithm_audits.get("weapon").filter(|w| !w.is_null()) {
-        let meshes: Vec<String> = serde_json::from_value(weapon.get("meshes").cloned().unwrap_or_default()).unwrap_or_default();
-        let replace: Vec<String> = serde_json::from_value(weapon.get("replace").cloned().unwrap_or_default()).unwrap_or_default();
-        p.meshes.extend(crate::weapon::mesh_mappings(&meshes, &replace));
+        p.meshes.extend(crate::weapon::receipt_mappings(weapon));
     }
     p.preparation_options = report.options;
     if p.preparation_options.values.get("automatic_secondary_motion").and_then(|v|v.as_bool())==Some(true)
@@ -1300,4 +1311,32 @@ pub fn required_prop_meshes(project: &Project) -> Result<Vec<String>> {
         ));
     }
     Ok(receipt.attached_prop_meshes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn shortened_material_names_keep_their_choices_by_identity_hash() {
+        let root = "models/heroes_staging/haze/materials/prepared";
+        let new: BTreeMap<String, MaterialChoices> = [
+            format!("{root}/optional_frost___translu_2362886d.vmat"),
+            format!("{root}/cloth1_122bd52d.vmat"),
+            format!("{root}/a_0000000a.vmat"),
+            format!("{root}/b_0000000a.vmat"),
+        ]
+        .into_iter()
+        .map(|k| (k, MaterialChoices::default()))
+        .collect();
+        let old = [
+            format!("{root}/optional_frost___translucent_pale_ice_2362886d.vmat"),
+            format!("{root}/cloth1_122bd52d.vmat"),
+            format!("{root}/long_name_of_a_0000000a.vmat"),
+            "models/heroes_staging/haze/materials/other/frost_2362886d.vmat".to_string(),
+        ];
+        let renamed = renamed_materials(old.iter(), &new);
+        // Unchanged paths need nothing; two new paths with one hash are ambiguous;
+        // only the prepared-material folder counts.
+        assert_eq!(renamed, BTreeMap::from([(old[0].clone(), format!("{root}/optional_frost___translu_2362886d.vmat"))]));
+    }
 }

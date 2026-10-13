@@ -4,6 +4,7 @@ Bone matrices are coordinate frames, not anatomical directions. Foreign rolls an
 Valve authoring axes must never be baked into the replacement's rest geometry.
 Use reviewed joint positions for alignment; leave the target bind matrices intact.
 """
+import re
 import numpy as np
 from leg_chains import equivalents, POLICY as LEG_CHAINS_POLICY
 from arm_helpers import detect as arm_matches, POLICY as ARM_POLICY
@@ -11,6 +12,10 @@ from arm_helpers import detect as arm_matches, POLICY as ARM_POLICY
 POLICY = 'anatomical-rest-alignment-v1'
 PROPORTIONS_POLICY = 'source-proportions-v1'
 ARM_FIT_POLICY = 'joint-centered-arm-fit-v1'
+FINGER_CURL_POLICY = 'hero-finger-rest-curl-v1'
+FINGER = re.compile(r'^finger_(thumb|index|middle|ring|pinky)_(\d+)_([LR])$')
+# A finger turned further than this is mapped to the wrong hero finger.
+FINGER_MAX_DEGREES = 100.
 FIT_MODES = {'match_target', 'preserve_proportions'}
 NEXT = {'pelvis': 'spine', 'spine': 'chest', 'chest': 'neck', 'neck': 'head',
         **{a+'_'+s: b+'_'+s for s in ('L', 'R') for a, b in
@@ -205,7 +210,83 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
                     'inherited_secondary_rotations': inherited}
 
 
-def rest_maps(source, target, mapping, source_roles, target_roles, source_parents, follow_anchors=None, anchor_mapping=None, fit_mode='match_target', source_bones=None, target_bones=None, fit_arm_joints=True):
+def _turn(a, b):
+    """The smallest rotation taking direction a onto direction b (None when opposite)."""
+    a, b = a / np.linalg.norm(a), b / np.linalg.norm(b)
+    axis, cos = np.cross(a, b), float(np.clip(a @ b, -1., 1.))
+    sin = float(np.linalg.norm(axis))
+    if sin < 1e-9:
+        return np.eye(3) if cos > 0 else None
+    k = axis / sin
+    cross = np.array([[0., -k[2], k[1]], [k[2], 0., -k[0]], [-k[1], k[0], 0.]])
+    return np.eye(3) + sin * cross + (1. - cos) * cross @ cross
+
+
+def finger_curl(result, source, target, mapping, source_parents, follow_anchors, snapped):
+    """Bend each mapped finger segment to the hero's rest direction.
+
+    Fingers otherwise take the hand's rotation, so straight source fingers stay
+    straight while the hero's bind bones are bent; the game adds the hero's grip
+    to its bent rest pose, and the fingers stay open around a gun. Each segment
+    keeps its source length and turns about its joint: the hero joint when
+    joints are snapped to the hero (match_target), otherwise where the bent
+    parent segment puts it. Target bind matrices are unchanged."""
+    inverse = {}
+    for name, dest in mapping.items():
+        if name in result and name not in follow_anchors:
+            inverse.setdefault(dest, name)
+    children = {}
+    for name, parent in source_parents.items():
+        children.setdefault(parent, []).append(name)
+    sp = {n: np.asarray(m, dtype=float)[:3, 3] for n, m in source.items()}
+    tp = {n: np.asarray(m, dtype=float)[:3, 3] for n, m in target.items()}
+    fingers = []
+    for dest in inverse:
+        match = FINGER.match(dest)
+        if match:
+            fingers.append((match.group(3), match.group(1), int(match.group(2)), dest))
+    turns, fitted, segments, skipped = {}, {}, [], []
+    for side, finger, index, dest in sorted(fingers):
+        name = inverse[dest]
+        matrix = np.asarray(result[name], dtype=float)
+        rotation = matrix[:3, :3]
+        parent = inverse.get(f'finger_{finger}_{index - 1}_{side}')
+        if parent in fitted and not snapped:
+            pivot = (fitted[parent] @ np.r_[sp[name], 1.])[:3]
+        else:
+            pivot = (matrix @ np.r_[sp[name], 1.])[:3]
+        following = next((t for t in (f'finger_{finger}_{index + 1}_{side}', f'finger_{finger}_end_{side}') if t in tp), None)
+        turn = None
+        if following:
+            if following in inverse:
+                tip = sp[inverse[following]]
+            else:
+                axis = np.asarray(source[name], dtype=float)[:3, 1]
+                kids = [sp[c] for c in children.get(name, ()) if c in sp and (sp[c] - sp[name]) @ axis > 1e-6]
+                tip = max(kids, key=lambda p: (p - sp[name]) @ axis) if kids else sp[name] + axis
+            segment, goal = rotation @ (tip - sp[name]), tp[following] - tp[dest]
+            if np.linalg.norm(segment) > 1e-7 and np.linalg.norm(goal) > 1e-7:
+                degrees = float(np.degrees(np.arccos(np.clip(segment @ goal / np.linalg.norm(segment) / np.linalg.norm(goal), -1., 1.))))
+                turn = _turn(segment, goal)
+                if turn is None or degrees > FINGER_MAX_DEGREES:
+                    skipped.append({'bone': name, 'target': dest, 'degrees': round(degrees, 1)})
+                    turn = None
+                elif degrees >= .5:
+                    segments.append({'bone': name, 'target': dest, 'degrees': round(degrees, 1)})
+        if turn is None:
+            # No hero direction: keep the bent parent's turn so the tip stays in line.
+            turn = turns.get(parent)
+        if turn is None:
+            continue
+        bent = np.eye(4)
+        bent[:3, :3] = turn @ rotation
+        bent[:3, 3] = pivot - bent[:3, :3] @ sp[name]
+        turns[name], fitted[name] = turn, bent
+    result.update(fitted)
+    return {'policy': FINGER_CURL_POLICY, 'segments': segments, 'skipped': skipped}
+
+
+def rest_maps(source, target, mapping, source_roles, target_roles, source_parents, follow_anchors=None, anchor_mapping=None, fit_mode='match_target', source_bones=None, target_bones=None, fit_arm_joints=True, fit_finger_curl=True):
     """Return rigid anatomical transforms; never copy foreign bone roll.
 
     Non-primary weighted bones inherit the closest reviewed ancestor's rotation
@@ -257,6 +338,8 @@ def rest_maps(source, target, mapping, source_roles, target_roles, source_parent
         result, audit = proportion_maps(source, target, mapping, source_roles, target_roles, source_parents,
                                follow_anchors, sf, tf, parallel, matched, fit_arm_joints)
         audit.update(arm_deformation_policy=ARM_POLICY, arm_deformation=matched)
+        if fit_finger_curl:
+            audit['finger_curl'] = finger_curl(result, source, target, mapping, source_parents, follow_anchors, snapped=False)
         return result, audit
     source_role = {name: role for role, name in source_roles.items()}
     source_role.update({name: source_role[primary] for name, primary in parallel.items()})
@@ -294,8 +377,11 @@ def rest_maps(source, target, mapping, source_roles, target_roles, source_parent
         matrix[:3, 3] = np.asarray(target[geometry_dest])[:3, 3] - rotation @ np.asarray(source[geometry_anchor])[:3, 3]
         result[name] = matrix
         if anchor != name: inherited.append({'bone': name, 'target': dest, 'rotation_from_role': role})
-    return result, {'policy': 'ancestor-offset-preservation-v1' if follow_anchors else POLICY,
-                    'arm_deformation_policy': ARM_POLICY, 'arm_deformation': matched,
-                    'parallel_leg_policy': LEG_CHAINS_POLICY, 'parallel_leg_joints': parallel,
-                    'following_anchors': dict(follow_anchors), 'foreign_bone_axes_used_for_geometry': False,
-                    'target_bind_matrices_modified': False, 'inherited_secondary_rotations': inherited}
+    audit = {'policy': 'ancestor-offset-preservation-v1' if follow_anchors else POLICY,
+             'arm_deformation_policy': ARM_POLICY, 'arm_deformation': matched,
+             'parallel_leg_policy': LEG_CHAINS_POLICY, 'parallel_leg_joints': parallel,
+             'following_anchors': dict(follow_anchors), 'foreign_bone_axes_used_for_geometry': False,
+             'target_bind_matrices_modified': False, 'inherited_secondary_rotations': inherited}
+    if fit_finger_curl:
+        audit['finger_curl'] = finger_curl(result, source, target, mapping, source_parents, follow_anchors, snapped=True)
+    return result, audit

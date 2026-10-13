@@ -180,7 +180,7 @@ fn a_differently_shaped_gun_in_the_hand_is_fitted_onto_the_hero_gun() {
     let candidate = weapon::Candidate {
         id: "Rifle".into(), objects: vec!["Rifle".into()], vertices: sample.len() as u64,
         bounds: [[-0.8, -0.6, 1.3], [-0.7, 0.1, 1.6]], sample, attach_bone: Some("hand_R".into()),
-        attach_kind: "bone_parent".into(), keywords: vec![], elongation: 4., gun_file: false, bones: vec![],
+        attach_kind: "bone_parent".into(), keywords: vec![], elongation: 4., gun_file: false, bones: vec![], side: None, hints: Default::default(), shape: Default::default(),
     };
     let fit = weapon::fit(&candidate, &reference, &weapon::Choice::default(), &source, &roles, &bones, None).unwrap();
     // The barrel lines up with the hero barrel, the grip sits at the hero grip.
@@ -252,4 +252,77 @@ fn choices_are_validated_and_mesh_mappings_replace_every_gun_lod() {
     let mappings = weapon::mesh_mappings(&["weapon_Gun".into(), "weapon_Mag".into()], &["gun".into(), "gun_lod1".into()]);
     assert_eq!(mappings.len(), 2);
     assert_eq!(serde_json::to_value(&mappings["gun_lod1"]).unwrap(), json!(["weapon_Gun", "weapon_Mag"]));
+}
+
+#[test]
+fn a_dual_wield_hero_has_one_gun_per_hand_and_each_is_measured_on_its_own() {
+    // Haze holds a pistol in each hand: haze_gun_l on the left weapon bones,
+    // haze_gun_r on the right ones, each with a lower detail level.
+    let (skeleton, target) = hero();
+    let bones = bones(&target);
+    let find = |n: &str| bones.iter().find(|b| b.name == n).unwrap().position;
+    let (f, u) = ([0., -1., 0.], [0., 0., 1.]);
+    let body = mesh("body", &[(cuboid([0., 0., 60.], [1., 0., 0.], [0., 0., 1.], [10., 30., 10.]), "pelvis".into())]);
+    let gun_r = mesh("gun_r", &gun_parts(find("hand_R"), f, u, 25., "weaponHand_R", "weaponHand_R", false));
+    let gun_l = mesh("gun_l", &gun_parts(find("hand_L"), f, u, 25., "weaponHand_L", "weaponHand_L", false));
+    let report: PreparedReport = serde_json::from_value(json!({"meshes": [body, gun_r, gun_l]})).unwrap();
+    let base = tempfile::tempdir().unwrap();
+    let file = base.path().join("models/heroes_staging/dual/dual.dmx");
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    export_dmx(&report, &skeleton, &file).unwrap();
+    let node = |name: &str, filter: &str| format!(r#"{{ _class = "RenderMeshFile" name = "{name}" filename = "models/heroes_staging/dual/dual.dmx" import_filter = {{ exclude_by_default = true exception_list = [ "{filter}" ] }} }}"#);
+    let vmdl = format!(
+        "<!-- kv3 encoding:text:version{{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}} format:modeldoc29:version{{3cec427c-1b0e-4d48-a90a-0436f33a6041}} -->\n{{ rootNode = {{ _class = \"RootNode\" children = [ {{ _class = \"RenderMeshList\" children = [ {} {} {} {} {} ] }} ] }} }}",
+        node("body", "body"), node("gun_r", "gun_r"), node("gun_l", "gun_l"), node("gun_r_LOD1", "gun_r"), node("gun_l_LOD1", "gun_l")
+    );
+    let reference = weapon::reference_from_sources(base.path(), &vmdl, &target, false, &deadlock_core::CancellationToken::new()).unwrap();
+    assert!(reference.dual(), "{:?}", reference.sides.iter().map(|s| (&s.side, &s.meshes)).collect::<Vec<_>>());
+    let right = reference.hand("right");
+    let left = reference.hand("left");
+    assert_eq!(right.meshes, vec!["gun_r".to_string(), "gun_r_LOD1".to_string()]);
+    assert_eq!(left.meshes, vec!["gun_l".to_string(), "gun_l_LOD1".to_string()]);
+    assert_eq!((right.bones.clone(), left.bones.clone()), (vec!["weaponHand_R".to_string()], vec!["weaponHand_L".to_string()]));
+    assert!(!reference.body.is_empty(), "the hero body is sampled for the preview");
+    // Each hand's gun is measured where it is: the right grip in the right hand, the left in the left.
+    let frame_r = weapon::target_frame(&right, &bones).unwrap();
+    let frame_l = weapon::target_frame(&left, &bones).unwrap();
+    assert!(dist(frame_r.grip, find("hand_R")) < dist(frame_r.grip, find("hand_L")), "{:?}", frame_r.grip);
+    assert!(dist(frame_l.grip, find("hand_L")) < dist(frame_l.grip, find("hand_R")), "{:?}", frame_l.grip);
+    assert!(dot(frame_r.forward, f) > 0.9 && dot(frame_l.forward, f) > 0.9, "{:?} {:?}", frame_r.forward, frame_l.forward);
+}
+
+#[test]
+fn decompiled_guns_without_a_bind_list_or_with_a_null_bind_state_are_still_read() {
+    // Haze's decompiled gun files have no named bind list and a null bindState
+    // (the vertices are in currentState). They must still be read as guns,
+    // never reported as a separate weapon model.
+    let (skeleton, target) = hero();
+    let bones = bones(&target);
+    let find = |n: &str| bones.iter().find(|b| b.name == n).unwrap().position;
+    let (f, u) = ([0., -1., 0.], [0., 0., 1.]);
+    let gun = mesh("gun", &gun_parts(find("hand_R"), f, u, 25., "weaponHand_R", "weaponHand_R", false));
+    let report: PreparedReport = serde_json::from_value(json!({"meshes": [gun]})).unwrap();
+    let base = tempfile::tempdir().unwrap();
+    let file = base.path().join("models/heroes_staging/quirk/quirk_gun.dmx");
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    export_dmx(&report, &skeleton, &file).unwrap();
+    let dmx = deadlock_dmx::Dmx::load(&file).unwrap();
+    let mut edits = deadlock_dmx::Rewrite::default();
+    for (index, element) in dmx.elements.iter().enumerate() {
+        if element.kind == "DmeTransformList" && element.name == "bind" {
+            edits.names.insert(index, "pose".into());
+        }
+        if element.kind == "DmeMesh" {
+            edits.attributes.insert((index, "bindState".into()), (-1i32).to_le_bytes().to_vec());
+        }
+    }
+    assert!(!edits.names.is_empty() && !edits.attributes.is_empty());
+    std::fs::write(&file, dmx.rewrite_binary9(&edits).unwrap()).unwrap();
+    let vmdl = r#"<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc29:version{3cec427c-1b0e-4d48-a90a-0436f33a6041} -->
+{ rootNode = { _class = "RootNode" children = [ { _class = "RenderMeshList" children = [
+  { _class = "RenderMeshFile" name = "quirk_gun" filename = "models/heroes_staging/quirk/quirk_gun.dmx" } ] } ] } }"#;
+    let reference = weapon::reference_from_sources(base.path(), vmdl, &target, false, &deadlock_core::CancellationToken::new()).unwrap();
+    assert_eq!(reference.source, "meshes", "{:?}", reference.notes);
+    assert_eq!(reference.meshes, vec!["quirk_gun".to_string()]);
+    assert!(reference.notes.iter().all(|n| !n.contains("separate model")), "{:?}", reference.notes);
 }

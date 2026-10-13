@@ -343,10 +343,24 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
     return groups
 
 
+def gun_hands(gun):
+    """The plan of each hand: the right (or only) gun, then a dual-wield hero's left gun."""
+    if not gun:
+        return []
+    return [gun] + ([gun['left']] if gun.get('left') else [])
+
+
+def removed_guns(gun):
+    """Candidate ids of the guns left out: left-out hands and unused gun-file guns."""
+    ids = ['+'.join(hand.get('objects', [])) for hand in gun_hands(gun) if hand.get('action') == 'remove']
+    return ids + ['+'.join(objects) for objects in (gun or {}).get('drop', [])]
+
+
 def selection(options, bones, weighted, source_roles, target_roles, target, gun=None):
     """gun: the weapon plan of this conversion. Moving parts hanging from a
-    replaced gun hang from its main weapon bone (plan anchor); those on a gun
-    that is left out are left out with it. Keep in sync with secondary_bones.rs."""
+    replaced gun hang from its main weapon bone (each hand's plan anchor);
+    those on a gun that is left out are left out with it. Keep in sync with
+    secondary_bones.rs."""
     enabled = options.get('preserve_physics_bones', False)
     if not isinstance(enabled, bool):
         raise ValueError('Keep existing physics bones must be on or off.')
@@ -355,9 +369,9 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
     roots = options.get('physics_roots', [])
     if not isinstance(roots, list) or not roots or any(not isinstance(n, str) for n in roots) or len(set(roots)) != len(roots):
         raise ValueError('Choose the detected physics groups to keep.')
-    gun_id = '+'.join(gun.get('objects', [])) if gun else None
-    if gun and gun.get('action') == 'remove':
-        roots = [r for r in roots if not on_gun(r, bones, source_roles, gun_id)]
+    removed = removed_guns(gun)
+    if removed:
+        roots = [r for r in roots if not any(on_gun(r, bones, source_roles, gun_id) for gun_id in removed)]
         if not roots:
             return None
     breasts = options.get('breast_motion')
@@ -367,12 +381,16 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
     if any(root not in choices for root in roots):
         raise ValueError('Saved physics groups are stale or unsupported. Inspect the original source again.')
     groups = [choices[n] for n in sorted(roots)]
-    if gun and gun.get('action') == 'replace':
+    # Each fitted gun carries its own charms (a copied gun's charms stay on the original gun).
+    for hand in gun_hands(gun):
+        if hand.get('action') != 'replace' or hand.get('copy'):
+            continue
+        hand_id = '+'.join(hand.get('objects', []))
         for group in groups:
-            if on_gun(group['root'], bones, source_roles, gun_id):
-                if not gun.get('anchor'):
+            if on_gun(group['root'], bones, source_roles, hand_id):
+                if not hand.get('anchor'):
                     raise ValueError('The fitted gun has no weapon bone for its charms. Inspect the source again.')
-                group['target_anchor'] = gun['anchor']
+                group['target_anchor'] = hand['anchor']
     names = [n for g in groups for n in g['source_bones']]
     if len(names) != len(set(names)) or len(names) > MAX_BONES:
         raise ValueError('Selected physics branches overlap or exceed 512 bones.')

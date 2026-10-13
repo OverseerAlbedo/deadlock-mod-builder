@@ -185,6 +185,91 @@ def _convert_to_mesh(bpy, obj):
     return mesh
 
 
+def _sampled_uv(obj):
+    """The UV map the object's materials read their images with: a UV Map
+    node's map, or the render UV map for image nodes without one (as Blender
+    draws them). None when they read no image or disagree."""
+    mesh = obj.data
+    layers = {layer.name for layer in mesh.uv_layers}
+    render = next((layer.name for layer in mesh.uv_layers if layer.active_render), mesh.uv_layers[0].name)
+    used = set()
+    for slot in obj.material_slots:
+        tree = slot.material.node_tree if slot.material else None
+        for node in tree.nodes if tree else ():
+            if node.type != 'TEX_IMAGE' or not node.image or not any(output.is_linked for output in node.outputs):
+                continue
+            source = node.inputs['Vector']
+            for _ in range(4):  # through Mapping and Reroute nodes
+                if not source.is_linked or source.links[0].from_node.type not in ('MAPPING', 'REROUTE'):
+                    break
+                source = source.links[0].from_node.inputs[0]
+            if not source.is_linked:
+                used.add(render)
+                continue
+            link = source.links[0]
+            if link.from_node.type == 'UVMAP':
+                used.add(link.from_node.uv_map or render)
+            elif link.from_node.type == 'TEX_COORD' and link.from_socket.name == 'UV':
+                used.add(render)
+            elif link.from_node.type == 'ATTRIBUTE':
+                used.add(link.from_node.attribute_name)
+            # Generated, Object and other coordinates are not UV maps.
+    used &= layers
+    return next(iter(used)) if len(used) == 1 else None
+
+
+def sampled_uv_first(obj):
+    """Make the UV map the materials read their images with the first one.
+    The export writes UV maps in order and the game textures with the first,
+    while Blender draws an image with whichever map its material names (a
+    baked atlas on "BakeUV" next to the original "UVMap"). The two maps swap
+    their data and names, so every node still finds its map. Returns True
+    when the order changed."""
+    mesh = obj.data
+    if len(mesh.uv_layers) < 2:
+        return False
+    name = _sampled_uv(obj)
+    if not name or mesh.uv_layers[0].name == name:
+        return False
+    first, chosen = mesh.uv_layers[0], mesh.uv_layers[name]
+    a = np.empty(len(mesh.loops) * 2, dtype=np.float32)
+    b = np.empty_like(a)
+    first.data.foreach_get('uv', a)
+    chosen.data.foreach_get('uv', b)
+    first.data.foreach_set('uv', b)
+    chosen.data.foreach_set('uv', a)
+    old = first.name
+    first.name = '__dmb_uv_swap'
+    chosen.name = old
+    first.name = name
+    first.active_render = True
+    mesh.uv_layers.active_index = 0
+    return True
+
+
+def triangulate_ngons(obj):
+    """Split faces with more than four corners into triangles before export:
+    Blender computes tangents only for triangles and quads (and the game
+    triangulates anyway). Triangles and quads stay as they are; vertices, UVs,
+    colours, weights and custom normals are kept. Meshes with shape keys are left
+    alone. Returns the number of faces that were split."""
+    mesh = obj.data
+    # Only meshes that get tangents (they have UVs) need it; others export as before.
+    if mesh.shape_keys or not mesh.uv_layers or not any(polygon.loop_total > 4 for polygon in mesh.polygons):
+        return 0
+    import bmesh
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh)
+        faces = [face for face in bm.faces if len(face.verts) > 4]
+        bmesh.ops.triangulate(bm, faces=faces, quad_method='BEAUTY', ngon_method='BEAUTY')
+        bm.to_mesh(mesh)
+    finally:
+        bm.free()
+    mesh.update()
+    return len(faces)
+
+
 def unbind_static(bpy, mesh):
     """Freeze a mesh at its rest shape in world space and drop its own rig binding."""
     world = mesh.matrix_world.copy()

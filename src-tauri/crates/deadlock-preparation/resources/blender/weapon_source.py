@@ -10,10 +10,13 @@ temporary character scene, after the character itself was isolated:
   gun is used at its saved rest shape;
 * every object is renamed ``gun_file_<name>`` so it is offered as the gun and
   never collides with a character object;
-* with a character rig, the gun is put in the right hand: its grip (the handle
-  below the barrel, measured like weapon.rs does) is moved onto the hand
-  unless the gun already sits there, and it is rigidly weighted to the hand,
-  so "Keep it in the hand" works too. Without a hand it keeps its position.
+* a file with a pair of guns (parts tagged [L]/[R], .L/.R or named left and
+  right, or weighted to such bones) gives a left and a right gun;
+* with a character rig, the gun is put in the right hand (the left gun of a
+  pair in the left hand): its grip (the handle below the barrel, measured like
+  weapon.rs does) is moved onto the hand unless the gun already sits there,
+  and it is rigidly weighted to the hand, so "Keep it in the hand" works too.
+  Without a hand it keeps its position.
 
 Each object gets a row in the scene-object receipt. The user's gun file is
 never written; only the staged workspace copy is read.
@@ -104,12 +107,279 @@ def grip_point(points):
     return points[along <= low + length * .35].mean(axis=0)
 
 
+def side_of(name):
+    """Which hand a name belongs to: 'left', 'right' or None. Tags such as
+    [L], (R), .L or _R decide first, then words (left, right, l, r, 左, 右).
+    Keep in sync with weapon.rs side_of."""
+    lower = name.lower()
+
+    def tagged(tag):
+        return ('[' + tag + ']' in lower or '(' + tag + ')' in lower
+                or lower.endswith('.' + tag) or lower.endswith('_' + tag))
+    left, right = tagged('l'), tagged('r')
+    if left != right:
+        return 'left' if left else 'right'
+    parts, word, previous_lower = [], '', False
+    for c in name:
+        if not c.isalnum():
+            if word:
+                parts.append(word.lower())
+                word = ''
+            previous_lower = False
+            continue
+        if c.isupper() and previous_lower and word:
+            parts.append(word.lower())
+            word = ''
+        previous_lower = c.islower()
+        word += c
+    if word:
+        parts.append(word.lower())
+    left = any(p == 'l' or p.startswith('left') for p in parts) or '左' in lower
+    right = any(p == 'r' or p.startswith('right') for p in parts) or '右' in lower
+    if left != right:
+        return 'left' if left else 'right'
+    return None
+
+
+def _dominant_group(obj):
+    """The vertex group carrying most of an object's weight (its own rig bone)."""
+    names = {g.index: g.name for g in obj.vertex_groups}
+    totals = {}
+    for vertex in obj.data.vertices:
+        for group in vertex.groups:
+            if group.weight > 0 and group.group in names:
+                totals[names[group.group]] = totals.get(names[group.group], 0.) + group.weight
+    return max(totals, key=totals.get) if totals else None
+
+
+def pair(gun, sides, keep):
+    """One gun, or a right and a left gun when the parts name their hands.
+
+    Returns [[side, parts], ...]: [[None, parts]] for one gun, otherwise the
+    right gun then the left gun. Each gun is its largest part and what touches
+    it (see connected); parts without a hand join the gun they touch."""
+    size = lambda parts: sum(len(m.data.vertices) for m in parts)
+    left = [m for m in gun if sides.get(m) == 'left']
+    right = [m for m in gun if sides.get(m) == 'right']
+    if not left or not right or min(size(left), size(right)) < .2 * max(size(left), size(right)):
+        kept, _ = connected(gun, keep)
+        return [[None, kept]]
+    guns = [['right', connected(right, keep)[0]], ['left', connected(left, keep)[0]]]
+    boxes = []
+    for _, parts in guns:
+        points = np.concatenate([iso.world_points(m) for m in parts])
+        box = iso.bounds(points)
+        boxes.append((box, float((box[1] - box[0]).max()) * .1, points.mean(axis=0)))
+    for mesh in gun:
+        if sides.get(mesh) is not None:
+            continue
+        points = iso.world_points(mesh)
+        box = iso.bounds(points)
+        touching = [i for i, (other, margin, _) in enumerate(boxes) if iso._overlaps(box, other, margin)]
+        if touching:
+            nearest = min(touching, key=lambda i: float(np.linalg.norm(points.mean(axis=0) - boxes[i][2])))
+            guns[nearest][1].append(mesh)
+    return guns
+
+
+def _place(rig, hand, parts, meshes):
+    """Put a gun's grip in a hand (when the hand exists and the gun is not
+    already there) and choose the bone that holds it.
+    Returns (bone, placed, offset): offset is the world move applied."""
+    from mathutils import Matrix
+    points = np.concatenate([iso.world_points(m) for m in parts])
+    if rig is not None and hand and hand in rig.data.bones:
+        data = rig.data.bones[hand]
+        matrix = np.asarray(rig.matrix_world, dtype=float)
+        palm = matrix[:3, :3] @ ((np.asarray(data.head_local) + np.asarray(data.tail_local)) / 2) + matrix[:3, 3]
+        span = float(np.linalg.norm(points.max(axis=0) - points.min(axis=0)))
+        if float(np.min(np.linalg.norm(points - palm, axis=1))) > span * .25:
+            move = palm - grip_point(points)
+            offset = Matrix.Translation(tuple(move))
+            for obj in parts:
+                obj.matrix_world = offset @ obj.matrix_world
+            return hand, True, move
+        return hand, False, np.zeros(3)
+    if rig is not None:
+        deform = {b.name for b in rig.data.bones if b.use_deform}
+        used = set()
+        for obj in meshes:
+            names = {g.index: g.name for g in obj.vertex_groups}
+            used.update(names[g.group] for v in obj.data.vertices for g in v.groups if g.weight > 0 and names.get(g.group) in deform)
+        return iso.nearest_bone(rig, points, used or deform), False, np.zeros(3)
+    return None, False, np.zeros(3)
+
+
+CHARM_WORDS = ('strap', 'tassel', 'ribbon', 'streamer')
+
+
+def _charm_chains(rig):
+    """Charms in the gun file's rig: a bone named as a charm (keychain,
+    pendant ...) or a strap/tassel/ribbon whose parent is not one, with all
+    bones below it (at most eight)."""
+    from secondary_bones import charm_named
+
+    def moving(name):
+        return charm_named(name) or any(word in name.lower() for word in CHARM_WORDS)
+    chains = []
+    for bone in rig.data.bones:
+        if moving(bone.name) and not (bone.parent and moving(bone.parent.name)):
+            members = [bone] + list(bone.children_recursive)
+            if len(members) <= 8:
+                chains.append(members)
+    return chains
+
+
+def _rest(rig, bone):
+    """World head, tail and z axis of a bone at rest."""
+    world = rig.matrix_world
+    z = (world.to_3x3() @ bone.matrix_local.to_3x3()).col[2]
+    return np.array(world @ bone.head_local), np.array(world @ bone.tail_local), np.array(z)
+
+
+def capture_charms(found, gun_rigs):
+    """Before the gun parts are frozen: the gun file's charm chains (bone rest
+    data, the holder bone above each chain) and each part's charm weights.
+    Returns (chains, weights)."""
+    chains = []
+    for gun_rig in gun_rigs:
+        for members in _charm_chains(gun_rig):
+            holder = members[0].parent
+            chains.append({
+                'holder': holder.name if holder else None,
+                'holder_rest': _rest(gun_rig, holder) if holder else None,
+                'bones': [(b.name, b.parent.name if b.parent else None, _rest(gun_rig, b)) for b in members],
+            })
+    names = {name for chain in chains for name, _, _ in chain['bones']}
+    weights = {}
+    if names:
+        for obj in found:
+            groups = {g.index: g.name for g in obj.vertex_groups}
+            rows = []
+            for vertex in obj.data.vertices:
+                total = sum(g.weight for g in vertex.groups if g.weight > 0)
+                charm = {groups[g.group]: g.weight for g in vertex.groups if g.weight > 0 and groups.get(g.group) in names}
+                if charm and total > 0:
+                    rows.append((vertex.index, charm, total))
+            if rows:
+                weights[obj] = (len(obj.data.vertices), rows)
+    return chains, weights
+
+
+def _charm_rows(obj, weights):
+    """Captured charm weights of a part, unless freezing changed its vertices."""
+    count, rows = weights.get(obj, (None, ()))
+    return rows if count == len(obj.data.vertices) else ()
+
+
+def keep_charms(bpy, rig, guns, chains, weights, receipt):
+    """Give each gun's charm its own bones in the character rig so it can
+    swing: the charm chain under a holder bone (the gun's own bone above the
+    charm, not weighted) that hangs from the hand holding the gun, moved like
+    the gun. The charm's parts keep their charm weights; the rest of their
+    weight stays on the hand. The holder is a gun bone (gun_bones), so the
+    charm is recognised as hanging from this gun. Returns {side: [bones]}."""
+    from mathutils import Vector
+    if rig is None or not chains:
+        return {}
+    plans = []
+    for side, parts, hand, move in guns:
+        if not hand or hand not in rig.data.bones:
+            continue
+        for chain in chains:
+            names = {name for name, _, _ in chain['bones']}
+            if not any(name in names for obj in parts for _, charm, _ in _charm_rows(obj, weights) for name in charm):
+                continue
+            plans.append((side, parts, hand, move, chain))
+    if not plans:
+        return {}
+    added = {}
+    inverse = rig.matrix_world.inverted()
+    rotation = inverse.to_3x3()
+    view_layer = bpy.context.view_layer
+    view_layer.objects.active = rig
+    for obj in view_layer.objects:
+        obj.select_set(obj == rig)
+    bpy.ops.object.mode_set(mode='EDIT')
+    try:
+        edit = rig.data.edit_bones
+        for side, parts, hand, move, chain in plans:
+            def bone(name, parent, rest, deform):
+                head, tail, z = rest
+                created = edit.new(PREFIX + name)
+                created.head = inverse @ Vector((head + move).tolist())
+                created.tail = inverse @ Vector((tail + move).tolist())
+                if (created.tail - created.head).length < 1e-6:
+                    created.tail = created.head + Vector((0., 0., 1e-3))
+                created.align_roll(rotation @ Vector(z.tolist()))
+                created.parent = edit[parent]
+                created.use_connect = False
+                created.use_deform = deform
+                return created.name
+            if chain['holder']:
+                holder = bone(chain['holder'], hand, chain['holder_rest'], False)
+            else:
+                head = chain['bones'][0][2][0]
+                holder = bone(chain['bones'][0][0] + '_holder', hand, (head, head + np.array([0., 0., 1e-2]), np.array([0., 1., 0.])), False)
+            renamed = {}
+            for name, parent, rest in chain['bones']:
+                renamed[name] = bone(name, renamed.get(parent, holder), rest, True)
+            chain['created'] = (holder, renamed)
+            added.setdefault(side, []).extend(renamed.values())
+    finally:
+        bpy.ops.object.mode_set(mode='OBJECT')
+    # The charm's vertices keep their charm weights; the rest stays on the hand.
+    for side, parts, hand, move, chain in plans:
+        holder, renamed = chain['created']
+        for obj in parts:
+            hand_group = obj.vertex_groups.get(hand)
+            for index, charm, total in _charm_rows(obj, weights):
+                shares = {renamed[name]: weight / total for name, weight in charm.items() if name in renamed}
+                if not shares:
+                    continue
+                share = min(1., sum(shares.values()))
+                if hand_group is not None:
+                    if share >= 1. - 1e-6:
+                        hand_group.remove([index])
+                    else:
+                        hand_group.add([index], 1. - share, 'REPLACE')
+                for name, weight in shares.items():
+                    group = obj.vertex_groups.get(name) or obj.vertex_groups.new(name=name)
+                    group.add([index], weight, 'REPLACE')
+            row = receipt.rows.get(obj.name)
+            if row is not None and holder not in row.setdefault('gun_bones', []):
+                row['gun_bones'].append(holder)
+        which = {'right': 'The right gun\'s', 'left': 'The left gun\'s'}.get(side, 'The gun\'s')
+        receipt.note(which + ' charm keeps its bones (' + ', '.join(renamed.values()) + ') so it can swing.')
+    return added
+
+
 def backdrop(box, size):
     """Ground planes and backdrops around a gun: flat and at least gun-sized,
     or far larger than the gun. Long thin parts (barrels) are not flat."""
     extent = np.sort(box[1] - box[0])
     flat = extent[0] < extent[2] * .03 and extent[1] > extent[2] * .3
     return bool((flat and extent[2] > size * .9) or max(box[1][0] - box[0][0], box[1][1] - box[0][1]) > size * 2.5)
+
+
+def backdrops(meshes, keep=()):
+    """The parts that are ground planes or backdrops: each part is compared with
+    everything else in the file (not with one detailed part, which can be tiny),
+    so a flat grip panel or decal is never taken for a floor."""
+    boxes = [(mesh, iso.bounds(iso.world_points(mesh))) for mesh in meshes]
+    boxes = [(mesh, box) for mesh, box in boxes if box is not None]
+    if len(boxes) < 2:
+        return set()
+    lows = np.array([box[0] for _, box in boxes])
+    highs = np.array([box[1] for _, box in boxes])
+    found = set()
+    for index, (mesh, box) in enumerate(boxes):
+        if mesh.name in keep:
+            continue
+        others = np.delete(highs, index, axis=0).max(axis=0) - np.delete(lows, index, axis=0).min(axis=0)
+        if backdrop(box, max(float(others.max()), 1e-6)):
+            found.add(mesh)
+    return found
 
 
 def _bake_shape_keys(obj, receipt):
@@ -149,12 +419,14 @@ def connected(meshes, keep):
 
 def append(bpy, request, meshes, rigs, scene_choices=None):
     """Append the gun file's meshes; return (meshes, receipt summary)."""
-    from mathutils import Matrix
     source = request['source']
     label = Path(source).name
     imported, notes = _load(bpy, source)
     realized = iso.realize_instances(bpy, imported)
     imported = list(imported) + realized
+    # Names before the prefix: Blender cuts long names at 63 bytes, which could
+    # cut off a trailing [L]/[R] hand tag.
+    original = {obj.as_pointer(): obj.name for obj in imported}
     for obj in imported:
         obj.name = PREFIX + obj.name
     choices = iso._choices(scene_choices)
@@ -198,6 +470,17 @@ def append(bpy, request, meshes, rigs, scene_choices=None):
             found.remove(obj)
     if not found:
         raise ValueError('The gun file ' + label + ' has no visible mesh. Check that the gun is not hidden from rendering.')
+    # The hand each part belongs to, from its name or the gun rig bone it is
+    # weighted to (read before the part is frozen and loses its weights).
+    sides = {}
+    for obj in found:
+        side = side_of(original.get(obj.as_pointer(), obj.name))
+        if side is None:
+            group = _dominant_group(obj)
+            side = side_of(group) if group else None
+        sides[obj] = side
+    # Charms on the gun keep their bones: read them before the parts are frozen.
+    chains, charm_weights = capture_charms(found, gun_rigs)
     # Freeze each part at its rest shape: no own rig, parent, shape keys,
     # constraints or generative modifiers.
     for obj in found:
@@ -210,50 +493,45 @@ def append(bpy, request, meshes, rigs, scene_choices=None):
         if iso.alive(rig):
             bpy.data.objects.remove(rig, do_unlink=True)
     main = max(found, key=lambda m: len(m.data.vertices))
-    main_box = iso.bounds(iso.world_points(main))
-    size = max(float((main_box[1] - main_box[0]).max()), 1e-6)
-    scenery = [m for m in found if m is not main and m.name not in choices['include'] and backdrop(iso.bounds(iso.world_points(m)), size)]
+    flat = backdrops(found, choices['include'])
+    scenery = [m for m in found if m is not main and m in flat]
     for mesh in scenery:
         receipt.mark(mesh, 'excluded', 'ground or backdrop in the gun file')
     gun = [m for m in found if m not in scenery]
-    kept, _ = connected(gun, choices['include'])
+    guns = pair(gun, sides, choices['include'])
+    kept = [m for _, parts in guns for m in parts]
     for mesh in gun:
         if mesh not in kept:
             receipt.mark(mesh, 'excluded', 'away from the gun in the gun file (keep it to use it)')
     if sum(len(o.data.vertices) for o in meshes + kept) > 5_000_000:
         raise ValueError('The character and the gun file together exceed the five million preparation vertex limit.')
-    # Put the gun in the right hand when the character has one.
+    # Put each gun in its hand when the character has one: the right hand (or
+    # the only gun), and the left hand for the left gun of a pair.
     rig = rigs[0] if rigs else None
-    hand = request.get('hand')
-    bone, placed = None, False
-    points = np.concatenate([iso.world_points(m) for m in kept])
-    if rig is not None and hand and hand in rig.data.bones:
-        data = rig.data.bones[hand]
-        matrix = np.asarray(rig.matrix_world, dtype=float)
-        palm = matrix[:3, :3] @ ((np.asarray(data.head_local) + np.asarray(data.tail_local)) / 2) + matrix[:3, 3]
-        span = float(np.linalg.norm(points.max(axis=0) - points.min(axis=0)))
-        if float(np.min(np.linalg.norm(points - palm, axis=1))) > span * .25:
-            offset = Matrix.Translation(tuple(palm - grip_point(points)))
-            for obj in kept:
-                obj.matrix_world = offset @ obj.matrix_world
-            placed = True
-        bone = hand
-    elif rig is not None:
-        deform = {b.name for b in rig.data.bones if b.use_deform}
-        used = set()
-        for obj in meshes:
-            names = {g.index: g.name for g in obj.vertex_groups}
-            used.update(names[g.group] for v in obj.data.vertices for g in v.groups if g.weight > 0 and names.get(g.group) in deform)
-        bone = iso.nearest_bone(rig, points, used or deform)
-    for obj in kept:
-        if bone:
-            iso._rigid_bind(obj, rig, bone)
-        where = ('moved into the right hand (' + bone + ') by its grip' if placed else
-                 'already in the hand; attached to ' + bone if bone == hand and bone else
-                 'kept where it is and attached to ' + bone + ' (no right hand was found)' if bone else
-                 'kept where it is (the character has no rig)')
-        receipt.mark(obj, 'bound' if bone else 'included', 'from the gun file ' + label + '; ' + where,
-                     **({'bone': bone} if bone else {}), gun_file=True, placed=placed)
+    placements = []
+    held = []
+    for side, parts in guns:
+        hand = request.get('left_hand') if side == 'left' else request.get('hand')
+        hand_name = 'left hand' if side == 'left' else 'right hand'
+        bone, placed, move = _place(rig, hand, parts, meshes)
+        held.append((side, parts, bone, move))
+        placements.append({'side': side, 'objects': sorted(o.name for o in parts), 'bone': bone,
+                           'hand': hand if rig is not None and hand and hand in rig.data.bones else None, 'placed': placed})
+        which = ('left gun ' if side == 'left' else 'right gun ' if side == 'right' else '')
+        for obj in parts:
+            if bone:
+                iso._rigid_bind(obj, rig, bone)
+            where = (which + 'moved into the ' + hand_name + ' (' + bone + ') by its grip' if placed else
+                     which + 'already in the hand; attached to ' + bone if bone == hand and bone else
+                     which + 'kept where it is and attached to ' + bone + ' (no ' + hand_name + ' was found)' if bone else
+                     which + 'kept where it is (the character has no rig)')
+            receipt.mark(obj, 'bound' if bone else 'included', 'from the gun file ' + label + '; ' + where,
+                         **({'bone': bone} if bone else {}), gun_file=True, placed=placed, **({'side': side} if side else {}))
+    # A charm on the gun keeps its bones (under the hand that holds the gun).
+    charm_bones = keep_charms(bpy, rig, held, chains, charm_weights, receipt)
+    for placement in placements:
+        if charm_bones.get(placement['side']):
+            placement['charm_bones'] = charm_bones[placement['side']]
     # Set-aside gun-file objects never reach the prepared scene.
     keep = {o.as_pointer() for o in kept}
     leftovers = {o.as_pointer(): o for o in imported + found if iso.alive(o) and o.as_pointer() not in keep}
@@ -262,6 +540,11 @@ def append(bpy, request, meshes, rigs, scene_choices=None):
             bpy.data.objects.remove(obj, do_unlink=True)
     iso._LAST['object'] = receipt
     iso._LAST['receipt'] = receipt.as_dict(character)
-    summary = {'policy': POLICY, 'file': label, 'objects': sorted(o.name for o in kept), 'bone': bone,
-               'hand': hand if rig is not None and hand and hand in rig.data.bones else None, 'placed': placed}
+    first = placements[0]
+    summary = {'policy': POLICY, 'file': label, 'objects': sorted(o.name for o in kept), 'bone': first['bone'],
+               'hand': first['hand'], 'placed': any(p['placed'] for p in placements)}
+    if len(placements) > 1:
+        summary['guns'] = placements
+    if charm_bones:
+        summary['charm_bones'] = [name for bones in charm_bones.values() for name in bones]
     return meshes + kept, summary

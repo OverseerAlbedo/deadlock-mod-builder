@@ -454,12 +454,23 @@ pub fn from_dmx(dmx: &Dmx, source: String, cancel: &CancellationToken) -> Result
             .into_iter()
             .filter(|&i| i >= 0 && dmx.elements[i as usize].name == "bind")
             .collect();
-        if binds.len() != 1 {
+        if binds.len() > 1 {
             return Err(fail("Preview requires one explicit bind transform list"));
         }
-        let transforms = ints(dmx, dmx.elements[binds[0] as usize].get("transforms"))?;
+        let Some(&bind) = binds.first() else {
+            // Some decompiled meshes (Haze's guns) have no bind list, only an
+            // unnamed partial base state: their joints' own transforms are the
+            // rest pose, which `locals` already holds.
+            palettes.push(palette);
+            continue;
+        };
+        let transforms = ints(dmx, dmx.elements[bind as usize].get("transforms"))?;
         if transforms.len() != palette.len() {
-            return Err(fail("Preview bind transforms do not match joint palette"));
+            return Err(fail(format!(
+                "Preview bind transforms do not match joint palette ({} transforms for {} joints)",
+                transforms.len(),
+                palette.len()
+            )));
         }
         for (&joint, &tr) in palette.iter().zip(transforms.iter()) {
             locals[lookup[&(joint as usize)]] = transform_ref(dmx, tr)?;
@@ -559,9 +570,12 @@ pub fn from_dmx(dmx: &Dmx, source: String, cancel: &CancellationToken) -> Result
         {
             continue;
         }
+        // A null bindState (decompiled meshes such as Haze's guns) falls back
+        // to currentState like a missing one.
+        let bind = reference(mesh.get("bindState"))?;
         let state = element(
             dmx,
-            reference(mesh.get("bindState").or_else(|| mesh.get("currentState")))?,
+            if bind >= 0 { bind } else { reference(mesh.get("currentState"))? },
         )?;
         if state.kind != "DmeVertexData" {
             return Err(fail("Preview mesh has no supported vertex state"));

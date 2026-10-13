@@ -189,7 +189,7 @@ fn charms_hang_from_the_gun_and_follow_its_fit_or_leave_with_it() {
     let plan = weapon::Plan {
         policy: weapon::POLICY.into(), objects: vec![gun.into()], action: "replace".into(),
         matrix: [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]],
-        skin: weapon::Skin::Rigid { bone: "weapon".into() }, mesh_prefix: "weapon_".into(), replace: vec![], anchor: "weapon".into(),
+        skin: weapon::Skin::Rigid { bone: "weapon".into() }, mesh_prefix: "weapon_".into(), replace: vec![], anchor: "weapon".into(), ..Default::default()
     };
     let kept = secondary::selection_for(&source, &weighted, &target, &options, Some(&plan)).unwrap().unwrap();
     assert_eq!(kept.groups.len(), expected.len());

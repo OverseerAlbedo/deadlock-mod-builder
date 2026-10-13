@@ -13,6 +13,12 @@ from pathlib import Path
 import re
 
 
+# Readable characters of a prepared material's name. The native compiler names
+# the textures it makes after the material (about 40 characters more) and
+# Windows paths end at 259 characters, so the readable part stays short; the
+# hash of the full name is the material's identity (earlier choices follow it).
+NAME_CHARS = 24
+
 CHANNELS = [('Base Color','color'),('Roughness','roughness'),('Metallic','metalness'),
             ('Normal','normal'),('Emission Color','emission'),('Alpha','opacity')]
 EXTENSIONS = {'PNG':'.png','JPEG':'.jpg','TARGA':'.tga','TARGA_RAW':'.tga',
@@ -187,6 +193,10 @@ def recover_material(mat, folder, slug):
             warnings.append(mat.name+': multiple '+channel+' images; choose the intended image in Materials.')
         sources[channel]='Blender image connection' if channel in direct else 'Image filename in connected Blender material'
     cfg['candidates']=candidates
+    # Blender ignores a connected Base Color's own value (often the material's
+    # earlier flat colour), so a base-color image is not tinted with it.
+    if len(principled)==1 and principled[0][0].inputs['Base Color'].is_linked and candidates.get('color'):
+        cfg['color']=[1.0,1.0,1.0]
     cfg['ambiguous']=[channel for channel,paths in candidates.items() if len(paths)>1]
     cfg['texture_match_sources']=sources
     if len(principled)>1 or any(channel not in direct for channel in channels):
@@ -198,8 +208,8 @@ def texture_and_materials(meshes,folder,hero_root):
     folder.mkdir(parents=True,exist_ok=True);result={};lookup={};warnings=[]
     materials={s.material.name:s.material for obj in meshes for s in obj.material_slots if s.material}
     for name,mat in materials.items():
-        # Stable identities match previously prepared DMX material paths.
-        slug=re.sub('[^a-zA-Z0-9_-]','_',name).lower()[:70]+'_'+hashlib.sha256(name.encode()).hexdigest()[:8]
+        # The hash keeps the identity stable when the readable part is cut.
+        slug=re.sub('[^a-zA-Z0-9_-]','_',name).lower()[:NAME_CHARS]+'_'+hashlib.sha256(name.encode()).hexdigest()[:8]
         rel=hero_root+'/materials/prepared/'+slug+'.vmat';lookup[name]=rel
         cfg,notes=recover_material(mat,folder,slug)
         result[rel]=cfg;warnings.extend(notes)

@@ -27,6 +27,13 @@ pub fn weapon_like(path: &str) -> bool {
     let file = name.rsplit('/').next().unwrap_or(&name);
     WEAPON_WORDS.iter().any(|w| file.contains(w)) || name.contains("/weapons/")
 }
+/// Particle and effect models (Haze's `models/particle/haze_gun_magazine_model_fx`)
+/// are never the gun a hero holds.
+fn effect_model(path: &str) -> bool {
+    let name = casefold(path);
+    let stem = name.rsplit('/').next().unwrap_or(&name).trim_end_matches(".vmdl");
+    name.starts_with("models/particle/") || name.contains("/particles/") || stem.split('_').any(|part| part == "fx")
+}
 /// Separate weapon models that probably belong to this hero, best match first.
 pub fn discover_weapons(archive: &Vpk, original_model: &str) -> Result<Vec<Variant>> {
     let current = casefold(&model(original_model)?);
@@ -49,7 +56,7 @@ pub fn discover_weapons(archive: &Vpk, original_model: &str) -> Result<Vec<Varia
         }
         let path = &entry.path[..entry.path.len() - 2];
         let folded = casefold(path);
-        if folded == current || siblings.contains(&folded) || !weapon_like(&folded) {
+        if folded == current || siblings.contains(&folded) || !weapon_like(&folded) || effect_model(&folded) {
             continue;
         }
         let rank = if !folder.is_empty() && folded.starts_with(&(folder.clone() + "/")) {
@@ -190,4 +197,19 @@ pub fn validate_variant_project(
         project_id: child.id.clone(),
         requires_full_model_validation: true,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn effect_models_are_not_weapon_models() {
+        assert!(effect_model("models/particle/haze_gun_magazine_model_fx.vmdl"));
+        assert!(effect_model("models/abilities/yamato_weapon_long_sword_tip_fx_model.vmdl"));
+        assert!(!effect_model("models/heroes_wip/werewolf/werewolf/weapon_brk1.vmdl"));
+        assert!(!effect_model("models/weapons/hornet/hornet_gun.vmdl"));
+        // "fx" must be its own part of the name.
+        assert!(!effect_model("models/weapons/fxgun/fxgun.vmdl"));
+    }
 }

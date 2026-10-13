@@ -113,6 +113,30 @@ def material(name, color=(.8, .6, .5, 1)):
     return mat
 
 
+def baked_material(name):
+    """A material baked to the shared gun atlas: its Base Color image is read
+    with the "BakeUV" map, and the dark colour it had before baking stays
+    behind the connected socket (Blender ignores it)."""
+    image = bpy.data.images.get('Gun_Atlas_BaseColor')
+    if image is None:
+        image = bpy.data.images.new('Gun_Atlas_BaseColor', 8, 8)
+        image.pixels = [.8, .3, .6, 1.] * 64
+        image.pack()
+    mat = bpy.data.materials.new(name)
+    if hasattr(mat, 'use_nodes') and not mat.node_tree:
+        mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Base Color'].default_value = (.02, .03, .05, 1)
+    texture = nodes.new('ShaderNodeTexImage')
+    texture.image = image
+    uv = nodes.new('ShaderNodeUVMap')
+    uv.uv_map = 'BakeUV'
+    links.new(uv.outputs['UV'], texture.inputs['Vector'])
+    links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+    return mat
+
+
 def box(center, axis, length, width, depth=None):
     """Eight corners of a box along an axis."""
     axis = Vector(axis).normalized()
@@ -417,6 +441,49 @@ def rigged_gun_file():
         point.co = co
     bpy.context.scene.collection.objects.link(bpy.data.objects.new('Strap', curve))
     mesh_object('Plane', [box((0, 0, -.2), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
+
+
+def dual_gun_file():
+    """Two pistols in one file, like a dual weapon rig: each gun's parts are
+    tagged [L] or [R] and weighted to its own root bone, and each gun has a
+    two-bone charm (charm_pivot -> charm_body) hanging below the barrel.
+    The guns lie side by side along Y, barrels along +X, over a floor."""
+    arm = bpy.data.armatures.new('DualRig')
+    rig = bpy.data.objects.new('Dual weapon rig', arm)
+    bpy.context.scene.collection.objects.link(rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode='EDIT')
+    for tag, y in (('L', -.15), ('R', .15)):
+        root = arm.edit_bones.new('weapon_root.' + tag); root.head = (0, y, 0); root.tail = (0, y, .05)
+        pivot = arm.edit_bones.new('charm_pivot.' + tag); pivot.head = (.12, y, .03); pivot.tail = (.12, y, -.01); pivot.parent = root
+        body = arm.edit_bones.new('charm_body.' + tag); body.head = (.12, y, -.01); body.tail = (.12, y, -.05); body.parent = pivot
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for tag, y in (('L', -.15), ('R', .15)):
+        root = 'weapon_root.' + tag
+        parts = [
+            mesh_object('Frame [' + tag + ']', [box((0, y, -.02), (0, 0, 1), .11, .03, .05) + ({root: 1.},)], material('Frame_mat')),
+            mesh_object('Slide [' + tag + ']', [box((.06, y, .05), (1, 0, 0), .24, .035, .045) + ({root: 1.},)], material('Slide_mat')),
+            mesh_object('Charm • short chain [' + tag + ']', [box((.12, y, .01), (0, 0, 1), .04, .006) + ({'charm_pivot.' + tag: 1.},)], material('Charm_mat')),
+            mesh_object('Charm • pink body [' + tag + ']', [box((.12, y, -.03), (0, 0, 1), .04, .02) + ({'charm_body.' + tag: 1.},)], material('Charm_mat')),
+            # A six-sided emitter face with a UV map: an n-gon, as real guns have.
+            mesh_object('Emitter • face [' + tag + ']', [([Vector((.18, y + .012 * math.cos(a), .05 + .012 * math.sin(a))) for a in
+                                                          (i * math.pi / 3 for i in range(6))], [(0, 1, 2, 3, 4, 5)], {root: 1.})], material('Emitter_mat')),
+        ]
+        parts[-1].data.uv_layers.new(name='UVMap')
+        # Frame and slide are baked to one atlas read with a second UV map;
+        # their materials differ only in name and in the colour behind it.
+        for obj in parts[:2]:
+            obj.data.uv_layers.new(name='UVMap')
+            bake = obj.data.uv_layers.new(name='BakeUV')
+            for loop in bake.data:
+                loop.uv = (.25, .75)
+            bake.active_render = True
+            obj.data.materials.clear()
+            obj.data.materials.append(baked_material(obj.name.split(' ')[0] + ' baked'))
+        for obj in parts:
+            obj.parent = rig
+            obj.modifiers.new('Armature', 'ARMATURE').object = rig
+    mesh_object('Plane', [box((0, 0, -.3), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
 
 
 def export(path):

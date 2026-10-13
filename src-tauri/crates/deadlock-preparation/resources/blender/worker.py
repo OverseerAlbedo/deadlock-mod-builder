@@ -19,7 +19,8 @@ from source_rigs import resolve_modular_rigs, append_saved_notice
 from source_compatibility import normalize as normalize_source_rig
 from secondary_bones import selection as secondary_selection, extend_target, on_gun as secondary_on_gun
 from arm_skinning import plan as arm_skin_plan, redistribute as arm_skin_weights, MODES as ARM_SKIN_MODES, POLICY as ARM_SKIN_POLICY
-from scene_isolation import isolate, last_receipt, apply_pending_modifiers
+from scene_isolation import isolate, last_receipt, apply_pending_modifiers, triangulate_ngons, sampled_uv_first, world_points
+import mesh_export as mx
 from breast_bones import add_breast_bones
 import weapon_fit
 import weapon_source
@@ -197,15 +198,11 @@ def import_garment(path,meshes,rigs,helper_reports=None):
 def skin_group_names(meshes,rigs):
     """Blender skin groups must name deform bones, not arbitrary mesh metadata."""
     deform={bone.name for rig in rigs for bone in rig.data.bones if bone.use_deform}
-    used={obj.vertex_groups[group.group].name for obj in meshes for vertex in obj.data.vertices
-          for group in vertex.groups if group.weight>0}
-    return deform,sorted(used-deform)
+    return deform,sorted(mx.used_group_names(meshes)-deform)
 
 
 def skin_rows(obj,deform):
-    return [[(obj.vertex_groups[group.group].name,float(group.weight)) for group in vertex.groups
-             if group.weight>0 and obj.vertex_groups[group.group].name in deform]
-            for vertex in obj.data.vertices]
+    return mx.group_rows(obj,deform)
 
 
 def non_skin_notice(names):
@@ -265,20 +262,22 @@ def describe(meshes,rigs,weapon_model=False):
             bones.append({'name':b.name,'parent':b.parent.name if b.parent else None,'position':list(world.translation),
                           'matrix':matrix_list(world),'deform':b.use_deform})
             if b.name in physics: bones[-1]['physics'] = physics[b.name]
-    points=[list(o.matrix_world@v.co) for o in meshes for v in o.data.vertices]
-    p=np.array(points)
     deform,ignored=skin_group_names(meshes,rigs)
-    used=set();skin={}
+    used=set();skin={};chunks=[]
     for o in meshes:
-        for v in o.data.vertices:
-            point=np.asarray(o.matrix_world@v.co,dtype=float)
-            for g in v.groups:
-                name=o.vertex_groups[g.group].name
-                if g.weight<=0 or name not in deform:continue
-                used.add(name)
-                row=skin.setdefault(name,{'vertices':0,'weight_sum':0.,'sum':np.zeros(3),'lo':point.copy(),'hi':point.copy()})
-                row['vertices']+=1;row['weight_sum']+=g.weight;row['sum']+=point*g.weight
-                row['lo']=np.minimum(row['lo'],point);row['hi']=np.maximum(row['hi'],point)
+        wp=world_points(o);chunks.append(wp)
+        names={g.index:g.name for g in o.vertex_groups}
+        index,groups,ws=mx.flat_raw_groups(o)
+        order=np.argsort(groups,kind='stable')
+        for part in np.split(order,np.flatnonzero(np.diff(groups[order]))+1) if len(order) else ():
+            name=names.get(int(groups[part[0]]))
+            if name not in deform:continue
+            used.add(name)
+            pts=wp[index[part]];weight=ws[part]
+            row=skin.setdefault(name,{'vertices':0,'weight_sum':0.,'sum':np.zeros(3),'lo':pts[0].copy(),'hi':pts[0].copy()})
+            row['vertices']+=len(pts);row['weight_sum']+=float(weight.sum());row['sum']+=(pts*weight[:,None]).sum(axis=0)
+            row['lo']=np.minimum(row['lo'],pts.min(axis=0));row['hi']=np.maximum(row['hi'],pts.max(axis=0))
+    p=np.concatenate(chunks) if chunks else np.zeros((0,3));points=p
     for bone in bones:
         if bone['name'] in skin:
             row=skin[bone['name']]
@@ -287,7 +286,7 @@ def describe(meshes,rigs,weapon_model=False):
     result={'armatures':len(rigs),'bones':bones,'vertices':len(points), 'bounds':[p.min(axis=0).tolist(),p.max(axis=0).tolist()],
             'meshes':[{'name':o.name,'vertices':len(o.data.vertices),'polygons':len(o.data.polygons),
                        'materials':[s.material.name if s.material else '(empty)' for s in o.material_slots],
-                       'disconnected_components':component_count(len(o.data.vertices),[tuple(e.vertices) for e in o.data.edges])} for o in meshes],
+                       'disconnected_components':component_count(len(o.data.vertices),mx.edges(o.data).tolist())} for o in meshes],
             'morphs':[{'name':o.name+'/'+key.name,'mesh':o.name,'shape':key.name}
                       for o in meshes if o.data.shape_keys for key in list(o.data.shape_keys.key_blocks)[1:]],
             'weighted_bones':sorted(used),'suggested_mode':'rigged_humanoid' if rigs else 'unrigged_humanoid'}
@@ -408,57 +407,64 @@ def import_props(job, meshes):
         for obj in added:
             if obj.parent and obj.parent.type=='ARMATURE':raise ValueError('Attached props cannot reference another rig.')
             obj.name='prop_'+str(index+1).zfill(2)+'_'+obj.name
+            sampled_uv_first(obj)
         mats,mat_paths,mw=texture_and_materials(added,Path(job['workspace'])/'textures',job['hero_root'])
         materials.update(mats);warnings+=mw
         for obj in added:
+            triangulate_ngons(obj)
             mesh=obj.data
-            if hasattr(mesh,'calc_normals_split'):mesh.calc_normals_split()
-            corners=mesh.corner_normals if hasattr(mesh,'corner_normals') else None
             normal_matrix=np.linalg.inv(np.asarray(obj.matrix_world.to_3x3())).T
-            normals=[]
-            for loop in mesh.loops:
-                normal=normal_matrix@np.asarray(corners[loop.index].vector if corners else loop.normal)
-                length=np.linalg.norm(normal)
-                if length<=1e-12:raise ValueError('Invalid attached prop normal.')
-                normals.append((normal/length).tolist())
-            colors=[]
-            for layer in mesh.color_attributes:
-                if layer.domain not in {'POINT','CORNER'}:raise ValueError('Unsupported prop color domain: '+layer.domain)
-                colors.append([list(layer.data[loop.vertex_index if layer.domain=='POINT' else loop.index].color) for loop in mesh.loops])
-            raw={'name':obj.name,'positions':[list(obj.matrix_world@v.co) for v in mesh.vertices],
-                 'normals':normals,'uvs':[[list(value.uv) for value in layer.data] for layer in mesh.uv_layers],
-                 'colors':colors,'faces':[{'vertices':list(poly.vertices),'corners':list(poly.loop_indices),
-                      'material':mat_paths[obj.material_slots[poly.material_index].material.name]} for poly in mesh.polygons]}
+            normals=mx.transformed_normals(mx.corner_normals(mesh),normal_matrix,'Invalid attached prop normal.',1e-12)
+            raw={'name':obj.name,'positions':world_points(obj).tolist(),'normals':normals,'uvs':mx.uvs(mesh),
+                 'colors':mx.colors(mesh,'prop color'),'faces':mx.faces(mesh,mx.material_paths(obj,mat_paths))}
             output=attach_mesh(raw,job['target'],prop)
-            for vertex,position in zip(mesh.vertices,output['positions']):vertex.co=position
+            mx.set_positions(mesh,output['positions'])
             obj.parent=None;obj.matrix_parent_inverse=Matrix.Identity(4);obj.matrix_world=Matrix.Identity(4)
             obj.modifiers.clear();obj.vertex_groups.clear()
             group=obj.vertex_groups.new(name=prop['bone']);group.add(list(range(len(mesh.vertices))),1.,'REPLACE')
             if hasattr(mesh,'normals_split_custom_set'):mesh.normals_split_custom_set(output['normals'])
             if mesh.uv_layers:
-                mesh.calc_tangents(uvmap=mesh.uv_layers[0].name)
-                output['tangents']=[list(loop.tangent)+[loop.bitangent_sign] for loop in mesh.loops]
+                output['tangents']=mx.tangents(mesh)
             output['deformation']=[];exported.append(output)
         meshes.extend(added)
     return exported,materials,warnings
+
+
+def texture_notes(uv_first,shared):
+    """Notes for UV maps put first and gun materials joined before export."""
+    notes=[]
+    if uv_first:notes.append(f'{len(uv_first)} object(s) use their textures with another UV map than the first one; that UV map is exported first so the textures line up in game.')
+    for kept,folded in shared:notes.append(f'{len(folded)+1} gun materials use the same textures and became one material, {kept} ('+', '.join(folded[:4])+(' ...' if len(folded)>4 else '')+').')
+    return notes
 
 
 def prepare(job,meshes,rigs):
     physics_helpers = mmd_helpers(bpy.context.scene.objects)
     mode=job['mode'];target=job['target'];options=job.get('options',{})
     weapon_plan=None if job.get('correction') else job.get('weapon')
-    meshes,weapon_meshes=weapon_fit.split(meshes,weapon_plan)
-    if weapon_plan and weapon_plan.get('action')=='remove':
-        for obj in weapon_meshes:bpy.data.objects.remove(obj,do_unlink=True)
-        weapon_meshes=[]
+    # Each hand's gun (a dual-wield hero has two); left-out guns are removed.
+    meshes,gun_hands=weapon_fit.split_hands(bpy,meshes,weapon_plan)
+    removed_hands=[hand for hand,_ in gun_hands if hand.get('action')=='remove']
+    for hand,objects in gun_hands:
+        if hand.get('action')=='remove':
+            for obj in objects:bpy.data.objects.remove(obj,do_unlink=True)
+    gun_hands=[(hand,objects) for hand,objects in gun_hands if hand.get('action')!='remove']
+    weapon_meshes=[obj for _,objects in gun_hands for obj in objects]
     if not meshes:raise ValueError('Only the gun is left after setting it aside. Choose the character objects in Scene objects.')
+    # The game textures with the first UV map; gun parts that read the same
+    # textures share one material (a baked gun is otherwise one per part colour).
+    uv_first=[obj.name for obj in meshes+weapon_meshes if sampled_uv_first(obj)]
+    shared=weapon_fit.share_materials(weapon_meshes)
     fit_mode=options.get('fit_mode','match_target')
     fit_arm_joints=options.get('fit_arm_joints',True)
+    fit_finger_curl=options.get('fit_finger_curl',True)
     arm_skinning=options.get('arm_skinning','source')
     if not isinstance(arm_skinning,str) or arm_skinning not in ARM_SKIN_MODES:
         raise ValueError('Choose a supported Arm skinning option before conversion.')
     if not isinstance(fit_arm_joints,bool):
         raise ValueError('Align arms to hero joints must be enabled or disabled.')
+    if not isinstance(fit_finger_curl,bool):
+        raise ValueError('Bend fingers like the hero must be enabled or disabled.')
     if not isinstance(fit_mode,str) or fit_mode not in FIT_MODES:
         raise ValueError('Choose a supported Model fitting option before conversion.')
     if mode=='rigged_humanoid' and not rigs:raise ValueError('No armature: switch to Unrigged Humanoid.')
@@ -509,7 +515,8 @@ def prepare(job,meshes,rigs):
     kept = None
     if options.get('preserve_physics_bones') and mode != 'rigged_humanoid':
         raise ValueError('Keeping existing physics bones requires an already rigged source.')
-    gun_groups = set()
+    # Charm groups on a fitted gun, with the hand plan that carries them.
+    gun_groups = {}
     if mode == 'rigged_humanoid' and not job.get('correction', False):
         # Charms hanging from the gun are found as at inspection: by the gun-bone
         # marks of the inspection and with the gun objects' own weights.
@@ -518,16 +525,22 @@ def prepare(job,meshes,rigs):
                 bone['weapon'] = list(job['gun_bones'][bone['name']])
         gun_weighted = {name for obj in weapon_meshes for row in skin_rows(obj, deform) for name, _ in row}
         kept = secondary_selection(options, source_info['bones'], weighted_names | gun_weighted, source_roles, target_roles, target, weapon_plan)
-        if kept and weapon_plan and weapon_plan.get('action') == 'replace':
-            gun_groups = {g['root'] for g in kept['groups']
-                          if secondary_on_gun(g['root'], source_info['bones'], source_roles, '+'.join(weapon_plan['objects']))}
+        if kept:
+            for hand, _ in gun_hands:
+                # A copied gun's charms stay with the original gun.
+                if hand.get('action') != 'replace' or hand.get('copy'):
+                    continue
+                hand_id = '+'.join(hand['objects'])
+                for group in kept['groups']:
+                    if secondary_on_gun(group['root'], source_info['bones'], source_roles, hand_id):
+                        gun_groups[group['root']] = hand
     anchor_transforms = {}
     source_bones = source_info['bones'] if mode == 'rigged_humanoid' else None
     if kept:
         for group in kept['groups']:
             anchor, destination = group['source_anchor'], group['target_anchor']
             if group['root'] not in gun_groups:
-                anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints)[0])
+                anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl)[0])
             for name in group['source_bones']:
                 following.pop(name, None)
                 mapping.pop(name, None)
@@ -535,17 +548,19 @@ def prepare(job,meshes,rigs):
         raise ValueError('Review body-following mappings and their loss of independent motion before preparation.')
     maps, alignment_audit = rest_maps(source, target_matrices,
                                       {n: d for n, d in mapping.items() if n in weighted_names}, source_roles, target_roles,
-                                      parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints)
+                                      parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl)
     if kept:
         group_transforms = {}
-        if gun_groups:
-            # Charms move with the fitted gun. The fit maps raw source points;
+
+        def gun_transform(hand):
+            # Charms move with their fitted gun. The fit maps raw source points;
             # the source matrices here already carry the unit scale.
-            gun_transform = np.asarray(weapon_plan['matrix'], dtype=float).copy()
-            gun_transform[:3, :3] /= unit_scale
+            transform = np.asarray(hand['matrix'], dtype=float).copy()
+            transform[:3, :3] /= unit_scale
+            return transform
         for group in kept['groups']:
             if group['root'] in gun_groups:
-                transform = gun_transform
+                transform = gun_transform(gun_groups[group['root']])
             else:
                 transform = anchor_transforms[group['source_anchor']]
                 if fit_mode == 'preserve_proportions' and fit_arm_joints:
@@ -567,54 +582,53 @@ def prepare(job,meshes,rigs):
     if ignored:warnings.append(non_skin_notice(ignored))
     if following:warnings.append(f'{len(following)} source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.')
     if kept:warnings.append(f"Kept {len(kept['exported_bones'])} existing physics bones in {len(kept['groups'])} groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.")
+    warnings+=texture_notes(uv_first,shared)
+    curl=alignment_audit.get('finger_curl') or {}
+    if curl.get('segments'):warnings.append(f"Fingers bent to the hero's resting curl ({len(curl['segments'])} finger segments), so the hero's grip closes them around the gun.")
+    if curl.get('skipped'):warnings.append('Finger segments not bent because they point far from their hero finger (check the finger mapping): '+', '.join(s['bone'] for s in curl['skipped'][:6])+'.')
     mats,mat_paths,mw=texture_and_materials(meshes+weapon_meshes,Path(job['workspace'])/'textures',job['hero_root']);warnings+=mw
     skin_plan = arm_skin_plan(target, target_roles, source_roles, mapping, alignment_audit.get('arm_deformation',{})) if arm_skinning=='smooth_twist' and not job.get('correction',False) else []
     arm_skin_audit={'policy':ARM_SKIN_POLICY,'mode':arm_skinning,'correction_weights_preserved':bool(job.get('correction',False)),
                    'segments':[{'role':s['role'],'twist_joints':[n for _,n in s['helpers']]} for s in skin_plan],'meshes':[]}
+    mx.clear_raw_groups()
     for obj in meshes:
+        triangulate_ngons(obj)  # tangents need triangles and quads; vertices and weights are unchanged
         mesh=obj.data
         rows=rows_by_mesh[obj.name]
         weights,stats=normalize_weights(rows,mapping,target_matrices,options.get('influence_limit',4))
-        points=[];normal_maps=[]
-        for vertex,row in zip(mesh.vertices,rows):
-            total=sum(w for _,w in row)
-            if total<=0:raise ValueError('Unweighted vertex in '+obj.name)
-            # Geometry follows original weights; normalization/pruning for the final skin is separately reported.
-            blend=sum((np.array(maps[n])*w/total for n,w in row if w>0),np.zeros((4,4)))
-            if np.linalg.det(blend[:3,:3])<1e-8:raise ValueError('Retarget collapsed a transform in '+obj.name)
-            p=blend@np.r_[np.array(obj.matrix_world@vertex.co)*unit_scale,1.]
-            points.append(p[:3].tolist());normal_maps.append(np.linalg.inv(blend[:3,:3]@np.array(obj.matrix_world.to_3x3())*unit_scale).T)
+        # Geometry follows original weights; normalization/pruning for the final skin is separately reported.
+        # Each vertex's blend matrix is the weight-share sum of its bones' rest maps (one bincount per cell).
+        count=len(mesh.vertices)
+        vindex,names,ws=mx.flat_rows(rows)
+        totals_per_vertex=np.bincount(vindex,weights=ws,minlength=count)
+        if (totals_per_vertex<=0).any():raise ValueError('Unweighted vertex in '+obj.name)
+        bone_names=sorted(set(names));bone_index={n:i for i,n in enumerate(bone_names)}
+        bone_maps=np.array([np.asarray(maps[n],dtype=float) for n in bone_names],dtype=float).reshape(-1,4,4)
+        share=ws/totals_per_vertex[vindex];bi=np.fromiter((bone_index[n] for n in names),dtype=np.int64,count=len(names))
+        blend=np.empty((count,4,4))
+        for r in range(4):
+            for c in range(4):
+                blend[:,r,c]=np.bincount(vindex,weights=share*bone_maps[bi,r,c],minlength=count)
+        if (np.linalg.det(blend[:,:3,:3])<1e-8).any():raise ValueError('Retarget collapsed a transform in '+obj.name)
+        wp=world_points(obj)*unit_scale
+        point_array=np.einsum('vij,vj->vi',blend[:,:3,:3],wp)+blend[:,:3,3]
+        normal_maps=np.linalg.inv(blend[:,:3,:3]@np.asarray(obj.matrix_world.to_3x3(),dtype=float)*unit_scale).transpose(0,2,1)
+        points=point_array.tolist()
         if skin_plan:
             fitted_rows,skin_audit=arm_skin_weights(rows,points,mapping,skin_plan,options.get('influence_limit',4),kept['exported_bones'] if kept else ())
             weights,stats=normalize_weights(fitted_rows,{n:n for n in target_matrices},target_matrices,options.get('influence_limit',4))
             arm_skin_audit['meshes'].append({'mesh':obj.name,**skin_audit})
         totals.append(stats)
-        if hasattr(mesh,'calc_normals_split'):mesh.calc_normals_split()
-        normals=[]
-        corner_normals=mesh.corner_normals if hasattr(mesh,'corner_normals') else None
-        for loop in mesh.loops:
-            n=normal_maps[loop.vertex_index]@np.array(corner_normals[loop.index].vector if corner_normals else loop.normal)
-            norm=np.linalg.norm(n)
-            if norm<1e-8:raise ValueError('Invalid normal.')
-            normals.append((n/norm).tolist())
-        uvs=[[list(x.uv) for x in layer.data] for layer in mesh.uv_layers]
-        colors=[]
-        for layer in mesh.color_attributes:
-            if layer.domain not in {'POINT','CORNER'}:raise ValueError('Unsupported color domain: '+layer.domain)
-            colors.append([list(layer.data[l.vertex_index if layer.domain=='POINT' else l.index].color) for l in mesh.loops])
-        polygons=[{'vertices':list(poly.vertices),'corners':list(poly.loop_indices),
-                   'material':mat_paths[obj.material_slots[poly.material_index].material.name]} for poly in mesh.polygons]
+        normals=mx.transformed_normals(mx.corner_normals(mesh),normal_maps[mx.loop_vertices(mesh)],'Invalid normal.',1e-8)
+        uvs=mx.uvs(mesh)
+        colors=mx.colors(mesh)
+        polygons=mx.faces(mesh,mx.material_paths(obj,mat_paths))
         # Bake the converted rest shape and replace the foreign rig, preserving topology and slots.
-        for v,p in zip(mesh.vertices,points):v.co=p
-        obj.parent=None;obj.matrix_parent_inverse=Matrix.Identity(4);obj.matrix_world=Matrix.Identity(4);obj.modifiers.clear();obj.vertex_groups.clear()
-        for name in target_matrices:obj.vertex_groups.new(name=name)
-        for i,row in enumerate(weights):
-            for name,w in row:obj.vertex_groups[name].add([i],w,'REPLACE')
+        mx.set_positions(mesh,point_array)
+        obj.parent=None;obj.matrix_parent_inverse=Matrix.Identity(4);obj.matrix_world=Matrix.Identity(4);obj.modifiers.clear()
+        mx.assign_weights(obj,list(target_matrices),weights)
         if hasattr(mesh,'normals_split_custom_set'):mesh.normals_split_custom_set(normals)
-        tangents=[]
-        if mesh.uv_layers:
-            mesh.calc_tangents(uvmap=mesh.uv_layers[0].name)
-            tangents=[list(loop.tangent)+[loop.bitangent_sign] for loop in mesh.loops]
+        tangents=mx.tangents(mesh)
         probes={}
         for role in ('forearm_L','upperarm_L','shin_L','thigh_L','head','hand_L','forearm_R','shin_R'):
             name=target_check['roles'][role];m=target_matrices[name]
@@ -632,25 +646,40 @@ def prepare(job,meshes,rigs):
         exported.append({'name':obj.name,'positions':points,'normals':normals,'uvs':uvs,'colors':colors,
                          'weights':weights,'faces':polygons,'deformation':checks,'tangents':tangents})
     weapon_receipt=None
-    if weapon_meshes:
-        # Charm vertices on the gun keep their charm bones; the rest follows the plan.
-        charms={n:kept['exported_bones'][n] for g in kept['groups'] if g['root'] in gun_groups for n in g['source_bones']} if gun_groups else {}
-        fitted=weapon_fit.apply(bpy,weapon_meshes,weapon_plan,[b['name'] for b in target],mat_paths,charms,deform)
-        for mesh in fitted:
-            weights,stats=normalize_weights(mesh['weights'],{n:n for n in target_matrices},target_matrices,options.get('influence_limit',4))
-            mesh['weights']=weights;totals.append(stats)
-        exported.extend(fitted)
-        meshes=meshes+weapon_meshes
-        weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[m['name'] for m in fitted],'objects':weapon_plan['objects'],
-                        'action':weapon_plan.get('action','replace'),'skin':weapon_plan['skin']['kind'],'charms':sorted(gun_groups)}
-        warnings.append('The gun ('+', '.join(weapon_plan['objects'])+') was fitted to the hero weapon and skinned to '+
-                        (weapon_plan['skin'].get('bone') or 'the original weapon bones')+'. Check grip, aim and muzzle position in game.')
+    def parts(names):
+        return ', '.join(names) if len(names)<=3 else ', '.join(names[:2])+' and '+str(len(names)-2)+' more parts'
+    if gun_hands:
+        fitted_hands=[];all_fitted=[];fitted_objects=[]
+        for hand,objects in gun_hands:
+            # Charm vertices on the gun keep their charm bones; the rest follows the plan.
+            charms={n:kept['exported_bones'][n] for g in kept['groups'] if gun_groups.get(g['root']) is hand for n in g['source_bones']} if gun_groups else {}
+            fitted=weapon_fit.apply(bpy,objects,hand,[b['name'] for b in target],mat_paths,charms,deform)
+            for mesh in fitted:
+                weights,stats=normalize_weights(mesh['weights'],{n:n for n in target_matrices},target_matrices,options.get('influence_limit',4))
+                mesh['weights']=weights;totals.append(stats)
+            # Merged parts are new objects: keep the ones the export names.
+            fitted_objects.extend(bpy.data.objects[m['name']] for m in fitted)
+            fitted_hands.append({'side':hand.get('side',''),'meshes':[m['name'] for m in fitted],'objects':hand['objects'],'copy':bool(hand.get('copy'))})
+            all_fitted.extend(fitted)
+            which={'right':'right-hand ','left':'left-hand '}.get(hand.get('side',''),'')
+            warnings.append('The '+which+'gun ('+parts(hand['objects'])+(', a copy of the right-hand gun' if hand.get('copy') else '')+
+                            ') was fitted to the hero\'s '+which+'gun and skinned to '+(hand['skin'].get('bone') or 'the original weapon bones')+
+                            ('; its parts were joined into '+str(len(fitted))+' mesh'+('es' if len(fitted)!=1 else '') if hand.get('merge') and len(objects)>len(fitted) else '')+
+                            '. Check grip, aim and muzzle position in game.')
+        exported.extend(all_fitted)
+        meshes=meshes+fitted_objects
+        weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[m['name'] for m in all_fitted],'objects':weapon_plan['objects'],
+                        'action':'replace' if weapon_plan.get('action')!='remove' else 'remove','skin':weapon_plan['skin']['kind'],'charms':sorted(gun_groups)}
+        if len(fitted_hands)>1:
+            weapon_receipt['hands']=fitted_hands
         if gun_groups:
-            warnings.append('Moving parts on the gun ('+', '.join(sorted(gun_groups))+') hang from '+weapon_plan['anchor']+
+            warnings.append('Moving parts on the gun ('+', '.join(sorted(gun_groups))+') hang from '+
+                            ', '.join(sorted({hand['anchor'] for hand in gun_groups.values()}))+
                             ' and keep their own bones for gun charm motion. Check how much they swing in game.')
-    elif weapon_plan and weapon_plan.get('action')=='remove':
-        weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[],'objects':weapon_plan['objects'],'action':'remove'}
-        warnings.append('The gun ('+', '.join(weapon_plan['objects'])+') was left out of the converted character.')
+    elif removed_hands:
+        removed=[name for hand in removed_hands for name in hand['objects']]
+        weapon_receipt={'policy':weapon_fit.POLICY,'meshes':[],'objects':removed,'action':'remove'}
+        warnings.append('The gun ('+parts(removed)+') was left out of the converted character.')
     remove_workspace_helpers(bpy, physics_helpers)
     bpy.data.objects.remove(rig,do_unlink=True)
     if job.get('props'):
@@ -687,31 +716,22 @@ def prepare_weapon_model(job,meshes,rigs):
         mats,mat_paths,mw=texture_and_materials(weapon_meshes,Path(job['workspace'])/'textures',job['hero_root']);warnings+=mw
         exported=[]
         for obj in weapon_meshes:
+            triangulate_ngons(obj)
             mesh=obj.data
             rows=skin_rows(obj,set(names))
             if any(not row for row in rows):raise ValueError('Every corrected weapon vertex must stay weighted to a weapon bone: '+obj.name)
-            if hasattr(mesh,'calc_normals_split'):mesh.calc_normals_split()
-            corners=mesh.corner_normals if hasattr(mesh,'corner_normals') else None
             to_world=np.linalg.inv(np.asarray(obj.matrix_world.to_3x3())).T
-            normals=[]
-            for loop in mesh.loops:
-                n=to_world@np.asarray(corners[loop.index].vector if corners else loop.normal);normals.append((n/np.linalg.norm(n)).tolist())
-            tangents=[]
-            if mesh.uv_layers:
-                mesh.calc_tangents(uvmap=mesh.uv_layers[0].name)
-                tangents=[list(loop.tangent)+[loop.bitangent_sign] for loop in mesh.loops]
-            exported.append({'name':obj.name,'positions':[list(obj.matrix_world@v.co) for v in mesh.vertices],'normals':normals,
-                             'uvs':[[list(x.uv) for x in layer.data] for layer in mesh.uv_layers],
-                             'colors':[[list(layer.data[l.vertex_index if layer.domain=='POINT' else l.index].color) for l in mesh.loops] for layer in mesh.color_attributes],
-                             'weights':rows,'faces':[{'vertices':list(p.vertices),'corners':list(p.loop_indices),
-                                 'material':mat_paths[obj.material_slots[p.material_index].material.name]} for p in mesh.polygons],
-                             'deformation':[],'tangents':tangents})
+            normals=mx.transformed_normals(mx.corner_normals(mesh),to_world,'Invalid weapon normal on '+obj.name,0.)
+            exported.append({'name':obj.name,'positions':world_points(obj).tolist(),'normals':normals,
+                             'uvs':mx.uvs(mesh),'colors':mx.colors(mesh),'weights':rows,
+                             'faces':mx.faces(mesh,mx.material_paths(obj,mat_paths)),'deformation':[],'tangents':mx.tangents(mesh)})
         plan_objects=[m.name for m in weapon_meshes]
     else:
         plan=job.get('weapon')
         if not plan:raise ValueError('Choose the gun in the Weapon tab before converting.')
         body,weapon_meshes=weapon_fit.split(meshes,plan)
         for obj in body:bpy.data.objects.remove(obj,do_unlink=True)
+        warnings+=texture_notes([obj.name for obj in weapon_meshes if sampled_uv_first(obj)],weapon_fit.share_materials(weapon_meshes))
         mats,mat_paths,mw=texture_and_materials(weapon_meshes,Path(job['workspace'])/'textures',job['hero_root']);warnings+=mw
         exported=weapon_fit.apply(bpy,weapon_meshes,plan,names,mat_paths)
         plan_objects=plan['objects']

@@ -24,8 +24,17 @@ pub fn arm_joints(options: &PreparationOptions) -> Result<bool> {
     }
 }
 
+/// Bend the source fingers to the hero's resting curl (on unless turned off).
+pub fn finger_curl(options: &PreparationOptions) -> Result<bool> {
+    match options.values.get("fit_finger_curl") {
+        None => Ok(true),
+        Some(value) => value.as_bool().ok_or_else(|| invalid("Model fitting: Bend fingers like the hero must be enabled or disabled.")),
+    }
+}
+
 pub fn mode(options: &PreparationOptions) -> Result<&str> {
     arm_joints(options)?;
+    finger_curl(options)?;
     arm_skinning(options)?;
     match options.values.get("fit_mode") {
         None => Ok(MATCH_TARGET),
