@@ -58,8 +58,17 @@ export function hangsFromGun(root:string,bones:Bone[],sourceRoles:Partial<Record
   while(cursor){if(roles.has(cursor.name)||steps>=512)return false;const marks=gunMarks(cursor);if(gun===undefined?marks.length>0:marks.includes(gun))return true;cursor=names.get(cursor.parent??'');steps++;}
   return false;
 }
-/** The gun left out in the Weapon tab, as its candidate id (empty when the gun stays). */
-const removedGun=(options:PreparationOptions)=>options.weapon?.enabled&&options.weapon.action==='remove'?(options.weapon.objects??[]).join('+'):'';
+/** Guns this conversion leaves out, as candidate ids (as weapon.rs plan_choice): both hands when the guns are left out,
+ * and gun-file guns that no hand uses (a pair's second gun on a hero with one gun). Gun-file candidates are the
+ * bone marks whose objects carry the gun_file_ prefix. */
+export function removedGuns(options:PreparationOptions,bones:Bone[]):string[]{
+  const weapon=options.weapon;
+  if(!weapon?.enabled||!['remove','replace'].includes(weapon.action??''))return [];
+  const fileGuns=[...new Set(bones.flatMap(b=>gunMarks(b)).filter(id=>id.startsWith('gun_file_')))];
+  const right=(weapon.objects??[]).join('+'),left=weapon.left?.keep?'':(weapon.left?.objects??[]).join('+');
+  if(weapon.action==='remove')return [...new Set([right,left,...fileGuns].filter(Boolean))];
+  return fileGuns.filter(id=>id!==right&&id!==left);
+}
 export const namedBreast=(name:string)=>{const n=name.toLowerCase();return BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t))));};
 const distance=(a:Vec3,b:Vec3)=>Math.sqrt(a.reduce((s,v,k)=>s+(v-b[k])**2,0));
 /** A closed loop (halo, crown band, hat brim): the single chain that contains the bone, from below its body anchor, ends close to where it starts. */
@@ -155,18 +164,24 @@ export function physicsGroups(bones:Bone[],weighted:string[],options:Preparation
     if(used.length&&destination)groups.push({root,source_anchor:anchor,target_anchor:destination,source_bones:branch,weighted_bones:used});
   }
   // Moving parts on a gun that is left out go with it (as in secondary_bones.rs selection_for).
-  const removed=removedGun(options);
-  return removed?groups.filter(g=>!hangsFromGun(g.root,bones,sourceRoles,removed)):groups;
+  const removed=removedGuns(options,bones);
+  return removed.length?groups.filter(g=>!removed.some(id=>hangsFromGun(g.root,bones,sourceRoles,id))):groups;
 }
 /** Moving parts on a gun that is left out are dropped from the kept groups; choosing the gun again keeps them again
  * (when motion is automatic). `values` is the Weapon tab's change; the result adds the matching physics roots. */
 export function gunChoiceOptions(bones:Bone[],weighted:string[],options:PreparationOptions,values:Partial<PreparationOptions>):Partial<PreparationOptions>{
-  const next={...options,...values},before=removedGun(options),after=removedGun(next),roles=next.source_roles??{},roots=next.physics_roots??[];
-  if(before===after||!next.preserve_physics_bones)return values;
-  if(after)return {...values,physics_roots:roots.filter(root=>!hangsFromGun(root,bones,roles,after))};
-  if(!next.automatic_secondary_motion)return values;
-  const back=physicsGroups(bones,weighted,next).map(g=>g.root).filter(root=>hangsFromGun(root,bones,roles,before)&&!roots.includes(root));
-  return back.length?{...values,physics_roots:[...roots,...back]}:values;
+  const next={...options,...values},before=removedGuns(options,bones),after=removedGuns(next,bones),roles=next.source_roles??{};
+  const same=before.length===after.length&&before.every(id=>after.includes(id));
+  if(same||!next.preserve_physics_bones)return values;
+  const on=(ids:string[])=>(root:string)=>ids.some(id=>hangsFromGun(root,bones,roles,id));
+  const gone=after.filter(id=>!before.includes(id)),back=before.filter(id=>!after.includes(id));
+  let roots=(next.physics_roots??[]).filter(root=>!on(gone)(root));
+  if(back.length&&next.automatic_secondary_motion){
+    const returning=physicsGroups(bones,weighted,{...next,physics_roots:roots}).map(g=>g.root).filter(root=>on(back)(root)&&!roots.includes(root));
+    roots=[...roots,...returning];
+  }
+  const unchanged=roots.length===(next.physics_roots??[]).length&&roots.every((root,i)=>root===(next.physics_roots??[])[i]);
+  return unchanged?values:{...values,physics_roots:roots};
 }
 /** Groups hanging from a gun get the light charm part type unless a type was already chosen. */
 function withCharmKinds(bones:Bone[],options:PreparationOptions,groups:PhysicsGroup[]):PreparationOptions{

@@ -65,6 +65,9 @@ strong { font-weight: 600; }
 .nav-item:hover:not(:disabled) { background: #1d2227; }
 .nav-group + .nav-group { margin-top: 22px; }
 .nav-utility { font-size: 12.5px; }
+.nav-step-number { display: inline-grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; border: 1px solid #44515b; border-radius: 50%; font-size: 11.5px; font-weight: 600; color: #b6bec7; }
+.nav-item.selected .nav-step-number { background: #9fe4c5; border-color: #9fe4c5; color: #14291f; }
+.nav-item.nav-done .nav-step-number { border-color: #3b6553; color: #9fe4c5; }
 .sidebar-bottom { margin-top: auto; padding: 24px 10px 0; }
 .version { display: block; font-size: 12px; color: var(--muted); }
 .sidebar-bottom .about-link { min-height: 28px; padding: 2px 0; margin-top: 4px; font-size: 12px; font-weight: 400; }
@@ -410,7 +413,10 @@ tr:hover td { background: #1a1f24; }
 .overview-character .hero-selector { position: absolute; top: calc(100% - 1px); left: 0; right: 0; z-index: 8; margin-top: 0; box-shadow: 0 10px 22px #0008; }
 .overview-name .field { margin: 0 0 8px; }
 .overview-name .hint { font-size: 12px; }
-.overview-actions .preset-menu { margin-top: 9px; font-size: 13px; }
+.overview-actions .preset-menu, .overview-name .preset-menu { margin-top: 9px; font-size: 13px; }
+.overview-model { display: grid; gap: 8px; align-content: start; }
+.overview-model > button { justify-self: start; }
+.overview-model .path-control, .overview-model .field { margin: 6px 0 0; }
 .preset-menu > summary { line-height: 1.5; }
 .preset-menu .row { margin-top: 10px; }
 .setup-progress { margin-bottom: 20px; }
@@ -517,3 +523,26 @@ tr:hover td { background: #1a1f24; }
 .color-sliders { display: grid; gap: 8px; margin: 8px 0; }
 .color-slider { display: grid; grid-template-columns: 150px minmax(0,1fr) 56px; align-items: center; gap: 10px; }
 .color-slider output { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Setup pages in the step style of the mod flow (preparation.css supplies the prep-* rules). */
+.setup-workspace .prep-steps { flex-wrap: wrap; row-gap: 6px; }
+.setup-workspace .prep-step-slot { display: contents; }
+.setup-workspace .page-title { margin-bottom: 20px; }
+.setup-workspace .summary-list { margin: 16px 0 8px; }
+.setup-workspace .row { margin-top: 14px; }
+.setup-workspace .row + .hint { margin-top: 10px; }
+.setup-embedded-settings .section { margin-bottom: 0; }
+.setup-embedded-settings .disclosure.tool-downloads { margin-top: 0; }
+.setup-workspace .setup-next { margin-top: 0; }
+.setup-workspace .setup-ready { border-color: #477762; background: #19231f; }
+.setup-next-status { display: flex; gap: 14px; align-items: flex-start; }
+.setup-next-status h2 { font-size: 17px; margin: 6px 0 6px; }
+.setup-flow { list-style: none; margin: 14px 0 4px; padding: 0; display: grid; gap: 8px; }
+.setup-flow li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid #2b363d; border-radius: 9px; background: #161c20; }
+.setup-flow b { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: var(--prep-accent); color: #14291f; font-size: 12px; }
+.setup-flow strong { display: block; font-size: 13.5px; }
+.setup-flow span { display: block; color: #9daab5; font-size: 12.5px; margin-top: 2px; }
+.setup-list { padding-left: 22px; line-height: 1.8; }
+.setup-plan table { width: 100%; margin: 12px 0; }
+.prep-badge-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; }
+.setup-workspace .prep-done { display: flex; align-items: center; gap: 14px; color: var(--prep-accent); }

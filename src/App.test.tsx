@@ -57,7 +57,7 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'New'}));
     await waitFor(()=>expect(mocks.newProject).toHaveBeenCalledTimes(2));
     await waitFor(()=>expect(screen.getByLabelText('Project name')).toHaveValue(draft.name));
-    expect(screen.getByRole('heading',{name:'Project overview'})).toBeInTheDocument();
+    expect(screen.getByRole('heading',{name:'Character & model'})).toBeInTheDocument();
   });
   it('retains all saved project fields while editing the name and saving', async () => {
     const stored = structuredClone(reference.cases[1].expected) as unknown as Project;
@@ -79,19 +79,19 @@ describe('Connected desktop workspace', () => {
     mocks.open.mockResolvedValue(analyzed.summary.path);
     render(<App />);
     await screen.findByLabelText('Project name');
-    fireEvent.click(screen.getByRole('button',{name:'Appearance'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
     fireEvent.click(screen.getByRole('button',{name:'Choose model…'}));
     await screen.findByText('✓ Model read');
     expect(mocks.analyze).toHaveBeenCalledWith(analyzed.summary.path);
     expect(screen.getByText('Compatibility validation still required')).toBeInTheDocument();
     const handler = mocks.drop.mock.calls[0][0];
-    fireEvent.click(screen.getByRole('button',{name:'Overview'}));
+    fireEvent.click(screen.getByRole('button',{name:'Character & model'}));
     act(() => handler({payload:{type:'enter',paths:[analyzed.summary.path],position:{x:1,y:1}}}));
     act(() => handler({payload:{type:'over',position:{x:2,y:2}}}));
-    expect(screen.getByRole('button',{name:'Overview'})).toHaveAttribute('aria-current','page');
+    expect(screen.getByRole('button',{name:'Character & model'})).toHaveAttribute('aria-current','page');
     await act(async () => handler({payload:{type:'drop',paths:[analyzed.summary.path],position:{x:1,y:1}}}));
     expect(mocks.analyze).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('button',{name:'Appearance'})).toHaveAttribute('aria-current','page');
+    expect(screen.getByRole('button',{name:'Appearance & weapons'})).toHaveAttribute('aria-current','page');
     fireEvent.click(screen.getByRole('button',{name:'Step timings'}));
     expect(screen.getByTestId('total-duration')).toHaveTextContent('1.000 s');
   });
@@ -151,7 +151,7 @@ describe('Connected desktop workspace', () => {
     mocks.open.mockResolvedValue('C:\\Models\\bad.dmx');
     render(<App />); await screen.findByLabelText('Project name');
     mocks.latestTimings.mockResolvedValue(report);
-    fireEvent.click(screen.getByRole('button',{name:'Appearance'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
     fireEvent.click(screen.getByRole('button',{name:'Choose model…'}));
     await screen.findByRole('alert');
     expect(screen.getByRole('alert')).toHaveTextContent('Unexpected binary block at byte 500');
@@ -164,7 +164,7 @@ describe('Connected desktop workspace', () => {
     const planned={...imported,materials:{'materials/test.vmat':{preset:'cloth',mode:'generate',confirmed:false,textures:{color:'C:\\textures\\cloth.png'}}}};
     mocks.open.mockResolvedValue('C:\\source-package.zip');mocks.importSourcePackage.mockResolvedValue(imported);mocks.analyzeMaterials.mockResolvedValue(planned);
     mocks.save.mockResolvedValue('C:\\project.json');mocks.saveProject.mockImplementation(async(path,project)=>({path,project}));
-    render(<App/>);await screen.findByLabelText('Project name');fireEvent.click(screen.getByRole('button',{name:'Appearance'}));
+    render(<App/>);await screen.findByLabelText('Project name');fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
     fireEvent.click(screen.getByRole('button',{name:'Import source package…'}));await screen.findByText('Source package imported and verified');
     expect(mocks.importSourcePackage).toHaveBeenCalledWith('C:\\source-package.zip',draft);
     fireEvent.click(screen.getByRole('button',{name:'Analyze materials'}));await screen.findByText('Material analysis complete. Review assignments before building.');
@@ -197,7 +197,7 @@ describe('Connected desktop workspace', () => {
     // Validation commits only Blender natively; the frontend must not write a
     // whole settings snapshot or silently overwrite other pending edits.
     expect(mocks.saveSettings).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button',{name:'Model preparation'}));
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));
     expect(screen.queryByText('Tool settings have unsaved changes')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:'Settings'}));
     fireEvent.click(screen.getByText('Advanced configuration',{selector:'summary'}));
@@ -224,13 +224,13 @@ describe('Connected desktop workspace', () => {
     expect(screen.getByText('Settings unsaved')).toBeVisible();
     expect(screen.getByLabelText('Workspace folder')).toHaveValue('C:\\Pending workspace');
     expect(mocks.saveSettings).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button',{name:'Model preparation'}));
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));
     expect(screen.getByText('Tool settings have unsaved changes')).toBeVisible();
     await waitFor(()=>expect(screen.getByRole('button',{name:'Save settings'})).toBeEnabled());
     fireEvent.click(screen.getByRole('button',{name:'Save settings'}));
     await waitFor(()=>expect(mocks.saveSettings).toHaveBeenCalledWith({...settings,blender:path,workspace:'C:\\Pending workspace'}));
     await waitFor(()=>expect(screen.queryByText('Tool settings have unsaved changes')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button',{name:'Overview'}));
+    fireEvent.click(screen.getByRole('button',{name:'Character & model'}));
     expect(screen.getByLabelText('Project name')).toHaveValue('Keep mapping and cloth project');
   });
   it('does not claim Blender is saved when validation cannot persist the path', async () => {
@@ -264,7 +264,7 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'4. Hair and cloth'}));
     expect(screen.getByText('Use included Vindicta cloth setup',{selector:'strong'})).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:'Open Physics'}));
-    expect(screen.getByRole('heading',{name:'Physics'})).toBeInTheDocument();
+    expect(screen.getByRole('heading',{name:'Physics & preview'})).toBeInTheDocument();
     expect(mocks.saveSettings).not.toHaveBeenCalled();
     expect(mocks.newProject).toHaveBeenCalledTimes(1);
   });
@@ -326,11 +326,11 @@ describe('Connected desktop workspace', () => {
     mocks.inspectProject.mockResolvedValue({project:structuredClone(reviewedProject),report:inspected});
     render(<App/>);await screen.findByLabelText('Project name');
     const navigate=(name:string)=>fireEvent.click(within(screen.getByRole('navigation',{name:'Main navigation'})).getByRole('button',{name}));
-    navigate('Review & build');fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));
+    navigate('Build & install');fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));
     await screen.findByText('Ready to build',{exact:true});
     expect(mocks.inspectProject).toHaveBeenCalledWith(reviewedProject);
-    navigate('Overview');fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Changed project'}});
-    navigate('Review & build');expect(screen.queryByText('Ready to build',{exact:true})).not.toBeInTheDocument();
+    navigate('Character & model');fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Changed project'}});
+    navigate('Build & install');expect(screen.queryByText('Ready to build',{exact:true})).not.toBeInTheDocument();
     mocks.inspectProject.mockRejectedValue({kind:'validation',message:'Source input changed',details:'Fresh native validation failed.'});
     fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));await screen.findByRole('alert');
     expect(screen.getByRole('alert')).toHaveTextContent('Fresh native validation failed');

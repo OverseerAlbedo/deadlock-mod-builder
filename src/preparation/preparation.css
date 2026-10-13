@@ -252,10 +252,39 @@
 .prep-weapon-actions legend { color: #c3cfd8; font-size: 13px; padding: 0 6px; }
 .prep-weapon-actions input[type=radio] { width: 18px; height: 18px; accent-color: var(--prep-accent); margin-right: 8px; }
 .prep-weapon-fit { display: grid; gap: 10px; margin-top: 8px; }
-.prep-weapon-viewport { height: 340px; border: 1px solid #303c44; border-radius: 10px; overflow: hidden; background: #12171b; }
+.prep-weapon-viewport { height: 480px; display: flex; flex-direction: column; border: 1px solid #303c44; border-radius: 10px; overflow: hidden; background: #12171b; }
+.prep-weapon-canvas { flex: 1; min-height: 0; }
 .prep-weapon-viewport canvas { display: block; }
 .prep-weapon-viewport p { margin: 0; padding: 6px 10px; background: #161c20; }
+.prep-weapon-viewport p + p { padding-top: 0; }
+.prep-weapon-view { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 6px 8px; background: #161c20; border-bottom: 1px solid #303c44; }
+.prep-weapon-view span { color: #8d9ba6; font-size: 12px; margin: 0 2px 0 8px; }
+.prep-weapon-view span:first-child { margin-left: 2px; }
+.prep-weapon-view button { min-height: 28px; padding: 3px 10px; font-size: 12px; background: #1a2228; border-color: #344049; color: #aabac5; }
+.prep-weapon-view button[aria-pressed=true] { background: #2a3e36; border-color: #5b7b6d; color: #cbefde; }
 .prep-weapon-viewport .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 6px 0 10px; vertical-align: -1px; }
 .prep-weapon-viewport .swatch.grey { background: #8a9aa6; }
 .prep-weapon-viewport .swatch.amber { background: #ffb547; }
+.prep-weapon-viewport .swatch.teal { background: #4fd1c5; }
 .prep-weapon-stats { font-size: 12px; }
+.prep-workspace .prep-done { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 16px; align-items: center; border-color: #3b6553; background: #1a2a24; }
+.prep-workspace .prep-done p { margin: 4px 0 0; }
+@media (max-width: 900px) { .prep-workspace .prep-done { grid-template-columns: auto minmax(0,1fr); } .prep-workspace .prep-done .row { grid-column: 1 / -1; } }
+.weapons-step { margin-bottom: 20px; }
+.weapons-step > .prep-workspace { padding-bottom: 0; }
+.prep-workspace .prep-gun-apply { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 16px; align-items: center; border-color: #6b5a2e; background: #2a2416; }
+.prep-workspace .prep-gun-apply p { margin: 4px 0 0; }
+.prep-gun-summary { border: 1px solid #35505f; background: #172630; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; display: grid; gap: 6px; }
+.prep-gun-summary p { margin: 0; line-height: 1.6; font-size: 13px; }
+.prep-gun-summary .prep-gun-result { color: #d9f4e6; border-top: 1px solid #2c3f4a; padding-top: 8px; }
+.prep-recommended { font-style: normal; font-size: 11px; color: #14291f; background: var(--prep-accent); border-radius: 10px; padding: 1px 8px; margin-left: 8px; font-weight: 650; }
+.prep-gun-hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 16px; align-items: end; margin: 6px 0 12px; }
+.prep-gun-adjust { display: grid; gap: 8px; }
+.prep-gun-adjust-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.prep-gun-adjust-row button { min-height: 36px; padding: 6px 12px; font-size: 12.5px; }
+.prep-gun-fit-line { margin: 2px 0 0; }
+.prep-gun-exact { border-top: 1px solid #2c3840; padding-top: 10px; margin-top: 10px; }
+.prep-weapon-loading { display: grid; place-items: center; color: #9daab5; }
+.prep-separate-gun { display: grid; gap: 10px; }
+.prep-gun-linked { border: 1px solid #3b6553; background: #1d3028; border-radius: 10px; padding: 12px 16px; }
+.prep-gun-linked p { margin: 0 0 10px; line-height: 1.6; }

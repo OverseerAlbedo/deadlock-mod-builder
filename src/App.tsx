@@ -1,5 +1,5 @@
 import { version as APP_VERSION } from "../package.json";
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ask, open, save } from '@tauri-apps/plugin-dialog';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -13,6 +13,7 @@ import { ClothAuthoringPanel } from './cloth/ClothAuthoringPanel';
 import { SetupPage } from './setup/SetupPage';
 import { OnboardingPage } from './setup/OnboardingPage';
 import { PreparationPage } from './preparation/PreparationPage';
+import { WeaponsSection } from './preparation/WeaponsSection';
 import { BuildPage } from './build/BuildPage';
 import type { BuildResult, ProjectInspection, OriginalValidation, PreparedModel } from './build/models';
 import { Appearance } from './components/Appearance';
@@ -22,18 +23,38 @@ import { LogView } from './components/LogView';
 import { Disclosure, ErrorNotice, NavIcon, PageTitle } from './components/Primitives';
 import { SettingsPage } from './components/SettingsPage';
 import { StorageSection } from './components/StorageSection';
+import { CharacterPreview } from './components/CharacterPreview';
 import { Timings } from './components/Timings';
 import { revealSection } from './components/workflowNavigation';
 
 type Page = 'project' | 'appearance' | 'physics' | 'motion' | 'extras' | 'timings' | 'logs' | 'settings' | 'build' | 'prepare' | 'setup' | 'onboarding';
-const navigation: {id: Page; label: string; icon: 'project' | 'model' | 'time' | 'log' | 'settings'}[] = [
-  {id:'project',label:'Overview',icon:'project'}, {id:'appearance',label:'Appearance',icon:'model'},
-  {id:'physics',label:'Physics',icon:'model'}, {id:'motion',label:'Motion',icon:'model'}, {id:'extras',label:'Extras',icon:'project'},
-  {id:'prepare',label:'Model preparation',icon:'model'},
-  {id:'build',label:'Review & build',icon:'project'},
+/** The five steps of making a mod, in order; then optional extras and tools. */
+const navigation: {id: Page; label: string; icon: 'project' | 'model' | 'time' | 'log' | 'settings'; step?: number}[] = [
+  {id:'project',label:'Character & model',icon:'project',step:1},
+  {id:'prepare',label:'Prepare model',icon:'model',step:2},
+  {id:'appearance',label:'Appearance & weapons',icon:'model',step:3},
+  {id:'physics',label:'Physics & preview',icon:'model',step:4},
+  {id:'build',label:'Build & install',icon:'project',step:5},
+  {id:'motion',label:'Motion',icon:'model'}, {id:'extras',label:'Extras',icon:'project'},
   {id:'timings',label:'Step timings',icon:'time'}, {id:'logs',label:'Logs',icon:'log'},
   {id:'settings',label:'Settings',icon:'settings'},
 ];
+const NAV_GROUPS: {label: string; pages: Page[]}[] = [
+  {label:'Make your mod',pages:['project','prepare','appearance','physics','build']},
+  {label:'More customization',pages:['motion','extras']},
+  {label:'Tools',pages:['timings','logs','settings']},
+];
+/** Steps that are done, shown with a check mark in the sidebar. */
+function stepsDone(project: Project | undefined, built: boolean): Set<Page> {
+  const done = new Set<Page>();
+  if (!project) return done;
+  if (project.original_model && (project.dmx || project.preparation_source)) done.add('project');
+  if (project.dmx) done.add('prepare');
+  if (project.dmx && Object.keys(project.materials).length) done.add('appearance');
+  if (project.customization.secondary_motion?.enabled || project.customization.physics?.enabled) done.add('physics');
+  if (built) done.add('build');
+  return done;
+}
 export function App() {
   const [page, setPage] = useState<Page>('project');
   const [document, setDocument] = useState<ProjectDocument | null>(null);
@@ -46,6 +67,8 @@ export function App() {
   const [catalog,setCatalog]=useState<ComponentCatalog|null>(null);
   useEffect(()=>setCatalog(null),[document?.project.id,document?.project.original_model,settings?.pak]);
   const [inspection,setInspection]=useState<{report:ProjectInspection;project:string}|null>(null);
+  // Whether the last Analyze saw the project as it is now (serialized once per change, not per render).
+  const fresh=useMemo(()=>Boolean(document&&inspection?.project===JSON.stringify(document.project)),[document,inspection]);
   const [buildResult,setBuildResult]=useState<BuildResult|null>(null);
   const [installed,setInstalled]=useState<string|null>(null);
   const [prepared,setPrepared]=useState<PreparedModel|null>(null);
@@ -115,6 +138,16 @@ export function App() {
       setDocument(saved); setProjectDirty(false); notify('Project saved');
     });
   }, [document, run, notify]);
+  /** Save inside an operation that is already running (no second busy state); resolves to the saved path. */
+  const saveDuringOperation = useCallback(async () => {
+    const current = documentRef.current;
+    if (!current) return undefined;
+    const path = current.path ?? await save({title:'Save project',defaultPath:`${current.project.name}.dmb.json`,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
+    if (!path) return undefined;
+    const saved = await api.saveProject(path, current.project);
+    setDocument(saved); setProjectDirty(false);
+    return saved.path ?? path;
+  }, []);
   const openProject = useCallback(async () => {
     if (active.current) return;
     await run('Could not open the project', async () => {
@@ -148,9 +181,16 @@ export function App() {
     if (active.current || !document) return;
     try {
       const path = await open({title:'Select replacement model',multiple:false,filters:[{name:'Models',extensions:['dmx','blend','glb','gltf','fbx']}]});
-      if (typeof path === 'string') {if(/\.dmx$/i.test(path))await analyze(path);else{setPage('prepare');window.dispatchEvent(new CustomEvent('dmb-model-source',{detail:path}));}}
+      // Blender, FBX and glTF models are inspected and prepared automatically (step 2).
+      if (typeof path === 'string') {if(/\.dmx$/i.test(path))await analyze(path);else{setPage('prepare');window.dispatchEvent(new CustomEvent('dmb-model-source',{detail:{path,auto:true}}));}}
     } catch (cause) { fail('Could not choose a model', cause); }
   }, [analyze, document, fail]);
+  /** Prepare the current model again from the start (for example with a new gun file). */
+  const prepareAgain = useCallback(() => {
+    setPage('prepare');
+    const path = documentRef.current?.project.preparation_source;
+    if (path) window.dispatchEvent(new CustomEvent('dmb-model-source', {detail:{path,auto:true}}));
+  }, []);
   const analyzeRef = useRef(analyze);
   useEffect(() => { analyzeRef.current = analyze; }, [analyze]);
   useEffect(() => {
@@ -168,7 +208,7 @@ export function App() {
       else if (payload.type === 'drop') {
         setDrag(null);
         if(target){target.dispatchEvent(new CustomEvent('dmb-file-drop',{detail:payload.paths}));return;}
-        if(payload.paths.length===1&&/\.(blend|glb|gltf|fbx)$/i.test(payload.paths[0])&&!active.current){setPage('prepare');window.dispatchEvent(new CustomEvent('dmb-model-source',{detail:payload.paths[0]}));}
+        if(payload.paths.length===1&&/\.(blend|glb|gltf|fbx)$/i.test(payload.paths[0])&&!active.current){setPage('prepare');window.dispatchEvent(new CustomEvent('dmb-model-source',{detail:{path:payload.paths[0],auto:true}}));}
         else if (payload.paths.length !== 1 || !/\.dmx$/i.test(payload.paths[0])) fail('Could not import the dropped file', 'Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.');
         else if (active.current) fail('An operation is already running', 'Wait for the current operation to finish or cancel it, then drop the model again.');
         else void analyzeRef.current(payload.paths[0]);
@@ -233,7 +273,7 @@ export function App() {
   }
   async function checkSetup(){if(settings)await run('Could not check tool paths',async()=>{setSetupStatus(null);setSetupStatus(await api.setupStatus(settings));});}
   async function verifySetup(){if(settings)await run('Could not save and check tools',async()=>{setSetupStatus(null);await api.saveSettings(settings);setSavedSettings(settings);setInspection(null);setSetupStatus(await api.setupStatus(settings));notify('Settings saved and tool locations checked.');});}
-  async function loadPreview(path=document?.project.dmx){if(!path)return;await run('Preview could not be loaded',async()=>{const buffer=await api.preview(path);setPreview(decodePreview(buffer));setPage('appearance');notify('Preview loaded');},true);}
+  async function loadPreview(path=document?.project.dmx,stay=false){if(!path)return;await run('Preview could not be loaded',async()=>{const buffer=await api.preview(path);setPreview(decodePreview(buffer));if(!stay)setPage('appearance');notify('Preview loaded');},true);}
   function updateProject(project:Project){const current=documentRef.current;if(!current)return;if(current.project!==document?.project){notify('Project changed while the selection was being checked. Please select it again.');return;}const next={...current,project};documentRef.current=next;setDocument(next);setProjectDirty(true);}
   async function selectHero(hero:HeroRecord){if(!document)return;await run('Could not select the character',async()=>{const project=await api.selectHero(document.project,hero.path);updateProject(project);setSummary(null);setPreview(null);notify('Character selected');});}
   async function openReport() {
@@ -250,20 +290,21 @@ export function App() {
   const runningStep=backendBusy?[...(report?.steps??[])].reverse().find(step=>step.status==='running')?.name:undefined;
   function navigate(page:Page, section?:string){setPage(page);if(section)requestAnimationFrame(()=>revealSection(section));}
   const unavailable = Boolean(busy) || backendBusy || !desktop;
+  const done = stepsDone(document?.project, Boolean(buildResult?.vpk || installed));
   return <div className="app-shell">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true">D</span><div>Deadlock<span>Mod Builder</span></div></div><nav aria-label="Main navigation">{[{label:'Project',pages:['project','appearance','physics','motion','extras','prepare']},{label:'Build',pages:['build','timings','logs']},{label:'System',pages:['settings']}].map(group=><div className="nav-group" key={group.label}><div className="nav-group-label">{group.label}</div>{navigation.filter(item=>group.pages.includes(item.id)).map(item=><button key={item.id} className={`nav-item ${item.id==='prepare'?'nav-utility':''} ${(page===item.id||((page==='setup'||page==='onboarding')&&item.id==='settings'))?'selected':''}`} aria-current={(page===item.id||((page==='setup'||page==='onboarding')&&item.id==='settings'))?'page':undefined} onClick={()=>setPage(item.id)}><NavIcon type={item.icon}/>{item.label}</button>)}</div>)}</nav><div className="sidebar-bottom"><span className="version">{APP_VERSION}</span><button className="tertiary about-link" onClick={()=>{setPage('settings');requestAnimationFrame(()=>{const details=window.document.getElementById('app-about');if(details instanceof HTMLDetailsElement)details.open=true;details?.scrollIntoView?.({block:'start'});});}}>About this build</button></div></aside>
+    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true">D</span><div>Deadlock<span>Mod Builder</span></div></div><nav aria-label="Main navigation">{NAV_GROUPS.map(group=><div className="nav-group" key={group.label}><div className="nav-group-label">{group.label}</div>{navigation.filter(item=>group.pages.includes(item.id)).map(item=>{const current=page===item.id||((page==='setup'||page==='onboarding')&&item.id==='settings');const finished=done.has(item.id);return <button key={item.id} className={`nav-item ${item.step?'nav-step':''} ${finished?'nav-done':''} ${current?'selected':''}`} aria-current={current?'page':undefined} onClick={()=>setPage(item.id)}>{item.step?<span className="nav-step-number" aria-hidden="true">{finished?'✓':item.step}</span>:<NavIcon type={item.icon}/>}{item.label}</button>;})}</div>)}</nav><div className="sidebar-bottom"><span className="version">{APP_VERSION}</span><button className="tertiary about-link" onClick={()=>{setPage('settings');requestAnimationFrame(()=>{const details=window.document.getElementById('app-about');if(details instanceof HTMLDetailsElement)details.open=true;details?.scrollIntoView?.({block:'start'});});}}>About this build</button></div></aside>
     <div className="workspace-shell"><header className="topbar"><div className="project-identity"><span>{document?.project.name ?? 'Project workspace'}</span>{projectDirty && <span className="dirty-indicator" aria-label="Unsaved project changes">●</span>}<span className="muted">/ {page==='setup'?'Model tool setup':page==='onboarding'?'New-user setup':navigation.find(item => item.id === page)?.label}</span></div><div className="row project-controls"><button className="tertiary" disabled={unavailable} onClick={() => void newProject()}>New</button><button className="tertiary" disabled={unavailable} onClick={() => void openProject()}>Open…</button><button disabled={unavailable || !document} onClick={() => void saveProject()}>Save</button><button className="tertiary" disabled={unavailable || !document} onClick={() => void saveProject(true)}>Save as…</button></div></header>
       <main className={`workspace page-${page} ${['project','appearance','physics','motion','build','timings','logs','settings'].includes(page)?'studio-workspace':''}`}>
         {!desktop && <div className="capability-notice"><strong>Desktop connection required</strong><p>This browser cannot access the Rust backend. Run the Tauri desktop application to open projects and analyze models.</p></div>}
         {settingsDirty && !['settings','onboarding','setup'].includes(page) && <div className="capability-notice"><strong>Tool settings have unsaved changes</strong><p>Save settings to use the tool paths you selected.</p><button disabled={unavailable} onClick={()=>void persistSettings()}>Save settings</button></div>}
         {error && <ErrorNotice {...error} dismiss={() => setError(null)} />}
-        {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document.project)} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()}/> : <><PageTitle title="Project overview" subtitle="Your character, configured choices, and the next step."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
-        {page === 'appearance' && <Appearance report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
-        {document&&<div hidden={page!=='physics'}><PhysicsPage openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document.project)} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
+        {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={fresh} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()} chooseModel={()=>void chooseModel()} prepareAgain={prepareAgain}/> : <><PageTitle title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
+        {page === 'appearance' && <Appearance weapons={document?<WeaponsSection project={document.project} update={updateProject} busy={unavailable} operate={run} refreshPreview={()=>void loadPreview(undefined,true)} openPreparation={prepareAgain} separate={{projectPath:document.path,saveProject:saveDuringOperation}}/>:undefined} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
+        {document&&<div hidden={page!=='physics'}><PhysicsPage preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>void loadPreview(undefined,true)} busy={unavailable}/>:null} openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
         {page==='motion'&&document&&<MotionPage catalog={catalog?.includes_animations===false?null:catalog} discover={()=>void discoverComponents()} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
         {page==='extras'&&document&&<ExtrasPage catalog={catalog} discover={()=>discoverComponents(true)} discovering={busy==='Character asset discovery did not complete'} canDiscover={Boolean(settings?.pak)&&!settingsDirty} openSetup={()=>setPage('settings')} reviewBuild={()=>navigate('build')} key={`${document.project.id}:${document.project.original_model}`} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
-        {document&&<div hidden={page!=='prepare'}><PreparationPage key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run}/></div>}
-        {page==='build'&&document&&<BuildPage analyzing={busy==='Project analysis did not complete'} go={navigate} project={document.project} update={updateProject} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document.project)} prepared={prepared} original={originalValidation} busy={unavailable} inspect={()=>void inspectProject()} prepare={offline=>void prepareProject(offline)} validateOriginal={compile=>void validateOriginal(compile)} build={(output,install)=>void buildProject(output,install)} result={buildResult} install={(path,overwrite)=>void installProject(path,overwrite)} installed={installed} chooseFreeSlot={()=>void chooseFreeSlot()} openOutput={()=>void run('Output folder could not be opened',async()=>{await api.openOutput(document.project);})}/>}
+        {document&&<div hidden={page!=='prepare'}><PreparationPage key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>setPage('appearance')}/></div>}
+        {page==='build'&&document&&<BuildPage analyzing={busy==='Project analysis did not complete'} go={navigate} project={document.project} update={updateProject} report={inspection?.report??null} fresh={fresh} prepared={prepared} original={originalValidation} busy={unavailable} inspect={()=>void inspectProject()} prepare={offline=>void prepareProject(offline)} validateOriginal={compile=>void validateOriginal(compile)} build={(output,install)=>void buildProject(output,install)} result={buildResult} install={(path,overwrite)=>void installProject(path,overwrite)} installed={installed} chooseFreeSlot={()=>void chooseFreeSlot()} openOutput={()=>void run('Output folder could not be opened',async()=>{await api.openOutput(document.project);})}/>}
         {page === 'timings' && <Timings report={report} openReport={() => void openReport()} busy={unavailable} />}
         {page === 'logs' && <><LogView entries={logs} copy={() => void copyLog()} save={() => void saveLog()} busy={unavailable} /><ToolLogs busy={!desktop} fail={fail}/></>}
         {page === 'settings' && <><SettingsPage onboarding={()=>setPage('onboarding')} modelSetup={()=>setPage('setup')} settings={settings} update={value => {setSettings(value);setSetupStatus(null);}} persist={() => void persistSettings()} busy={unavailable} dirty={settingsDirty} fail={fail} detect={extra=>void detectSettings(extra)} status={setupStatus} check={()=>void checkSetup()} />{settings&&desktop&&<StorageSection settings={settings} update={value=>setSettings(value)} project={document?.project??null} busy={unavailable} dirty={settingsDirty} operate={run}/>}{settings&&<Disclosure title="Tool diagnostics" hint="Compiler candidates, configuration audits and Blender validation"><ToolDiagnostics settings={settings} blenderSaved={path=>{setSettings(current=>current?{...current,blender:path}:current);setSavedSettings(current=>current?{...current,blender:path}:current);setSetupStatus(null);setInspection(null);}} disabled={unavailable} operate={run}/></Disclosure>}<Disclosure title="About this build" hint="Version and qualification status" id="app-about"><p>Deadlock Mod Builder Rust · {APP_VERSION}</p><p className="hint">The Vindicta R12 project has been reported working in game. This update recognizes MMD physics helpers during source import and retains the accepted cloth reference. Other projects and toolchains require their own validation.</p></Disclosure></>}

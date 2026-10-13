@@ -13,7 +13,8 @@ import type { ProjectInspection } from '../build/models';
 import { projectReadiness } from '../build/readiness';
 import { revealSection } from './workflowNavigation';
 
-export function Appearance({ document, summary, choose, analyze, busy, drag, update, fail, preview, loadPreview, importPackage, analyzeMaterials, openPreparation, report = null, fresh = false }: {
+export function Appearance({ document, summary, choose, analyze, busy, drag, update, fail, preview, loadPreview, importPackage, analyzeMaterials, openPreparation, report = null, fresh = false, weapons }: {
+  /** The Weapons section (the gun of a prepared model). */ weapons?: React.ReactNode;
   report?: ProjectInspection | null; fresh?: boolean; openPreparation?: () => void; preview: PreviewScene | null; loadPreview: () => void; importPackage: () => void; analyzeMaterials: () => void;
   document: ProjectDocument | null; summary: ModelSummary | null; choose: () => void;
   update: (project: Project) => void; fail: (title: string, error: unknown) => void;
@@ -26,7 +27,7 @@ export function Appearance({ document, summary, choose, analyze, busy, drag, upd
   const processingIssue = Boolean(inspection?.vertex_preflight.errors.length);
   const textureCount = project ? new Set(Object.values(project.materials).flatMap(material => Object.values(material.textures ?? {}).filter(Boolean))).size : 0;
   return <>
-    <PageTitle eyebrow="Model & materials" title="Appearance" subtitle="Add your model, inspect it, then review textures and materials." action={<button disabled={busy || !document} onClick={importPackage}>Import source package…</button>} />
+    <PageTitle eyebrow="Step 3 of 5" title="Appearance & weapons" subtitle="Check your character in 3D, its materials and textures, and the gun it holds." action={<button disabled={busy || !document} onClick={importPackage}>Import source package…</button>} />
     <div className={project?.dmx ? 'appearance-model-grid' : ''}>
       <Section title="Replacement model" id="replacement-model" className="model-selection" actions={project?.dmx ? <button disabled={busy} onClick={choose}>Replace…</button> : undefined}>
         {project?.dmx ? <div className={`model-file-panel ${drag ? 'drop-active' : ''}`}>
@@ -43,6 +44,7 @@ export function Appearance({ document, summary, choose, analyze, busy, drag, upd
       </Section>}
     </div>
     {project && <>
+      {weapons}
       <div className="appearance-options-grid">
       <Section title="Model processing">
         <div className="setting-summary"><div><StateLabel tone={processingIssue ? 'attention' : project.auto_split ? 'ready' : 'neutral'}>{processingIssue ? 'Mesh processing needs attention' : project.auto_split ? 'Automatic splitting enabled' : 'Automatic splitting disabled'}</StateLabel><p>{processingIssue ? inspection?.vertex_preflight.errors[0] : project.auto_split ? 'Oversized meshes will be split automatically.' : 'Keeps meshes as supplied. Analyze the project to check the engine limits.'}</p></div></div>

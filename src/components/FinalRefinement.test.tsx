@@ -71,6 +71,25 @@ describe('Compact workflow and honest build decisions',()=>{
     expect(loadOutfit).toHaveBeenCalledOnce();expect(saveOutfit).toHaveBeenCalledOnce();
     expect(screen.getByText('Advanced project details',{selector:'summary > span'}).closest('details')).not.toHaveAttribute('open');
   });
+  it('makes step 1 choose the hero, then the model, and prepares again when the gun file changes',async()=>{
+    const chooseModel=vi.fn(),prepareAgain=vi.fn(),update=vi.fn();
+    const props={report:null,fresh:false,disabled:false,update,selectHero:vi.fn(),fail:vi.fn(),go:vi.fn(),loadOutfit:vi.fn(),saveOutfit:vi.fn(),chooseModel,prepareAgain};
+    const view=render(<ProjectOverview {...props} document={{path:null,project:{...reviewedProject,dmx:'',preparation_source:''}}}/>);
+    expect(screen.getByRole('heading',{name:'Character & model'})).toBeVisible();
+    expect(screen.getByText('Choose your character model file.')).toBeVisible();
+    fireEvent.click(within(screen.getByRole('region',{name:'Next step'})).getByRole('button',{name:'Choose model file…'}));
+    expect(chooseModel).toHaveBeenCalledOnce();
+    view.rerender(<ProjectOverview {...props} document={{path:null,project:{...reviewedProject,dmx:'',preparation_source:'C:\\models\\mine.blend'}}}/>);
+    expect(screen.getByText('Not prepared yet')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Gun from another file (optional)'),{target:{value:'C:\\guns\\pair.blend'}});
+    fireEvent.blur(screen.getByLabelText('Gun from another file (optional)'));
+    await waitFor(()=>expect(prepareAgain).toHaveBeenCalledOnce());
+    expect(update.mock.calls.at(-1)![0].preparation_options).toMatchObject({weapon_source:'C:\\guns\\pair.blend',reviewed:false});
+    // A ready-made DMX has no gun file to add.
+    view.rerender(<ProjectOverview {...props} document={{path:null,project:{...reviewedProject,dmx:'C:\\ready.dmx',preparation_source:''}}}/>);
+    expect(screen.queryByLabelText('Gun from another file (optional)')).not.toBeInTheDocument();
+    expect(screen.getByText('Game-ready model (DMX)')).toBeVisible();
+  });
   it('keeps unanalysed mesh processing neutral and shows an actual reported failure',()=>{
     const openPreparation=vi.fn();const props={document:{path:null,project:{...reviewedProject,auto_split:false}},summary:null,choose:vi.fn(),analyze:vi.fn(),busy:false,drag:null,update:vi.fn(),fail:vi.fn(),preview:null,loadPreview:vi.fn(),importPackage:vi.fn(),analyzeMaterials:vi.fn(),openPreparation};
     const view=render(<Appearance {...props}/>);

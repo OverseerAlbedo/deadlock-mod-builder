@@ -239,7 +239,7 @@ export function ExtrasWorkspace({
               disabled={disabled || !changed}
               onClick={reviewBuild}
             >
-              Review & build
+              Build & install
               <ExtraIcon name="arrow" size={17} />
             </button>
           )}
@@ -255,7 +255,7 @@ export function ExtrasWorkspace({
         </span>
         <i />
         <span>
-          <b>3</b>Review & build
+          <b>3</b>Build & install
         </span>
         <small>Save your project to keep your changes</small>
       </div>
