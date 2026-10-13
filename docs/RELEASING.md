@@ -16,7 +16,7 @@ A release requires an explicit user request. Normal development never increments
 
 ## Current release
 
-Version **0.13.0-beta.1** (tag `v0.13.0-beta.1`, after alpha.52) in the private `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`; the first release made by the Release workflow. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
+Version **0.13.0-beta.1** (tag `v0.13.0-beta.1`) in the private `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`; the second release made by the Release workflow, after 0.13.0-alpha.52. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
 
 ## Version consistency
 
