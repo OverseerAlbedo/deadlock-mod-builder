@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0-beta.2 — 2026-10-14
 
 - **Simple and Expert interface** (switch in the top bar, Simple by default): Simple shows the five steps with recommended settings and hides Motion, Extras, Step timings, Tool diagnostics, compiler backend choices, Build's developer tools and raw receipts, and the motion preset picker. Expert shows everything as before.
 - **A calmer Prepare model page**: the inner 1-2-3 bar is gone; when every joint and bone matched, the Body roles and Bone mapping tabs collapse into one line (“All 356 bones matched to Haze. Edit matches”) and open by themselves when something needs a choice; one **3D view** switches between *Your model*, *Joint check* and *Result* instead of three separate viewers; rare fit options sit under **Customize fit**; hints are one line each.

@@ -1,44 +1,44 @@
-# Deadlock Mod Builder 0.13.0-beta.1
+# Deadlock Mod Builder 0.13.0-beta.2
 
-The first beta. The app now leads through five steps, prepares a model automatically, handles guns from separate files (including a gun in each hand and swinging charms), and is faster and far smaller on disk. This release was tested with Yvonne on Haze using the Artzy Tyrannical dual gun file; see *Checked in game* at the end.
+The second beta fixes the builds that stopped working with the October 2026 game files, makes the setup check and fix itself, adds a Simple interface, a movement preview with fine-tuning sliders, autosave, and clearer errors. Everything new is listed in `CHANGELOG.md`.
 
-## Five steps
+## Fixes for the October 2026 game files
 
-- The sidebar leads through **1 Character & model → 2 Prepare model → 3 Appearance & weapons → 4 Physics & preview → 5 Build & install**, with a check mark on finished steps.
-- A Blender, FBX or glTF model chosen in step 1 (or dropped on the window) is checked, matched and prepared automatically; the app stops only where a choice is needed and offers a button to that spot.
-- **Prepare model** does the check, the conversion and *use this model* in one click.
-- The new-user setup and the model compiler setup use the same step layout, with plain explanations of what each stage does.
+- Build stopped with “ModelDoc28 cannot mix modern Softbody with legacy cloth containers” (Haze) or “Compile template bone/hierarchy does not match original hero: $cloth_m0p0 (bone is missing from the source skeleton)” (Yamato, Lady Geist, Wraith, Abrams, Paradox, Rem and eleven other heroes) when the hero was decompiled with a newer Source 2 Viewer. The build now lists the game's cloth bones itself, takes bone positions from the game's model where the decompile drifts, and restores the game's cloth after compiling as before. No need to decompile again.
+- Baba can be chosen as the hero again (“unknown KV3 type 27”).
+- The hero picker marks each model: **In game**, **Alternate**, **Not playable yet** (Nurse Harrow, Violet) or **In development**.
 
-## Guns
+## Setup that checks itself
 
-- **Gun from a separate file** (step 1, optional): the file's gun is put in the hero's hand and fitted to the hero's own gun. A file with two guns ([L]/[R], .L/.R or left/right in the names) gives one per hand on dual-wield heroes such as Haze; the left hand can also use a copy of the right gun or keep the hero's.
-- **Live 3D fit preview** with solid shapes: your guns in amber and teal over the hero's see-through guns and body, arrows along the line of fire, View and Show buttons, and simple Flip / Turn / Bigger / Smaller / move buttons. The gun's front is read from its part names (Muzzle, Nose, Emitter, Rear, Grip …).
-- **Gun charms** (keychains, pendants, straps) keep their bones and swing in game; **Physics → Gun charm motion** sets the amount.
-- A gun's parts are joined into one mesh per gun, and parts that share one texture set become one material (a 15-material baked gun becomes one), so builds are smaller and faster. Textures on a second UV map (baked atlases) line up in game, and textured parts are no longer darkened by a hidden flat colour.
-- Heroes whose gun is a separate model get that model built from your gun in the same tab, into the same mod.
-- **Fingers bend like the hero's** at rest, so the hero's grip closes them around the gun (on by default in Conversion review).
+- Every path in Settings and the new-user guide is checked as you type, with a one-click **Use …** button when the right path is nearby and **Fix all marked paths**. **Test my setup** compiles one small test material and asks the model compiler what it reads (about 10 seconds).
+- Detect tools no longer puts the Community SDK into the model compiler fields (its builds always failed with a schema mismatch); the model compiler setup selects and saves the toolset itself when a download or verification passes.
+- Errors from setup, preparation and Build say what went wrong in plain words, with numbered steps and a button to the page where the fix happens. **Copy for support** hides your Windows user name, as do the logs.
 
-## Materials and build
+## Simple interface and a calmer flow
 
-- Prepared material names are shortened so compiled texture paths stay under the Windows limit; Build checks path lengths before compiling and says what to do if one is too long.
-- A free VPK slot is detected from the game's addons folder at every check, and the chosen slot's state is shown on the Build page. The project's own earlier output no longer counts as another mod.
+- **Simple / Expert** switch in the top bar (Simple by default). Simple shows the five steps with recommended settings; Expert shows everything.
+- Prepare model collapses matched joints and bones into one line, has one 3D view (*Your model*, *Joint check*, *Result*) and keeps rare fit options under **Customize fit**. Build & install groups its settings under **Customize build** and shows one **Check in game** list after a build.
+- Choosing a character asks whether the gun is in a separate file before preparation starts. Dual-wield heroes get a **Both guns** control. The gun fit preview shows the hero in its holding pose.
+- A progress bar with the time left, a green **Completed** after compiling, Ctrl+B to build and Ctrl+1…5 for the steps, and a list of what changed since the last build.
 
-## Faster and smaller
+## Movement
 
-- Preparation is about 40% faster (Yvonne with two guns: 26 s instead of 44 s), and a preparation uses about 100 MB instead of 900 MB. Opening, accepting, analyzing and building no longer read a 470 MB file.
-- Builds copy and verify files with fewer reads and rehash only what the compiler changed.
+- **Movement preview** (Physics → Your character → Movement): the prepared character plays the hero's stand, run and jump with hair, cloth, tails and other parts swinging; speeds 1× to 0.25×. It approximates the game's cloth for tuning by eye.
+- **Fine-tune movement**: Stiffness, Damping, Gravity and Swing range per part type (hair, tails, streamers, ears, cloth, skirts, accessories, breasts, butt, gun charms), saved presets that fit any model, and optionally your model's own VRM/MMD spring values as the starting point.
+- Butt bones are recognised separately from breasts and stay still unless **Butt motion** is on. Long hair strands and thin tails move instead of staying stiff; hanging strips on breast bones no longer flap through the body.
+- **Shiv and Wraith** with Keep source proportions: the torso, legs and arms follow the hero's proportions without stretching one limb.
 
 ## Also
 
-- Fixes for Haze's guns being reported as a separate model, particle models offered as weapon models, flat gun parts set aside as backdrops, n-gon faces failing to convert, and a false "Your gun file changed" warning.
-- The full list is in `CHANGELOG.md`.
+- Autosave every 3 minutes with recovery after a crash.
+- Chinese, Japanese and Korean material names are spelled in Latin letters in prepared names and logs.
+- Build warns when Deadlock is running, the workspace drive is nearly full or a tool sits inside OneDrive, and no longer says “Another operation is running” after the pre-build warning.
 
 ## Checked in game
 
-- Yvonne on Haze with the Artzy Tyrannical dual guns: both guns in hand, textures correct, mod installs and loads.
-- Not yet checked in this build: the finger bend around the gun, the charm swing amount and the dual-gun aim during animations. Please report what you see.
+- Checked on this PC: Haze and Lady Geist projects compile with heroes decompiled by the newer Source 2 Viewer and the game's cloth is restored; Yamato's new decompile passes the compile template check.
+- Not yet checked in game: the movement amounts from Fine-tune (hair, tails, butt, breasts), the source spring values, Shiv/Wraith proportions, and the finger bend, charm swing and dual-gun aim from beta 1. Please report what you see.
 
 ## After updating
 
-- Open your project and run **Prepare model → Prepare automatically** once: it applies the finger bend, the shorter material names and the smaller preparation format. Material choices are kept.
-- Older preparation folders (about 900 MB each) stay until **Settings → Storage** clears them.
+- Open your project and run **Analyze** once on the Physics page (the movement preview and fine-tuning need it) and **Prepare model → Prepare automatically** when you want the new material names or the holding pose in the gun preview. Material choices are kept.

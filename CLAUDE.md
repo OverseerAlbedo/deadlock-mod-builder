@@ -28,15 +28,16 @@ build `-p deadlock-preparation --example e2e_probe`, then run
 ## Repository and release
 
 Private GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`.
-0.13.0-beta.1 (tag `v0.13.0-beta.1`, October 13, 2026) is the latest GitHub
-pre-release, with the installer .exe attached; alpha.52 preceded it. The
+0.13.0-beta.2 (tag `v0.13.0-beta.2`, October 14, 2026) is the latest GitHub
+pre-release, with the installer .exe attached; beta.1 (October 13) and alpha.52
+preceded it. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
 the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.1 (October 13, 2026)
+## State as of 0.13.0-beta.2 (October 14, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -44,7 +45,15 @@ separate file, dual-wield heroes, gun charms, the solid fit preview, textured
 gun fixes (UV map order, tint, shared materials), finger curl, short material
 names with a compiler path check, live VPK slot state, restyled setup pages,
 and the performance pass (bulk mesh export, slim receipts, fewer file reads).
-Rust workspace 493 passed / 27 ignored, UI 178 passed, Blender harness 28/28.
+
+Beta 2 = beta 1 plus: October 2026 game-file fixes (decompiled Softbody cloth
+stripped, compiled `$cloth_*` bones listed and drifted bone transforms taken
+from the compiled model, KV3 types 26/27), self-checking setup (`setup_checks`,
+Test my setup, troubleshooting help on every error), Simple/Expert mode and the
+decluttered pages, movement preview with Fine-tune sliders, presets and source
+springs, butt/hair/tail motion rules, Shiv/Wraith proportions, autosave,
+readable CJK material names, hero picker tags, private logs. Rust workspace 524
+passed / 42 ignored, UI 215 passed, Blender harness 28/28.
 
 Test projects on the user's PC (`C:\Users\edome\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -52,8 +61,11 @@ from `Artzy_Tyrannical_Textures_and_Models.zip`), "Ghist" (Lady Geist,
 `CH10027_01_Rigged.blend`), "janeVen", "paimonRem".
 
 Not yet checked in game: the finger bend around the gun, the charm swing
-amount, dual-gun aim during animations, breast motion amounts, rigid
-accessories, color edits and a Rem build.
+amount, dual-gun aim during animations, breast/butt/hair/tail motion amounts
+and Fine-tune values, source springs, Shiv/Wraith proportions, rigid
+accessories, color edits and a Rem build. Checked: Haze (tangwithgun) and Lady
+Geist (Ghist) builds compile and restore the game's cloth with new decompiles;
+Yamato's new decompile passes the template check (`tests/cloth_bones.rs`).
 
 ## Rules that are easy to break
 
@@ -62,11 +74,36 @@ accessories, color edits and a Rem build.
   `src/preparation/secondary-bones.ts`. They share
   `deadlock-preparation/tests/fixtures/hanging-chains.json`; extend that fixture
   and all three tests when the rules change.
-- Part kinds (hair, tail, streamer, cloth, breast, rigid) are classified separately in
-  `deadlock-cloth-authoring/src/parts.rs` (`semantic`, `analyze`). Its names reuse
-  `named_breast` and `rigid_named` from `secondary_bones.rs`.
+- Part kinds (hair, tail, streamer, cloth, breast, butt, charm, rigid) are classified
+  separately in `deadlock-cloth-authoring/src/parts.rs` (`semantic`, `analyze`). Its
+  names reuse `named_butt`, `named_breast` and `rigid_named` from `secondary_bones.rs`.
+- Breast and butt detection (`breast_roots`, `butt_roots`, `facing`, `BUTT_HINTS`) is
+  part of the three identical detectors and the shared fixture. `butt_motion` is
+  three-way like `breast_motion`: new models get `false` at first inspection
+  (`automaticPhysicsOptions`), unset keeps old projects' saved groups, and saved
+  butt roots are dropped (not stale) when it is `false`.
+- User-facing error help lives in `src-tauri/src/troubleshooting.rs` (rules matched on
+  message and details, attached to every `AppError` as `help`); add a test with the
+  real message when adding a rule. Settings path checks and fixes are
+  `deadlock-tools/src/setup_checks.rs` (`field_checks`, `apply_fixes`); Detect tools
+  runs `apply_fixes`. Auto model backend never falls back to the Community SDK.
+- Simple/Expert mode is UI-only (`localStorage` `dmb.uiMode`, default Simple). Page
+  components take `expert` defaulting to `true`; only `App.tsx` passes the real mode
+  (tests run in Expert via `src/test-setup.ts`). Never hide a required choice in Simple.
+- Keep source proportions has a separate path for heroes with extreme proportions
+  (`retarget.py hero_extremes`, `scripts/test_hero_proportions.py`); ordinary heroes
+  must keep the old numbers exactly (scale 1, floor alignment).
 - `scripts/test_blender_moving_parts.py` checks the Python detector against the
   shared fixture (run it with Blender).
+- Physics fine-tuning (`secondary_motion.tuning`) is keyed by part **kind**, never
+  by root (saved presets must fit any model); it is applied in `generate_inner`
+  after `secondary_auto::append` to enabled rows only (`secondary_auto::tune`).
+  Travel 0 means free swing and must stay 0.
+- The movement preview simulation (`src/preview/motion.ts`) applies Fine-tune with
+  `tune`, which must stay identical to Rust `secondary_auto::tune` (both tests use
+  the same numbers). Its base values come from Analyze (`Setup.preview_nodes`).
+- Source rig springs (`source_springs.py`, `physics_springs`) change build values
+  only when `use_source_springs` is on; keep it off by default.
 - Gun planning is `weapon::plan_choice` / `suggest_choice` / `preview_choice`
   (the service and `examples/e2e_probe.rs` both use them). Which guns are left out
   and which hand carries a charm exists three times and must stay identical:
@@ -86,7 +123,10 @@ accessories, color edits and a Rem build.
 - Prepared material names keep `NAME_CHARS` (24) readable characters
   (`material_textures.py`); `deadlock-materials native_paths.rs`
   `PREPARED_NAME_CHARS` must match. The 8-digit hash is the material's identity
-  (`service.rs renamed_materials` carries choices over by it).
+  (`service.rs renamed_materials` carries choices over by it). `prepared_slug`
+  spells non-English names in Latin letters (`readable_names.py`,
+  `cjk_readings.txt`); ASCII names must keep their old slug byte for byte
+  (`scripts/test_readable_names.py`).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
 - Do not update dependencies or lockfiles unless the change needs it.
 - Version must agree in package.json, package-lock.json, Cargo.toml files and

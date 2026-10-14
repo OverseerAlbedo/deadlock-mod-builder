@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "deadlock-desktop"
-version = "0.13.0-beta.1"
+version = "0.13.0-beta.2"
 dependencies = [
  "chrono",
  "deadlock-components",
@@ -904,7 +904,7 @@ dependencies = [
 
 [[package]]
 name = "deadlock-pipeline"
-version = "0.13.0-beta.1"
+version = "0.13.0-beta.2"
 dependencies = [
  "deadlock-cloth",
  "deadlock-cloth-authoring",
