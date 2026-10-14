@@ -583,7 +583,7 @@ fn sdk_game_is_explicit_and_independent_of_the_model_game() {
     assert_eq!(safety::resolve_path(Path::new(&selected[1])).unwrap(), game);
     fs::remove_file(game.join("gameinfo.gi")).unwrap();
     let error = toolchain::sdk_game(&settings).unwrap_err().to_string();
-    assert!(error.contains("SDK game configuration is missing"));
+    assert!(error.contains("The Community SDK is incomplete"));
     assert!(error.contains("gameinfo.gi"));
 }
 

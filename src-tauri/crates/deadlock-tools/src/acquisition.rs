@@ -535,7 +535,7 @@ pub fn owned(root: &Path, recipe: &Recipe, create: bool) -> Result<PathBuf> {
     let expected = serde_json::json!({"kind":"dmb-tool-acquisition","build":recipe.build,"recipe_sha256":recipe_sha256()});
     if !root.exists() {
         if !create {
-            return Err(fail("Run manifests first."));
+            return Err(fail(format!("Nothing has been downloaded into {} yet. Click Fetch manifests and plan, approve the Steam sign-in, then click Download. Verify existing acquisition is only for a folder that already holds a finished download (it contains acquisition-owner.json).", root.display())));
         }
         fs::create_dir_all(&root).map_err(|e| CoreError::io("Create acquisition directory", e))?;
         safety::write_json(&marker, &expected)?;
@@ -626,7 +626,10 @@ pub fn run_acquisition(
     cancel: &CancellationToken,
 ) -> Result<AcquisitionResult> {
     timing.measure("Acquire model tools",parent,|span|{
-        let recipe=recipe()?;if !matches!(action,Action::Verify)&&!dd.is_some_and(|p|p.is_file()){return Err(fail("Provide DepotDownloader.exe. Authenticate through its own local authentication flow or the Steam mobile app."));}auth.args()?;
+        let recipe=recipe()?;
+        // The program, its folder or the folder it was extracted into.
+        let resolved=if matches!(action,Action::Verify){None}else{Some(crate::setup_checks::depotdownloader(dd.unwrap_or(Path::new(""))).map_err(fail)?)};
+        let dd=resolved.as_deref().or(dd);auth.args()?;
         let root=owned(root,&recipe,matches!(action,Action::Manifests))?;let manifests=root.join("manifests");let toolroot=root.join("toolset");let receipt_path=root.join("acquisition-verified.json");
         match fs::remove_file(&receipt_path){Ok(())=>{},Err(e)if e.kind()==std::io::ErrorKind::NotFound=>{},Err(e)=>return Err(CoreError::io("Remove stale acquisition receipt",e))}
         if matches!(action,Action::Manifests){no_links(&manifests)?;fs::create_dir_all(&manifests).map_err(|e|CoreError::io("Create manifest directory",e))?;timing.measure("Fetch pinned manifests",Some(span.id()),|_|runner.run(&metadata_command(dd.expect("validated"),&recipe,&manifests,auth)?.current_dir(&root)))?;}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Project, Settings, SetupStatus } from '../models';
+import { useEffect, useState } from 'react';
+import type { Project, Settings, SetupStatus, SetupTest } from '../models';
 import { basename } from '../api';
 import { PageTitle, Section } from '../components/Primitives';
 import { PathValue } from '../components/Paths';
@@ -14,8 +14,12 @@ type Props = {
   status: SetupStatus | null; updateSettings: (settings: Settings) => void;
   saveSettings: () => void; detect: (extraRoot?: boolean) => void; check: () => void;
   verify: () => void;
+  /** Test my setup (compiles one test material and probes the model compiler). */
+  testSetup?: () => Promise<SetupTest | undefined>;
   fail: (title: string, error: unknown) => void; go: (page: SetupDestination) => void;
   openProject: () => void; chooseModel: () => void; analyze: () => void;
+  /** Step to show when the guide opens by itself (1 = tools, when a path is wrong). */
+  startStep?: number;
 };
 /** Step labels (the test harness and screen readers use "N. Label"). */
 const steps: [string, string][] = [
@@ -33,7 +37,8 @@ function FlowMap() {
 }
 
 export function OnboardingPage(props: Props) {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(props.startStep ?? 0);
+  useEffect(() => { if (props.startStep !== undefined) setStep(props.startStep); }, [props.startStep]);
   if (!props.active) return null;
   const { project, settings, busy, go } = props;
   const physics = project.customization.physics;
@@ -53,10 +58,18 @@ export function OnboardingPage(props: Props) {
     </Section>}
     {step === 1 && <>
       <Section title="Find and save your tools" className="prep-card">
-        <p className="prep-section-intro">Get any missing programs below, click <strong>Detect tools</strong>, then <strong>Save and check tools</strong>. App setup is finished once the check passes; your first mod is an optional next step.</p>
-        <p className="hint">The material compiler builds textures and materials; the model compiler builds the character and its animation references. Blender is only needed to prepare Blender, FBX or glTF models (a prepared DMX does not need it).</p>
+        <p className="prep-section-intro">Do these in order. Every path field below checks itself as you go: green is right, red says what is wrong and offers the right path when it can find it.</p>
+        <ol className="setup-list setup-order">
+          <li><strong>Deadlock</strong> installed through Steam.</li>
+          <li><strong>Source 2 Viewer CLI</strong>: download <code>cli-windows-x64.zip</code>, right-click → Extract All, for example to <code>C:\Tools\Source2Viewer</code>.</li>
+          <li><strong>Reduced CSDK 12</strong>: extract the whole ZIP to a short folder such as <code>C:\CSDK12</code>. The right folder directly contains <code>game</code> and <code>content</code>.</li>
+          <li>Click <strong>Detect tools</strong>. It fills in what it finds and corrects common mix-ups.</li>
+          <li><strong>Model compiler</strong>: click <strong>Set up model compiler…</strong>, download the toolset with DepotDownloader and your Steam account. The app selects and saves it when the download is verified.</li>
+          <li>Click <strong>Save and check tools</strong>. Setup is finished when nothing is red.</li>
+        </ol>
+        <p className="hint">The material compiler (in the Community SDK) builds textures and materials; the model compiler (the downloaded toolset) builds the character. They are different programs and go in different fields. Blender is only needed to prepare Blender, FBX or glTF models.</p>
       </Section>
-      <div className="prep-card setup-embedded-settings"><SettingsPage embedded verify={props.verify} modelSetup={() => go('setup')} settings={settings} update={props.updateSettings} persist={props.saveSettings} busy={busy} dirty={props.dirty} fail={props.fail} detect={props.detect} status={props.status} check={props.check} /></div>
+      <div className="prep-card setup-embedded-settings"><SettingsPage embedded verify={props.verify} testSetup={props.testSetup} go={page => go(page as Parameters<typeof go>[0])} modelSetup={() => go('setup')} settings={settings} update={props.updateSettings} persist={props.saveSettings} busy={busy} dirty={props.dirty} fail={props.fail} detect={props.detect} status={props.status} check={props.check} /></div>
       <section className={`prep-card setup-next ${readiness.ready ? 'setup-ready' : ''}`} aria-label="Finish app setup">
         <div role="status" className="setup-next-status"><span className="prep-status-icon"><PrepIcon name={readiness.ready ? 'check' : 'review'} size={22}/></span><div><h2>{readiness.title}</h2><p>{readiness.description}</p>{props.status && readiness.missing.length > 0 && <p className="hint">Still needed: {readiness.missing.join(', ')}.</p>}</div></div>
         <div className="row"><button className="prep-primary" disabled={busy || props.dirty} onClick={() => setStep(2)}>Continue to first project<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy || props.dirty} onClick={() => go('project')}>Done for now</button></div>
@@ -75,12 +88,12 @@ export function OnboardingPage(props: Props) {
       <p>For the matching Vindicta R12 replacement, open Physics → Configure replacement cloth and press <strong>Use included Vindicta cloth setup</strong>. This selects the accepted skirt and hair reference and enables <strong>Use tested hair and cloth physics</strong>; Build imports and validates it after compilation.</p>
       <dl className="summary-list"><dt>Tested reference</dt><dd>{testedEnabled ? 'Enabled in this project' : 'Not enabled'}</dd><dt>Selected file</dt><dd><PathValue path={physics?.source} empty="None"/></dd></dl>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('physics')}>Open Physics<PrepIcon name="arrow" size={18}/></button></div>
-      <p className="hint">A reference is not a compatibility approval: the replacement must have matching bones, rest poses and cloth bindings. Movement amounts are checked in game.</p>
+      <p className="hint">A reference is not a compatibility approval: the replacement must have matching bones, rest poses and cloth bindings.</p>
     </Section>}
     {step === 4 && <Section title="Analyze, review, and build" className="prep-card">
       <ol className="setup-list"><li>Save your settings and project.</li><li>Click <strong>Analyze project</strong> and resolve any mapping, material or compatibility issue it lists.</li><li>In <strong>Build &amp; install</strong>, pick a free VPK slot and whether to install, then click <strong>Build mod</strong>.</li><li>Open Step timings and Logs for the full details of a run.</li></ol>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('build')}>Open Build &amp; install<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy || !project.original_model || (project.customization.model_enabled !== false && !project.dmx)} onClick={props.analyze}>Analyze project</button></div>
-      <p className="hint">The build checks the current inputs and the compiled output before packaging or installing. A successful preview does not establish in-game compatibility; test in Deadlock.</p>
+      <p className="hint">The build checks the current inputs and the compiled output before packaging or installing.</p>
     </Section>}
     <footer className="onboarding-footer"><button className="prep-secondary" disabled={busy || step === 0} onClick={() => setStep(step - 1)}>Back</button><span className="muted">Step {step + 1} of {steps.length}{step > 1 ? ' · Optional guide' : ' · App setup'}</span>{step === steps.length - 1 ? <button className="prep-primary" disabled={busy} onClick={() => go('project')}>Done</button> : step !== 1 ? <button className="prep-primary" disabled={busy} onClick={() => setStep(step + 1)}>Next<PrepIcon name="arrow" size={18}/></button> : <span/>}</footer>
   </div>;

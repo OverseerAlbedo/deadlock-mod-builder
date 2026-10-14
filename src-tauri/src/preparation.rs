@@ -245,7 +245,9 @@ impl Application {
             let (target, _) = deadlock_skeleton::transforms::prepare_target(skeleton)
                 .map_err(|e| AppError::validation("Original skeleton failed validation", e))?;
             let separate = project.model_input_mode == deadlock_project::ModelInputMode::Weapon;
-            deadlock_preparation::weapon::reference_from_sources(&base, model_text, &target, separate, cancel)
+            // Cloth-simulated bones keep their rest shape in the holding pose.
+            let simulated = skeleton.names.iter().zip(&skeleton.flags).filter(|(_, f)| **f & 0x400000 != 0).map(|(n, _)| n.clone()).collect();
+            deadlock_preparation::weapon::reference_with_simulated(&base, model_text, &target, &simulated, separate, cancel)
                 .map_err(|e| AppError::validation("The original gun could not be measured", e))
         });
         match result {

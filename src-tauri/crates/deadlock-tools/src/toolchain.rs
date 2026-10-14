@@ -107,10 +107,10 @@ pub fn sdk_game(settings: &Settings) -> Result<PathBuf> {
     let root = resolve_path(Path::new(&settings.csdk))?;
     let compiler = resolve_path(Path::new(&settings.resourcecompiler))?;
     if settings.resourcecompiler.is_empty() || !compiler.is_file() {
-        return Err(fail("Select resourcecompiler.exe in Settings."));
+        return Err(fail(format!("Select the material compiler in Settings → Resource compiler: {}.", root.join("game/bin_cs2/win64/resourcecompiler.exe").display())));
     }
     if !compiler.starts_with(&root) {
-        return Err(fail("The resource compiler must belong to the selected Community SDK. Keep the model compiler in its separate setting."));
+        return Err(fail(format!("Settings → Resource compiler points outside the Community SDK ({}). Use the SDK's own compiler, {}. The model toolset's compiler belongs only under Advanced configuration.", compiler.display(), root.join("game/bin_cs2/win64/resourcecompiler.exe").display())));
     }
     if !settings.deadlock.is_empty()
         && root.starts_with(resolve_path(Path::new(&settings.deadlock))?)
@@ -122,11 +122,16 @@ pub fn sdk_game(settings: &Settings) -> Result<PathBuf> {
     let game = root.join("game/citadel");
     let configuration = game.join("gameinfo.gi");
     if !configuration.is_file() {
-        return Err(fail(format!("SDK game configuration is missing: {}. Select the complete Reduced CSDK12 installation in Settings → Community SDK.", configuration.display())));
+        let nested = crate::setup_checks::csdk_root(&root).filter(|r| *r != root);
+        return Err(fail(match nested {
+            Some(inner) => format!("Settings → Community SDK points to the folder around the SDK. Choose {} instead (the SDK was extracted inside a folder of the same name).", inner.display()),
+            None => format!("The Community SDK is incomplete: {} is missing. Extract the whole Reduced CSDK 12 ZIP into a new, empty folder such as C:\\CSDK12 and select that folder in Settings → Community SDK.", configuration.display()),
+        }));
     }
     deadlock_vpk::check_unlinked_path(&configuration, false).map_err(|e| fail(e.to_string()))?;
     Ok(game)
 }
+pub const MODEL_TOOLSET_NOT_SET: &str = "The model compiler is not set up. Open Settings → Set up model compiler…, get the files, then click Use this toolset in settings and save. The Community SDK compiles materials only.";
 fn suffixes(backend: &str) -> &'static [&'static str] {
     if backend == "csdk" {
         &[
@@ -142,12 +147,13 @@ fn suffixes(backend: &str) -> &'static [&'static str] {
 }
 pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> {
     let backend = match settings.model_backend.as_str() {
+        // Auto never falls back to the Community SDK: its compiler stops hero
+        // model compiles with a ParticleFloatType_t schema mismatch.
         "auto" => {
             if settings.cswin.is_empty() {
-                "csdk"
-            } else {
-                "cswin"
+                return Err(fail(MODEL_TOOLSET_NOT_SET));
             }
+            "cswin"
         }
         "cswin" => "cswin",
         "csdk" => "csdk",
@@ -163,9 +169,7 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
         &settings.cswin
     };
     if root_text.is_empty() {
-        return Err(fail(
-            "Select a local AG2 model toolset in Setup. A full CS2 installation is optional. Reduced CSDK12 bin_cs2 can be tested as a candidate; AG2 support is not assumed.",
-        ));
+        return Err(fail(MODEL_TOOLSET_NOT_SET));
     }
     let root = resolve_path(Path::new(root_text))?;
     let compiler = if !settings.cswin_resourcecompiler.is_empty() {
@@ -203,7 +207,7 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
     }
     if !compiler.starts_with(&root) {
         return Err(fail(
-            "The model compiler must belong to the selected toolset root; mixing binary versions is unsupported.",
+            "Settings → Model compiler executable must be the compiler inside Model compiler toolset (game\\bin\\win64\\resourcecompiler.exe). Click Use this toolset in settings in Set up model compiler… to fill both.",
         ));
     }
     if !settings.deadlock.is_empty()
@@ -216,13 +220,13 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
     if require_files {
         if !root.is_dir() || !compiler.is_file() {
             return Err(fail(format!(
-                "Model compiler is missing: {}. Select a local toolset; a full CS2 download is not required by the builder.",
+                "Model compiler is missing: {}. Open Settings → Set up model compiler…, download or verify the toolset, then click Use this toolset in settings and save.",
                 compiler.display()
             )));
         }
         if !game.is_dir() || !game.join("gameinfo.gi").is_file() {
             return Err(fail(format!(
-                "Model game configuration is missing: {}. An executable alone is not a complete toolset.",
+                "Model game configuration is missing: {}. The toolset is incomplete; run Verify existing acquisition in Set up model compiler… and download again if files are missing.",
                 game.join("gameinfo.gi").display()
             )));
         }

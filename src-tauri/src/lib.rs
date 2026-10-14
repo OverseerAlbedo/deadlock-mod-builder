@@ -3,6 +3,7 @@
 
 pub const APPLICATION_NAME: &str = "Deadlock Mod Builder";
 pub mod app;
+pub mod autosave;
 pub mod catalogs;
 pub mod cloth_authoring;
 pub mod diagnostics;
@@ -10,6 +11,11 @@ pub mod intake;
 pub mod preparation;
 pub mod setup;
 pub mod storage;
+pub mod hero_fit;
+pub mod physics_presets;
+pub mod privacy;
+pub mod setup_test;
+pub mod troubleshooting;
 pub mod vpk_slots;
 pub mod workflows;
 

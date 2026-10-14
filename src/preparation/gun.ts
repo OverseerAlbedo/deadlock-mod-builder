@@ -93,11 +93,14 @@ export function fittedHands(kind:HeroGun,choice:WeaponChoice):Hand[]{
 /** Solid shapes of the fit preview: your gun of each hand (in your scene; the
  * preview places it with the fit), the hero's gun of each hand and the hero's body.
  * Missing when the inspection predates them; the preview then shows points. */
-export type PreviewShapes={body?:Shape;guns:Partial<Record<Hand,Shape>>;originals:Partial<Record<Hand,Shape>>};
+export type PreviewShapes={body?:Shape;guns:Partial<Record<Hand,Shape>>;originals:Partial<Record<Hand,Shape>>;
+  /** The hero holding its gun, when its sources have an idle clip: the posed body and how each hand's gun moves. */
+  stance?:{clip:string;body:Shape;hands:Partial<Record<Hand,number[][]>>}};
 export function previewShapes(analysis:PreparationAnalysis,choice:WeaponChoice,kind:HeroGun):PreviewShapes{
   const candidates=analysis.analysis.weapons??[],reference=analysis.weapon_reference;
   const right=handGun(choice,candidates,'right')?.shape,mode=leftMode(choice);
   const left=kind!=='dual'||mode==='keep'?undefined:mode==='own'?handGun(choice,candidates,'left')?.shape:right;
   const original=(hand:Hand)=>reference?.sides?.find(s=>s.side===hand)?.shape;
-  return {body:reference?.body_shape,guns:{right,left},originals:kind==='dual'?{right:original('right'),left:original('left')}:{right:reference?.shape}};
+  const stance=reference?.stance?.body_shape?.positions.length?{clip:reference.stance.clip,body:reference.stance.body_shape,hands:reference.stance.hands}:undefined;
+  return {body:reference?.body_shape,guns:{right,left},originals:kind==='dual'?{right:original('right'),left:original('left')}:{right:reference?.shape},stance};
 }

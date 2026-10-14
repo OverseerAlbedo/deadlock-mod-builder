@@ -265,6 +265,11 @@ tr:hover td { background: #1a1f24; }
 .hero-results { list-style: none; padding: 0; margin: 0; max-height: 310px; overflow: auto; }
 .hero-results button { display: flex; flex-direction: column; width: 100%; text-align: left; background: none; border: 0; border-radius: 4px; padding: 10px; gap: 5px; white-space: normal; }
 .hero-results button.selected { background: #29313a; }
+.build-completed { display: inline-block; padding: 2px 10px; border-radius: 10px; background: rgba(72, 192, 138, .18); color: #7fe0b0; font-weight: 600; }
+.hero-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; vertical-align: 1px; }
+.hero-tag.game { background: rgba(76, 160, 104, .18); color: #9fd4b0; }
+.hero-tag.alternate { background: rgba(140, 150, 165, .18); color: #b9c4cd; }
+.hero-tag.unplayable { background: rgba(214, 150, 84, .18); color: #f0c48f; }
 .hero-results strong { font-size: 14px; font-weight: 500; }
 .hero-results span { font-size: 12px; color: #a8b3c1; overflow-wrap: anywhere; }
 .number-field { display: grid; grid-template-columns: minmax(180px,1fr) 116px; align-items: center; gap: 16px; margin: 14px 0; max-width: 420px; color: #d1d8e0; font-size: 13px; }
@@ -404,6 +409,14 @@ tr:hover td { background: #1a1f24; }
 .project-identity > span:first-child { font-weight: 600; }
 .project-identity > .muted { font-size: 12.5px; }
 .project-controls button { min-height: 30px; padding: 4px 9px; }
+.statusbar-working { justify-content: flex-start; }
+.statusbar-working > .row { margin-left: auto; }
+.statusbar-progress { flex: 1 1 auto; min-width: 120px; height: 10px; border-radius: 5px; background: #1b232a; border: 1px solid #2c3842; overflow: hidden; position: relative; }
+.statusbar-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, #2c7a58, #48c08a); transition: width 1s linear; }
+.statusbar-progress.indeterminate .statusbar-progress-fill { width: 28%; animation: statusbar-slide 1.6s ease-in-out infinite; }
+.statusbar-progress.failed .statusbar-progress-fill { background: linear-gradient(90deg, #8a3a40, #d65460); }
+@keyframes statusbar-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(360%); } }
+.statusbar-working > .statusbar-text { flex: 0 1 auto; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d4dce3; }
 .statusbar-idle { height: 26px; min-height: 26px; border-top-color: var(--border-subtle); color: var(--muted); font-size: 11.5px; }
 .overview-identity { position: relative; display: grid; grid-template-columns: minmax(200px,1fr) minmax(230px,1.1fr) minmax(175px,.75fr); gap: 24px; padding: 20px; margin-bottom: 24px; background: var(--surface-secondary); border: 1px solid var(--border); border-radius: 6px; }
 .overview-identity > div { min-width: 0; }
@@ -546,3 +559,61 @@ tr:hover td { background: #1a1f24; }
 .setup-plan table { width: 100%; margin: 12px 0; }
 .prep-badge-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; }
 .setup-workspace .prep-done { display: flex; align-items: center; gap: 14px; color: var(--prep-accent); }
+.error-help { margin: 10px 0 4px; display: grid; gap: 6px; }
+.error-help .error-cause { margin: 0; color: #f3d6d8; font-size: 14px; }
+.error-help .error-help-title { margin: 4px 0 0; color: #f1c4c6; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.error-help ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: #ead2d4; font-size: 13.5px; line-height: 1.55; }
+.error-help button { justify-self: start; margin-top: 4px; }
+.settings-path-field { display: grid; gap: 4px; }
+.file-name.full-path { white-space: normal; overflow-wrap: anywhere; font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: 12.5px; }
+.field-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; font-size: 13px; line-height: 1.5; padding: 6px 10px; border-radius: 6px; border: 1px solid transparent; }
+.field-check-mark { font-weight: 700; width: 1em; text-align: center; }
+.field-check-ok { color: #9fd4b0; background: rgba(76, 160, 104, .08); border-color: rgba(76, 160, 104, .22); }
+.field-check-warning { color: #ecd28f; background: rgba(214, 170, 64, .08); border-color: rgba(214, 170, 64, .3); }
+.field-check-problem { color: #f2b8bc; background: rgba(214, 84, 96, .1); border-color: rgba(214, 84, 96, .35); }
+.field-check button { margin-left: auto; font-size: 12.5px; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.field-example code { font-size: 12px; overflow-wrap: anywhere; }
+.settings-check-summary { margin: 0 0 12px; padding: 8px 12px; border-radius: 6px; font-size: 13.5px; }
+.settings-check-summary.all-good { color: #9fd4b0; background: rgba(76, 160, 104, .08); }
+.settings-check-summary.has-problems { color: #f2b8bc; background: rgba(214, 84, 96, .1); }
+.settings-model-check { margin-top: 14px; display: grid; gap: 6px; }
+.settings-model-check > button { justify-self: start; }
+.setup-test { margin-top: 16px; padding: 12px 14px; border: 1px solid #33404a; border-radius: 8px; background: rgba(255, 255, 255, .02); }
+.setup-test-head { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; }
+.setup-test-head h3 { margin: 0 0 4px; font-size: 15px; }
+.setup-test-head .hint { margin: 0; }
+.setup-test-head > button { flex: none; }
+.setup-test .settings-check-summary { margin: 12px 0 8px; }
+.setup-test-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.setup-test-steps li { display: grid; gap: 4px; font-size: 13.5px; }
+.setup-test-steps li.passed strong { color: #9fd4b0; }
+.setup-test-steps li.failed strong { color: #f2b8bc; }
+.setup-test-steps li > span { color: #aab6bf; }
+.setup-last-step { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-color: rgba(214, 170, 64, .5); background: rgba(214, 170, 64, .08); }
+.setup-last-step p { margin: 4px 0 0; }
+.hero-proportions { margin-top: 10px; }
+.build-changes { margin-top: 12px; padding: 10px 14px; border: 1px solid var(--border, #33363d); border-radius: 8px; display: grid; gap: 4px; }
+.build-changes ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13.5px; }
+.shortcut-list kbd { font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: 12px; padding: 1px 6px; border: 1px solid var(--border, #44474f); border-radius: 4px; }
+.interface-mode { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 18px; padding: 14px 18px; border: 1px solid var(--border, #33363d); border-radius: 10px; }
+.interface-mode h2 { margin: 0 0 4px; font-size: 15px; }
+.interface-mode .hint { margin: 0; }
+.segmented { display: inline-flex; border: 1px solid var(--border, #44474f); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.segmented button { border: 0; border-radius: 0; padding: 7px 16px; background: transparent; }
+.segmented button + button { border-left: 1px solid var(--border, #44474f); }
+.segmented button[aria-checked=true] { background: #23392f; color: #9fe4c5; font-weight: 600; }
+.check-in-game { margin-top: 14px; padding: 10px 14px; border: 1px solid var(--border, #33363d); border-radius: 8px; }
+.check-in-game ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13.5px; }
+.topbar .topbar-button { border: 1px solid var(--border, #44474f); background: transparent; }
+.topbar .topbar-button:hover:not(:disabled) { border-color: #6b7380; }
+.topbar .topbar-mode button { padding: 5px 12px; font-size: 12.5px; }
+.topbar .topbar-mode { margin-right: 6px; }
+.materials-accept-callout { margin: 8px 0; padding: 8px 12px; border: 1px solid rgba(76,160,104,.35); border-radius: 8px; background: rgba(76,160,104,.08); font-size: 13.5px; }
+.prep-source-gun { margin-top: 10px; }
+
+/* Physics → Your character → Movement */
+.movement-preview { display: flex; flex-direction: column; border: 1px solid #303c44; border-radius: 10px; overflow: hidden; background: #12171b; }
+.movement-preview .prep-weapon-view .checkbox { margin-left: 10px; font-size: 12px; color: #aab6bf; }
+.movement-canvas { height: 520px; }
+.movement-canvas canvas { display: block; }
+.movement-preview > .hint { margin: 0; padding: 6px 10px; background: #161c20; }

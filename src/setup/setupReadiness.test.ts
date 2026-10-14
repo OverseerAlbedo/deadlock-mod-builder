@@ -21,3 +21,14 @@ describe('App setup completion', () => {
     expect(setupReadiness(settings,found,false).description).toContain('Each project still runs its compiler and compatibility checks');
   });
 });
+
+describe('Wrong paths', () => {
+  it('a path that exists but is the wrong one keeps setup unfinished and names the field', () => {
+    const status: SetupStatus = {...found, fields: [{field:'resourcecompiler',state:'problem',message:'This is the model compiler',fix:String.raw`C:\CSDK12\game\bin_cs2\win64\resourcecompiler.exe`},{field:'csdk',state:'ok',message:'ok'}]};
+    const result = setupReadiness(settings, status, false);
+    expect(result.ready).toBe(false);
+    expect(result.missing).toEqual(['Resource compiler (wrong path)']);
+    expect(result.description).toContain('marked in red');
+    expect(setupReadiness(settings, {...found, fields: [{field:'blender',state:'warning',message:'x'}]}, false).ready).toBe(true);
+  });
+});

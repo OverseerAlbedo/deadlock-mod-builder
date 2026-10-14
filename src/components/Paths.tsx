@@ -13,10 +13,12 @@ export function PathValue({ path, empty = 'Not selected' }: { path?: string | nu
 }
 
 /** Presentation only. Callers retain their existing path validation and commit rules. */
-export function CompactPathField({ label, value, committed = value, update, browse, disabled, placeholder, onBlur, onKeyDown, checking = false, folder = false }: {
+export function CompactPathField({ label, value, committed = value, update, browse, disabled, placeholder, onBlur, onKeyDown, checking = false, folder = false, fullPath = false }: {
   label: string; value: string; committed?: string; update: (value: string) => void;
   browse: () => void | Promise<void>; disabled: boolean; placeholder?: string;
   onBlur?: () => void; onKeyDown?: KeyboardEventHandler<HTMLInputElement>; checking?: boolean; folder?: boolean;
+  /** Show the whole path once chosen (Settings: the folder matters, not just the file name). */
+  fullPath?: boolean;
 }) {
   const id = useId(), [expanded, setExpanded] = useState(false);
   const selected = Boolean(committed);
@@ -27,7 +29,7 @@ export function CompactPathField({ label, value, committed = value, update, brow
   </div>;
   return <div className="path-control">
     <label htmlFor={id} onClick={() => setExpanded(true)}>{label}</label>
-    {selected && <div className="selected-file"><span className="file-name" title={committed}>{basename(committed)}</span><div className="row"><button className="tertiary" disabled={disabled} aria-expanded={expanded} aria-controls={`${id}-editor`} onClick={() => setExpanded(!expanded)}>{expanded ? 'Hide path' : 'Edit path'}</button><button disabled={disabled} aria-label={`Browse ${label}`} onClick={() => void choose()}>{checking ? 'Checking…' : folder ? 'Change folder' : 'Replace…'}</button></div></div>}
+    {selected && <div className="selected-file"><span className={fullPath ? "file-name full-path" : "file-name"} title={committed}>{fullPath ? committed : basename(committed)}</span><div className="row"><button className="tertiary" disabled={disabled} aria-expanded={expanded} aria-controls={`${id}-editor`} onClick={() => setExpanded(!expanded)}>{expanded ? 'Hide path' : 'Edit path'}</button><button disabled={disabled} aria-label={`Browse ${label}`} onClick={() => void choose()}>{checking ? 'Checking…' : folder ? 'Change folder' : 'Replace…'}</button></div></div>}
     <div id={`${id}-editor`} className="path-editor" hidden={selected && !expanded}>
       <div className="row"><input id={id} value={value} disabled={disabled} placeholder={placeholder} onFocus={() => setExpanded(true)} onChange={event => update(event.target.value)} onBlur={onBlur} onKeyDown={onKeyDown} />{!selected && <button disabled={disabled} aria-label={`Browse ${label}`} onClick={() => void choose()}>{checking ? 'Checking…' : 'Browse…'}</button>}</div>
       {selected && <p className="hint">Full path — select to copy, or edit to change the source.</p>}

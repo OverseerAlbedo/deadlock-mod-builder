@@ -4,7 +4,7 @@ import reference from '../src-tauri/crates/deadlock-project/tests/fixtures/refer
 import type { AnalysisResult, Project, Settings, TimingReport } from './models';
 
 const mocks = vi.hoisted(() => ({
-  inspectProject:vi.fn(),analyzeMaterials:vi.fn(),importSourcePackage:vi.fn(),detectSettings:vi.fn(),setupStatus:vi.fn(),settings:vi.fn(),saveSettings:vi.fn(),newProject:vi.fn(),openProject:vi.fn(),saveProject:vi.fn(),analyze:vi.fn(),cancel:vi.fn(),latestTimings:vi.fn(),timings:vi.fn(),logs:vi.fn(),logText:vi.fn(),saveLog:vi.fn(),
+  sessionRecovery:vi.fn(),dismissRecovery:vi.fn(),restoreAutosave:vi.fn(),autosaveProject:vi.fn(),clearAutosaves:vi.fn(),testSetup:vi.fn(),prebuildWarnings:vi.fn(),checkSettingFields:vi.fn(),heroProportions:vi.fn(),operationDurations:vi.fn(),buildProject:vi.fn(),  inspectProject:vi.fn(),analyzeMaterials:vi.fn(),importSourcePackage:vi.fn(),detectSettings:vi.fn(),setupStatus:vi.fn(),settings:vi.fn(),saveSettings:vi.fn(),newProject:vi.fn(),openProject:vi.fn(),saveProject:vi.fn(),analyze:vi.fn(),cancel:vi.fn(),latestTimings:vi.fn(),timings:vi.fn(),logs:vi.fn(),logText:vi.fn(),saveLog:vi.fn(),
   invoke:vi.fn(),open:vi.fn(),save:vi.fn(),ask:vi.fn(),drop:vi.fn(),close:vi.fn(),desktop:true,
   discoverExtras:vi.fn(),previewExtra:vi.fn(),validateAssetPath:vi.fn(),
 }));
@@ -16,7 +16,7 @@ vi.mock('@tauri-apps/api/core', async original => {
 });
 vi.mock('@tauri-apps/api/event', () => ({listen:vi.fn(async () => vi.fn())}));
 vi.mock('@tauri-apps/api/window', () => ({getCurrentWindow:() => ({onDragDropEvent:mocks.drop,onCloseRequested:mocks.close,destroy:vi.fn()})}));
-import { App } from './App';
+import { App, AUTOSAVE_MS } from './App';
 import { inspected, reviewedProject } from './build/testFixtures';
 
 const draft = reference.cases[0].expected as unknown as Project;
@@ -338,4 +338,95 @@ describe('Connected desktop workspace', () => {
     expect(screen.getByText('Analyze to check compatibility')).toBeInTheDocument();
   });
 
+});
+
+describe('Phase 1 helpers in the app', () => {
+  it('opens the setup guide on first start, and once per session when a required path is wrong', async () => {
+    localStorage.removeItem('dmb.setupGuideSeen');
+    render(<App/>);
+    expect(await screen.findByRole('heading',{name:'New-user setup'})).toBeInTheDocument();
+    expect(localStorage.getItem('dmb.setupGuideSeen')).toBe('1');
+    cleanup(); sessionStorage.clear();
+    mocks.checkSettingFields.mockResolvedValue([{field:'csdk',state:'problem',message:'Nested'}]);
+    render(<App/>);
+    expect(await screen.findByRole('heading',{name:'New-user setup'})).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'2. Game and tools'})).toHaveAttribute('aria-current','step');
+    cleanup();
+    render(<App/>);await screen.findByLabelText('Project name');
+    expect(screen.queryByRole('heading',{name:'New-user setup'})).not.toBeInTheDocument();
+  });
+  it('opens the five steps with Ctrl+1 to Ctrl+5', async () => {
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.keyDown(window,{key:'5',ctrlKey:true});
+    expect(await screen.findByRole('heading',{name:'Build & install'})).toBeInTheDocument();
+    fireEvent.keyDown(window,{key:'1',ctrlKey:true});
+    expect(await screen.findByRole('heading',{name:'Character & model'})).toBeInTheDocument();
+  });
+  it('shows the proportion notice when the hero has extreme proportions', async () => {
+    mocks.heroProportions.mockResolvedValue({extremes:['arms'],arm_left:0.955,arm_right:1.19,legs:1.825});
+    mocks.newProject.mockResolvedValue({path:null,project:{...structuredClone(draft),original_model:'models/heroes_staging/shiv/shiv.vmdl_c',hero_name:'shiv'}});
+    render(<App/>);
+    expect(await screen.findByRole('note')).toHaveTextContent('a long right arm');
+  });
+});
+
+describe('Simple and Expert interface', () => {
+  it('starts Simple with the five steps only, and the top bar switches to Expert', async () => {
+    localStorage.removeItem('dmb.uiMode');
+    render(<App/>);await screen.findByLabelText('Project name');
+    for (const name of ['Motion','Extras','Step timings']) expect(screen.queryByRole('button',{name})).not.toBeInTheDocument();
+    // A sidebar section with nothing to show in Simple has no heading either.
+    expect(screen.queryByText('More customization')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    expect(screen.queryByText('Tool diagnostics',{selector:'summary span'})).not.toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('radiogroup',{name:'Interface mode'})).getByRole('radio',{name:'Expert'}));
+    expect(screen.getByRole('button',{name:'Extras'})).toBeInTheDocument();
+    expect(screen.getByText('More customization')).toBeInTheDocument();
+    expect(screen.getByText('Tool diagnostics',{selector:'summary span'})).toBeInTheDocument();
+    expect(localStorage.getItem('dmb.uiMode')).toBe('expert');
+  });
+});
+
+describe('Gun file before automatic preparation', () => {
+  it('asks for a separate gun file first, so it is prepared together with the character', async () => {
+    mocks.newProject.mockResolvedValue({path:null,project:{...structuredClone(draft),original_model:'models/heroes_staging/haze/haze.vmdl_c',hero_name:'haze'}});
+    mocks.open.mockResolvedValueOnce('C:\Models\hero.blend').mockResolvedValueOnce('C:\Models\gun.blend');
+    mocks.validateAssetPath.mockImplementation(async (path:string) => path);
+    const seen:string[] = [];const listener=(event:Event)=>seen.push((event as CustomEvent<{path:string}>).detail.path);
+    window.addEventListener('dmb-model-source', listener);
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.click(screen.getAllByRole('button',{name:'Choose model file…'})[0]);
+    await waitFor(()=>expect(seen).toEqual(['C:\Models\hero.blend']));
+    expect(mocks.ask).toHaveBeenCalledWith(expect.stringContaining('Is your gun in a separate file'),expect.objectContaining({okLabel:'Choose gun file…'}));
+    expect(mocks.validateAssetPath).toHaveBeenCalledWith('C:\Models\gun.blend','weapon');
+    window.removeEventListener('dmb-model-source', listener);
+  });
+});
+
+describe('Autosave and recovery', () => {
+  it('offers the newest autosave after a crash and restores it as unsaved changes', async () => {
+    mocks.sessionRecovery.mockResolvedValue({unclean:true,autosaves:[{file:'1760000000000.json',id:draft.id,name:'Crashed Yvonne',path:'C:\Projects\yvonne.dmb.json',saved_ms:1760000000000}]});
+    mocks.restoreAutosave.mockResolvedValue({path:'C:\Projects\yvonne.dmb.json',project:{...structuredClone(draft),name:'Crashed Yvonne'}});
+    render(<App/>);
+    await waitFor(()=>expect(screen.getByLabelText('Project name')).toHaveValue('Crashed Yvonne'));
+    expect(mocks.ask).toHaveBeenCalledWith(expect.stringContaining('did not close normally'),expect.objectContaining({okLabel:'Restore'}));
+    expect(mocks.restoreAutosave).toHaveBeenCalledWith(draft.id,'1760000000000.json');
+    expect(mocks.dismissRecovery).toHaveBeenCalled();
+    expect(screen.getByLabelText('Unsaved project changes')).toBeInTheDocument();
+  });
+  it('autosaves only unsaved changes and forgets autosaves after saving', async () => {
+    const intervals = vi.spyOn(window,'setInterval');
+    mocks.save.mockResolvedValue('C:\Projects\yvonne.dmb.json');
+    mocks.saveProject.mockImplementation(async (path,project) => ({path,project}));
+    render(<App/>);await screen.findByLabelText('Project name');
+    const tick = () => { for (const call of intervals.mock.calls) if (call[1] === AUTOSAVE_MS) (call[0] as () => void)(); };
+    tick();
+    expect(mocks.autosaveProject).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Autosaved'}});
+    tick();
+    await waitFor(()=>expect(mocks.autosaveProject).toHaveBeenCalledWith(expect.objectContaining({project:expect.objectContaining({name:'Autosaved'})})));
+    fireEvent.click(screen.getByRole('button',{name:'Save'}));
+    await waitFor(()=>expect(mocks.clearAutosaves).toHaveBeenCalledWith(draft.id));
+    intervals.mockRestore();
+  });
 });

@@ -10,6 +10,9 @@ const namedSecondary=(name:string)=>SECONDARY_HINTS.some(s=>name.toLowerCase().i
 export const RIGID_HINTS=['halo','hat','cap','pin','pins','clip','clips','crown','tiara','circlet','horn','horns','helmet','helm','glasses','goggles','goggle','spectacles','visor','mask','earring','earrings','piercing','hairpin','hairclip','barrette','hairband','headband','ornament','accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪'];
 /** Breast bones move only when breast motion is turned on. */
 export const BREAST_HINTS=['breast','bust','boob','pectoral','oppai','おっぱい','乳'];
+/** Butt bones move only when butt motion is turned on (off by default). ASCII words match whole name parts (Butt_L, glute_r;
+ * not Button); 尻 also counts on its own, but never inside 尻尾 (tail). Keep in sync with secondary_bones.rs and secondary_bones.py. */
+export const BUTT_HINTS=['butt','buttock','buttocks','glute','glutes','gluteus','booty','bum','ass','pigu','tunbu','臀','屁股','お尻','おしり','ケツ'];
 /** Charms and other small hanging pieces, matched without separators (Key_Chain is keychain). They move anywhere and
  * override the rigid accessory words (a dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and secondary_bones.py. */
 export const CHARM_HINTS=['charm','keychain','keyring','pendant','lanyard','dangle','チャーム','キーホルダー','ペンダント','根付','挂件','掛件','吊坠','吊墜','挂坠','掛墜','吊饰','吊飾'];
@@ -69,7 +72,8 @@ export function removedGuns(options:PreparationOptions,bones:Bone[]):string[]{
   if(weapon.action==='remove')return [...new Set([right,left,...fileGuns].filter(Boolean))];
   return fileGuns.filter(id=>id!==right&&id!==left);
 }
-export const namedBreast=(name:string)=>{const n=name.toLowerCase();return BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t))));};
+export const namedButt=(name:string)=>{const words=tokens(name),n=name.toLowerCase();return BUTT_HINTS.some(h=>isAscii(h)?words.includes(h):n.includes(h))||(n.includes('尻')&&!n.includes('尻尾'));};
+export const namedBreast=(name:string)=>{const n=name.toLowerCase();return !namedButt(name)&&(BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t)))));};
 const distance=(a:Vec3,b:Vec3)=>Math.sqrt(a.reduce((s,v,k)=>s+(v-b[k])**2,0));
 /** A closed loop (halo, crown band, hat brim): the single chain that contains the bone, from below its body anchor, ends close to where it starts. */
 function ringChain(bone:Bone,names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>):boolean{
@@ -80,11 +84,13 @@ function ringChain(bone:Bone,names:Map<string,Bone>,children:Map<string,string[]
   const path=chain.slice(1).reduce((s,b,i)=>s+distance(chain[i].position,b.position),0);
   return chain.length>=4&&path>1e-6&&distance(chain[0].position,chain[chain.length-1].position)<0.3*path;
 }
-/** Facing direction in the ground plane, from the feet to the toes (default -Y). */
+/** Facing direction in the ground plane, from the feet to the toes (default -Y). Only each foot's lowest child counts:
+ * the toes are on the ground, while boot straps, heels and pendants hanging from the foot can point anywhere. */
 function facing(names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>):[number,number]{
   const f:[number,number]=[0,0];
   for(const side of ['foot_L','foot_R']){const foot=names.get(sourceRoles[side]??'');if(!foot)continue;
-    for(const child of children.get(foot.name)??[]){const c=names.get(child);if(c){f[0]+=c.position[0]-foot.position[0];f[1]+=c.position[1]-foot.position[1];}}}
+    let toe:Bone|undefined;for(const child of children.get(foot.name)??[]){const c=names.get(child);if(c&&(!toe||c.position[2]<toe.position[2]))toe=c;}
+    if(toe){f[0]+=toe.position[0]-foot.position[0];f[1]+=toe.position[1]-foot.position[1];}}
   const n=Math.sqrt(f[0]**2+f[1]**2);return n<1e-6?[0,-1]:[f[0]/n,f[1]/n];
 }
 /** Torso bones between the pelvis and the neck (or head), where breast bones hang. */
@@ -94,27 +100,52 @@ function torsoChain(names:Map<string,Bone>,sourceRoles:Partial<Record<string,str
   while(cursor&&chain.length<64){chain.push(cursor.name);if(cursor.name===sourceRoles.pelvis)break;cursor=cursor.parent?names.get(cursor.parent):undefined;}
   return chain;
 }
-/** Breast bones: weighted, short, non-role children of a torso bone that are named as breasts,
- * or form a mirrored pair in front of the chest between the spine and the neck. */
-function breastRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):Set<string>{
+/** Short, weighted, non-role children of torso bones: where breast and butt bones hang. */
+function bodyPairOptions(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):{options:Bone[];torso:number;pelvis:number;high:number}|null{
   const roleNames=new Set(Object.values(sourceRoles).filter((n):n is string=>Boolean(n)));
-  const pelvis=names.get(sourceRoles.pelvis??''),head=names.get(sourceRoles.head??'');if(!pelvis||!head)return new Set();
-  const torso=distance(pelvis.position,head.position);if(torso<=1e-6)return new Set();
-  const parents=torsoChain(names,sourceRoles);
-  const low=(names.get(sourceRoles.spine??'')??pelvis).position[2],high=(names.get(sourceRoles.neck??'')??head).position[2];
+  const pelvis=names.get(sourceRoles.pelvis??''),head=names.get(sourceRoles.head??'');if(!pelvis||!head)return null;
+  const torso=distance(pelvis.position,head.position);if(torso<=1e-6)return null;
+  const parents=torsoChain(names,sourceRoles),high=(names.get(sourceRoles.neck??'')??head).position[2];
   const short=(bone:Bone)=>{const branch=[bone.name];for(let at=0;at<branch.length;at++){if(branch.length>3)return false;branch.push(...(children.get(branch[at])??[]));}
-    return branch.length<=3&&branch.every(n=>!roleNames.has(n)&&names.has(n)&&distance(names.get(n)!.position,bone.position)<=0.15*torso);};
+    return branch.length<=3&&branch.every(n=>!roleNames.has(n)&&names.has(n)&&distance(names.get(n)!.position,bone.position)<=0.17*torso);};
   const options=bones.filter(b=>b.parent!==null&&parents.includes(b.parent)&&!roleNames.has(b.name)&&weighted.has(b.name)&&short(b));
-  const output=new Set(options.filter(b=>namedBreast(b.name)).map(b=>b.name));
-  const forward=facing(names,children,sourceRoles),lateral=[-forward[1],forward[0]];
+  return {options,torso,pelvis:pelvis.position[2],high};
+}
+/** Mirrored pairs among `options`: same parent, same height and depth, opposite sides; `keep(forward, height)` filters by placement. */
+function mirroredPairs(options:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>,torso:number,keep:(forward:number,z:number)=>boolean):Set<string>{
+  const forward=facing(names,children,sourceRoles),lateral=[-forward[1],forward[0]],output=new Set<string>();
   const place=(b:Bone)=>{const p=names.get(b.parent!)!,d=[b.position[0]-p.position[0],b.position[1]-p.position[1]];return [d[0]*forward[0]+d[1]*forward[1],d[0]*lateral[0]+d[1]*lateral[1],b.position[2]];};
   options.forEach((a,i)=>{
     const [fa,la,za]=place(a);
     const partners=options.filter((b,j)=>{if(j===i||b.parent!==a.parent)return false;const [fb,lb,zb]=place(b);
-      return fa>=0.02*torso&&fb>=0.02*torso&&Math.abs(fa-fb)<=0.03*torso&&Math.abs(za-zb)<=0.03*torso&&la*lb<0&&Math.abs(la+lb)<=0.04*torso&&Math.abs(la-lb)>=0.06*torso&&Math.abs(la-lb)<=0.5*torso&&za>low&&za<high;});
+      return keep(fa,za)&&keep(fb,zb)&&Math.abs(fa-fb)<=0.03*torso&&Math.abs(za-zb)<=0.03*torso&&la*lb<0&&Math.abs(la+lb)<=0.04*torso&&Math.abs(la-lb)>=0.06*torso&&Math.abs(la-lb)<=0.5*torso;});
     if(partners.length===1&&!rigidNamed(a.name))output.add(a.name);
   });
   return output;
+}
+/** Breast bones: weighted, short, non-role children of a torso bone that are named as breasts,
+ * or form a mirrored pair in front of the chest in the upper torso (never on the pelvis, never a butt). */
+function breastRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):Set<string>{
+  const found=bodyPairOptions(bones,names,children,weighted,sourceRoles);if(!found)return new Set();
+  const {options,torso,pelvis,high}=found,spine=names.get(sourceRoles.spine??''),low=spine?spine.position[2]:pelvis,floor=Math.max(low,pelvis+0.35*(high-pelvis));
+  const output=new Set(options.filter(b=>namedBreast(b.name)).map(b=>b.name));
+  const above=options.filter(b=>b.parent!==sourceRoles.pelvis&&!namedButt(b.name));
+  for(const name of mirroredPairs(above,names,children,sourceRoles,torso,(forward,z)=>forward>=0.02*torso&&z>floor&&z<high))output.add(name);
+  return output;
+}
+/** Butt bones: short weighted children of a torso bone named as a butt, or a mirrored pair low on the hips that is not in front. */
+function buttRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):Set<string>{
+  const found=bodyPairOptions(bones,names,children,weighted,sourceRoles);if(!found)return new Set();
+  const {options,torso,pelvis,high}=found,breasts=breastRoots(bones,names,children,weighted,sourceRoles),hips=pelvis+0.25*(high-pelvis);
+  const output=new Set(options.filter(b=>namedButt(b.name)).map(b=>b.name));
+  for(const name of mirroredPairs(options,names,children,sourceRoles,torso,(forward,z)=>forward<=0.02*torso&&z>=pelvis-0.25*torso&&z<=hips))output.add(name);
+  return new Set([...output].filter(n=>!breasts.has(n)&&!namedBreast(n)));
+}
+/** Detected butt bones (named, or a mirrored pair low on the hips). */
+export function buttBones(bones:Bone[],weighted:string[],sourceRoles:Partial<Record<string,string>>):string[]{
+  const names=new Map(bones.map(b=>[b.name,b])),children=new Map<string,string[]>();
+  for(const bone of bones){if(bone.parent)children.set(bone.parent,[...(children.get(bone.parent)??[]),bone.name]);}
+  return [...buttRoots(bones,names,children,new Set(weighted),sourceRoles)].sort();
 }
 /** Detected breast bones (named, or a mirrored pair in front of the chest). */
 export function breastBones(bones:Bone[],weighted:string[],sourceRoles:Partial<Record<string,string>>):string[]{
@@ -141,17 +172,20 @@ export function physicsGroups(bones:Bone[],weighted:string[],options:Preparation
   const children=new Map<string,string[]>();for(const bone of bones){if(bone.parent)children.set(bone.parent,[...(children.get(bone.parent)??[]),bone.name]);}
   const physical=new Set(bones.filter(b=>b.physics?.policy===PHYSICS_BINDING_POLICY&&Array.isArray(b.physics.dynamic_bodies)&&b.physics.dynamic_bodies.length&&b.physics.dynamic_bodies.every(n=>typeof n==='string'&&n.length)).map(b=>b.name));
   const weightedSet=new Set(weighted),breasts=options.breast_motion,breastSet=breastRoots(bones,names,children,weightedSet,sourceRoles);
+  const butts=options.butt_motion,buttSet=buttRoots(bones,names,children,weightedSet,sourceRoles);
   if(breasts===false)for(const n of breastSet)physical.delete(n);
+  if(butts===false)for(const n of buttSet)physical.delete(n);
   const verified=new Set(physical);
-  for(const bone of bones.filter(b=>(namedSecondary(b.name)||hangingChain(b,names,children,weightedSet,sourceRoles)||gunCharm(b,names,children,sourceRoles))&&!rigidNamed(b.name)&&!ringChain(b,names,children,sourceRoles)&&!breastSet.has(b.name))){
+  for(const bone of bones.filter(b=>(namedSecondary(b.name)||hangingChain(b,names,children,weightedSet,sourceRoles)||gunCharm(b,names,children,sourceRoles))&&!rigidNamed(b.name)&&!ringChain(b,names,children,sourceRoles)&&!breastSet.has(b.name)&&!(butts===false&&buttSet.has(b.name)))){
     const branch=new Set<string>(),pending=[bone.name];let invalid=false;
     while(pending.length){const n=pending.pop()!;if(branch.has(n)||branch.size>=512){invalid=true;break;}branch.add(n);pending.push(...(children.get(n)??[]));}
     if(invalid||[...branch].some(n=>verified.has(n)||Object.values(sourceRoles).includes(n)||Boolean(names.get(n)?.physics?.dynamic_bodies?.length||names.get(n)?.physics?.kinematic_bodies?.length)))continue;
     const used=weighted.filter(n=>branch.has(n)).map(n=>names.get(n)!);
     if(used.length>=2&&used.slice(1).some(b=>b.position.reduce((s,v,k)=>s+(v-used[0].position[k])**2,0)>1e-10))physical.add(bone.name);
   }
-  // A breast is usually one weighted bone; it moves as a whole.
-  if(breasts===true)for(const root of breastSet){const p=names.get(root)?.physics;if(!(p?.dynamic_bodies?.length||p?.kinematic_bodies?.length))physical.add(root);}
+  // A breast (or butt) is usually one weighted bone; it moves as a whole.
+  for(const [enabled,found] of [[breasts===true,breastSet],[butts===true,buttSet]] as const){if(!enabled)continue;
+    for(const root of found){const p=names.get(root)?.physics;if(!(p?.dynamic_bodies?.length||p?.kinematic_bodies?.length))physical.add(root);}}
   const roles=new Set(Object.values(sourceRoles)),weights=new Set(weighted),groups:PhysicsGroup[]=[];
   for(const root of [...physical].sort()){
     let cursor=names.get(root)?.parent,anchor:string|undefined,dynamicParent=false,invalid=false;const seen=new Set([root]);
@@ -183,18 +217,26 @@ export function gunChoiceOptions(bones:Bone[],weighted:string[],options:Preparat
   const unchanged=roots.length===(next.physics_roots??[]).length&&roots.every((root,i)=>root===(next.physics_roots??[])[i]);
   return unchanged?values:{...values,physics_roots:roots};
 }
-/** Groups hanging from a gun get the light charm part type unless a type was already chosen. */
+/** Groups hanging from a gun get the light charm part type, and kept butt bones (butt motion on) the butt part type,
+ * unless a type was already chosen. */
 function withCharmKinds(bones:Bone[],options:PreparationOptions,groups:PhysicsGroup[]):PreparationOptions{
   const roles=options.source_roles??{},kinds=options.physics_kinds??{};
-  const charms=groups.map(g=>g.root).filter(root=>options.physics_roots?.includes(root)&&!kinds[root]&&hangsFromGun(root,bones,roles));
-  return charms.length?{...options,physics_kinds:{...kinds,...Object.fromEntries(charms.map(root=>[root,'charm']))}}:options;
+  const kept=groups.map(g=>g.root).filter(root=>options.physics_roots?.includes(root)&&!kinds[root]);
+  const charms=kept.filter(root=>hangsFromGun(root,bones,roles));
+  const butts=options.butt_motion===true?kept.filter(root=>!charms.includes(root)&&buttBones(bones,groups.flatMap(g=>g.weighted_bones),roles).includes(root)):[];
+  const added=[...charms.map(root=>[root,'charm']),...butts.map(root=>[root,'butt'])];
+  return added.length?{...options,physics_kinds:{...kinds,...Object.fromEntries(added)}}:options;
 }
 /** New models keep every detected group. When automatic motion is already on, groups detected for the
  * first time (for example after detection improves) are added; groups you were shown and left off stay off. */
 export function automaticPhysicsOptions(bones:Bone[],weighted:string[],options:PreparationOptions):PreparationOptions{
   if(options.preserve_physics_bones===false)return options;
   const groups=physicsGroups(bones,weighted,options);
-  if(options.preserve_physics_bones===undefined)return groups.length?withCharmKinds(bones,{...options,preserve_physics_bones:true,physics_roots:groups.map(g=>g.root),automatic_secondary_motion:true},groups):options;
+  // A new model starts with butt motion off (projects from before it existed keep their saved groups).
+  if(options.preserve_physics_bones===undefined){
+    const fresh=options.butt_motion===undefined?{...options,butt_motion:false}:options,kept=physicsGroups(bones,weighted,fresh);
+    return kept.length?withCharmKinds(bones,{...fresh,preserve_physics_bones:true,physics_roots:kept.map(g=>g.root),automatic_secondary_motion:true},kept):fresh;
+  }
   if(!options.automatic_secondary_motion)return options;
   const roots=options.physics_roots??[],offered=new Set(Array.isArray(options.physics_offered)?options.physics_offered.filter((n):n is string=>typeof n==='string'):roots);
   const fresh=groups.map(g=>g.root).filter(root=>!offered.has(root)&&!roots.includes(root));
@@ -220,4 +262,16 @@ export function breastMotionOptions(bones:Bone[],weighted:string[],options:Prepa
   const added=physicsGroups(bones,weighted,next).map(g=>g.root).filter(root=>breasts.includes(root));
   const kept=options.preserve_physics_bones===undefined?physicsGroups(bones,weighted,next).map(g=>g.root):[...roots,...added];
   return {...next,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:kept,physics_kinds:{...kinds,...Object.fromEntries(added.map(root=>[root,'breast']))}};
+}
+/** Optional butt motion, off by default and separate from breast motion. Turning it on keeps the detected butt bones as
+ * moving parts with their own gentle bounce (part type butt); turning it off returns them to the hips. Convert again afterwards. */
+export function buttMotionOptions(bones:Bone[],weighted:string[],options:PreparationOptions,enabled:boolean):PreparationOptions{
+  const butts=buttBones(bones,weighted,options.source_roles??{});
+  const roots=(options.physics_roots??[]).filter(r=>!butts.includes(r));
+  const kinds=Object.fromEntries(Object.entries(options.physics_kinds??{}).filter(([root])=>!butts.includes(root)));
+  const next:PreparationOptions={...options,butt_motion:enabled,physics_roots:roots,physics_kinds:kinds,reviewed:false};
+  if(!enabled)return next;
+  const added=physicsGroups(bones,weighted,next).map(g=>g.root).filter(root=>butts.includes(root));
+  const kept=options.preserve_physics_bones===undefined?physicsGroups(bones,weighted,next).map(g=>g.root):[...roots,...added];
+  return {...next,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:kept,physics_kinds:{...kinds,...Object.fromEntries(added.map(root=>[root,'butt']))}};
 }

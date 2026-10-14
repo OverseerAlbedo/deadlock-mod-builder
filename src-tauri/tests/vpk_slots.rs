@@ -124,3 +124,4 @@ fn no_game_configuration_does_not_claim_global_availability() {
         .contains("Select Deadlock"));
     assert!(!app.is_busy());
 }
+

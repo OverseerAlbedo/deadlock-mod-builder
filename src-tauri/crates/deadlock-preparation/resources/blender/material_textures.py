@@ -11,6 +11,7 @@ arbitrary choice.
 import hashlib
 from pathlib import Path
 import re
+from readable_names import readable
 
 
 # Readable characters of a prepared material's name. The native compiler names
@@ -18,6 +19,12 @@ import re
 # Windows paths end at 259 characters, so the readable part stays short; the
 # hash of the full name is the material's identity (earlier choices follow it).
 NAME_CHARS = 24
+
+
+def prepared_slug(name):
+    """File name of a prepared material: its readable name (non-English letters
+    spelled in Latin letters), cut to NAME_CHARS, and the hash of the full name."""
+    return re.sub('[^a-zA-Z0-9_-]','_',readable(name)).lower()[:NAME_CHARS]+'_'+hashlib.sha256(name.encode()).hexdigest()[:8]
 
 CHANNELS = [('Base Color','color'),('Roughness','roughness'),('Metallic','metalness'),
             ('Normal','normal'),('Emission Color','emission'),('Alpha','opacity')]
@@ -209,7 +216,7 @@ def texture_and_materials(meshes,folder,hero_root):
     materials={s.material.name:s.material for obj in meshes for s in obj.material_slots if s.material}
     for name,mat in materials.items():
         # The hash keeps the identity stable when the readable part is cut.
-        slug=re.sub('[^a-zA-Z0-9_-]','_',name).lower()[:NAME_CHARS]+'_'+hashlib.sha256(name.encode()).hexdigest()[:8]
+        slug=prepared_slug(name)
         rel=hero_root+'/materials/prepared/'+slug+'.vmat';lookup[name]=rel
         cfg,notes=recover_material(mat,folder,slug)
         result[rel]=cfg;warnings.extend(notes)

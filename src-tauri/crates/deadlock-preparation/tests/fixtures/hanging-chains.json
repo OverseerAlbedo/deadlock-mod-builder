@@ -1,5 +1,5 @@
 {
- "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too. A pistol in the left hand (its bones are marked as gun bones at inspection) carries an unnamed three-link charm hanging below it and a strap, which move; its slide, magazine and a sideways fin stay on the gun. Named charms move anywhere: a key chain on the hand, a necklace pendant and a dangle earring (dangle wins over earring). An unnamed tag hanging from the hand stays a body bone.",
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too. A pistol in the left hand (its bones are marked as gun bones at inspection) carries an unnamed three-link charm hanging below it and a strap, which move; its slide, magazine and a sideways fin stay on the gun. Named charms move anywhere: a key chain on the hand, a necklace pendant and a dangle earring (dangle wins over earring). An unnamed tag hanging from the hand stays a body bone. Butts are separate from breasts and move only with butt motion on: a named Butt_L/R pair on the pelvis and an unnamed mirrored pair low behind the hips. Each foot has a toe on the ground and a longer boot flap pointing backwards; only the lowest child (the toe) tells the facing direction, so the renamed breasts are still found in front. butt_names lists names that are and are not butts (尻尾 is a tail, Button is not a butt).",
  "bones": [
   {
    "name": "Bip001_Pelvis",
@@ -612,6 +612,114 @@
     0,
     1.48
    ]
+  },
+  {
+   "name": "Butt_L_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0.06,
+    0.06,
+    0.86
+   ]
+  },
+  {
+   "name": "Butt_L_01",
+   "parent": "Butt_L_00",
+   "position": [
+    0.06,
+    0.09,
+    0.83
+   ]
+  },
+  {
+   "name": "Butt_R_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    -0.06,
+    0.06,
+    0.86
+   ]
+  },
+  {
+   "name": "Butt_R_01",
+   "parent": "Butt_R_00",
+   "position": [
+    -0.06,
+    0.09,
+    0.83
+   ]
+  },
+  {
+   "name": "Bone_D_L_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0.07,
+    0.04,
+    0.9
+   ]
+  },
+  {
+   "name": "Bone_D_R_00",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    -0.07,
+    0.04,
+    0.9
+   ]
+  },
+  {
+   "name": "Bip001_L_Foot",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    0.1,
+    0,
+    0.08
+   ]
+  },
+  {
+   "name": "Bip001_L_Toe0",
+   "parent": "Bip001_L_Foot",
+   "position": [
+    0.1,
+    -0.12,
+    0.01
+   ]
+  },
+  {
+   "name": "Boot_Flap_L",
+   "parent": "Bip001_L_Foot",
+   "position": [
+    0.1,
+    0.3,
+    0.15
+   ]
+  },
+  {
+   "name": "Bip001_R_Foot",
+   "parent": "Bip001_Pelvis",
+   "position": [
+    -0.1,
+    0,
+    0.08
+   ]
+  },
+  {
+   "name": "Bip001_R_Toe0",
+   "parent": "Bip001_R_Foot",
+   "position": [
+    -0.1,
+    -0.12,
+    0.01
+   ]
+  },
+  {
+   "name": "Boot_Flap_R",
+   "parent": "Bip001_R_Foot",
+   "position": [
+    -0.1,
+    0.3,
+    0.15
+   ]
   }
  ],
  "weighted": [
@@ -677,14 +785,22 @@
   "Necklace_Pendant_00",
   "Necklace_Pendant_01",
   "Earring_Dangle_00",
-  "Earring_Dangle_01"
+  "Earring_Dangle_01",
+  "Butt_L_00",
+  "Butt_L_01",
+  "Butt_R_00",
+  "Butt_R_01",
+  "Bone_D_L_00",
+  "Bone_D_R_00"
  ],
  "roles": {
   "pelvis": "Bip001_Pelvis",
   "spine": "Bip001_Spine",
   "chest": "Bip001_Spine1",
   "head": "Bip001_Head",
-  "hand_L": "Bip001_L_Hand"
+  "hand_L": "Bip001_L_Hand",
+  "foot_L": "Bip001_L_Foot",
+  "foot_R": "Bip001_R_Foot"
  },
  "expected_roots": [
   "Bone_Robe_L_00",
@@ -728,5 +844,50 @@
  "gun_charm_roots": [
   "Pistol_Link_00",
   "Pistol_Strap_00"
- ]
+ ],
+ "butt_bones": [
+  "Bone_D_L_00",
+  "Bone_D_R_00",
+  "Butt_L_00",
+  "Butt_R_00"
+ ],
+ "expected_roots_with_butt_motion": [
+  "Bone_D_L_00",
+  "Bone_D_R_00",
+  "Bone_Robe_L_00",
+  "Bone_Robe_R_00",
+  "Butt_L_00",
+  "Butt_R_00",
+  "Earring_Dangle_00",
+  "Hair_Back_00",
+  "Hat_Ribbon_00",
+  "Key_Chain_00",
+  "Necklace_Pendant_00",
+  "Pistol_Link_00",
+  "Pistol_Strap_00",
+  "Strap_00"
+ ],
+ "butt_names": {
+  "butt": [
+   "Butt_L_00",
+   "glute_r",
+   "GluteusMax.L",
+   "臀部_L",
+   "お尻.R",
+   "屁股_L",
+   "尻_L",
+   "Ass_R",
+   "pigu_L",
+   "tunbu_R"
+  ],
+  "not_butt": [
+   "尻尾_01",
+   "Hips",
+   "ButtonTop",
+   "Pelvis",
+   "Bass_Guitar",
+   "Bust_L",
+   "Bumper"
+  ]
+ }
 }

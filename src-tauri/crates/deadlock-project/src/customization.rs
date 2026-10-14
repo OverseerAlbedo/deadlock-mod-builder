@@ -79,8 +79,14 @@ choices!(Physics {
 });
 choices!(ClothSetup { meshes: Vec<String>, attachment: String, collision: String });
 choices!(SecondaryMotion {
-    enabled: bool, preset: String, roots: Vec<String>, profiles: BTreeMap<String, String>, part_kinds: BTreeMap<String, String>
+    enabled: bool, preset: String, roots: Vec<String>, profiles: BTreeMap<String, String>, part_kinds: BTreeMap<String, String>,
+    tuning: BTreeMap<String, MotionTuning>, use_source_springs: bool
 });
+// Fine-tuning of one part type (keyed by type: hair, tail, breast ...): each
+// value from -1 (much less) to 1 (much more); 0 or missing keeps the automatic value.
+choices!(MotionTuning { stiffness: f64, damping: f64, gravity: f64, swing: f64 });
+/// Part types the Physics page offers (rigid parts do not move, so they have no tuning).
+pub const PART_KINDS: [&str; 11] = ["hair", "streamer", "tail", "ear", "cloth", "long_skirt", "accessory", "breast", "butt", "charm", "rigid"];
 choices!(Appearance { enabled: bool, materials: Vec<AppearanceMaterial> });
 // hue: experimental color editor hue shift in degrees (-180 to 180); saturation and
 // brightness: factors from 0 to 2 where 1 keeps the original.
@@ -255,8 +261,15 @@ impl Customization {
             if motion.profiles.as_ref().is_some_and(|p| p.len() > 128 || p.iter().any(|(k,v)| k.is_empty() || !["automatic", "balanced", "stiff", "soft"].contains(&v.as_str()))) {
                 return Err(error("Secondary group movement must be automatic, balanced, stiff or soft."));
             }
-            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !["hair","streamer","tail","ear","cloth","long_skirt","accessory","breast","charm","rigid"].contains(&v.as_str()))) {
+            if motion.part_kinds.as_ref().is_some_and(|p|p.len()>128 || p.iter().any(|(k,v)|k.is_empty() || !PART_KINDS.contains(&v.as_str()))) {
                 return Err(error("Choose a supported moving-part type."));
+            }
+            if let Some(tuning) = &motion.tuning {
+                let in_range = |v: &Option<f64>| v.is_none_or(|v| v.is_finite() && (-1.0..=1.0).contains(&v));
+                if tuning.iter().any(|(kind, t)| kind == "rigid" || !PART_KINDS.contains(&kind.as_str())
+                    || ![&t.stiffness, &t.damping, &t.gravity, &t.swing].into_iter().all(in_range)) {
+                    return Err(error("Movement fine-tuning must name a moving part type and stay between -100% and +100%."));
+                }
             }
             if self.active() && motion.enabled == Some(true) && self.physics.as_ref().is_some_and(|p| p.enabled == Some(true)) {
                 return Err(error("Choose generated secondary motion or a tested cloth reference, not both."));
@@ -511,5 +524,29 @@ impl Customization {
         if let Some(v) = &mut self.cloth_setup {
             v.meshes = Some(Vec::new());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn every_part_type_the_physics_page_offers_is_accepted() {
+        for kind in ["hair", "streamer", "tail", "ear", "cloth", "long_skirt", "accessory", "breast", "butt", "charm", "rigid"] {
+            let choice: super::Customization = serde_json::from_value(serde_json::json!({"secondary_motion": {"part_kinds": {"hip_L": kind}}})).unwrap();
+            assert!(choice.validate().is_ok(), "{kind}");
+        }
+        let unknown: super::Customization = serde_json::from_value(serde_json::json!({"secondary_motion": {"part_kinds": {"hip_L": "wing"}}})).unwrap();
+        assert!(unknown.validate().is_err());
+    }
+    #[test]
+    fn fine_tuning_names_a_moving_part_type_and_stays_in_range() {
+        let check = |tuning: serde_json::Value| {
+            let choice: super::Customization = serde_json::from_value(serde_json::json!({"secondary_motion": {"tuning": tuning}})).unwrap();
+            choice.validate().is_ok()
+        };
+        assert!(check(serde_json::json!({"hair": {"stiffness": 0.3, "swing": -1.0}, "butt": {"damping": 1.0}})));
+        assert!(!check(serde_json::json!({"rigid": {"stiffness": 0.3}})));
+        assert!(!check(serde_json::json!({"wing": {"stiffness": 0.3}})));
+        assert!(!check(serde_json::json!({"hair": {"gravity": 1.5}})));
     }
 }

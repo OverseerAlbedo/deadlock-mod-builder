@@ -17,3 +17,7 @@ These game-derived assets retain their original ownership. Their presence and us
 ## Separately obtained tools
 
 Deadlock, Source 2 compilation toolsets/CSDK, Blender, Source2Viewer CLI, and DepotDownloader are configured or obtained separately. Their ownership and terms remain with their respective providers. No CSDK installer, extracted full game dump, Steam credential, or local tool installation belongs in this repository.
+
+## Unicode Unihan readings
+
+`src-tauri/crates/deadlock-preparation/resources/blender/cjk_readings.txt` (about 150 KB, embedded in the app) lists the Mandarin reading of CJK ideographs, taken from the `kMandarin` field of the Unicode Unihan database (`Unihan_Readings.txt`, first reading, tone marks removed). It spells Chinese and Japanese material names in Latin letters. Copyright © 1991-2026 Unicode, Inc., under the Unicode License v3 in `licenses/Unicode-Unihan.txt`. `scripts/make_cjk_readings.py` rebuilds it from `Unihan.zip` (https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip).

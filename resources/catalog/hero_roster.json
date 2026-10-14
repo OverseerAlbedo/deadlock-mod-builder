@@ -97,7 +97,8 @@
   },
   {
     "name": "Nurse Harrow",
-    "path": "models/heroes_wip/nurse/nurse.vmdl"
+    "path": "models/heroes_wip/nurse/nurse.vmdl",
+    "playable": false
   },
   {
     "name": "Paige",
@@ -171,7 +172,8 @@
   },
   {
     "name": "Violet",
-    "path": "models/heroes_wip/artist/artist.vmdl"
+    "path": "models/heroes_wip/artist/artist.vmdl",
+    "playable": false
   },
   {
     "name": "Viscous",

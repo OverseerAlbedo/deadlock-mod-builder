@@ -49,6 +49,10 @@ describe('Gun helpers',()=>{
     expect(previewShapes(analysis,{objects:['R'],left:{keep:true}},'dual').guns.left).toBeUndefined();
     const single={...analysis,weapon_reference:reference({meshes:['g'],shape:shape(6)})} as PreparationAnalysis;
     expect(previewShapes(single,{objects:['R']},'single')).toEqual({body:undefined,guns:{right:shape(1),left:undefined},originals:{right:shape(6)}});
+    // The holding pose goes along when the hero's sources had an idle clip.
+    const hand=[[0,-1,0,1],[1,0,0,2],[0,0,1,3],[0,0,0,1]];
+    const holding={...analysis,weapon_reference:reference({meshes:['g'],body_shape:shape(3),sides,stance:{clip:'weapon_stand_idle',body_shape:shape(7),hands:{right:hand,left:hand}}})} as PreparationAnalysis;
+    expect(previewShapes(holding,{objects:['R']},'dual').stance).toEqual({clip:'weapon_stand_idle',body:shape(7),hands:{right:hand,left:hand}});
   });
   it('leaves out both hands, or the pair\'s unused gun-file gun, like the native plan',()=>{
     const bones=[{name:'hand_R',parent:null,position:[0,0,0],weapon:['gun_file_R']},{name:'hand_L',parent:null,position:[0,0,0],weapon:['gun_file_L']},{name:'Gun',parent:null,position:[0,0,0],weapon:['Pistol']}] as Bone[];

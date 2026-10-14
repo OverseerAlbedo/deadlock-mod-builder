@@ -14,6 +14,7 @@ from blend_source import snapshot_blend
 from clothing import validate_garment_binding
 from static_face import apply_static_face, apply_static_shapes
 from material_textures import texture_and_materials
+from source_springs import source_springs
 from source_helpers import mmd_helpers, helper_receipt, remove_workspace_helpers, uses_linked_libraries, physics_bone_bindings, helper_diagnostic
 from source_rigs import resolve_modular_rigs, append_saved_notice
 from source_compatibility import normalize as normalize_source_rig
@@ -583,6 +584,11 @@ def prepare(job,meshes,rigs):
     if following:warnings.append(f'{len(following)} source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.')
     if kept:warnings.append(f"Kept {len(kept['exported_bones'])} existing physics bones in {len(kept['groups'])} groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.")
     warnings+=texture_notes(uv_first,shared)
+    hero_fit=alignment_audit.get('hero_fit') or {}
+    if hero_fit.get('extremes'):
+        what={'arms':'a long or uneven arm','legs':'short legs'}
+        warnings.append('This hero has unusual proportions ('+' and '.join(what[e] for e in hero_fit['extremes'])+
+                        '). Keep source proportions scaled the body to the hero\'s hips and shoulders, fitted the legs to the hero and spread the arm length over the whole arm. Some stretching or clipping can remain; check the arms in game.')
     curl=alignment_audit.get('finger_curl') or {}
     if curl.get('segments'):warnings.append(f"Fingers bent to the hero's resting curl ({len(curl['segments'])} finger segments), so the hero's grip closes them around the gun.")
     if curl.get('skipped'):warnings.append('Finger segments not bent because they point far from their hero finger (check the finger mapping): '+', '.join(s['bone'] for s in curl['skipped'][:6])+'.')
@@ -821,6 +827,9 @@ def main():
             meshes,gun_receipt=weapon_source.append(bpy,job['weapon_source'],meshes,rigs,scene_choices)
         if job['operation']=='inspect':
             report=describe(meshes,rigs,weapon_model)
+            # MMD/VRM spring settings, offered as starting values on the Physics tab.
+            if rigs:
+                report['springs']=source_springs(list(bpy.context.scene.objects),rigs[0],job.get('source'))
         elif job.get('mode')=='weapon':
             report=prepare_weapon_model(job,meshes,rigs)
         else:

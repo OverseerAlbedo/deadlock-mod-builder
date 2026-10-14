@@ -26,6 +26,12 @@ RIGID_HINTS = ('halo','hat','cap','pin','pins','clip','clips','crown','tiara','c
                'accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪')
 # Breast bones move only when breast motion is turned on.
 BREAST_HINTS = ('breast','bust','boob','pectoral','oppai','おっぱい','乳')
+# Butt bones move only when butt motion is turned on (off by default). ASCII
+# words match whole name parts (Butt_L, glute_r; not Button); 尻 also counts on
+# its own, but never inside 尻尾 (tail). Keep in sync with secondary_bones.rs
+# and src/preparation/secondary-bones.ts.
+BUTT_HINTS = ('butt','buttock','buttocks','glute','glutes','gluteus','booty','bum','ass','pigu','tunbu',
+              '臀','屁股','お尻','おしり','ケツ')
 # Charms and other small hanging pieces, matched without separators (Key_Chain
 # is keychain). They move anywhere and override the rigid accessory words (a
 # dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and
@@ -124,8 +130,14 @@ def on_gun(root, bones, source_roles, gun):
 
 def named_breast(name):
     n = name.lower()
-    return (any(h in n for h in BREAST_HINTS)
+    return not named_butt(name) and (any(h in n for h in BREAST_HINTS)
             or ('胸' in n and ('左' in n or '右' in n or any(t in ('l','r','left','right') for t in tokens(name)))))
+
+
+def named_butt(name):
+    words, n = tokens(name), name.lower()
+    return (any(h in words if h.isascii() else h in n for h in BUTT_HINTS)
+            or ('尻' in n and '尻尾' not in n))
 
 
 def ring_chain(bone, byname, children, source_roles):
@@ -147,16 +159,21 @@ def ring_chain(bone, byname, children, source_roles):
 
 
 def facing(byname, children, source_roles):
-    """Facing direction in the ground plane, from the feet to the toes (default -Y)."""
+    """Facing direction in the ground plane, from the feet to the toes (default -Y).
+    Only each foot's lowest child counts: the toes are on the ground, while boot
+    straps, heels and pendants hanging from the foot can point anywhere."""
     f = [0., 0.]
     for side in ('foot_L', 'foot_R'):
         foot = byname.get(source_roles.get(side))
         if foot is None:
             continue
+        toe = None
         for child in children.get(foot['name'], []):
-            if child in byname:
-                f[0] += byname[child]['position'][0] - foot['position'][0]
-                f[1] += byname[child]['position'][1] - foot['position'][1]
+            if child in byname and (toe is None or byname[child]['position'][2] < toe['position'][2]):
+                toe = byname[child]
+        if toe is not None:
+            f[0] += toe['position'][0] - foot['position'][0]
+            f[1] += toe['position'][1] - foot['position'][1]
     n = math.sqrt(f[0]**2 + f[1]**2)
     return [0., -1.] if n < 1e-6 else [f[0]/n, f[1]/n]
 
@@ -174,20 +191,18 @@ def torso_chain(byname, source_roles):
     return chain
 
 
-def breast_roots(bones, byname, children, weighted, source_roles):
-    """Breast bones: weighted, short, non-role children of a torso bone
-    that are named as breasts, or form a mirrored pair in front of the chest
-    between the spine and the neck."""
+def body_pair_options(bones, byname, children, weighted, source_roles):
+    """Short, weighted, non-role children of torso bones: where breast and butt
+    bones hang. Returns (options, torso length, pelvis height, shoulder height)."""
     role_names = set(source_roles.values())
     pelvis, head = byname.get(source_roles.get('pelvis')), byname.get(source_roles.get('head'))
     if pelvis is None or head is None:
-        return set()
+        return None
     distance = lambda a, b: math.sqrt(sum((a[k]-b[k])**2 for k in range(3)))
     torso = distance(pelvis['position'], head['position'])
     if torso <= 1e-6:
-        return set()
+        return None
     parents = torso_chain(byname, source_roles)
-    low = byname.get(source_roles.get('spine'), pelvis)['position'][2]
     high = byname.get(source_roles.get('neck'), head)['position'][2]
 
     def short(bone):
@@ -198,11 +213,16 @@ def breast_roots(bones, byname, children, weighted, source_roles):
             branch.extend(children.get(branch[at], []))
             at += 1
         return len(branch) <= 3 and all(n not in role_names and n in byname
-                                        and distance(byname[n]['position'], bone['position']) <= 0.15*torso
+                                        and distance(byname[n]['position'], bone['position']) <= 0.17*torso
                                         for n in branch)
     options = [b for b in bones if b.get('parent') in parents and b['name'] not in role_names
                and b['name'] in weighted and short(b)]
-    output = {b['name'] for b in options if named_breast(b['name'])}
+    return options, torso, pelvis['position'][2], high
+
+
+def mirrored_pairs(options, byname, children, source_roles, torso, keep):
+    """Mirrored pairs among options: same parent, same height and depth, opposite
+    sides. keep(forward offset, height) filters by placement."""
     forward = facing(byname, children, source_roles)
     lateral = [-forward[1], forward[0]]
 
@@ -210,20 +230,61 @@ def breast_roots(bones, byname, children, weighted, source_roles):
         p = byname[b['parent']]
         d = [b['position'][0]-p['position'][0], b['position'][1]-p['position'][1]]
         return (d[0]*forward[0] + d[1]*forward[1], d[0]*lateral[0] + d[1]*lateral[1], b['position'][2])
+    output = set()
     for i, a in enumerate(options):
         fa, la, za = place(a)
-        partners = []
+        partners = 0
         for j, b in enumerate(options):
             if j == i or b.get('parent') != a.get('parent'):
                 continue
             fb, lb, zb = place(b)
-            if (fa >= 0.02*torso and fb >= 0.02*torso and abs(fa-fb) <= 0.03*torso and abs(za-zb) <= 0.03*torso
-                    and la*lb < 0 and abs(la+lb) <= 0.04*torso and 0.06*torso <= abs(la-lb) <= 0.5*torso
-                    and low < za < high):
-                partners.append(b)
-        if len(partners) == 1 and not rigid_named(a['name']):
+            if (keep(fa, za) and keep(fb, zb) and abs(fa-fb) <= 0.03*torso and abs(za-zb) <= 0.03*torso
+                    and la*lb < 0 and abs(la+lb) <= 0.04*torso and 0.06*torso <= abs(la-lb) <= 0.5*torso):
+                partners += 1
+        if partners == 1 and not rigid_named(a['name']):
             output.add(a['name'])
     return output
+
+
+def breast_roots(bones, byname, children, weighted, source_roles):
+    """Breast bones: weighted, short, non-role children of a torso bone that are
+    named as breasts, or form a mirrored pair in front of the chest in the upper
+    torso (never on the pelvis, never a butt)."""
+    found = body_pair_options(bones, byname, children, weighted, source_roles)
+    if found is None:
+        return set()
+    options, torso, pelvis, high = found
+    spine = byname.get(source_roles.get('spine'))
+    low = spine['position'][2] if spine is not None else pelvis
+    floor = max(low, pelvis + 0.35*(high - pelvis))
+    output = {b['name'] for b in options if named_breast(b['name'])}
+    above = [b for b in options if b.get('parent') != source_roles.get('pelvis') and not named_butt(b['name'])]
+    output |= mirrored_pairs(above, byname, children, source_roles, torso,
+                             lambda forward, z: forward >= 0.02*torso and floor < z < high)
+    return output
+
+
+def butt_roots(bones, byname, children, weighted, source_roles):
+    """Butt bones: short weighted children of a torso bone named as a butt, or a
+    mirrored pair low on the hips that is not in front of the body."""
+    found = body_pair_options(bones, byname, children, weighted, source_roles)
+    if found is None:
+        return set()
+    options, torso, pelvis, high = found
+    breasts = breast_roots(bones, byname, children, weighted, source_roles)
+    output = {b['name'] for b in options if named_butt(b['name'])}
+    hips = pelvis + 0.25*(high - pelvis)
+    output |= mirrored_pairs(options, byname, children, source_roles, torso,
+                             lambda forward, z: forward <= 0.02*torso and pelvis - 0.25*torso <= z <= hips)
+    return {n for n in output if n not in breasts and not named_breast(n)}
+
+
+def butt_bones(bones, weighted, source_roles):
+    byname = {b['name']: b for b in bones}
+    children = {}
+    for bone in bones:
+        children.setdefault(bone.get('parent'), []).append(bone['name'])
+    return sorted(butt_roots(bones, byname, children, set(weighted), source_roles))
 
 
 def breast_bones(bones, weighted, source_roles):
@@ -262,9 +323,11 @@ def hanging_chain(bone, byname, children, weighted, source_roles):
             and distance(chain[0]['position'], chain[-1]['position']) >= 0.25*torso)
 
 
-def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
+def physics_groups(bones, weighted, source_roles, target_roles, breasts=None, butts=None):
     """breasts: True adds breast bones as moving parts, False leaves them on the
-    body even when the source gives them physics, None keeps the earlier behavior."""
+    body even when the source gives them physics, None keeps the earlier behavior.
+    butts: True adds butt bones as moving parts, False leaves them on the hips
+    even when the source gives them physics, None keeps the earlier behavior."""
     byname = {b['name']: b for b in bones}
     if len(byname) != len(bones):
         raise ValueError('Duplicate source bone identities.')
@@ -277,8 +340,11 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
         children.setdefault(bone.get('parent'), []).append(bone['name'])
     weighted_set = set(weighted)
     breast_set = breast_roots(bones, byname, children, weighted_set, source_roles)
+    butt_set = butt_roots(bones, byname, children, weighted_set, source_roles)
     if breasts is False:
         physical -= breast_set
+    if butts is False:
+        physical -= butt_set
     verified = set(physical)
     for bone in bones:
         if not (any(h in bone['name'].lower() for h in HINTS) or any(t in ('ear','ears') for t in re.split('[^a-z0-9]+',bone['name'].lower()))
@@ -286,7 +352,8 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
                 or hanging_chain(bone, byname, children, weighted_set, source_roles)
                 or gun_charm(bone, byname, children, source_roles)):
             continue
-        if rigid_named(bone['name']) or ring_chain(bone, byname, children, source_roles) or bone['name'] in breast_set:
+        if (rigid_named(bone['name']) or ring_chain(bone, byname, children, source_roles)
+                or bone['name'] in breast_set or (butts is False and bone['name'] in butt_set)):
             continue
         branch, pending = set(), [bone['name']]
         while pending:
@@ -302,9 +369,11 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None):
         used = [byname[n] for n in weighted if n in branch]
         if len(used) >= 2 and any(sum((a-b)**2 for a,b in zip(b['position'],used[0]['position'])) > 1e-10 for b in used[1:]):
             physical.add(bone['name'])
-    if breasts is True:
-        # A breast is usually one weighted bone; it moves as a whole.
-        for root in breast_set:
+    # A breast (or butt) is usually one weighted bone; it moves as a whole.
+    for enabled, found in ((breasts is True, breast_set), (butts is True, butt_set)):
+        if not enabled:
+            continue
+        for root in found:
             if not any(byname[root].get('physics', {}).get(k) for k in ('dynamic_bodies','kinematic_bodies')):
                 physical.add(root)
     groups = []
@@ -377,7 +446,16 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
     breasts = options.get('breast_motion')
     if breasts is not None and not isinstance(breasts, bool):
         raise ValueError('Breast motion must be on or off.')
-    choices = {g['root']: g for g in physics_groups(bones, weighted, source_roles, target_roles, breasts)}
+    butts = options.get('butt_motion')
+    if butts is not None and not isinstance(butts, bool):
+        raise ValueError('Butt motion must be on or off.')
+    if butts is False:
+        # Butt groups saved with butt motion on stay on the hips once it is off.
+        hips = set(butt_bones(bones, weighted, source_roles))
+        roots = [r for r in roots if r not in hips]
+        if not roots:
+            return None
+    choices = {g['root']: g for g in physics_groups(bones, weighted, source_roles, target_roles, breasts, butts)}
     if any(root not in choices for root in roots):
         raise ValueError('Saved physics groups are stale or unsupported. Inspect the original source again.')
     groups = [choices[n] for n in sorted(roots)]

@@ -152,6 +152,50 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     let generic: Vec<Bone> = source.iter().map(|b| Bone { name: rename(&b.name), ..b.clone() }).collect();
     let generic_weighted: Vec<String> = weighted.iter().map(rename).collect();
     assert_eq!(secondary::breast_bones(&generic, &generic_weighted, &roles), breasts.iter().map(rename).collect::<Vec<_>>());
+    // Butts are found by name and as a low mirrored pair behind the hips; they
+    // never count as breasts and move only with butt motion on.
+    let butts: Vec<String> = serde_json::from_value(data["butt_bones"].clone()).unwrap();
+    assert_eq!(secondary::butt_bones(&source, &weighted, &roles), butts);
+    assert!(butts.iter().all(|b| !breasts.contains(b)));
+    let with_butts: Vec<String> = serde_json::from_value(data["expected_roots_with_butt_motion"].clone()).unwrap();
+    let moving = secondary::candidates_motion(&source, &weighted, &roles, &roles, None, Some(true)).unwrap();
+    assert_eq!(secondary::candidates_motion(&source, &weighted, &roles, &roles, None, Some(false)).unwrap(), groups);
+    assert_eq!(moving.iter().map(|g| g.root.clone()).collect::<Vec<_>>(), with_butts);
+    assert_eq!(moving.iter().find(|g| g.root == "Butt_L_00").unwrap().source_bones.len(), 2);
+    for name in data["butt_names"]["butt"].as_array().unwrap() {
+        let name = name.as_str().unwrap();
+        assert!(secondary::named_butt(name) && !secondary::named_breast(name), "{name}");
+    }
+    for name in data["butt_names"]["not_butt"].as_array().unwrap() {
+        assert!(!secondary::named_butt(name.as_str().unwrap()), "{name}");
+    }
+}
+
+#[test]
+fn saved_butt_groups_stay_on_the_hips_while_butt_motion_is_off() {
+    let data: Value = serde_json::from_str(include_str!("fixtures/hanging-chains.json")).unwrap();
+    let source: Vec<Bone> = serde_json::from_value(data["bones"].clone()).unwrap();
+    let weighted: Vec<String> = serde_json::from_value(data["weighted"].clone()).unwrap();
+    let roles = data["roles"].clone();
+    let role_names: Vec<String> = serde_json::from_value::<BTreeMap<String, String>>(roles.clone()).unwrap().into_values().collect();
+    let target: Vec<Bone> = source.iter().filter(|b| role_names.contains(&b.name)).cloned().collect();
+    let with_butts = data["expected_roots_with_butt_motion"].clone();
+    let mut options = deadlock_project::PreparationOptions::default();
+    options.values.insert("preserve_physics_bones".into(), true.into());
+    options.values.insert("physics_roots".into(), with_butts);
+    options.values.insert("source_roles".into(), roles.clone());
+    options.values.insert("target_roles".into(), roles);
+    // Off (new models get this at their first inspection): the butt roots are
+    // dropped, not reported as stale.
+    options.values.insert("butt_motion".into(), false.into());
+    let plan = secondary::selection(&source, &weighted, &target, &options).unwrap().unwrap();
+    let expected: Vec<String> = serde_json::from_value(data["expected_roots"].clone()).unwrap();
+    assert_eq!(plan.groups.iter().map(|g| g.root.clone()).collect::<Vec<_>>(), expected);
+    options.values.insert("butt_motion".into(), true.into());
+    let plan = secondary::selection(&source, &weighted, &target, &options).unwrap().unwrap();
+    assert_eq!(plan.groups.len(), expected.len() + 4);
+    options.values.insert("butt_motion".into(), "yes".into());
+    assert!(secondary::selection(&source, &weighted, &target, &options).unwrap_err().to_string().contains("Butt motion must be on or off"));
 }
 
 #[test]
@@ -252,4 +296,36 @@ fn breast_bones_carrying_other_parts_still_count_as_existing_breasts() {
     // The unweighted breast_L_01_jnt does not count; the weighted 胸上2 bones do.
     assert_eq!(secondary::breast_named_bones(&source, &weighted), vec!["胸上2.L".to_string(), "胸上2.R".to_string()]);
     assert!(secondary::breast_request(&source, &roles).is_some());
+}
+
+/// The bone layout of a friend's build (one model on Shiv), read from its VPK in
+/// hero space (+X forward, Z up). Its non-English names were stripped by the
+/// compiler, so only positions identify the parts: two breast chains on the upper
+/// chest (a tip bone 4.4 in from the root), two butt pairs just behind and below
+/// the pelvis, and boot bones under the feet. The butt must never be a breast.
+#[test]
+fn a_real_layout_keeps_breasts_on_the_chest_and_butts_on_the_hips() {
+    let bone = |name: &str, parent: Option<&str>, p: [f64; 3]| serde_json::json!({"name": name, "parent": parent, "position": p});
+    let mut bones = vec![
+        bone("pelvis", None, [0., 0., 61.5]), bone("spine_0", Some("pelvis"), [0.3, 0., 62.6]),
+        bone("spine_1", Some("spine_0"), [-0.7, 0., 70.4]), bone("spine_2", Some("spine_1"), [-2., 0., 76.5]),
+        bone("spine_3", Some("spine_2"), [-1.3, 0., 81.8]), bone("neck_0", Some("spine_3"), [-0.6, 0., 85.1]),
+        bone("head", Some("neck_0"), [1.5, 0., 89.3]),
+    ];
+    for (side, y) in [("L", 1.), ("R", -1.)] {
+        bones.extend([
+            bone(&format!("B2_{side}"), Some("spine_3"), [8.5, 3.1 * y, 77.5]), bone(&format!("B_{side}"), Some(&format!("B2_{side}")), [8.4, 3.4 * y, 73.1]),
+            bone(&format!("U1_{side}"), Some("pelvis"), [-0.6, 5.2 * y, 59.0]), bone(&format!("U1t_{side}"), Some(&format!("U1_{side}")), [0.1, 5.2 * y, 58.3]),
+            bone(&format!("U2_{side}"), Some("pelvis"), [-1.0, 5.5 * y, 57.2]), bone(&format!("U2t_{side}"), Some(&format!("U2_{side}")), [-0.3, 5.5 * y, 56.6]),
+            bone(&format!("ankle_{side}"), Some("pelvis"), [-1., 14.7 * y, 5.]), bone(&format!("ball_{side}"), Some(&format!("ankle_{side}")), [3., 14.7 * y, 1.7]),
+            // A boot strap hanging backwards from the ankle, longer than the toe.
+            bone(&format!("Boots_{side}"), Some(&format!("ankle_{side}")), [-8., 14.7 * y, 4.]),
+        ]);
+    }
+    let source: Vec<Bone> = serde_json::from_value(serde_json::Value::Array(bones)).unwrap();
+    let weighted: Vec<String> = source.iter().map(|b| b.name.clone()).filter(|n| !n.starts_with("ankle") && !n.starts_with("ball") && !n.starts_with("Boots")).collect();
+    let roles: BTreeMap<String, String> = [("pelvis", "pelvis"), ("spine", "spine_0"), ("chest", "spine_2"), ("neck", "neck_0"), ("head", "head"), ("foot_L", "ankle_L"), ("foot_R", "ankle_R")]
+        .into_iter().map(|(a, b)| (a.to_owned(), b.to_owned())).collect();
+    assert_eq!(secondary::breast_bones(&source, &weighted, &roles), vec!["B2_L".to_string(), "B2_R".to_string()]);
+    assert_eq!(secondary::butt_bones(&source, &weighted, &roles), ["U1_L", "U1_R", "U2_L", "U2_R"].map(String::from).to_vec());
 }

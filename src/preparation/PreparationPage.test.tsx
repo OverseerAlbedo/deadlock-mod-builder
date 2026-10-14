@@ -11,7 +11,7 @@ vi.mock('../api',async original=>({...await original<typeof import('../api')>(),
 const analysis={source:'C:\\source.blend',source_original:'C:\\source.blend',source_sha256:'a'.repeat(64),target_model:'models/heroes/test.vmdl',target_sha256:'b'.repeat(64),analysis:sourceFixture.inspection,target:sourceFixture.target,target_skeleton:sourceFixture.skeleton,target_scale_audit:sourceFixture.scale_audit,suggestions:sourceFixture.cases[1].expected,rotation:[0,0,0],geometry_customization:{props:[],face:null},clothing:null} as unknown as PreparationAnalysis;
 const initial={...projectFixture.cases[0].expected,original_model:analysis.target_model,preparation_source:analysis.source_original,preparation_options:{},model_input_mode:'rigged_humanoid'} as unknown as Project;
 const output={dmx:'C:\\prepared.dmx',blend:'C:\\prepared.blend',report:'C:\\report.json',textures:'',target_model:analysis.target_model,warnings:[]};
-function Harness({start=initial,next}:{start?:Project;next?:()=>void}){const[project,setProject]=useState(start);return <><PreparationPage project={project} update={setProject} busy={false} operate={async(_,task)=>task()} next={next}/><output data-testid="project">{JSON.stringify(project)}</output></>;}
+function Harness({start=initial,next,expert}:{start?:Project;next?:()=>void;expert?:boolean}){const[project,setProject]=useState(start);return <><PreparationPage project={project} update={setProject} busy={false} operate={async(_,task)=>task()} next={next} expert={expert}/><output data-testid="project">{JSON.stringify(project)}</output></>;}
 const current=()=>JSON.parse(screen.getByTestId('project').textContent!) as Project;
 const openPanel=(name:string)=>fireEvent.click(screen.getByRole('tab',{name:new RegExp(name)}));
 /** Inspect without preparing (the review tabs are then shown). */
@@ -225,3 +225,33 @@ describe('Preparation workspace navigation',()=>{
     expect(native.preparationReview).not.toHaveBeenCalled();expect(native.preparationConvert).not.toHaveBeenCalled();
   });
 });
+
+describe('Simple view',()=>{
+  it('collapses joint matching when everything matched and opens it on request',async()=>{
+    render(<Harness expert={false}/>);await check();
+    expect(screen.queryByRole('tab',{name:/Body roles/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab',{name:/Bone mapping/})).not.toBeInTheDocument();
+    expect(screen.getByRole('tab',{name:/Fit & review/})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByText(/bones matched to/)).toBeVisible();
+    expect(screen.queryByLabelText('Preparation mode')).not.toBeInTheDocument();
+    expect(screen.getByText('Customize fit',{exact:false,selector:'summary'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Edit matches'}));
+    expect(screen.getByRole('tab',{name:/Body roles/})).toHaveAttribute('aria-selected','true');
+  });
+  it('shows joint matching by itself when something needs a choice',async()=>{
+    native.preparationInspect.mockResolvedValue({...analysis,suggestions:{...analysis.suggestions,source:{...analysis.suggestions.source,errors:['Assign humanoid roles: neck'],missing:['neck']}}});
+    render(<Harness expert={false}/>);await check();
+    expect(screen.getByRole('tab',{name:/Body roles/})).toHaveAttribute('aria-selected','true');
+    expect(screen.queryByText(/bones matched to/)).not.toBeInTheDocument();
+  });
+  it('switches one 3D view between your model, the joint check and the result',async()=>{
+    render(<Harness expert={false}/>);await check();
+    const view=screen.getByRole('group',{name:'What the 3D view shows'});
+    expect(screen.getByRole('button',{name:'Result'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Load model for mapping review'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Your model'}));
+    expect(screen.getByRole('button',{name:'Load your model'})).toBeInTheDocument();
+    expect(view).toBeInTheDocument();
+  });
+});
+

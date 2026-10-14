@@ -24,6 +24,9 @@ pub struct AppError {
     pub kind: String,
     pub message: String,
     pub details: String,
+    /// What went wrong in plain words and what to do (see troubleshooting.rs).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<crate::troubleshooting::Help>,
 }
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,10 +36,12 @@ impl std::fmt::Display for AppError {
 impl std::error::Error for AppError {}
 impl AppError {
     pub(crate) fn new(kind: &str, message: &str, details: impl ToString) -> Self {
+        let details = details.to_string();
         Self {
             kind: kind.into(),
             message: message.into(),
-            details: details.to_string(),
+            help: crate::troubleshooting::help(kind, message, &details),
+            details,
         }
     }
     pub(crate) fn io(message: &str, error: impl ToString) -> Self {
@@ -110,6 +115,8 @@ pub struct SetupStatus {
     pub files_found: std::collections::BTreeMap<String, bool>,
     pub model_status: String,
     pub model_files_found: bool,
+    /// Every path field: right, wrong (with a suggested fix) or optional.
+    pub fields: Vec<deadlock_tools::setup_checks::FieldCheck>,
 }
 pub type LogSink = Arc<dyn Fn(&LogEntry) + Send + Sync>;
 pub type TimingSink = Arc<dyn Fn(&deadlock_core::TimingEvent) + Send + Sync>;
@@ -240,10 +247,11 @@ impl Application {
         SetupStatus {
             files_found: deadlock_tools::detection::status(settings),
             model_status: match &model {
-                Ok(tool) => format!("model files found ({}); see project test", tool.backend),
-                Err(_) => "model setup needed (full CS2 optional)".into(),
+                Ok(tool) => format!("Model compiler found ({}). Test it once with your hero in Set up model compiler….", tool.backend),
+                Err(error) => error.to_string().trim_start_matches("Integrity check failed: ").to_owned(),
             },
             model_files_found: model.is_ok(),
+            fields: deadlock_tools::setup_checks::field_checks(settings),
         }
     }
     pub fn import_source_package(&self, path: &Path, mut project: Project) -> Result<Project> {
@@ -406,6 +414,15 @@ impl Application {
             Ok(project)
         })
         .map(|(project, _)| project)
+    }
+    /// The Physics page's movement preview: the prepared skeleton and the
+    /// hero's idle, run and jump clips (see `deadlock_pipeline::motion_preview`).
+    pub fn motion_preview(&self, project: Project) -> Result<Vec<u8>> {
+        self.operation("Load movement preview", |_, token| {
+            let settings = self.settings()?;
+            deadlock_pipeline::motion_preview::build(&settings, &project, token).map_err(AppError::from)
+        })
+        .map(|(packet, _)| packet)
     }
     pub fn new_project(&self) -> Result<ProjectDocument> {
         let _lease = self.lease()?;
@@ -625,6 +642,42 @@ impl Application {
             .map(|clock| clock.report())
             .or_else(|| lock(&self.last_timings).clone())
     }
+    fn durations_path(&self) -> PathBuf {
+        self.state_directory.join("operation-durations.json")
+    }
+    /// Remember how long a successful operation took (the last 5 per name), for
+    /// the time-left estimate of the next run.
+    fn record_duration(&self, name: &str, seconds: f64) {
+        let path = self.durations_path();
+        let mut all: std::collections::BTreeMap<String, Vec<f64>> = fs::read(&path)
+            .ok()
+            .and_then(|raw| serde_json::from_slice(&raw).ok())
+            .unwrap_or_default();
+        let list = all.entry(name.to_owned()).or_default();
+        list.push(seconds);
+        if list.len() > 5 {
+            list.drain(..list.len() - 5);
+        }
+        let _ = deadlock_core::safety::write_json(&path, &all);
+    }
+    /// Typical (median) seconds of each operation's recent successful runs.
+    pub fn operation_durations(&self) -> std::collections::BTreeMap<String, f64> {
+        let all: std::collections::BTreeMap<String, Vec<f64>> = fs::read(self.durations_path())
+            .ok()
+            .and_then(|raw| serde_json::from_slice(&raw).ok())
+            .unwrap_or_default();
+        all.into_iter()
+            .filter(|(_, v)| !v.is_empty())
+            .map(|(k, mut v)| {
+                v.sort_by(f64::total_cmp);
+                (k, v[v.len() / 2])
+            })
+            .collect()
+    }
+    /// Common causes of failed builds, checked before Build starts.
+    pub fn prebuild_warnings(&self) -> Result<Vec<String>> {
+        Ok(deadlock_tools::setup_checks::prebuild_warnings(&self.settings()?))
+    }
     pub fn log_entries(&self) -> Vec<LogEntry> {
         lock(&self.log).entries.clone()
     }
@@ -678,7 +731,17 @@ impl Application {
         Ok((runner, observer))
     }
     fn lease(&self) -> Result<OperationLease<'_>> {
+        // A short operation that is just finishing (a slot scan, a save) should
+        // not make the next one fail: wait up to two seconds for the lock.
         let mut active = lock(&self.active);
+        for _ in 0..40 {
+            if active.is_none() {
+                break;
+            }
+            drop(active);
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            active = lock(&self.active);
+        }
         if active.is_some() {
             return Err(AppError::new(
                 "busy",
@@ -753,6 +816,9 @@ impl Application {
         };
         let report = clock.finish(status, result.as_ref().err().map(ToString::to_string))?;
         *lock(&self.last_timings) = Some(report.clone());
+        if result.is_ok() {
+            self.record_duration(name, report.total_ns as f64 / 1e9);
+        }
         let evidence = clock.write_json(&directory.join("timings.json"));
         for step in &report.steps {
             let _ = self.append_log(
@@ -804,9 +870,10 @@ fn append_shared(
             sequence: book.sequence,
             timestamp_utc: Utc::now().to_rfc3339(),
             level: level.into(),
-            message: message.into(),
+            // The user's profile folder never reaches the log (logs are shared).
+            message: crate::privacy::scrub(message),
         };
-        writeln!(book.writer, "{}  {}", entry.timestamp_utc, message)
+        writeln!(book.writer, "{}  {}", entry.timestamp_utc, entry.message)
             .and_then(|_| book.writer.flush())
             .map_err(|e| AppError::io("Log could not be saved", e))?;
         book.sequence += 1;
@@ -1048,10 +1115,15 @@ impl Application {
                 entry.bytes
             )
             .map_err(|e| AppError::io("Could not write tool log header", e))?;
-            let mut file = File::open(&entry.path)
+            let mut raw = vec![];
+            File::open(&entry.path)
                 .map_err(|e| AppError::io("Could not read tool log", e))?
-                .take(entry.bytes);
-            std::io::copy(&mut file, &mut output)
+                .take(entry.bytes)
+                .read_to_end(&mut raw)
+                .map_err(|e| AppError::io("Could not read tool log", e))?;
+            // Tool output can name the user's profile folder; exports are shared.
+            output
+                .write_all(crate::privacy::scrub(&String::from_utf8_lossy(&raw)).as_bytes())
                 .map_err(|e| AppError::io("Could not export tool log", e))?;
         }
         output
@@ -1068,6 +1140,21 @@ impl Application {
 #[cfg(test)]
 mod log_tests {
     use super::*;
+    /// A short operation still finishing (a slot scan, a save) must not make
+    /// the next one fail with "Another operation is running".
+    #[test]
+    fn the_next_operation_waits_for_a_short_one_to_finish() {
+        let folder = tempfile::tempdir().unwrap();
+        let app = Arc::new(Application::new(folder.path().into()).unwrap());
+        let holder = app.clone();
+        let (started, wait) = std::sync::mpsc::channel();
+        let running = std::thread::spawn(move || {
+            holder.operation("short", |_, _| { started.send(()).unwrap(); std::thread::sleep(std::time::Duration::from_millis(300)); Ok(()) }).map(|_| ())
+        });
+        wait.recv().unwrap();
+        assert!(app.operation("next", |_, _| Ok(())).is_ok());
+        running.join().unwrap().unwrap();
+    }
     #[test]
     fn panic_finalizes_evidence_and_releases_operation() {
         let folder = tempfile::tempdir().unwrap();

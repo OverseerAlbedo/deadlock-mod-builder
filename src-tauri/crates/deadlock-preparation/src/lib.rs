@@ -8,6 +8,7 @@ pub mod automap;
 pub mod arm_helpers;
 pub mod leg_chains;
 pub mod blender;
+pub mod stance;
 pub mod following;
 pub mod fitting;
 pub mod mapping_presets;

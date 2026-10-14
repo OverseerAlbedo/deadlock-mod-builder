@@ -64,7 +64,7 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
     let source = binding(&d, b"test authority");
     let mut p = project(vec!["garment_root".into()]);
     let mut settings = BTreeMap::new();
-    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory", "breast", "charm", "rigid"] {
+    for kind in ["hair", "tail", "ear", "cloth", "streamer", "accessory", "breast", "butt", "charm", "rigid"] {
         p.customization
             .secondary_motion
             .as_mut()
@@ -94,8 +94,8 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .filter(|(v, _)| **v > 0.)
             .map(|(_, g)| *g)
             .collect::<Vec<_>>();
-        // A breast group's hanging parts move like accessories (checked below).
-        assert!(kind == "breast" || active.iter().all(|g| *g
+        // A breast group's hanging parts swing like charms (checked below).
+        assert!(kind == "breast" || kind == "butt" || active.iter().all(|g| *g
             == if ["hair", "ear", "charm", "rigid"].contains(&kind) {
                 0.
             } else {
@@ -132,7 +132,19 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             for &i in &breast {
                 assert!(drag[i] <= 0.1 + 1e-6 && gravity[i] == 0. && radius[i] >= 0.4 && radius[i] <= 1.5);
             }
-            assert!((0..enable.len()).filter(|i| enable[*i] > 0. && !breast.contains(i)).all(|i| gravity[i] == 1.));
+            // Pieces hanging from the breast swing like charms: no gravity (a strip
+            // on the chest must not sag through the body) and a bounded swing.
+            let hanging = (0..enable.len()).filter(|i| enable[*i] > 0. && !breast.contains(i)).collect::<Vec<_>>();
+            assert!(!hanging.is_empty());
+            assert!(hanging.iter().all(|&i| gravity[i] == 0. && radius[i] > 0. && radius[i] <= 1.6));
+        }
+        if kind == "butt" {
+            // A small, stiffer bounce than breasts, without gravity, bounded.
+            let radius = stream(&proxy, "cloth_stray_radius$0");
+            let butt = (0..enable.len()).filter(|i| enable[*i] > 0. && (goals[*i] - 0.6).abs() < 1e-6).collect::<Vec<_>>();
+            assert_eq!(butt.len(), 3);
+            assert!(butt.iter().all(|&i| gravity[i] == 0. && radius[i] >= 0.25 && radius[i] <= 1.1));
+            assert!((0..enable.len()).filter(|i| enable[*i] > 0.).all(|i| gravity[i] == 0.));
         }
         if kind == "charm" {
             // A light, quick-settling swing: the pivot stays on its anchor, the
@@ -292,4 +304,60 @@ fn accepted_tangtang_automatic_replay() {
         &setup.roll_lock_chains,
     )
     .unwrap();
+}
+#[test]
+fn fine_tuning_a_part_type_changes_only_its_moving_nodes() {
+    let d = Dmx::parse(fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap()).unwrap();
+    let source = binding(&d, b"test authority");
+    let mut p = project(vec!["garment_root".into()]);
+    p.customization.secondary_motion.as_mut().unwrap().part_kinds = Some(BTreeMap::from([("garment_root".into(), "streamer".into())]));
+    let maps = |p: &Project| {
+        let setup = secondary::setup(p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+        let proxy = Dmx::parse(setup.proxy).unwrap();
+        ["cloth_enable$0", "cloth_goal_strength$0", "cloth_gravity$0", "cloth_stray_radius$0"].map(|k| stream(&proxy, k))
+    };
+    let [enable, goal, gravity, travel] = maps(&p);
+    // Tuning another part type changes nothing.
+    let other = deadlock_project::customization::MotionTuning { stiffness: Some(1.), ..Default::default() };
+    p.customization.secondary_motion.as_mut().unwrap().tuning = Some(BTreeMap::from([("hair".into(), other)]));
+    assert_eq!(maps(&p), [enable.clone(), goal.clone(), gravity.clone(), travel.clone()]);
+    // Streamers: stiffer, no gravity, shorter swing; the fixed anchor stays as it was.
+    let tuned = deadlock_project::customization::MotionTuning { stiffness: Some(0.5), gravity: Some(-1.), swing: Some(-1.), ..Default::default() };
+    p.customization.secondary_motion.as_mut().unwrap().tuning = Some(BTreeMap::from([("streamer".into(), tuned)]));
+    let [enable2, goal2, gravity2, travel2] = maps(&p);
+    assert_eq!(enable, enable2);
+    for i in 0..enable.len() {
+        if enable[i] > 0. {
+            assert!(goal2[i] > goal[i] || goal[i] >= 1., "{i}");
+            assert_eq!(gravity2[i], 0.);
+            assert!((travel2[i] - travel[i] * 0.25).abs() < 1e-4, "{i}");
+        } else {
+            assert_eq!((goal2[i], gravity2[i], travel2[i]), (goal[i], gravity[i], travel[i]));
+        }
+    }
+}
+#[test]
+fn source_rig_springs_are_starting_values_only_when_chosen() {
+    let d = Dmx::parse(fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap()).unwrap();
+    let source = binding(&d, b"test authority");
+    let mut p = project(vec!["garment_root".into()]);
+    p.customization.secondary_motion.as_mut().unwrap().part_kinds = Some(BTreeMap::from([("garment_root".into(), "streamer".into())]));
+    p.preparation_options.values.insert("physics_springs".into(), serde_json::json!({"garment_root": {"source": "vrm", "goal": 0.33, "drag": 0.21, "gravity": 0.5}}));
+    let maps = |p: &Project| {
+        let setup = secondary::setup(p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+        let proxy = Dmx::parse(setup.proxy).unwrap();
+        (["cloth_enable$0", "cloth_goal_strength$0", "cloth_drag$0", "cloth_gravity$0"].map(|k| stream(&proxy, k)), setup.preview_nodes)
+    };
+    // Off (the default): the builder's own values.
+    let ([enable, goal, _, _], _) = maps(&p);
+    assert!(enable.iter().zip(&goal).any(|(e, g)| *e > 0. && (*g - 0.33).abs() > 1e-3));
+    p.customization.secondary_motion.as_mut().unwrap().use_source_springs = Some(true);
+    let ([enable, goal, drag, gravity], nodes) = maps(&p);
+    for i in 0..enable.len() {
+        if enable[i] > 0. && goal[i] < 0.999 {
+            assert!((goal[i] - 0.33).abs() < 1e-4 && (drag[i] - 0.21).abs() < 1e-4 && (gravity[i] - 0.5).abs() < 1e-4, "{i}");
+        }
+    }
+    // The movement preview starts from them too.
+    assert!(nodes.iter().any(|n| (n.goal - 0.33).abs() < 1e-4));
 }

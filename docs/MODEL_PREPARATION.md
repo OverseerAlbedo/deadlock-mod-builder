@@ -8,10 +8,26 @@ preparation step does automatically so that almost any rigged humanoid works.
 The sidebar leads through five numbered steps (a check mark shows a finished
 step); Motion and Extras are optional, Step timings, Logs and Settings are tools.
 
+**Simple and Expert** (the switch in the top bar, stored on the PC in
+`localStorage` `dmb.uiMode`, default Simple): Simple hides Motion, Extras and
+Step timings in the sidebar, Tool diagnostics, About and the compiler backend
+choices in Settings, Build's developer tools and raw receipts, the motion preset
+picker, and on Prepare model the joint and bone matching tabs, the preparation
+mode and the raw inspection, unless something needs a choice (unmatched bones or
+joint problems open them; **Edit matches** opens them on request). Page
+components take `expert` (default `true`, so component tests see everything);
+only `App.tsx` passes the real mode. Required choices (unmatched joints, shape
+key handling, red tool paths) are never hidden.
+
+Prepare model has one **3D view** on the right with three modes: *Your model*
+(the source file and its own animation), *Joint check* (the mapping viewer) and
+*Result* (the converted DMX). Rare fit options (arm skinning, arm alignment,
+finger bend, skin influences) are under **Customize fit** in Fit & review.
+
 | Step | Where | What happens |
 | --- | --- | --- |
 | Setup | `src/setup`, `src-tauri/src/setup.rs` | Game VPK, Source2Viewer CLI, compilers, Blender. |
-| 1. Character & model | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`), your model file and, optionally, a gun file. The picker labels models from the installed game's hero definitions (`scripts/heroes.vdata`, `m_strModelName`): the model a hero definition loads is that hero's main target, and roster models the game does not load are marked *Not used in game* (Rem loads `familiar_wip.vmdl`). Analyze warns when a project targets such a model. A Blender, FBX or glTF model goes straight to step 2 and is prepared automatically (`dmb-model-source` event with `auto: true`); a DMX is analysed as before. |
+| 1. Character & model | `src/components/ProjectOverview.tsx` | Pick the hero model to replace (`project.original_model`), your model file and, optionally, a gun file. The picker labels models from the installed game's hero definitions (`scripts/heroes.vdata`, `m_strModelName`): the model a hero definition loads is that hero's main target, and roster models the game does not load are marked *Not used in game* (Rem loads `familiar_wip.vmdl`). Each entry has a tag: *In game*, *Alternate*, *Not playable yet* (roster `"playable": false`: Nurse Harrow and Violet, whose files are in the game though they cannot be picked; the game's definitions do not mark them) or *In development* (only `m_bDisabled` hero definitions load the model, `GameTarget::Disabled`). Analyze warns when a project targets such a model. A Blender, FBX or glTF model goes straight to step 2 and is prepared automatically (`dmb-model-source` event with `auto: true`); a DMX is analysed as before. |
 | **2. Prepare model** | `src/preparation`, `deadlock-preparation` crate, embedded Blender scripts | Turn the source file into a DMX bound to the hero's exact skeleton. **Prepare automatically** inspects, applies the suggestions, checks (`preparation_review`), converts and uses the model in one go and continues to step 3; it stops where a choice is needed. **Prepare model** does the same from the review tabs: the click is the review (`reviewed: true`, plus `follow_motion_reviewed` when joints follow the body), and the check runs again right before converting. Choices that need a new inspection (the gun file, Scene objects) re-run it automatically. A prepared project, or one that started from a DMX, says so and offers to continue. |
 | 3. Appearance & weapons | `src/components/Appearance.tsx`, `src/preparation/WeaponsSection.tsx`, `deadlock-materials` | Materials, textures, mesh mapping, equipment, and the gun of the prepared model (the saved preparation is reopened with `preparation_resume`; **Apply gun changes** prepares again in one click and refreshes the 3D preview of the character). |
 | 4. Physics & preview | `src/components/CustomizationPages.tsx` (`PhysicsPage`), `deadlock-cloth*` | Secondary motion (hair, cloth, breasts, gun charms) and a 3D view of the prepared character. |
@@ -133,6 +149,22 @@ length and turns about its joint (the hero joint in *Match hero proportions*,
 otherwise where its bent parent puts it); a segment that would turn more than
 100° is left as it is and reported (a finger mapped to the wrong hero finger).
 
+**Heroes with extreme proportions** (`retarget.py hero_extremes`,
+`HERO_FIT_POLICY`): ordinary heroes have arms 0.80–0.96 and legs 1.49–1.82 times
+their pelvis-to-head length. Shiv's right arm is 1.19 (a long forearm; the left is
+0.96) and Wraith's legs are 1.37. With **Keep source proportions** the source used
+to keep its own leg length and stand on the floor, which lifted the body above a
+short-legged hero, and the arms (or Shiv's long forearm alone) stretched to reach
+the hero's hands. When an arm is longer than 1.05, the arms differ by more than
+10%, or the legs are shorter than 1.45, the torso is scaled evenly so the hips and
+neck land on the hero's, the legs follow the hero's leg joints (source
+cross-section kept), and with **Align arms to hero joints** the arm length is
+spread over the whole arm: the elbow may sit up to 8% of the arm's length from the
+hero's elbow, the hand still lands on the hero's hand. The audit records
+`hero_fit` (proportions, torso scale, per-arm scales) and preparation warns that
+the hero has unusual proportions. `scripts/test_hero_proportions.py` covers an
+ordinary, a Shiv-like and a Wraith-like hero. Other heroes are unchanged.
+
 ### Textures (`material_textures.py`)
 
 Each material's base colour is found from its node graph: the image feeding
@@ -163,7 +195,15 @@ makes after the material (`<material>_vmat_g_tnormalroughness_<hash>.vtex`), and
 Windows tools fail on paths of 260 characters or more, which a deep CSDK folder
 reached with long names. The hash is the identity: when a model prepared with
 longer names is prepared again, its material choices and surface changes follow
-the hash to the new path (`service.rs renamed_materials`). Staged texture copies
+the hash to the new path (`service.rs renamed_materials`). Non-English names are
+spelled in Latin letters first (`readable_names.py`, `material_textures.py
+prepared_slug`): Chinese characters and Japanese kanji by their Mandarin reading
+without tones from the Unicode Unihan data (`cjk_readings.txt`, 150 KB, rebuilt
+by `scripts/make_cjk_readings.py`), kana in Hepburn romaji, Hangul by syllable,
+accents dropped, so `头发` becomes `toufa_…` and `スカート` `sukaato_…` instead of
+`__…`. ASCII names keep exactly the name they had. Bone names are not changed
+(the compiler's alias rules depend on them). `scripts/test_readable_names.py`
+checks the spellings with plain Python. Staged texture copies
 keep at most 32 characters of the image name. Before compiling, Build checks the
 compiler's paths for every material and its images (`deadlock-materials
 native_paths.rs`) and says whether preparing again or a shorter CSDK folder fixes
@@ -215,8 +255,119 @@ straight from the hand bone is not a gun charm (unless it is named as a charm).
 preparation options; unset keeps earlier projects unchanged). Breast bones are
 weighted, short (at most three bones), non-role children of a torso bone (pelvis
 to neck) that are named breast/bust/boob/pectoral/oppai/乳 (or 胸 with a side), or
-form a mirrored pair in front of the chest between the spine and the neck.
-Turning it on keeps them as moving parts and records `physics_kinds: {root: "breast"}`.
+form a mirrored pair in front of the chest in the upper torso: above the spine and
+above 35% of the way from the pelvis to the neck, never hanging from the pelvis and
+never named as a butt. "In front" uses the facing direction from the feet to the
+toes; only each foot's lowest child counts, because boot straps, heels and pendants
+hanging from a foot can point backwards (that flipped the facing and let a butt
+pass as breasts). Turning it on keeps them as moving parts and records
+`physics_kinds: {root: "breast"}`.
+
+**Butt motion** is separate from breasts and off by default: a new model's first
+inspection sets `butt_motion: false`, while projects from before butt motion
+existed (unset) keep their saved groups unchanged. Butt bones are the same kind of short torso children named
+butt/buttock/glute/gluteus/booty/bum/ass/pigu/tunbu (whole name parts, so Button
+is not one), 臀, 屁股, お尻, ケツ, or 尻 outside 尻尾 (tail), or a mirrored pair low on
+the hips (below a quarter of the way from the pelvis to the neck) that is not in
+front of the body. Breasts win over butts. While butt motion is off, butt bones stay
+on the hips even when the source gives them physics, and saved butt groups are
+dropped from the selection instead of failing as stale. Butt-named groups in older
+projects (MMD `尻1.L`/`尻2.L` with rigid bodies, as in janeVen) get the Butt part
+type; the Physics tab's switch turns them off without converting again. Model
+preparation's **Keep butt bones** (`buttMotionOptions`) keeps them as moving parts
+with `physics_kinds: {root: "butt"}`; the Physics tab's **Butt motion** switch and
+amount work like the breast ones. Build gives them the **Butt** part type: the
+breast proxy (pairs linked per anchor and kind) with goal 0.6, drag 0.15, no
+gravity and travel about a quarter of the radius (0.25–0.8 in); Stiffer is goal
+0.75 and travel ×0.7, More movement goal 0.45 and travel ×1.3. Needs an in-game check.
+All three detectors share these rules and `hanging-chains.json` (`butt_bones`,
+`expected_roots_with_butt_motion`, `butt_names`).
+
+**Fine-tune movement** (Physics tab, Simple and Expert): four sliders per part
+type found in the model (hair, streamers, tails, ears, cloth, long skirts,
+accessories, breasts, butt, gun charms), stored as
+`customization.secondary_motion.tuning: {kind: {stiffness, damping, gravity,
+swing}}`, each from -1 to 1 with 0 (or missing) the automatic value. They are
+keyed by part type, not by moving part, so a saved preset fits any model. Build
+applies them in `secondary.rs generate_inner` right after `secondary_auto::append`
+to that part's moving nodes only (`secondary_auto::tune`; fixed anchors keep
+their values): stiffness moves the pose pull toward 1 or down to a quarter,
+damping toward 0.5 or to none, gravity toward 1.5 or to none, swing scales a
+travel limit between ×0.25 and ×2.5, and a part without a travel limit (0, free)
+stays free. The per-part Movement choice (Stiffer, More movement) is applied
+first. TangTang presets ignore tuning, and any tuning stops the accepted
+TangTang reference from being reused for Automatic. **Saved presets**
+(`physics_presets.rs`, `state/physics-presets.json`, up to 50, names up to 40
+characters) hold only the tuning; applying one replaces the project's tuning.
+Before the first Analyze every common part type is listed.
+
+**Source rig springs** (item 21): Inspect reads the spring settings a rig already
+has (`resources/blender/source_springs.py`): VRM spring bones from the VRM
+add-on's data in a .blend (read as stored ID properties, the add-on is not
+needed) or from a .vrm/.glb/.gltf file (`VRMC_springBone` joints, VRM 0.x
+`secondaryAnimation` groups over whole chains), and MMD rigid bodies bound to a
+bone (angular damping, rotation springs of their GENERIC_SPRING joints). They are
+converted to the builder's scale (VRM: goal = 0.45 × stiffness, drag = 0.5 ×
+dragForce, gravity = gravityPower; MMD: goal = 0.05 + 0.15 × log10(1 + spring)
+(springs run from 0 to 100,000 for a locked joint), drag = 1 − (1 − angular
+damping)^(1/30) (Bullet damping is per second), gravity 1; checked on janeVen:
+152 bones, median spring 0, median damping 0.99), averaged per kept moving part (`springs.ts
+partSprings`) into `preparation_options.physics_springs` and used only when the
+Physics tab's **Start from your model's own spring settings** is on
+(`secondary_motion.use_source_springs`, off by default, so Yvonne's accepted hair
+is unchanged). `generate_inner` then replaces the automatic goal, drag and
+gravity of that part's moving points (pinned points stay pinned) before Fine-tune.
+`scripts/test_source_springs.py` checks the conversion with plain Python.
+
+**Movement preview** (items 10 and 18; Physics → Your character → Movement):
+`deadlock_pipeline::motion_preview::build` reads the prepared DMX skeleton and the
+hero's own clips (`stance::find_ranked`, candidates best first: the gun-ready
+idle, `weapon_run_n`, and a jump of `jump_ground` (≤1 s) + an in-air clip (0.6 s)
++ a landing (≤1.2 s) + 0.7 s of the idle to settle). A candidate whose joints lie
+far below the rest skeleton is an additive layer (Haze's `landing_impact_idle`,
+pelvis at the floor) and is skipped for the next one. Parts of a jump are blended
+over 6 frames (quaternion slerp of the joint transforms). Clips are sampled at
+60 fps (`stance::frames`, linear keys, the clip's own joint tree) into a binary
+packet of rest-to-pose 3x4 matrices per bone and frame, with each part's frame
+count in `segments`. Analyze records each moving bone's motion values before
+Fine-tune in `Setup.preview_nodes` (the average of its proxy points). The page
+(`src/preview/MovementViewport.tsx`, GPU skinning on one three.js skeleton whose
+bone inverses are identity) blends between the two nearest frames at any speed
+(`sampleSkins`; speeds 1×, 0.75×, 0.5×, 0.25×) and simulates the moving parts in
+`src/preview/motion.ts`: each moving bone swings a point (its child, the middle
+of its mesh for a breast, or a short way on) as a spring-damper on a pendulum,
+120 Hz substeps: the pose pull is a spring of frequency `40 × goal` rad/s toward
+the animated (unswung) point, the drag a per-second damping from the per-frame
+share (at least damping ratio 0.18 so swings settle), gravity 386 in/s² × gravity,
+the pendulum length from the bone's head (which follows the parent's swing) and
+the travel limit from the animated point; goal ≥ 0.98 is rigid. The bone then
+turns about its pivot and children follow. `motion.ts tune` must stay identical
+to Rust `secondary_auto::tune` (same test numbers). The run moves the character
+forward at about 260 in/s (the grid floor scrolls under it, the character stays
+in view) and a jump rises about 55 in between the end of the take-off and the
+start of the landing (`jumpArc`), shown as height. It approximates the game's
+cloth solver for tuning by eye.
+
+**Hero cloth in decompiled sources** (October 2026 game files): Source 2 Viewer
+now writes the hero's own cloth as a `Softbody` and, for proxy-mesh cloth, a
+`ClothProxyMeshList` with the proxy file, and no longer lists the compiler's cloth
+bones (`$cloth_m0p…`, cloth flag `0x400008`; 17 heroes, Yamato 387 of 509 bones)
+in the Skeleton node. Older decompiles listed them as bones named `_cloth_…`,
+which the build compiles as plain bones and renames back when the game's
+compiled cloth is restored (`canonical_aliases`, `deadlock_cloth::restore`). Build
+keeps that flow: `modeldoc::with_compiled_cloth_bones` lists the missing bones
+from the compiled skeleton (`source_audit().runtime_motion.skeleton`) the old way
+(parent-relative origin and Source angles via `angles_of`, `do_not_discard`, at
+the end of the parent or the Skeleton for roots, compiled order),
+`with_compiled_bone_transforms` gives listed bones whose origin or angles drift
+from the compiled skeleton the compiled values (the new decompiles write some
+physics bones about 0.002 inches off the game's model, Lady Geist's fur among
+them; the compiler takes the Skeleton node's transforms over the DMX's, and
+restoring the game's cloth needs the exact bind pose: "Bind transform outside
+original-physics transfer budget"), and `without_decompiled_cloth` takes the
+Softbody and cloth lists out, all before `merge_template` / `patch`.
+`deadlock-pipeline/tests/cloth_bones.rs` checks this on a decompiled hero (run
+with --ignored).
 
 **Models without breast bones** (`resources/blender/breast_bones.py`): with breast
 motion on, Inspect asks Blender to add `DMB_Breast_L/R` under the chest when the
@@ -242,10 +393,13 @@ not become large rotations), a fixed ring straight behind it toward the chest
 (the sideways part toward the midline is removed using the other breast), and a
 link between the left and right rings so the pair moves together and cannot
 swing into each other. Other bones in a breast group (parts hanging from the
-breast) get their own rings and move like accessories from the breast ring;
-without them the native fit leaves those bones unfitted and Build stops.
+breast, such as Yvonne's `clotch_piyi_*_a` strips on `胸上2.L/R`) get their own
+rings and swing like charms from the breast ring (no gravity, bounded travel):
+as accessories with gravity and unbounded travel they sagged and flapped through
+the body. Without rings the native fit leaves those bones unfitted and Build stops.
 Settings: goal 0.45, drag 0.1, no gravity, no tether,
-travel about 45% of the breast radius (0.4–1.5 in). Stiffer is goal 0.62 and
+travel about 45% of the breast radius (0.4–1.5 in), and never more than 30% of
+the distance to the other breast. Stiffer is goal 0.62 and
 travel ×0.7; More movement is goal 0.3 and travel ×1.35. The first tuning (goal
 0.8, drag 0.5, travel 0.3 in) barely moved in game. Amounts need an in-game check.
 
@@ -258,6 +412,21 @@ conversion's saved groups stay valid), on sets Breast, and one amount control
 sets both sides. That needs no conversion. Breast groups there are found by name,
 by `physics_kinds` or by the last Analyze, so breast bones from a rig's own
 physics (MMD-style `胸上2.L/R`) count even when the preparation option is off.
+
+**Long hair and tails.** Unnamed strands on the head get the Hair part type (names
+in other scripts are often stripped to underscores, so a 19-bone strand called
+`F_0_1 … F_18_1` used to become cloth and barely moved), and unnamed long, round
+strands on the hips (four or more weighted bones, not flat, not joined to other
+parts) get the Tail part type. Every node of a strand is pulled back to its pose,
+so a strand with more weighted bones than `DENSE_CHAIN_NODES` (6) has its pose
+pull multiplied by 6/bones: a 19-bone strand moves like a 5–6 bone one (Yvonne's
+accepted ponytails have 5 and do not change). Dense tails and accessory strands
+also get tethers (no stretching under gravity) and a travel limit of 60% of their
+distance along the strand. Dense hair, tail and accessory nodes cannot travel
+further than their distance to the body (`Body` in `secondary_auto.rs`: vertices
+skinned to bones outside every moving part), with a floor of an inch or 15% of
+their free travel so a strand resting on the back still moves. This reduces
+clipping; the moving parts still have no collision shapes.
 
 Rings follow each bone's own X/Z frame, except when the chain runs within that
 plane (rigs whose bone Y is not along the bone, such as MMD tip bones like
@@ -319,8 +488,30 @@ triangle budget. The preview places your gun with the fit matrix itself. View
 buttons (Angled, Front, Side, Top) and Show buttons (this hand, both guns, whole
 body) frame it; it opens on the hand you adjust, keeps the camera while you adjust,
 and keeps the last result on screen while the next one is computed. Inspections
-from before the shapes show point samples. Beginner buttons (Flip direction, Turn 90°, Smaller/Bigger,
-Back/Forward/Up/Down/Left/Right, Reset) adjust the selected hand; **Advanced gun
+from before the shapes show point samples. **Pose: Holding / Rest** (Holding by
+default) shows the hero as it holds the gun in game: `stance.rs` reads the first
+frame of the hero's `weapon_stand_idle.dmx` (then `primary_stand_idle`,
+`stand_idle`, `idle`, then the best other `*stand_idle*`: with a gun word first,
+ability/item/reload stances last). Clips are `.dmx` files next to a `.vnmclip`
+of the same name, wherever the sources keep them (`clips`, Warden's `clip`,
+Sinclair's `dmx/animation/ag2`; Lady Geist's clips are in heroes_staging/ghost),
+the hero's own model folder first, older-style animations last. It walks the clip's own joint tree (it can differ from the compiled skeleton: Haze's
+pelvis hangs under `root_motion` in clips), and stores a rest-to-stance matrix per
+bone. `Reference.stance` keeps the posed body (`body_shape`, skinned with the
+same weights) and each hand's matrix (the bone carrying most of that gun's
+weight); the viewer multiplies the fit matrix, the original gun and the fire
+arrows by the hand's matrix. Preview only: the fit is still measured in the rest
+pose. Cloth-simulated bones (skeleton flag `0x400000`) follow their nearest
+unsimulated ancestor (`follow_unsimulated`). The posed body leaves out other body
+group choices (`optional_meshes`), parts mostly weighted under a `*_scale` bone,
+weights whose bone lies on average more than a third of the hero's height from
+its vertices (`repair_weights`: decompiled meshes of the October 2026 files name
+the wrong bone, Abrams' coat on `muzzle_fx`) and triangles the pose stretches past
+three times their rest size. `tests/hero_audit.rs` runs every roster hero
+through this (decompiled sources per hero) and checks it stands upright with each
+gun following a hand; all 44 pass. Beginner buttons (Flip direction, Turn 90°, Smaller/Bigger,
+Back/Forward/Up/Down/Left/Right, Reset) adjust the selected hand (**Both guns**
+moves a dual-wield hero's two guns together); **Advanced gun
 settings** keeps size mode, skinning, the weapon bone, exact numbers per hand,
 the parts list and **Join each gun's parts into one mesh**.
 

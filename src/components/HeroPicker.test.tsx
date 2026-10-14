@@ -3,9 +3,19 @@ import {describe,expect,it,vi} from 'vitest';
 import type {HeroRecord} from '../models';
 const mocks=vi.hoisted(()=>({heroes:vi.fn()}));
 vi.mock('../api',async original=>({...await original<typeof import('../api')>(),api:{heroes:mocks.heroes}}));
-import {alternateTarget,heroLabel,HeroPicker} from './HeroPicker';
+import {alternateTarget,availabilityNote,heroLabel,heroTag,HeroPicker} from './HeroPicker';
 const hero=(path:string)=>({path,name:'wraith'} as HeroRecord);
 describe('Main and alternate character targets',()=>{
+  it('tags the model each hero uses in game, alternates and heroes that cannot be played',()=>{
+    expect(heroTag(hero('models/heroes_wip/abrams/abrams.vmdl_c'))).toEqual({text:'In game',tone:'game'});
+    expect(heroTag(hero('models/heroes_staging/wraith/wraith.vmdl_c'))).toEqual({text:'Alternate',tone:'alternate'});
+    expect(heroTag(hero('models/heroes_wip/familiar/familiar.vmdl_c'))).toEqual({text:'Alternate',tone:'alternate'});
+    expect(heroTag(hero('models/heroes_wip/nurse/nurse.vmdl_c'))).toEqual({text:'Not playable yet',tone:'unplayable'});
+    expect(heroTag(hero('models/heroes_wip/artist/artist.vmdl_c'))?.text).toBe('Not playable yet');
+    expect(heroTag({...hero('models/heroes_staging/wrecker/wrecker.vmdl_c'),game:{state:'disabled',heroes:['hero_wrecker']}})?.text).toBe('In development');
+    expect(availabilityNote(hero('models/heroes_wip/nurse/nurse.vmdl_c'))).toContain('cannot be picked in a match yet');
+    expect(availabilityNote(hero('models/heroes_wip/abrams/abrams.vmdl_c'))).toBeNull();
+  });
   it('distinguishes the supplied staging Wraith target from the main roster model',()=>{
     expect(heroLabel(hero('models/heroes_wip/wraith/wraith.vmdl_c'))).toBe('Wraith');
     expect(heroLabel(hero('models/heroes_staging/wraith/wraith.vmdl_c'))).toBe('Wraith · Alternate model');

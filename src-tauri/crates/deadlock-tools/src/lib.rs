@@ -14,4 +14,6 @@ pub mod manual_setup;
 
 pub mod detection;
 
+pub mod setup_checks;
+
 pub mod validation;

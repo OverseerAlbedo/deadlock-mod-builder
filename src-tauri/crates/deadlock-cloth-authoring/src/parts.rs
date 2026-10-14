@@ -25,6 +25,8 @@ pub enum Kind {
     Accessory,
     /// Gentle spring for breasts (optional breast motion).
     Breast,
+    /// Small, stiffer bounce for a butt (optional butt motion, off by default).
+    Butt,
     /// Light, quick-settling swing for charms, keychains and pendants (gun charms).
     Charm,
     /// Follows its bone without motion: halos, hats, crowns, hairpins.
@@ -41,6 +43,7 @@ impl Kind {
             "long_skirt" => Ok(Self::LongSkirt),
             "accessory" => Ok(Self::Accessory),
             "breast" => Ok(Self::Breast),
+            "butt" => Ok(Self::Butt),
             "charm" => Ok(Self::Charm),
             "rigid" => Ok(Self::Rigid),
             _ => Err(invalid("Unknown moving-part type.")),
@@ -131,9 +134,11 @@ fn radii(points: &[[f64; 3]]) -> [f64; 3] {
 fn semantic(name: &str) -> Option<Kind> {
     let n = name.to_lowercase();
     let has = |words: &[&str]| words.iter().any(|w| n.contains(w));
-    // Breasts and rigid accessories (hairpin, hair ornament, halo, hat) come
-    // first: a hair or ear word in their name must not give them hair motion.
-    if deadlock_preparation::secondary_bones::named_breast(name) {
+    // Butts, breasts and rigid accessories (hairpin, hair ornament, halo, hat)
+    // come first: a hair or ear word in their name must not give them hair motion.
+    if deadlock_preparation::secondary_bones::named_butt(name) {
+        Some(Kind::Butt)
+    } else if deadlock_preparation::secondary_bones::named_breast(name) {
         Some(Kind::Breast)
     } else if deadlock_preparation::secondary_bones::rigid_named(name) {
         Some(Kind::Rigid)
@@ -172,6 +177,10 @@ fn semantic(name: &str) -> Option<Kind> {
     } else {
         None
     }
+}
+/// The hero's hip bones, where tails hang.
+fn is_hips(anchor: &str) -> bool {
+    ["pelvis", "spine_0"].iter().any(|n| anchor.eq_ignore_ascii_case(n))
 }
 /// A group hanging from a hero weapon bone: a charm on a fitted gun. Same
 /// weapon-bone names as deadlock_preparation::weapon::weapon_bones.
@@ -287,12 +296,18 @@ pub fn analyze(
         let looped=chain.len()>=4&&length>1e-4&&norm(sub(position(&chain[chain.len()-1]),position(&chain[0])))<0.3*length;
         let (kind,mut reason,mut review):(Kind,String,bool)=if let Some(kind)=explicit{(kind,"Selected part type".into(),false)}
         else if looped&&matches!(hint,None|Some(Kind::Hair)){(Kind::Rigid,"Closed ring (halo, crown or hat band); follows its bone without motion".into(),true)}
-        else if on_weapon(sk,&g.anchor)&&!matches!(hint,Some(Kind::Rigid|Kind::Breast)){(Kind::Charm,"Hangs from the fitted gun; light charm swing".into(),false)}
+        else if on_weapon(sk,&g.anchor)&&!matches!(hint,Some(Kind::Rigid|Kind::Breast|Kind::Butt)){(Kind::Charm,"Hangs from the fitted gun; light charm swing".into(),false)}
         else if let Some(kind)=hint{
             if kind==Kind::Streamer && !(supported&&slender&&flat){(Kind::Cloth,"Ribbon name, but geometry is not a thin, elongated chain; using cloth support".into(),true)}
             else if descendant_hint{(kind,"Consistent hair/tail names within the preserved physics group".into(),false)}
             else{(kind,"Part name checked against its weighted mesh and attachment hierarchy".into(),false)}
-        }else if joined_panel{(Kind::Cloth,"Weighted mesh joins adjacent moving groups into one cloth panel".into(),false)}
+        }
+        // Unnamed strands on the head are hair (names in other scripts are
+        // often stripped, e.g. F_0_1 ... F_18_1), even when strips join.
+        else if g.anchor.eq_ignore_ascii_case("head")&&supported{(Kind::Hair,"Unnamed strand on the head; hair motion".into(),false)}
+        else if joined_panel{(Kind::Cloth,"Weighted mesh joins adjacent moving groups into one cloth panel".into(),false)}
+        // A long, round, unnamed strand on the hips is a tail.
+        else if is_hips(&g.anchor)&&supported&&chain.len()>=4&&slender&&!flat{(Kind::Tail,"Unnamed long round strand on the hips; tail motion".into(),false)}
         else if supported&&slender&&flat{(Kind::Streamer,"Thin, elongated weighted mesh on one connected joint chain".into(),false)}
         else{(Kind::Accessory,"No unambiguous part identity; conservative accessory support".into(),true)};
         if kind==Kind::Streamer&&!supported{return Err(invalid(format!("{} cannot use streamer motion: it needs one chain of at least two weighted bones. Choose Cloth for a branching part.",g.source_root)));}
@@ -350,6 +365,9 @@ mod tests {
     fn breasts_and_rigid_accessories_never_get_hair_motion() {
         for (n, k) in [
             ("Bone_Breast_L_00", Kind::Breast),
+            ("Butt_L_00", Kind::Butt),
+            ("臀部_R", Kind::Butt),
+            ("尻尾_01", Kind::Tail),
             ("左胸", Kind::Breast),
             ("HairPin_01", Kind::Rigid),
             ("hair_ornament", Kind::Rigid),

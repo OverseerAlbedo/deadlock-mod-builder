@@ -39,6 +39,9 @@ pub(crate) fn parameters(
     if kind == Kind::Breast {
         return breast_parameters(length, choice);
     }
+    if kind == Kind::Butt {
+        return butt_parameters(length, choice);
+    }
     if kind == Kind::Charm {
         return charm_parameters(t, root, length, choice);
     }
@@ -53,7 +56,7 @@ pub(crate) fn parameters(
             1.,
         ),
         Kind::Tail | Kind::Accessory => (0.65 - 0.30 * t, 0.15, 1.),
-        Kind::Rigid | Kind::Breast | Kind::Charm => (1., 0., 0.),
+        Kind::Rigid | Kind::Breast | Kind::Butt | Kind::Charm => (1., 0., 0.),
     };
     match choice.unwrap_or("automatic") {
         "automatic" => {}
@@ -86,6 +89,25 @@ pub(crate) fn parameters(
     let tether = if kind == Kind::Streamer { 1. } else { 0. };
     Ok([goal, drag, 1., gravity, travel, 0., tether, 0.])
 }
+/// The user's fine-tuning of a part type (Physics → Fine-tune movement), on top
+/// of the automatic values of one moving node. Each setting goes from -1 (much
+/// less) through 0 (automatic) to 1 (much more): stiffness moves the pose pull
+/// toward 1 or down to a quarter, damping toward 0.5 or to none, gravity toward
+/// 1.5 or to none, and swing scales a travel limit between a quarter and two
+/// and a half times. Parts without a travel limit (0, free) stay free.
+pub(crate) fn tune(maps: &mut Maps, tuning: &deadlock_project::customization::MotionTuning) {
+    let toward = |value: f64, k: f64, high: f64, low_share: f64| {
+        if k >= 0. { value + (high - value).max(0.) * k } else { value * (1. + (1. - low_share) * k) }
+    };
+    let k = |v: Option<f64>| v.unwrap_or(0.).clamp(-1., 1.);
+    maps[0] = toward(maps[0], k(tuning.stiffness), 1., 0.25).clamp(0.01, 1.);
+    maps[1] = toward(maps[1], k(tuning.damping), 0.5, 0.).clamp(0., 1.);
+    maps[3] = toward(maps[3], k(tuning.gravity), 1.5, 0.).max(0.);
+    if maps[4] > 0. {
+        let s = k(tuning.swing);
+        maps[4] *= if s >= 0. { 1. + 1.5 * s } else { 1. + 0.75 * s };
+    }
+}
 /// Breast motion in the style of stylized action games: a visible, springy
 /// bounce that lags the body and settles after a few swings, without sagging.
 /// The travel limit (about half the breast radius) caps the swing so the pair
@@ -100,6 +122,50 @@ fn breast_parameters(size: f64, choice: Option<&str>) -> Result<Maps> {
     };
     let travel = ((size * 0.45).clamp(0.4, 1.5) * travel_scale).min(2.);
     Ok([goal, drag, 1., 0., travel, 0., 0., 0.])
+}
+/// Butt motion: a small, quickly settling bounce, stiffer and shorter than the
+/// breast bounce (a butt is held by the hips and moves less). No gravity, so it
+/// never sags into the legs; the travel limit (about a quarter of its radius)
+/// keeps it from sinking into the hips. `size` is the radius in inches. Needs an
+/// in-game check.
+fn butt_parameters(size: f64, choice: Option<&str>) -> Result<Maps> {
+    let (goal, drag, travel_scale) = match choice.unwrap_or("automatic") {
+        "automatic" | "balanced" => (0.6, 0.15, 1.),
+        "stiff" => (0.75, 0.2, 0.7),
+        "soft" => (0.45, 0.1, 1.3),
+        _ => return Err(invalid("Unknown part movement setting.")),
+    };
+    let travel = ((size * 0.25).clamp(0.25, 0.8) * travel_scale).min(1.1);
+    Ok([goal, drag, 1., 0., travel, 0., 0., 0.])
+}
+/// Strands with more weighted bones than this get their pose pull divided out:
+/// every node is pulled back to its pose, so a 19-bone strand with the same
+/// per-node pull is about four times stiffer than a 5-bone one (Yvonne's
+/// accepted long ponytails have 5). Shorter strands keep their tuning exactly.
+pub(crate) const DENSE_CHAIN_NODES: usize = 6;
+/// Pose-pull multiplier for a strand with `nodes` weighted bones.
+pub(crate) fn dense_chain_multiplier(nodes: usize) -> f64 {
+    if nodes > DENSE_CHAIN_NODES { DENSE_CHAIN_NODES as f64 / nodes as f64 } else { 1. }
+}
+/// Body vertices (skinned to bones outside every moving part), used to keep
+/// long strands from swinging through the body: a node whose travel limit is
+/// smaller than its distance to the body cannot reach the body.
+pub(crate) struct Body {
+    pub points: Vec<[f64; 3]>,
+}
+impl Body {
+    pub(crate) fn clearance(&self, p: [f64; 3]) -> Option<f64> {
+        self.points.iter().map(|q| norm(sub(*q, p))).min_by(f64::total_cmp)
+    }
+}
+/// Travel limit for a long strand node, capped by its clearance to the body.
+/// The floor (an inch, or 15% of the free travel) keeps tips that rest on the
+/// body moving a little instead of pinning them.
+pub(crate) fn body_capped_travel(free: f64, clearance: Option<f64>, radius: f64) -> f64 {
+    match clearance {
+        Some(c) if free > 0. => free.min((c - radius).max((free * 0.15).max(1.).min(free))),
+        _ => free,
+    }
 }
 /// A charm on a gun (keychain, pendant, strap): a light swing that lags the gun
 /// and settles within a few swings. Its pivot stays on the gun, there is no
@@ -171,11 +237,12 @@ pub(crate) fn append(
     skirt: Option<&crate::long_skirt::SkirtGroup>,
     maps: &mut Vec<Maps>,
     partner: Option<[f64; 3]>,
+    body: Option<&Body>,
 ) -> Result<Option<[usize; 3]>> {
     if let Some(skirt) = skirt {
         return crate::skirt_surface::append(s,group,part,slots,lookup,sk,state,choice,skirt,maps).map(|_| None);
     }
-    if part.kind == Kind::Breast {
+    if matches!(part.kind, Kind::Breast | Kind::Butt) {
         return append_breast(s, group, part, slots, lookup, sk, state, choice, maps, partner).map(Some);
     }
     let pos = |name: &str| std::array::from_fn::<_, 3, _>(|r| state.world[lookup[name]][r][3]);
@@ -290,6 +357,7 @@ pub(crate) fn append(
         let x = axis(&group.root, 0);
         let y = axis(&group.root, 1);
         let z = axis(&group.root, 2);
+        let dense = part.weighted_chain.len() > DENSE_CHAIN_NODES && matches!(part.kind, Kind::Hair | Kind::Tail | Kind::Accessory);
         let fixed_center: [f64; 3] = std::array::from_fn(|r| center[r] - y[r] * offset);
         let fixed = ring(
             s,
@@ -329,6 +397,16 @@ pub(crate) fn append(
                 if let Some(adjustment) = &hair_length {
                     settings[0] *= adjustment.goal_strength_multiplier;
                 }
+                if dense && choice.is_none_or(|c| c == "automatic") {
+                    settings[0] = (settings[0] * dense_chain_multiplier(part.weighted_chain.len())).max(0.03);
+                }
+            }
+            // Long tails and accessory strands: tethers stop the chain from
+            // stretching under gravity, and a travel limit along the strand
+            // keeps a thin tail from flailing (zero would mean unbounded).
+            if dense && matches!(part.kind, Kind::Tail | Kind::Accessory) && skirt.is_none() {
+                settings[4] = (max_distance * t * 0.6).max(radius * 2.);
+                settings[6] = 1.;
             }
             if let Some(limits) = &hair_limits {
                 settings[4] = limits.travel_radius_by_bone[name];
@@ -341,6 +419,10 @@ pub(crate) fn append(
             if let Some(skirt) = skirt {
                 settings[4] = skirt.travel_radius_by_bone[name];
                 settings[6] = 1.;
+            }
+            // Long, dense strands must not swing through the body.
+            if dense && !root && skirt.is_none() && matches!(part.kind, Kind::Hair | Kind::Tail | Kind::Accessory) {
+                settings[4] = body_capped_travel(settings[4], body.and_then(|b| b.clearance(p)), radius);
             }
             let from = if name == &group.root {
                 fixed_center
@@ -428,12 +510,20 @@ fn append_breast(
         false,
         static_maps,
     );
-    let settings = parameters(Kind::Breast, 0., true, size, radius, choice)?;
+    let mut settings = parameters(part.kind, 0., true, size, radius, choice)?;
+    // Never swing far enough to reach the other breast (or cheek).
+    if let Some(other) = partner {
+        let gap = norm(sub(other, center));
+        if gap > 1e-3 {
+            settings[4] = settings[4].min(gap * 0.3);
+        }
+    }
     let moving = ring(s, maps, center, side, lift, radius, slots[bone.as_str()], true, settings);
     connect(s, fixed, moving);
     // Everything else in the group (ribbons or cape strips hanging from the
     // breast, an unweighted helper above it) still needs its own nodes, or it
-    // would be frozen; it moves like a hanging accessory from the breast.
+    // would be frozen. It swings like a charm: a small bounded swing without
+    // gravity, so a strip on the chest cannot sag or flap through the body.
     let mut frames = BTreeMap::from([(bone.clone(), moving)]);
     let others: Vec<&String> = group.bones.iter().filter(|n| *n != bone).collect();
     if !others.is_empty() {
@@ -453,7 +543,7 @@ fn append_breast(
         };
         for name in others {
             let t = (norm(sub(pos(name), center)) / reach).clamp(0., 1.);
-            let maps_for = parameters(Kind::Accessory, t, false, reach, small, choice.filter(|c| *c != "automatic"))?;
+            let maps_for = parameters(Kind::Charm, t, false, reach, small, choice.filter(|c| *c != "automatic"))?;
             let from = parent_of(name).filter(|p| lookup.contains_key(p.as_str())).map_or(center, |p| pos(&p));
             let (ring_x, ring_z) = ring_axes(axis(name, 0), axis(name, 2), from, pos(name));
             let ids = ring(s, maps, pos(name), ring_x, ring_z, small, slots[name.as_str()], true, maps_for);
@@ -638,5 +728,65 @@ mod breast_tests {
         }
         assert!(breast_parameters(2.5, Some("soft")).unwrap()[4] > breast_parameters(2.5, Some("stiff")).unwrap()[4]);
         assert!(breast_parameters(2.5, Some("wild")).is_err());
+    }
+}
+
+#[cfg(test)]
+mod new_motion_tests {
+    use super::*;
+    #[test]
+    fn butt_bounce_is_its_own_smaller_stiffer_setting() {
+        let [goal, drag, _, gravity, travel, ..] = butt_parameters(3., None).unwrap();
+        let breast = breast_parameters(3., None).unwrap();
+        assert!(goal > breast[0] && travel < breast[4] && gravity == 0. && drag > 0.);
+        assert!(butt_parameters(3., Some("soft")).unwrap()[4] > butt_parameters(3., Some("stiff")).unwrap()[4]);
+        assert_eq!(parameters(Kind::Butt, 0.5, false, 3., 0.3, None).unwrap(), butt_parameters(3., None).unwrap());
+        assert!(butt_parameters(3., Some("wild")).is_err());
+    }
+    #[test]
+    fn dense_strands_keep_the_pull_of_a_five_or_six_bone_strand() {
+        for nodes in 0..=DENSE_CHAIN_NODES { assert_eq!(dense_chain_multiplier(nodes), 1.); }
+        // The friend's 19-bone hair strand and 25-bone tail.
+        assert!((dense_chain_multiplier(19) - 6. / 19.).abs() < 1e-12);
+        assert!((dense_chain_multiplier(25) * 25. - 6.).abs() < 1e-12);
+    }
+    #[test]
+    fn fine_tuning_moves_each_setting_from_its_automatic_value() {
+        let tuning = |stiffness: f64, damping: f64, gravity: f64, swing: f64| deadlock_project::customization::MotionTuning {
+            stiffness: Some(stiffness), damping: Some(damping), gravity: Some(gravity), swing: Some(swing), ..Default::default()
+        };
+        let auto: Maps = [0.4, 0.1, 1., 0., 2., 0., 0., 0.];
+        // Zero keeps the automatic values exactly.
+        let mut same = auto;
+        tune(&mut same, &tuning(0., 0., 0., 0.));
+        assert_eq!(same, auto);
+        // Full stiffness pulls to the pose; the least keeps a quarter.
+        let mut stiff = auto;
+        tune(&mut stiff, &tuning(1., 1., 1., 1.));
+        assert_eq!([stiff[0], stiff[1], stiff[3], stiff[4]], [1., 0.5, 1.5, 5.]);
+        let mut loose = auto;
+        tune(&mut loose, &tuning(-1., -1., -1., -1.));
+        assert!((loose[0] - 0.1).abs() < 1e-12 && loose[1] == 0. && loose[3] == 0. && (loose[4] - 0.5).abs() < 1e-12);
+        // A part that swings freely (travel 0) stays free; the rest of the row is untouched.
+        let mut free: Maps = [0.4, 0., 1., 1., 0., 0., 1., 0.];
+        tune(&mut free, &tuning(0.5, 0., 0., -1.));
+        assert_eq!(free[4], 0.);
+        assert_eq!([free[2], free[5], free[6], free[7]], [1., 0., 1., 0.]);
+        assert!((free[0] - 0.7).abs() < 1e-12);
+    }
+    #[test]
+    fn body_clearance_caps_long_strand_travel_but_never_pins_it() {
+        let body = Body { points: vec![[0., 0., 0.], [10., 0., 0.]] };
+        assert_eq!(body.clearance([0., 3., 0.]), Some(3.));
+        // Far from the body: unchanged. Near it: limited to the gap.
+        assert_eq!(body_capped_travel(4., Some(20.), 0.2), 4.);
+        assert!((body_capped_travel(24., Some(5.2), 0.2) - 5.).abs() < 1e-12);
+        // Resting on the body: an inch or 15% of the free travel still moves.
+        assert!((body_capped_travel(24., Some(0.3), 0.2) - 3.6).abs() < 1e-12);
+        assert!((body_capped_travel(4., Some(0.3), 0.2) - 1.).abs() < 1e-12);
+        assert_eq!(body_capped_travel(0.5, Some(0.1), 0.2), 0.5);
+        // Unbounded (zero) travel and no body stay as they are.
+        assert_eq!(body_capped_travel(0., Some(0.1), 0.2), 0.);
+        assert_eq!(body_capped_travel(6., None, 0.2), 6.);
     }
 }

@@ -89,6 +89,39 @@ def body_basis(positions, roles):
     return np.column_stack((lateral, up, unit(np.cross(lateral, up), 'body facing')))
 
 
+HERO_FIT_POLICY = 'extreme-hero-body-fit-v1'
+# Normal heroes: arms 0.80-0.96 and legs 1.49-1.82 of the pelvis-to-head length.
+# Shiv's right arm is 1.19 (left 0.96) and Wraith's legs are 1.37.
+LONG_ARM, ARM_ASYMMETRY, SHORT_LEGS = 1.05, 0.10, 1.45
+# Spread arm stretch: the fitted elbow may sit this share of the arm's length
+# away from the hero's elbow.
+ELBOW_SPREAD = 0.08
+
+
+def _length(points, a, b):
+    return float(np.linalg.norm(np.asarray(points[a], dtype=float) - np.asarray(points[b], dtype=float)))
+
+
+def hero_extremes(tp, target_roles):
+    """Which of the hero's proportions are far outside ordinary humans: 'arms'
+    (a long or uneven arm, Shiv) and 'legs' (short legs, Wraith)."""
+    p = {role: tp[name] for role, name in target_roles.items() if name in tp}
+    if not all(r in p for r in ('pelvis', 'head', 'upperarm_L', 'forearm_L', 'hand_L', 'upperarm_R', 'forearm_R', 'hand_R',
+                                'thigh_L', 'shin_L', 'foot_L', 'thigh_R', 'shin_R', 'foot_R')):
+        return [], {}
+    torso = _length(p, 'pelvis', 'head')
+    if torso < 1e-6:
+        return [], {}
+    arms = {s: (_length(p, 'upperarm_'+s, 'forearm_'+s) + _length(p, 'forearm_'+s, 'hand_'+s)) / torso for s in 'LR'}
+    legs = sum(_length(p, 'thigh_'+s, 'shin_'+s) + _length(p, 'shin_'+s, 'foot_'+s) for s in 'LR') / (2 * torso)
+    found = []
+    if max(arms.values()) > LONG_ARM or abs(arms['L'] - arms['R']) / max(min(arms.values()), 1e-6) > ARM_ASYMMETRY:
+        found.append('arms')
+    if legs < SHORT_LEGS:
+        found.append('legs')
+    return found, {'arm_to_torso': {s: round(v, 3) for s, v in arms.items()}, 'leg_to_torso': round(legs, 3)}
+
+
 def proportion_maps(source, target, mapping, source_roles, target_roles, source_parents,
                     follow_anchors, sf, tf, parallel, matched, fit_arm_joints):
     """Retain source torso/legs, with optional joint-centered arm fitting.
@@ -102,8 +135,21 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
     """
     sp = {name: np.asarray(matrix)[:3, 3] for name, matrix in source.items()}
     tp = {name: np.asarray(matrix)[:3, 3] for name, matrix in target.items()}
+    # Heroes with extreme proportions (Shiv's long right arm, Wraith's short
+    # legs): fitting the source by its own leg length lifts the body away from
+    # the hero's shoulders and the arms stretch to reach the hero's hands. For
+    # those heroes the torso is scaled evenly so the hips and neck land on the
+    # hero's, the legs follow the hero's leg joints, and any arm difference is
+    # spread over the whole arm (below). Other heroes keep the source fit.
+    extremes, measured = hero_extremes(tp, target_roles)
+    scale = 1.
+    if extremes:
+        top = 'neck' if 'neck' in source_roles and 'neck' in target_roles else 'head'
+        span_source = _length(sp, source_roles['pelvis'], source_roles[top])
+        if span_source > 1e-6:
+            scale = _length(tp, target_roles['pelvis'], target_roles[top]) / span_source
     body = np.eye(4)
-    body[:3, :3] = body_basis(tp, target_roles) @ body_basis(sp, source_roles).T
+    body[:3, :3] = scale * (body_basis(tp, target_roles) @ body_basis(sp, source_roles).T)
     body[:3, 3] = tp[target_roles['pelvis']] - body[:3, :3] @ sp[source_roles['pelvis']]
     role_maps = {role: body.copy() for role in source_roles}
     for side in ('L', 'R'):
@@ -114,16 +160,27 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
                 origin = sp[source_roles[role]]
                 pivot = (parent_map @ np.r_[origin, 1.])[:3]
                 transform = np.eye(4)
-                transform[:3, :3] = tf[role][:3, :3] @ sf[role][:3, :3].T
+                transform[:3, :3] = scale * (tf[role][:3, :3] @ sf[role][:3, :3].T)
+                if extremes and part in ('thigh', 'shin', 'foot'):
+                    # Legs follow the hero's leg joints, keeping the source's
+                    # (evenly scaled) cross-section, so the hips stay on the hero's.
+                    pivot = tp[target_roles[role]]
+                    ratio = scale
+                    if part != 'foot':
+                        ratio = (np.linalg.norm(tp[target_roles[NEXT[role]]] - pivot) /
+                                 max(np.linalg.norm(sp[source_roles[NEXT[role]]] - origin), 1e-9))
+                    transform[:3, :3] = tf[role][:3, :3] @ np.diag([scale, ratio, scale]) @ sf[role][:3, :3].T
                 transform[:3, 3] = pivot - transform[:3, :3] @ origin
                 role_maps[role] = transform
                 parent_map = transform
     floor = min(tp[target_roles['foot_' + side]][2] for side in ('L', 'R'))
     fitted_floor = min((role_maps['foot_' + side] @ np.r_[sp[source_roles['foot_' + side]], 1.])[2]
                        for side in ('L', 'R'))
-    for transform in role_maps.values():
-        transform[2, 3] += floor - fitted_floor
-    body[2, 3] += floor - fitted_floor
+    if not extremes:
+        for transform in role_maps.values():
+            transform[2, 3] += floor - fitted_floor
+        body[2, 3] += floor - fitted_floor
+    arm_spread = {}
     arm_fit = {'policy': ARM_FIT_POLICY, 'enabled': fit_arm_joints, 'joints': [],
                'width_preserved': True, 'target_bind_matrices_modified': False}
     shoulder_maps = {}
@@ -132,18 +189,45 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
         # the reviewed joint chain, scaling only along each segment. Keep the
         # source cross-section, torso, head, legs and cloth anchors unchanged.
         for side in ('L', 'R'):
+            # Spread a large arm difference over the whole arm: the elbow may
+            # move a little along the hero's upper arm, so the forearm is not
+            # stretched alone (Shiv's long right forearm). The hand still
+            # lands on the hero's hand.
+            elbow = None
+            if extremes:
+                shoulder, hero_elbow, hand = (tp[target_roles[r+'_'+side]] for r in ('upperarm', 'forearm', 'hand'))
+                upper_h, fore_h = np.linalg.norm(hero_elbow - shoulder), np.linalg.norm(hand - hero_elbow)
+                upper_s = np.linalg.norm(sp[source_roles['forearm_'+side]] - sp[source_roles['upperarm_'+side]])
+                fore_s = np.linalg.norm(sp[source_roles['hand_'+side]] - sp[source_roles['forearm_'+side]])
+                total = upper_h + fore_h
+                if upper_s + fore_s > 1e-9 and upper_h > 1e-9:
+                    even = upper_s * total / (upper_s + fore_s)
+                    upper = float(np.clip(even, upper_h - ELBOW_SPREAD * total, upper_h + ELBOW_SPREAD * total))
+                    elbow = shoulder + (hero_elbow - shoulder) / upper_h * upper
+                    arm_spread[side] = {'upper_scale': round(float(upper / upper_s), 4),
+                                        'forearm_scale': round(float(np.linalg.norm(hand - elbow) / fore_s), 4),
+                                        'per_segment_upper_scale': round(float(upper_h / upper_s), 4),
+                                        'per_segment_forearm_scale': round(float(fore_h / fore_s), 4),
+                                        'elbow_shift_mm': round(float(abs(upper - upper_h) * 25.4), 1)}
             for part in ('upperarm', 'forearm', 'hand'):
                 role = part+'_'+side
                 origin = sp[source_roles[role]]
                 before = (role_maps[role] @ np.r_[origin,1.])[:3]
                 destination = tp[target_roles[role]]
-                ratio = 1.
+                turn = np.eye(3)
+                if elbow is not None and part == 'forearm':
+                    destination = elbow
+                    turn = _turn(tp[target_roles[NEXT[role]]] - tp[target_roles[role]], tp[target_roles[NEXT[role]]] - elbow)
+                    turn = np.eye(3) if turn is None else turn
+                ratio = 1. if not extremes else scale
                 if part != 'hand':
                     next_role = NEXT[role]
-                    ratio = (np.linalg.norm(tp[target_roles[next_role]]-destination) /
+                    end = elbow if (elbow is not None and part == 'upperarm') else tp[target_roles[next_role]]
+                    ratio = (np.linalg.norm(end-destination) /
                              np.linalg.norm(sp[source_roles[next_role]]-origin))
+                width = scale if extremes else 1.
                 transform = np.eye(4)
-                transform[:3,:3] = tf[role][:3,:3] @ np.diag([1.,ratio,1.]) @ sf[role][:3,:3].T
+                transform[:3,:3] = turn @ tf[role][:3,:3] @ np.diag([width,ratio,width]) @ sf[role][:3,:3].T
                 transform[:3,3] = destination-transform[:3,:3]@origin
                 role_maps[role] = transform
                 arm_fit['joints'].append({'role': role, 'before_offset_mm': float(np.linalg.norm(before-destination)*25.4),
@@ -204,8 +288,10 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
                     'parallel_leg_policy': LEG_CHAINS_POLICY, 'parallel_leg_joints': parallel,
                     'following_anchors': dict(follow_anchors),
                     'foreign_bone_axes_used_for_geometry': False, 'target_bind_matrices_modified': False,
-                    'body_alignment': body.tolist(), 'source_limb_lengths_preserved': not fit_arm_joints,
-                    'source_leg_lengths_preserved': True, 'arm_joint_fit': arm_fit,
+                    'body_alignment': body.tolist(), 'source_limb_lengths_preserved': not fit_arm_joints and not extremes,
+                    'source_leg_lengths_preserved': not extremes, 'arm_joint_fit': arm_fit,
+                    'hero_fit': {'policy': HERO_FIT_POLICY, 'extremes': extremes, 'measured': measured,
+                                 'torso_scale': round(float(scale), 4), 'arm_spread': arm_spread},
                     'joint_offsets': offsets, 'max_joint_offset_mm': max(x['distance_mm'] for x in offsets),
                     'inherited_secondary_rotations': inherited}
 

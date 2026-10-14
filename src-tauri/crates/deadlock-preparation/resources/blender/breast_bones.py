@@ -98,7 +98,10 @@ def find_breasts(rig, meshes, request):
             block = raw[max(i - 1, 0):i + 2, max(j - 1, 0):j + 2]
             if np.count_nonzero(~np.isnan(block)) >= 5:
                 surface[i, j] = np.nanmedian(block)
-    rows_ok = (heights >= chest[2] - 0.12 * t) & (heights <= high - 0.04 * t)
+    # Breasts are in the upper torso: never search the hips (a butt seen from a
+    # wrongly guessed facing direction must not become a breast).
+    floor = max(chest[2] - 0.12 * t, pelvis[2] + 0.35 * (high - pelvis[2]))
+    rows_ok = (heights >= floor) & (heights <= high - 0.04 * t)
     middle = np.abs(across) <= 0.021 * t
     sides = {}
     for side, sign in (('L', 1.), ('R', -1.)):

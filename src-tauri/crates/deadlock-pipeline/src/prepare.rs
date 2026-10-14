@@ -86,6 +86,23 @@ impl ModelPipeline<'_> {
                 crate::compilation::clear_owned(p,&[content.clone(),game.clone()],self.cancel)?;
                 self.clock.measure("Copy original source tree",Some(span.id()),|_|copy_tree_verified(&report.effective_sources,&content,self.cancel))?;
                 let source=safety::inside(&content,p.source_model())?;let original_text=report.original.verified_source(self.cancel)?;
+                // Newer decompiles leave the hero's cloth to its cloth definitions. The
+                // compiler's own cloth bones are listed as plain bones instead (as older
+                // decompiles had them) and the definitions are left out: the game's
+                // compiled cloth is restored after compiling, as before.
+                let original_text={
+                    let (text,added,aligned)=match report.original.source_audit().runtime_motion.skeleton.as_ref(){
+                        Some(compiled)=>{
+                            let (text,added)=model::modeldoc::with_compiled_cloth_bones(&original_text,compiled).map_err(map_error)?;
+                            let (text,aligned)=model::modeldoc::with_compiled_bone_transforms(&text,compiled).map_err(map_error)?;
+                            (text,added,aligned)
+                        }
+                        None=>(original_text,0,0),
+                    };
+                    let (text,removed)=model::modeldoc::without_decompiled_cloth(&text).map_err(map_error)?;
+                    if added>0||aligned>0||removed>0{(self.log)(&format!("Hero skeleton in the source: {added} compiled cloth bones listed, {aligned} bone transforms taken from the game's model, {removed} cloth definitions left out; the game's compiled cloth is restored after compiling."));}
+                    text
+                };
                 let patched=if !p.mesh_template.is_empty(){
                     let name=Path::new(&p.dmx).file_name().and_then(|n|n.to_str()).ok_or_else(||invalid("Replacement DMX filename is not Unicode."))?;
                     let source_path=safety::relative_asset(&format!("{}/dmx/{name}",p.hero_root()))?;

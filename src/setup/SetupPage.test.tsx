@@ -6,7 +6,7 @@ import type {AcquisitionResult} from './models';
 const mocks=vi.hoisted(()=>({invoke:vi.fn(),open:vi.fn()}));
 vi.mock('@tauri-apps/api/core',()=>({invoke:mocks.invoke}));
 vi.mock('@tauri-apps/plugin-dialog',()=>({open:mocks.open}));
-import {SetupPage} from './SetupPage';
+import {SetupPage,depotDownloaderHint} from './SetupPage';
 const settings:Settings={steam:'',deadlock:'game',pak:'game/pak01_dir.vpk',csdk:'',resourcecompiler:'material compiler',cswin:'',cswin_resourcecompiler:'',model_backend:'auto',model_game:'',model_format:'auto',optional_cs2:'',source2viewer:'reader',vpk_tool:'',vpk_backend:'builtin',ag2_adapter:'',workspace:'work',last_project:'',blender:''};
 const project=reference.cases[1].expected as unknown as Project;
 const defaults={options:{dd:'C:\\Tools\\dd.exe',toolroot:'C:\\Acquired\\toolset',manifests:'C:\\Acquired\\manifests'},export_root:'C:\\Plans',automatic_root:'C:\\Acquired'};
@@ -34,5 +34,23 @@ describe('Real setup command wiring',()=>{
     render(<SetupPage settings={settings} project={project} updateSettings={vi.fn()} busy={false} operate={operate}/>);await screen.findByDisplayValue(defaults.automatic_root);
     fireEvent.click(screen.getByRole('button',{name:'Verify file integrity'}));await screen.findByText(/Integrity passed: 7 files/);
     fireEvent.change(screen.getByLabelText('Existing toolset folder'),{target:{value:'changed'}});expect(screen.queryByText(/Integrity passed: 7 files/)).not.toBeInTheDocument();expect(screen.queryByText('Original hero compatibility passed')).not.toBeInTheDocument();
+  });
+  it('selects and saves a verified download by itself, so builds use it at once',async()=>{
+    const receipt={steam_build:'123',files_verified:1,bytes_verified:5,manifest_integrity_passed:true,native_compile_passed:false,absolute_minimum_proven:false};
+    const next={...settings,cswin:defaults.options.toolroot,model_backend:'cswin'};const update=vi.fn();const save=vi.fn(async()=>{});
+    mocks.invoke.mockImplementation(async(name,args)=>{if(name==='setup_defaults')return defaults;if(name==='setup_acquire')return {...plan,downloaded:args.action==='download',receipt:args.action==='manifests'?null:receipt};if(name==='setup_use_toolset')return next;throw new Error(name);});
+    render(<SetupPage settings={settings} project={project} updateSettings={update} saveSettings={save} busy={false} operate={operate}/>);await screen.findByDisplayValue(defaults.automatic_root);
+    fireEvent.click(screen.getByRole('button',{name:'Fetch manifests and plan'}));await screen.findByRole('button',{name:'Download these 1 files'});
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Download these 1 files'}));
+    await waitFor(()=>expect(save).toHaveBeenCalledWith(next));expect(update).toHaveBeenCalledWith(next);
+    expect(mocks.invoke).toHaveBeenCalledWith('setup_use_toolset',{settings,toolroot:defaults.options.toolroot});
+    expect(await screen.findByText(/selected and saved/)).toBeInTheDocument();
+  });
+  it('explains DepotDownloader choices before anything runs',()=>{
+    expect(depotDownloaderHint('C:\Downloads\DepotDownloader-windows-x64.zip')).toContain('Extract All');
+    expect(depotDownloaderHint('')).toContain('extracted');
+    expect(depotDownloaderHint('C:\Tools\DepotDownloader')).toContain('folder works');
+    expect(depotDownloaderHint('C:\Tools\DepotDownloader.exe')).toBeNull();
   });
 });

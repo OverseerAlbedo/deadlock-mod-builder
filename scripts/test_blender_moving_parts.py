@@ -8,7 +8,7 @@ import json, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'src-tauri/crates/deadlock-preparation/resources/blender')]
-from secondary_bones import physics_groups, breast_bones, on_gun, charm_named, rigid_named, selection
+from secondary_bones import physics_groups, breast_bones, butt_bones, named_butt, named_breast, on_gun, charm_named, rigid_named, selection
 
 data=json.loads((ROOT/'src-tauri/crates/deadlock-preparation/tests/fixtures/hanging-chains.json').read_text(encoding='utf-8'))
 bones,weighted,roles=data['bones'],data['weighted'],data['roles']
@@ -26,6 +26,14 @@ assert breast_bones(bones,weighted,roles)==data['breast_bones']
 renamed=data['renamed_breast_bones']
 generic=[{**b,'name':renamed.get(b['name'],b['name'])} for b in bones]
 assert breast_bones(generic,[renamed.get(n,n) for n in weighted],roles)==[renamed.get(n,n) for n in data['breast_bones']]
+# Butts: by name and as a low mirrored pair behind the hips, never breasts, moving only with butt motion on.
+assert butt_bones(bones,weighted,roles)==data['butt_bones'],butt_bones(bones,weighted,roles)
+assert [g['root'] for g in physics_groups(bones,weighted,roles,roles,None,True)]==data['expected_roots_with_butt_motion']
+assert all(named_butt(n) and not named_breast(n) for n in data['butt_names']['butt'])
+assert not any(named_butt(n) for n in data['butt_names']['not_butt'])
+saved={'preserve_physics_bones':True,'butt_motion':False,'physics_roots':data['expected_roots_with_butt_motion']}
+assert [g['root'] for g in physics_groups(bones,weighted,roles,roles,None,False)]==data['expected_roots']
+assert sorted(g['root'] for g in selection(saved,bones,weighted,roles,roles,[{'name':n} for n in roles.values()])['groups'])==data['expected_roots']
 print('moving-part rules: ok')
 
 # Gun charms: chains hanging from the marked gun bones move; gun parts and parts

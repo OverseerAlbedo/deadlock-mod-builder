@@ -44,6 +44,19 @@ pub struct HairMotion {
     pub length_adjusted_groups: Vec<HairLengthAdjustment>,
     pub jump_protected_groups: Vec<crate::hair_limits::JumpProtection>,
 }
+/// One moving bone as the movement preview simulates it (automatic preset only).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PreviewNode {
+    pub bone: String,
+    /// The part's root bone and type (hair, tail, breast ...).
+    pub root: String,
+    pub kind: crate::parts::Kind,
+    pub goal: f64,
+    pub drag: f64,
+    pub gravity: f64,
+    /// Travel limit in inches; 0 swings freely.
+    pub travel: f64,
+}
 #[derive(Debug, Serialize)]
 pub struct Setup {
     pub policy: String,
@@ -65,6 +78,10 @@ pub struct Setup {
     pub dynamic_positions: usize,
     pub render_source_modified: bool,
     pub body_collisions_authored: bool,
+    /// Motion values of each moving bone before Fine-tune (pose pull, drag,
+    /// gravity, travel), for the movement preview, which applies the tuning live.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preview_nodes: Vec<PreviewNode>,
     pub replaces_original_cloth_solver: bool,
     pub native_compiled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -255,7 +272,18 @@ pub fn setup(
     #[derive(Deserialize)] struct Reference { groups:Vec<Group> }
     let saved:Reference=serde_json::from_str(include_str!("../resources/tangtang-r2-groups.json"))?;
     let by_root=|g:&[Group]|g.iter().map(|v|(v.source_root.clone(),v.clone())).collect::<BTreeMap<_,_>>();
-    let mut reuse=preset=="automatic" && profiles.is_empty() && cfg.part_kinds.as_ref().is_none_or(|v|v.is_empty())
+    // Fine-tuning per part type (Physics → Fine-tune movement); TangTang presets keep their accepted tuning.
+    let mut tuning=if tang {BTreeMap::new()} else {cfg.tuning.clone().unwrap_or_default()};
+    // The source rig's own MMD/VRM springs per part (preparation `physics_springs`),
+    // as starting values when chosen on the Physics tab.
+    let springs:BTreeMap<String,[f64;3]>=if tang || cfg.use_source_springs!=Some(true) {BTreeMap::new()} else {
+        opts.get("physics_springs").and_then(|v|v.as_object()).into_iter().flatten().filter(|(root,_)|roots.contains(*root)).filter_map(|(root,v)|{
+            let n=|k:&str|v.get(k).and_then(|x|x.as_f64()).filter(|x|x.is_finite());
+            Some((root.clone(),[n("goal")?.clamp(0.01,1.),n("drag")?.clamp(0.,1.),n("gravity")?.clamp(0.,2.)]))
+        }).collect()
+    };
+    tuning.retain(|_,t|[t.stiffness,t.damping,t.gravity,t.swing].iter().any(|v|v.is_some_and(|v|v!=0.)));
+    let mut reuse=preset=="automatic" && profiles.is_empty() && tuning.is_empty() && springs.is_empty() && cfg.part_kinds.as_ref().is_none_or(|v|v.is_empty())
         && p.source_model()=="models/heroes_staging/haze/haze.vmdl" && by_root(&groups)==by_root(&saved.groups);
     let mut automatic_fit=None;
     if reuse && sha!=TANG_SOURCE {
@@ -310,6 +338,7 @@ pub fn setup(
     if effective=="tangtang_r2" {for part in &mut parts{part.roll_locked=false;}}
     let roll_lock_chains=parts.iter().zip(&groups).filter(|(p,_)|p.roll_locked).map(|(p,g)|deadlock_cloth::generated::roll_lock::Chain{anchor:g.anchor.clone(),bones:p.weighted_chain.clone(),per_joint_reference:matches!(p.kind,crate::parts::Kind::Hair|crate::parts::Kind::Tail)}).collect();
     let mut preset_fit = None;
+    let mut preview_nodes = vec![];
     let (proxy, positions, dynamic) = match effective {
         "tangtang_r2" | "tangtang_reference" => {
             if p.source_model() != "models/heroes_staging/haze/haze.vmdl" {
@@ -351,7 +380,7 @@ pub fn setup(
             }
             (proxy, 900, 786)
         }
-        "automatic" => generate_inner(d, &groups, &profiles, Some(&parts), long_skirt.as_ref(), cancel)?,
+        "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &mut preview_nodes, cancel)?,
         _ => return Err(invalid("Unknown secondary motion preset.")),
     };
     cancel.check()?;
@@ -383,6 +412,7 @@ pub fn setup(
         dynamic_positions: dynamic,
         render_source_modified: false,
         body_collisions_authored: false,
+        preview_nodes,
         replaces_original_cloth_solver: true,
         native_compiled: false,
         preset_fit,
@@ -432,9 +462,26 @@ pub fn generate(
     profiles: &BTreeMap<String, String>,
     cancel: &CancellationToken,
 ) -> Result<(Vec<u8>, usize, usize)> {
-    generate_inner(d,groups,profiles,None,None,cancel)
+    generate_inner(d,groups,profiles,&BTreeMap::new(),&BTreeMap::new(),None,None,&mut vec![],cancel)
 }
-fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
+/// Body vertices for strand clearance: skinned at least half to bones outside
+/// every moving part. At most 24,000 evenly sampled points.
+fn body_points(d:&Dmx,groups:&[Group],cancel:&CancellationToken)->Result<crate::secondary_auto::Body> {
+    let bind=surface::binds(d)?;
+    let moving:BTreeSet<&str>=groups.iter().flat_map(|g|g.bones.iter().map(String::as_str)).collect();
+    let body_joint:Vec<bool>=bind.palette.iter().map(|&i|!moving.contains(d.elements[i].name.as_str())).collect();
+    let mut points=vec![];
+    for mesh in surface::mesh_data(d)?.values() {
+        for (i,(p,(js,ws))) in mesh.positions.iter().zip(mesh.joints.iter().zip(&mesh.weights)).enumerate() {
+            if i%4096==0 {cancel.check()?;}
+            let share:f64=js.iter().zip(ws).filter(|(j,_)|body_joint.get(**j).copied().unwrap_or(false)).map(|(_,w)|*w).sum();
+            if share>=0.5 {points.push(*p);}
+        }
+    }
+    let step=points.len().div_ceil(24_000).max(1);
+    Ok(crate::secondary_auto::Body{points:points.into_iter().step_by(step).collect()})
+}
+fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tuning:&BTreeMap<String,deadlock_project::customization::MotionTuning>,springs:&BTreeMap<String,[f64;3]>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,nodes:&mut Vec<PreviewNode>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
     let bind = surface::binds(d)?;
     let sk = &bind.skeleton;
     let state = transforms::bind_state(sk)?;
@@ -466,10 +513,11 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts
     let mut frames = BTreeMap::new();
     let mut part_maps=vec![];
     let mut breast_rings=vec![];
-    // Each breast of a left/right pair on one anchor knows where the other is.
-    let breasts:Vec<(usize,&str,[f64;3])>=parts.map(|parts|groups.iter().zip(parts).enumerate()
-        .filter(|(_,(_,p))|p.kind==crate::parts::Kind::Breast)
-        .map(|(i,(g,p))|(i,g.anchor.as_str(),position(lookup[p.weighted_chain.first().unwrap_or(&g.root).as_str()]))).collect()).unwrap_or_default();
+    // Each breast (or butt) of a left/right pair on one anchor knows where the other is.
+    let breasts:Vec<(usize,String,[f64;3])>=parts.map(|parts|groups.iter().zip(parts).enumerate()
+        .filter(|(_,(_,p))|matches!(p.kind,crate::parts::Kind::Breast|crate::parts::Kind::Butt))
+        .map(|(i,(g,p))|(i,format!("{}|{:?}",g.anchor,p.kind),position(lookup[p.weighted_chain.first().unwrap_or(&g.root).as_str()]))).collect()).unwrap_or_default();
+    let body=parts.map(|_|body_points(d,groups,cancel)).transpose()?;
     for (ordinal,group) in groups.iter().enumerate() {
         cancel.check()?;
         let root = lookup[group.root.as_str()];
@@ -497,10 +545,40 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,parts
         let offset = (radius * 3.).max((pitch * 0.25).min(1.));
         let first = s.points.len();
         if let Some(part)=parts.map(|p|&p[ordinal]) {
-            let pair:Vec<_>=breasts.iter().filter(|b|b.1==group.anchor).collect();
+            let key=format!("{}|{:?}",group.anchor,part.kind);
+            let pair:Vec<_>=breasts.iter().filter(|b|b.1==key).collect();
             let partner=if pair.len()==2 {pair.iter().find(|b|b.0!=ordinal).map(|b|b.2)} else {None};
-            if let Some(ring)=crate::secondary_auto::append(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps,partner)? {
-                breast_rings.push((group.anchor.clone(),ring));
+            let before=part_maps.len();
+            let ring=crate::secondary_auto::append(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps,partner,body.as_ref())?;
+            // Source rig springs replace the automatic pose pull, drag and gravity of
+            // the part's moving points (pinned points stay pinned).
+            if let Some(v)=springs.get(&group.source_root) {
+                for (i,row) in part_maps.iter_mut().enumerate().skip(before) {
+                    if s.enabled[i] && row[0]<0.999 {row[0]=v[0];row[1]=v[1];row[3]=v[2];}
+                }
+            }
+            // Each moving bone's values before Fine-tune: the average of its proxy points.
+            let mut sums:BTreeMap<usize,([f64;4],usize)>=BTreeMap::new();
+            for (i,row) in part_maps.iter().enumerate().skip(before) {
+                if !s.enabled[i] {continue;}
+                for (&slot,_) in &s.influences[i] {
+                    let entry=sums.entry(slot).or_default();
+                    for (k,m) in [0,1,3,4].into_iter().enumerate() {entry.0[k]+=row[m];}
+                    entry.1+=1;
+                }
+            }
+            for (slot,(sum,count)) in sums {
+                let Some((&name,_))=slots.iter().find(|(_,&i)|i==slot) else {continue};
+                let n=count as f64;
+                nodes.push(PreviewNode{bone:name.to_string(),root:group.source_root.clone(),kind:part.kind,goal:sum[0]/n,drag:sum[1]/n,gravity:sum[2]/n,travel:sum[3]/n});
+            }
+            if let Some(t)=serde_json::to_value(part.kind).ok().and_then(|k|k.as_str().and_then(|k|tuning.get(k))) {
+                for (i,row) in part_maps.iter_mut().enumerate().skip(before) {
+                    if s.enabled[i] {crate::secondary_auto::tune(row,t);}
+                }
+            }
+            if let Some(ring)=ring {
+                breast_rings.push((key,ring));
             }
             continue;
         }

@@ -82,7 +82,7 @@ fn setup_status_reports_model_files_without_certifying_or_running_a_compiler() {
     let previous_operation = app.get_timings().map(|report| report.run_id);
     let status = app.setup_status(&settings);
     assert!(status.model_files_found);
-    assert!(status.model_status.contains("see project test"));
+    assert!(status.model_status.contains("Test it once with your hero"));
     assert_eq!(
         app.get_timings().map(|report| report.run_id),
         previous_operation

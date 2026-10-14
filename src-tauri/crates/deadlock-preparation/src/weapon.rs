@@ -279,6 +279,21 @@ pub struct Reference {
     /// The hero's body as a small solid mesh for the preview.
     #[serde(default, skip_serializing_if = "Shape::is_empty")]
     pub body_shape: Shape,
+    /// The hero holding its gun (first frame of its idle-with-gun clip), for
+    /// the fit preview only. Missing when the hero's sources have no such clip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stance: Option<Stance>,
+}
+
+/// The hero in its holding pose: the posed body and how each hand's gun moves
+/// from the rest pose into the stance (row-major 4x4, rest to stance).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct Stance {
+    /// The clip the pose comes from (file name without extension).
+    pub clip: String,
+    pub body_shape: Shape,
+    /// "right" (also a hero's only gun) and "left".
+    pub hands: BTreeMap<String, deadlock_skeleton::transforms::Matrix4>,
 }
 
 /// One gun of a dual-wield hero: its meshes (all detail levels) and the
@@ -317,6 +332,7 @@ impl Reference {
             unreadable: vec![],
             shape: gun.shape.clone(),
             body_shape: Shape::default(),
+            stance: None,
             ..self.clone()
         }
     }
@@ -1467,6 +1483,20 @@ pub fn reference_from_sources(
     separate_model: bool,
     cancel: &deadlock_core::CancellationToken,
 ) -> Result<Reference> {
+    reference_with_simulated(base, model_text, target, &BTreeSet::new(), separate_model, cancel)
+}
+
+/// `reference_from_sources` knowing the hero's cloth-simulated bones (skeleton
+/// flag `0x400000`): in the holding pose they follow their nearest bone that
+/// is not simulated, so coats and skirts keep their rest shape.
+pub fn reference_with_simulated(
+    base: &Path,
+    model_text: &str,
+    target: &[PreparedBone],
+    simulated: &BTreeSet<String>,
+    separate_model: bool,
+    cancel: &deadlock_core::CancellationToken,
+) -> Result<Reference> {
     let analysis = deadlock_model::analyze(model_text).map_err(|e| invalid(e.to_string()))?;
     let document = deadlock_resource::text::Document::parse(model_text).map_err(|e| invalid(e.to_string()))?;
     let bones: Vec<Bone> = target.iter().map(Bone::from).collect();
@@ -1486,7 +1516,50 @@ pub fn reference_from_sources(
     let mut guns: Vec<(String, Option<&'static str>, Vec<Vec3>, Vec<Vec<(String, f64)>>, RawShape)> = vec![];
     let mut body: Vec<Vec3> = vec![];
     let mut body_shape = RawShape::default();
+    // The body again in the hero's holding pose, for the preview.
+    let mut posed_body = RawShape::default();
+    let stance_skin = document
+        .objects(Some("RenderMeshFile"))
+        .iter()
+        .find_map(|n| n.get("filename").and_then(|f| f.scalar()).map(str::to_string))
+        .and_then(|file| deadlock_core::safety::inside(base, &file).ok())
+        .and_then(|path| crate::stance::find_clip(base, path.parent()?))
+        .and_then(|clip| {
+            let pose = crate::stance::first_frame(&clip)?;
+            Some((clip.file_stem()?.to_string_lossy().into_owned(), crate::stance::follow_unsimulated(crate::stance::skin_matrices(target, &pose), target, simulated)))
+        });
     let mut unreadable = vec![];
+    let hidden_meshes = optional_meshes(&document);
+    // Rest bone positions and a third of the hero's height, to spot decompiled
+    // skin weights that name the wrong bone (holding pose view only).
+    let bone_positions: BTreeMap<String, [f64; 3]> = target.iter().map(|b| (b.name.clone(), b.position)).collect();
+    let reach = {
+        let z = target.iter().map(|b| b.position[2]);
+        (z.clone().fold(f64::MIN, f64::max) - z.fold(f64::MAX, f64::min)).max(1.) / 3.
+    };
+    let parents: BTreeMap<&str, Option<&str>> = target.iter().map(|b| (b.name.as_str(), b.parent.as_deref())).collect();
+    // Most of the part's weight on bones at or under a `*_scale` bone.
+    let under_scale = |bone: &str| {
+        let mut at = Some(bone);
+        while let Some(name) = at {
+            if name.to_ascii_lowercase().ends_with("_scale") {
+                return true;
+            }
+            at = parents.get(name).copied().flatten();
+        }
+        false
+    };
+    let scaled_away = |weights: &[Vec<(String, f64)>]| {
+        let (mut total, mut scaled) = (0., 0.);
+        let mut known: BTreeMap<&str, bool> = BTreeMap::new();
+        for (bone, weight) in weights.iter().flatten() {
+            total += weight;
+            if *known.entry(bone).or_insert_with(|| under_scale(bone)) {
+                scaled += weight;
+            }
+        }
+        total > 0. && scaled / total >= 0.5
+    };
     for node in document.objects(Some("RenderMeshFile")) {
         let Some(name) = node.get("name").and_then(|n| n.scalar()) else { continue };
         let Some(file) = node.get("filename").and_then(|n| n.scalar()) else { continue };
@@ -1516,6 +1589,7 @@ pub fn reference_from_sources(
         let mut points = vec![];
         let mut weights = vec![];
         let mut shape = RawShape::default();
+        let mut posed = vec![];
         for info in &preview.metadata.meshes {
             if filter.is_some() && exclude_by_default != listed.contains(&info.source_name) {
                 continue;
@@ -1527,7 +1601,8 @@ pub fn reference_from_sources(
                     .collect()
             };
             let positions = floats(&info.positions);
-            if let Some(indices) = preview.data.get(info.indices.offset..info.indices.offset + info.indices.count * 4) {
+            let indices = preview.data.get(info.indices.offset..info.indices.offset + info.indices.count * 4);
+            if let Some(indices) = indices {
                 let base = shape.points.len() as u32;
                 shape.points.extend(positions.chunks_exact(3).map(|c| [c[0], c[1], c[2]]));
                 let index = |b: &[u8]| base + u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
@@ -1551,6 +1626,12 @@ pub fn reference_from_sources(
                 }
                 None => vec![vec![]; info.vertex_count],
             };
+            if let (Some(_), Some((_, skin))) = (indices, &stance_skin) {
+                let points: Vec<[f64; 3]> = positions.chunks_exact(3).map(|c| [f64::from(c[0]), f64::from(c[1]), f64::from(c[2])]).collect();
+                let mut repaired: Vec<Vec<(String, f64)>> = (0..points.len()).map(|i| rows.get(i).cloned().unwrap_or_default()).collect();
+                crate::stance::repair_weights(&points, &mut repaired, &bone_positions, reach);
+                posed.extend(points.iter().zip(&repaired).map(|(point, row)| crate::stance::skin_point(*point, row, skin).map(|v| v as f32)));
+            }
             for (chunk, row) in positions.chunks_exact(3).zip(rows) {
                 points.push([f64::from(chunk[0]), f64::from(chunk[1]), f64::from(chunk[2])]);
                 weights.push(row);
@@ -1563,7 +1644,25 @@ pub fn reference_from_sources(
         let on_weapon: f64 = weights.iter().flatten().filter(|(n, _)| weapon.contains(n)).map(|(_, w)| w).sum();
         let is_gun = separate_model || (total > 0. && on_weapon / total >= 0.85) || (keyword_mesh(name) && total > 0. && on_weapon / total >= 0.5);
         if !is_gun {
+            // Parts the game does not show in play stay out of the preview body:
+            // other choices of a body group (Viscous inflated, Paradox's gun on
+            // the hip) and parts under a `*_scale` bone that the game scales away
+            // (Abrams' book). The gun search above is unchanged.
+            if hidden_meshes.contains(name) || scaled_away(&weights) {
+                continue;
+            }
             body.extend(points.iter().step_by((points.len() / 2_000).max(1)).copied());
+            if posed.len() == shape.points.len() {
+                // Triangles the pose stretches far beyond their rest size come
+                // from decompiled skin weights that name the wrong bone (seen on
+                // Abrams, Dynamo, Paradox, Yamato); they are left out of the view.
+                let edge = |p: &[[f32; 3]], t: &[u32; 3]| {
+                    let d = |a: usize, b: usize| (0..3).map(|i| (p[t[a] as usize][i] - p[t[b] as usize][i]).powi(2)).sum::<f32>().sqrt();
+                    d(0, 1).max(d(1, 2)).max(d(2, 0))
+                };
+                let triangles = shape.triangles.iter().filter(|t| edge(&posed, t) <= edge(&shape.points, t) * 3. + 4.).copied().collect();
+                posed_body.append(&RawShape { points: posed, triangles });
+            }
             body_shape.append(&shape);
             continue;
         }
@@ -1652,7 +1751,53 @@ pub fn reference_from_sources(
     }
     reference.body = body;
     reference.body_shape = simplify(&body_shape.points, &body_shape.triangles, PREVIEW_BODY_TRIANGLES);
+    if let Some((clip, skin)) = stance_skin.filter(|_| !posed_body.points.is_empty()) {
+        // A gun follows the bone that carries most of its weight (a weapon
+        // bone under the hand); a hero without gun meshes uses its weapon bone.
+        let carrier = |weights: &[Vec<(String, f64)>]| -> Option<deadlock_skeleton::transforms::Matrix4> {
+            let mut totals: BTreeMap<&str, f64> = BTreeMap::new();
+            for (bone, weight) in weights.iter().flatten() {
+                *totals.entry(bone).or_default() += weight;
+            }
+            let best = totals.into_iter().filter(|(b, _)| skin.contains_key(*b)).max_by(|a, b| a.1.total_cmp(&b.1)).map(|(b, _)| b);
+            best.or_else(|| weapon.iter().map(String::as_str).find(|b| skin.contains_key(*b))).and_then(|b| skin.get(b)).copied()
+        };
+        let mut hands = BTreeMap::new();
+        for gun in &reference.sides {
+            if let Some(m) = carrier(&gun.weights) {
+                hands.insert(gun.side.clone(), m);
+            }
+        }
+        if reference.sides.is_empty() {
+            if let Some(m) = carrier(&reference.weights) {
+                hands.insert("right".to_string(), m);
+            }
+        }
+        reference.stance = Some(Stance {
+            clip,
+            body_shape: simplify(&posed_body.points, &posed_body.triangles, PREVIEW_BODY_TRIANGLES),
+            hands,
+        });
+    }
     Ok(reference)
+}
+
+/// Meshes shown only by a body group choice other than the first (the one the
+/// game starts with), and not by any first choice.
+fn optional_meshes(document: &deadlock_resource::text::Document) -> BTreeSet<String> {
+    let names = |choice: &deadlock_resource::text::Node| -> Vec<String> {
+        choice.get("meshes").and_then(|m| m.array()).map(|a| a.iter().filter_map(|v| v.scalar().map(str::to_string)).collect()).unwrap_or_default()
+    };
+    let (mut shown, mut optional) = (BTreeSet::new(), BTreeSet::new());
+    for group in document.objects(Some("BodyGroup")) {
+        let choices: Vec<_> = group.get("children").and_then(|c| c.array()).map(|a| a.iter().filter(|c| c.get("_class").and_then(|v| v.scalar()) == Some("BodyGroupChoice")).collect()).unwrap_or_default();
+        for (index, choice) in choices.iter().enumerate() {
+            let target = if index == 0 { &mut shown } else { &mut optional };
+            target.extend(names(choice));
+        }
+    }
+    optional.retain(|m| !shown.contains(m));
+    optional
 }
 
 fn attachments(model_text: &str, target: &[PreparedBone]) -> Vec<Attachment> {

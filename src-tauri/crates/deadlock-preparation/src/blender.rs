@@ -103,7 +103,11 @@ pub fn detect() -> Option<PathBuf> {
     candidates.sort();
     candidates.pop()
 }
-const SCRIPTS: [(&str, &[u8]); 22] = [
+const SCRIPTS: [(&str, &[u8]); 25] = [
+    ("source_springs.py", include_bytes!("../resources/blender/source_springs.py")),
+    ("readable_names.py", include_bytes!("../resources/blender/readable_names.py")),
+    // Mandarin readings for readable material names (Unicode Unihan data).
+    ("cjk_readings.txt", include_bytes!("../resources/blender/cjk_readings.txt")),
     ("mesh_export.py", include_bytes!("../resources/blender/mesh_export.py")),
     ("breast_bones.py", include_bytes!("../resources/blender/breast_bones.py")),
     ("scene_isolation.py", include_bytes!("../resources/blender/scene_isolation.py")),

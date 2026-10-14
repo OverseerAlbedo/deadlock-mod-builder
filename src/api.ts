@@ -3,7 +3,7 @@ import type { ExtraPreviewRequest } from './extras/models';
 import type { PreparationAnalysis, PreparationOptions, PreparationResult, ResumedPreparation, ReviewIssue, Suggestions, Vec3, WeaponPreview } from './preparation/models';
 import type { BuildResponse, InspectionResult, OriginalValidation, PrepareResult } from './build/models';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AnalysisResult, HeroRecord, LogEntry, PathKind, PhysicsChoices, Project, ProjectDocument, Settings, SetupStatus, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
+import type { AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
 
 export const isDesktop = () => isTauri();
 export interface ToolLogFile {path:string;bytes:number;kind:string}
@@ -44,6 +44,25 @@ export const api = {
   importSourcePackage: (path: string, project: Project) => invoke<Project>('import_source_package', { path, project }),
   detectSettings: (settings: Settings, extraRoots: string[] = []) => invoke<Settings>('detect_settings', { settings, extraRoots }),
   setupStatus: (settings: Settings) => invoke<SetupStatus>('get_setup_status', { settings }),
+  checkSettingFields: (settings: Settings) => invoke<FieldCheck[]>('check_setting_fields', { settings }),
+  heroProportions: (path: string) => invoke<HeroProportions | null>('hero_proportions', { path }),
+  prebuildWarnings: () => invoke<string[]>('prebuild_warnings'),
+  operationDurations: () => invoke<Record<string, number>>('operation_durations'),
+  fixSettingFields: (settings: Settings) => invoke<Settings>('fix_setting_fields', { settings }),
+  /** Autosave and recovery (plain file writes; never blocks other work). */
+  autosaveProject: (document: ProjectDocument) => invoke<Autosave>('autosave_project', { document }),
+  clearAutosaves: (id: string) => invoke<void>('clear_autosaves', { id }),
+  sessionRecovery: () => invoke<SessionRecovery>('session_recovery'),
+  dismissRecovery: () => invoke<void>('dismiss_recovery'),
+  restoreAutosave: (id: string, file: string) => invoke<ProjectDocument>('restore_autosave', { id, file }),
+  /** Saved physics presets (fine-tuning per part type, on this PC). */
+  physicsPresets: () => invoke<PhysicsPreset[]>('physics_presets'),
+  savePhysicsPreset: (name: string, tuning: Record<string, Record<string, number>>) => invoke<PhysicsPreset[]>('save_physics_preset', { name, tuning }),
+  deletePhysicsPreset: (name: string) => invoke<PhysicsPreset[]>('delete_physics_preset', { name }),
+  /** Compiles one test material and asks the model compiler for its format (about 10 seconds). */
+  testSetup: (settings: Settings) => invoke<SetupTest>('test_setup', { settings }),
+  /** Movement preview packet: prepared skeleton and the hero's stand, run and jump clips. */
+  motionPreview: (project: Project) => invoke<ArrayBuffer>('motion_preview', { project }),
   preview: (path: string) => invoke<ArrayBuffer>('preview_dmx', { path }),
   heroes: (allModels = false) => invoke<HeroRecord[]>('get_heroes', { allModels }),
   selectHero: (project: Project, path: string) => invoke<Project>('select_hero', { project, path }),
@@ -66,6 +85,18 @@ export const api = {
   storageFindProjects: (folder: string) => invoke<number>('storage_find_projects', { folder }),
 };
 
+/** Arm and leg lengths of a hero as shares of its pelvis-to-head length (backend hero_fit.rs). */
+export interface HeroProportions { extremes: ('arms'|'legs')[]; arm_left: number; arm_right: number; legs: number }
+/** Hide the Windows user name in text people copy for support (C:\Users\name becomes C:\Users\<you>). */
+export function scrubUser(text: string): string {
+  return text.replace(/([A-Za-z]:[\\/]+Users[\\/]+)(?!<you>)[^\\/\s"':;,]+/gi, '$1<you>');
+}
+/** The troubleshooting help the backend attached to an error, if any. */
+export function errorHelp(error: unknown): ErrorHelp | null {
+  if (typeof error !== 'object' || error === null || !('help' in error)) return null;
+  const help = (error as {help?: unknown}).help;
+  return help && typeof help === 'object' && Array.isArray((help as ErrorHelp).steps) ? help as ErrorHelp : null;
+}
 export function errorText(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;

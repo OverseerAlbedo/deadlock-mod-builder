@@ -64,12 +64,13 @@ function GunSummary({kind,hero,project,analysis,choice,gunFile}:{kind:HeroGun;he
 }
 
 /** Beginner controls for one hand: flip, turn, size and small moves. */
-function AdjustControls({choice,hand,set,busy}:{choice:WeaponChoice;hand:Hand;set:(next:WeaponChoice)=>void;busy:boolean}){
-  const apply=(change:Nudge)=>set(withAdjustments(choice,hand,nudge(adjustments(choice,hand),change)));
+/** The beginner controls for one hand, or for both guns at once (each moves in its own hand's frame). */
+export function AdjustControls({choice,hand,set,busy}:{choice:WeaponChoice;hand:Hand|'both';set:(next:WeaponChoice)=>void;busy:boolean}){
+  const apply=(change:Nudge)=>set((hand==='both'?['right','left'] as Hand[]:[hand]).reduce((next,h)=>withAdjustments(next,h,nudge(adjustments(next,h),change)),choice));
   const button=(label:string,change:Nudge,title?:string)=><button type="button" className="prep-secondary" disabled={busy} title={title} onClick={()=>apply(change)}>{label}</button>;
-  return <div className="prep-gun-adjust" role="group" aria-label={`Adjust the ${hand}-hand gun`}>
+  return <div className="prep-gun-adjust" role="group" aria-label={hand==='both'?'Adjust both guns':`Adjust the ${hand}-hand gun`}>
     <div className="prep-gun-adjust-row">{button('Flip direction',{kind:'flip'},'Point the barrel the other way')}{button('Turn ⟲ 90°',{kind:'turn',degrees:-90},'Roll around the barrel')}{button('Turn ⟳ 90°',{kind:'turn',degrees:90},'Roll around the barrel')}{button('Smaller',{kind:'size',factor:1/1.1})}{button('Bigger',{kind:'size',factor:1.1})}</div>
-    <div className="prep-gun-adjust-row">{button('◀ Back',{kind:'move',axis:0,inches:-.25})}{button('Forward ▶',{kind:'move',axis:0,inches:.25})}{button('▲ Up',{kind:'move',axis:1,inches:.25})}{button('▼ Down',{kind:'move',axis:1,inches:-.25})}{button('Left',{kind:'move',axis:2,inches:-.25})}{button('Right',{kind:'move',axis:2,inches:.25})}{button('Reset',{kind:'reset'},'Undo all adjustments of this hand')}</div>
+    <div className="prep-gun-adjust-row">{button('◀ Back',{kind:'move',axis:0,inches:-.25})}{button('Forward ▶',{kind:'move',axis:0,inches:.25})}{button('▲ Up',{kind:'move',axis:1,inches:.25})}{button('▼ Down',{kind:'move',axis:1,inches:-.25})}{button('Left',{kind:'move',axis:2,inches:-.25})}{button('Right',{kind:'move',axis:2,inches:.25})}{button('Reset',{kind:'reset'},hand==='both'?'Undo all adjustments of both guns':'Undo all adjustments of this hand')}</div>
   </div>;
 }
 
@@ -109,8 +110,10 @@ export function WeaponPanel({project,analysis,options,change,busy,operate,reinsp
   const right=handGun(choice,candidates,'right');
   const hands=fittedHands(kind,choice);
   const fitting=Boolean(right)&&action==='replace'&&replaceable(kind);
-  const [hand,setHand]=useState<Hand>('right');
-  const shownHand:Hand=hands.includes(hand)?hand:'right';
+  const [hand,setHand]=useState<Hand|'both'>('right');
+  // "Both guns" adjusts both hands together; the view and fit line follow the right gun.
+  const both=hand==='both'&&hands.length>1;
+  const shownHand:Hand=hand!=='both'&&hands.includes(hand)?hand:'right';
   const fail=(title:string,error:unknown)=>{void operate(title,async()=>{throw error;});};
   // Live preview: recomputed shortly after every change (no Blender run, no busy state). The
   // last result stays on screen meanwhile, so the 3D view keeps its camera while you adjust.
@@ -167,11 +170,11 @@ export function WeaponPanel({project,analysis,options,change,busy,operate,reinsp
         </>:candidates.length>1||fileGuns.length>1?<SelectField label="Your gun" value={right?.id??''} values={options_(candidates)} disabled={busy} onChange={id=>set({...choice,objects:pick(id)})}/>:null}
       </div>}
       {fitting&&<div className="prep-weapon-fit">
-        {hands.length>1&&<div className="prep-role-filter" role="group" aria-label="Hand to adjust">{hands.map(h=><button key={h} type="button" aria-pressed={shownHand===h} onClick={()=>setHand(h)}>{h==='right'?'Right-hand gun':'Left-hand gun'}</button>)}</div>}
+        {hands.length>1&&<div className="prep-role-filter" role="group" aria-label="Hand to adjust">{hands.map(h=><button key={h} type="button" aria-pressed={!both&&shownHand===h} onClick={()=>setHand(h)}>{h==='right'?'Right-hand gun':'Left-hand gun'}</button>)}<button type="button" aria-pressed={both} onClick={()=>setHand('both')}>Both guns</button></div>}
         {shown?.error?<p className="hint" role="alert">The fit could not be previewed: {shown.error}</p>
-          :shownValue?<Suspense fallback={<p>Loading the 3D preview…</p>}><WeaponViewport preview={shownValue} shapes={shapes} focus={shownHand}/></Suspense>
+          :shownValue?<Suspense fallback={<p>Loading the 3D preview…</p>}><WeaponViewport preview={shownValue} shapes={shapes} focus={both?'both':shownHand}/></Suspense>
           :<div className="prep-weapon-viewport prep-weapon-loading"><p>Fitting your gun…</p></div>}
-        <AdjustControls choice={choice} hand={shownHand} set={set} busy={busy}/>
+        <AdjustControls choice={choice} hand={both?'both':shownHand} set={set} busy={busy}/>
         {fit&&<FitLine fit={fit} choice={choice} hand={shownHand} hero={hero}/>}
         {adjusted(choice)&&<p className="hint">Adjustments are kept for the next conversion.</p>}
       </div>}

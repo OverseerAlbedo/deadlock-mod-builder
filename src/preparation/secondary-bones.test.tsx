@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cleanup,fireEvent,render,screen } from '@testing-library/react';
 import { describe,expect,it,vi } from 'vitest';
 import { PhysicsBoneChoices } from './PhysicsBoneChoices';
-import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,breastBones,breastMotionOptions,charmNamed,gunChoiceOptions,hangsFromGun,PHYSICS_BINDING_POLICY } from './secondary-bones';
+import { physicsGroups,keptPhysicsBones,automaticPhysicsOptions,breastBones,breastMotionOptions,buttBones,buttMotionOptions,namedBreast,namedButt,charmNamed,gunChoiceOptions,hangsFromGun,PHYSICS_BINDING_POLICY } from './secondary-bones';
 import type { Bone,PreparationOptions } from './models';
 import hanging from '../../src-tauri/crates/deadlock-preparation/tests/fixtures/hanging-chains.json';
 const physical={policy:PHYSICS_BINDING_POLICY,dynamic_bodies:['saved rigid'],kinematic_bodies:[]};
@@ -35,7 +35,7 @@ describe('existing physics rig choices',()=>{
     render(<Harness/>);
     fireEvent.click(screen.getByLabelText('Keep existing physics bones (rig only)'));
     expect(screen.getByText('2 groups selected · 4 bones · 3 weighted bones')).toBeVisible();
-    expect(screen.getByText(/does not create in-game swaying/)).toBeVisible();
+    expect(screen.getByText(/Build picks the motion for each part/)).toBeVisible();
     expect(changed.mock.lastCall![0]).toMatchObject({reviewed:false,mapping:options.mapping,mapping_anchors:options.mapping_anchors,physics_roots:['branchA','branchB']});
     fireEvent.click(screen.getByLabelText('branchB · 1 bones → hero head'));
     expect(changed.mock.lastCall![0].physics_roots).toEqual(['branchA']);
@@ -64,6 +64,23 @@ describe('unnamed and robe moving parts',()=>{
     expect(breastBones(hanging.bones as Bone[],hanging.weighted,roles!)).toEqual(hanging.breast_bones);
     const renamed=hanging.renamed_breast_bones as Record<string,string>,rename=(n:string)=>renamed[n]??n;
     expect(breastBones((hanging.bones as Bone[]).map(b=>({...b,name:rename(b.name)})),hanging.weighted.map(rename),roles!)).toEqual(hanging.breast_bones.map(rename));
+    // Butts: by name and as a low mirrored pair behind the hips, never breasts, moving only with butt motion on.
+    expect(buttBones(hanging.bones as Bone[],hanging.weighted,roles!)).toEqual(hanging.butt_bones);
+    expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles,butt_motion:true}).map(g=>g.root)).toEqual(hanging.expected_roots_with_butt_motion);
+    expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles,butt_motion:false}).map(g=>g.root)).toEqual(hanging.expected_roots);
+    // A new model starts with butt motion off.
+    expect(automaticPhysicsOptions(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles}).butt_motion).toBe(false);
+    for(const name of hanging.butt_names.butt){expect(namedButt(name)).toBe(true);expect(namedBreast(name)).toBe(false);}
+    for(const name of hanging.butt_names.not_butt)expect(namedButt(name)).toBe(false);
+  });
+  it('turns butt motion on and off on its own, with the butt part type',()=>{
+    const roles=hanging.roles as PreparationOptions['source_roles'];
+    const base:PreparationOptions={source_roles:roles,target_roles:roles,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:['Strap_00']};
+    const on=buttMotionOptions(hanging.bones as Bone[],hanging.weighted,base,true);
+    expect(on).toMatchObject({butt_motion:true,physics_roots:['Strap_00',...hanging.butt_bones],physics_kinds:Object.fromEntries(hanging.butt_bones.map(n=>[n,'butt']))});
+    expect(on.breast_motion).toBeUndefined();
+    const off=buttMotionOptions(hanging.bones as Bone[],hanging.weighted,on,false);
+    expect(off).toMatchObject({butt_motion:false,physics_roots:['Strap_00'],physics_kinds:{}});
   });
   it('adds groups detected for the first time to an automatic project but never re-adds one you left off',()=>{
     const roles=hanging.roles as PreparationOptions['source_roles'];

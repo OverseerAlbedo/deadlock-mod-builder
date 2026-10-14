@@ -25,8 +25,8 @@ const panels:{id:PrepPanel;label:string;description:string}[]=[
   {id:'weapon',label:'Weapon',description:'Fit your gun'},
   {id:'review',label:'Fit & review',description:'Confirm conversion choices'},
 ];
-export function PreparationTabs({active,change,rigged,unmapped,weapon=false,weaponOnly=false}:{active:PrepPanel;change:(panel:PrepPanel)=>void;rigged:boolean;unmapped:number;weapon?:boolean;weaponOnly?:boolean}){
-  const available=panels.filter(p=>weaponOnly?['weapon','review'].includes(p.id):(rigged||!['physics','mapping'].includes(p.id))&&(p.id!=='weapon'||weapon));
+export function PreparationTabs({active,change,rigged,unmapped,weapon=false,weaponOnly=false,hidden=[]}:{active:PrepPanel;change:(panel:PrepPanel)=>void;rigged:boolean;unmapped:number;weapon?:boolean;weaponOnly?:boolean;hidden?:PrepPanel[]}){
+  const available=panels.filter(p=>!hidden.includes(p.id)&&(weaponOnly?['weapon','review'].includes(p.id):(rigged||!['physics','mapping'].includes(p.id))&&(p.id!=='weapon'||weapon)));
   return <div className="prep-tabs" role="tablist" aria-label="Preparation review sections">{available.map((panel,index)=><button key={panel.id} role="tab" id={`prep-tab-${panel.id}`} aria-controls={`prep-panel-${panel.id}`} aria-selected={active===panel.id} tabIndex={active===panel.id?0:-1} onClick={()=>change(panel.id)} onKeyDown={event=>{
     const move=event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0;
     if(move||event.key==='Home'||event.key==='End'){

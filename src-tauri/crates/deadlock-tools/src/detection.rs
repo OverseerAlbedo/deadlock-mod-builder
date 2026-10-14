@@ -149,18 +149,34 @@ pub fn detect(
         PathBuf::from("D:/"),
         PathBuf::from("C:/Tools"),
         PathBuf::from("D:/Tools"),
+        PathBuf::from("C:/DeadlockModdingTools"),
+        PathBuf::from("D:/DeadlockModdingTools"),
+        home().join("Desktop"),
+        home().join("OneDrive/Desktop"),
+        home().join("Documents"),
     ]);
+    // Tools are often unpacked one level down (Desktop\DeadlockModdingTools\...).
+    let nested: Vec<PathBuf> = roots
+        .iter()
+        .filter(|r| r.is_dir())
+        .flat_map(|r| fs::read_dir(r).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir()).take(48).collect::<Vec<_>>())
+        .collect();
+    roots.extend(nested);
     for root in &roots {
         csdk.extend([
             root.clone(),
             root.join("Reduced_CSDK_12"),
             root.join("Reduced CSDK12"),
             root.join("CSDK12"),
+            root.join("Reduced_CSDK_12/Reduced_CSDK_12"),
         ]);
     }
     for candidate in csdk {
         cancel.check()?;
+        // bin_cs2 first: the SDK's other compiler copies use different
+        // particles.dll builds; bin_cs2 is the tested material compiler.
         for suffix in [
+            crate::setup_checks::CSDK_COMPILER,
             "game/bin/win64/resourcecompiler.exe",
             "game/bin_tools/win64/resourcecompiler.exe",
         ] {
@@ -217,8 +233,10 @@ pub fn detect(
         } else {
             None
         };
+        // Only a real model toolset; the Community SDK cannot compile hero models.
         if let Some(candidate) = available.into_iter().find(|c| {
-            (result.model_backend == "auto" || c.backend == result.model_backend)
+            c.backend == "cswin"
+                && (result.model_backend == "auto" || c.backend == result.model_backend)
                 && preferred.as_ref().is_none_or(|p| *p == c.root)
         }) {
             result.model_backend = candidate.backend.clone();
@@ -239,12 +257,24 @@ pub fn detect(
             let found = find_on_path(exe).or_else(|| {
                 roots
                     .iter()
-                    .map(|r| r.join(exe))
+                    .flat_map(|r| [r.join(exe), r.join("cli-windows-x64").join(exe)])
                     .chain([cwd.join("tools").join(exe)])
                     .find(|p| p.is_file())
             });
             if let Some(found) = found {
                 *field = found.to_string_lossy().into_owned();
+            }
+        }
+    }
+    if result.blender.is_empty() {
+        for base in ["ProgramFiles", "ProgramFiles(x86)"] {
+            let Some(base) = std::env::var_os(base) else { continue };
+            let folder = PathBuf::from(base).join("Blender Foundation");
+            let mut found: Vec<PathBuf> = fs::read_dir(&folder).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.path().join("blender.exe")).filter(|p| p.is_file()).collect();
+            found.sort();
+            if let Some(newest) = found.pop() {
+                result.blender = newest.to_string_lossy().into_owned();
+                break;
             }
         }
     }
@@ -256,7 +286,9 @@ pub fn detect(
             .to_string_lossy()
             .into_owned();
     }
-    Ok(result)
+    // Correct what was found or typed: nested SDK folders, a folder instead of
+    // the program, the acquisition folder instead of its toolset.
+    Ok(crate::setup_checks::apply_fixes(&result))
 }
 pub fn status(settings: &Settings) -> BTreeMap<String, bool> {
     [
@@ -288,7 +320,7 @@ pub fn status(settings: &Settings) -> BTreeMap<String, bool> {
 }
 pub fn model_status(settings: &Settings) -> String {
     match crate::toolchain::select(settings, true) {
-        Ok(tool) => format!("model files found ({}); see project test", tool.backend),
-        Err(_) => "model setup needed (full CS2 optional)".into(),
+        Ok(tool) => format!("Model compiler found ({}). Test it once with your hero in Set up model compiler….", tool.backend),
+        Err(error) => error.to_string().trim_start_matches("Integrity check failed: ").to_owned(),
     }
 }

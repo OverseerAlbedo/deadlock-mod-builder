@@ -148,7 +148,9 @@ impl Context {
         } else {
             tag &= 127;
         }
-        if !(1..=25).contains(&tag) {
+        // 26 and 27 (UINT32_ZERO, UINT32_ONE) appear in the October 2026 game
+        // files (Baba's model).
+        if !(1..=27).contains(&tag) {
             return Err(invalid(format!("unknown KV3 type {tag}")));
         }
         Ok((tag, annotation))
@@ -255,7 +257,7 @@ impl Context {
                     self.active = 0;
                 }
                 let (element, element_annotation) = self.type_tag()?;
-                if [3, 4, 5, 11, 12, 15, 16, 17, 18].contains(&element)
+                if [3, 4, 5, 11, 12, 15, 16, 17, 18, 26, 27].contains(&element)
                     && (annotation != Annotation::Unspecified
                         || element_annotation != Annotation::Unspecified)
                 {
@@ -283,6 +285,8 @@ impl Context {
             21 => Kind::I64(self.streams[active].shorts.u16()? as i64),
             22 => Kind::I64(self.streams[active].bytes.u8()? as i8 as i64),
             23 => Kind::I64(self.streams[active].bytes.u8()? as i64),
+            26 => Kind::I64(0),
+            27 => Kind::I64(1),
             _ => return Err(invalid("unknown scalar type")),
         };
         match kind {

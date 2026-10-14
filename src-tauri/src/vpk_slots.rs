@@ -148,13 +148,11 @@ impl Application {
 
     /// Snapshot availability only. Existing build/install overwrite gates remain
     /// authoritative if another process creates a file after this scan.
+    /// A quick read of two folders, without the one-at-a-time operation lock:
+    /// it runs whenever the window regains focus (for example when a dialog
+    /// closes as Build starts) and must never block another operation.
     pub fn get_vpk_slots(&self, project: Project) -> Result<VpkSlots> {
-        let (slots, _) = self.operation("Find free VPK slot", |clock, cancel| {
-            self.step(clock, "Scan addon and project output filenames", || {
-                self.scan_vpk_slots(&project, cancel)
-            })
-        })?;
-        Ok(slots)
+        self.scan_vpk_slots(&project, &CancellationToken::new())
     }
 
     /// Explicit selection only: builds and rebuilds retain their saved number.

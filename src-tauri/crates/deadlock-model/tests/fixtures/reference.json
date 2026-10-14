@@ -1229,7 +1229,7 @@
       "name": "diagnostic_52",
       "operation": "diagnostic",
       "output": "ParticleFloatType_t\nMismatch - Member Count",
-      "expected": "Compiler startup schema mismatch (ParticleFloatType_t). This happens before VMDL loading; changing ModelDoc headers or the DMX cannot fix it. Select a compatible binary family. This diagnostic does not imply mixed DLL directories or PATH contamination."
+      "expected": "Compiler startup schema mismatch (ParticleFloatType_t): this compiler cannot build hero models. It usually means the Community SDK's compiler was used as the model compiler. Open Settings → Set up model compiler…, verify or download the toolset, click Use this toolset in settings, and build again. Changing the model or the DMX cannot fix this."
     },
     {
       "name": "diagnostic_53",

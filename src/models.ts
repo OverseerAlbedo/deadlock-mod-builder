@@ -88,7 +88,18 @@ export interface StorageClearRequest { project?: string; kinds?: StorageKind[]; 
 export interface StorageClearResult { removed_bytes: number; removed: string[]; skipped: string[] }
 export type OperationStatus = 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'cached';
 export type StepStatus = OperationStatus;
-export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean }
+/** One Settings path field: right, wrong (with a one-click fix) or optional. */
+export interface FieldCheck { field: string; state: 'ok'|'warning'|'problem'|'optional'; message: string; fix?: string|null }
+/** An autosave of a project (state/autosave/<id>/<saved_ms>.json). */
+export interface Autosave { file: string; id: string; name: string; path: string | null; saved_ms: number }
+/** Whether the last session crashed, and the newest autosave of each project. */
+export interface SessionRecovery { unclean: boolean; autosaves: Autosave[] }
+/** Test my setup: every path, one material compile and the model compiler probe. */
+export interface SetupTestStep { name: string; passed: boolean; detail: string; error?: unknown }
+export interface SetupTest { passed: boolean; steps: SetupTestStep[] }
+export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean; fields?: FieldCheck[] }
+/** What went wrong and what to do (backend troubleshooting.rs). */
+export interface ErrorHelp { cause: string; steps: string[]; action?: { label: string; page: string } | null }
 export interface TimingStep {
   id: string;
   parent_id: string | null;
@@ -154,7 +165,7 @@ export interface ModelSummary {
 export interface AnalysisResult { summary: ModelSummary; timings: TimingReport }
 
 /** What the installed game does with a model, from its hero definitions (m_strModelName). */
-export type GameTarget = {state:'active';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]};
+export type GameTarget = {state:'active';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]}|{state:'disabled';heroes:string[]};
 export interface HeroRecord { name: string; path: string; likely_hero: boolean; hero?: string; game?: GameTarget }
 export type AssetKind = 'icons' | 'animations' | 'effects' | 'audio';
 export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project' | 'weapon';
@@ -164,7 +175,10 @@ export interface ResourceReplacement {
   volume_percent?: number; audio_fit?: 'exact' | 'pad' | 'trim';
   [key: string]: JsonValue | undefined;
 }
-export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'charm'|'rigid'>; [key:string]: JsonValue|undefined }
+export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'butt'|'charm'|'rigid'>; /** Fine-tuning per part type (hair, tail …): stiffness, damping, gravity, swing from -1 to 1, 0 = automatic. */tuning?:Record<string,Record<string,number>>;/** Start each moving part from the source rig's own MMD/VRM spring settings (preparation_options.physics_springs). */use_source_springs?:boolean; [key:string]: JsonValue|undefined }
+export type MotionTuning = Partial<Record<'stiffness'|'damping'|'gravity'|'swing', number>>;
+/** A named set of fine-tuning values saved on this PC. */
+export interface PhysicsPreset { name: string; tuning: Record<string, Record<string, number>> }
 export interface PhysicsChoices { enabled?: boolean; source?: string; hero_path?: string; [key: string]: JsonValue | undefined }
 export interface ClothingChoices { enabled?: boolean; mode?: 'weighted' | 'simulated'; source?: string; [key: string]: JsonValue | undefined }
 export interface ClothSetupChoices { meshes?: string[]; attachment?: 'top' | 'bottom'; collision?: 'legs' | 'none'; [key: string]: JsonValue | undefined }

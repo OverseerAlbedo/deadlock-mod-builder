@@ -14,11 +14,7 @@ async fn background<T: Send + 'static>(
 ) -> Result<T> {
     tauri::async_runtime::spawn_blocking(operation)
         .await
-        .map_err(|error| AppError {
-            kind: "internal".into(),
-            message: "The operation stopped unexpectedly".into(),
-            details: error.to_string(),
-        })?
+        .map_err(|error| AppError::new("internal", "The operation stopped unexpectedly", error))?
 }
 
 #[tauri::command]
@@ -43,6 +39,81 @@ async fn detect_settings(
 #[tauri::command]
 fn get_setup_status(state: AppState<'_>, settings: Settings) -> SetupStatus {
     state.setup_status(&settings)
+}
+/// Whether the hero has extreme proportions (Shiv, Wraith), for a notice at selection.
+#[tauri::command]
+async fn hero_proportions(state: AppState<'_>, path: String) -> Result<Option<crate::hero_fit::HeroProportions>> {
+    let app = state.inner().clone();
+    background(move || app.hero_proportions(&path)).await
+}
+/// Autosave of the open project (no operation lock; a plain file write).
+#[tauri::command]
+async fn autosave_project(state: AppState<'_>, document: crate::app::ProjectDocument) -> Result<crate::autosave::Autosave> {
+    let app = state.inner().clone();
+    background(move || app.autosave_project(&document)).await
+}
+#[tauri::command]
+fn clear_autosaves(state: AppState<'_>, id: String) -> Result<()> {
+    state.clear_autosaves(&id)
+}
+/// Whether the last session crashed, and the autosaves that can be restored.
+#[tauri::command]
+fn session_recovery(state: AppState<'_>) -> crate::autosave::Recovery {
+    state.recovery()
+}
+#[tauri::command]
+fn dismiss_recovery(state: AppState<'_>) {
+    state.dismiss_recovery()
+}
+#[tauri::command]
+fn restore_autosave(state: AppState<'_>, id: String, file: String) -> Result<crate::app::ProjectDocument> {
+    state.restore_autosave(&id, &file)
+}
+/// Saved physics presets (Fine-tune movement values per part type).
+#[tauri::command]
+fn physics_presets(state: AppState<'_>) -> Result<Vec<crate::physics_presets::PhysicsPreset>> {
+    state.physics_presets()
+}
+#[tauri::command]
+fn save_physics_preset(state: AppState<'_>, name: String, tuning: std::collections::BTreeMap<String, deadlock_project::customization::MotionTuning>) -> Result<Vec<crate::physics_presets::PhysicsPreset>> {
+    state.save_physics_preset(&name, tuning)
+}
+#[tauri::command]
+fn delete_physics_preset(state: AppState<'_>, name: String) -> Result<Vec<crate::physics_presets::PhysicsPreset>> {
+    state.delete_physics_preset(&name)
+}
+/// The movement preview packet of the Physics page (binary).
+#[tauri::command]
+async fn motion_preview(state: AppState<'_>, project: Project) -> Result<tauri::ipc::Response> {
+    let app = state.inner().clone();
+    background(move || app.motion_preview(project)).await.map(tauri::ipc::Response::new)
+}
+/// Test my setup: paths, one material compile and the model compiler probe.
+#[tauri::command]
+async fn test_setup(state: AppState<'_>, settings: Settings) -> Result<crate::setup_test::SetupTest> {
+    let app = state.inner().clone();
+    background(move || app.test_setup(settings)).await
+}
+/// Warnings shown before Build starts (game running, low space, OneDrive).
+#[tauri::command]
+async fn prebuild_warnings(state: AppState<'_>) -> Result<Vec<String>> {
+    let app = state.inner().clone();
+    background(move || app.prebuild_warnings()).await
+}
+/// Typical seconds per operation, for the time-left estimate.
+#[tauri::command]
+fn operation_durations(state: AppState<'_>) -> std::collections::BTreeMap<String, f64> {
+    state.operation_durations()
+}
+/// Live per-field path checks for the Settings page (files only, no tools run).
+#[tauri::command]
+async fn check_setting_fields(settings: Settings) -> Result<Vec<deadlock_tools::setup_checks::FieldCheck>> {
+    background(move || Ok(deadlock_tools::setup_checks::field_checks(&settings))).await
+}
+/// Apply every suggested path fix (Fix all on the Settings page).
+#[tauri::command]
+async fn fix_setting_fields(settings: Settings) -> Result<Settings> {
+    background(move || Ok(deadlock_tools::setup_checks::apply_fixes(&settings))).await
 }
 #[tauri::command]
 async fn import_source_package(
@@ -217,6 +288,7 @@ pub fn run() {
                 host.path().resource_dir()?
             };
             let application = Arc::new(Application::with_resources(config.clone(), resources)?);
+            application.begin_session();
             let handle = host.handle().clone();
             application.set_log_sink(Arc::new(move |entry| {
                 let _ = handle.emit("build-log", entry);
@@ -264,6 +336,21 @@ pub fn run() {
             save_settings,
             detect_settings,
             get_setup_status,
+            check_setting_fields,
+            hero_proportions,
+            prebuild_warnings,
+            operation_durations,
+            fix_setting_fields,
+            test_setup,
+            motion_preview,
+            autosave_project,
+            clear_autosaves,
+            session_recovery,
+            dismiss_recovery,
+            restore_autosave,
+            physics_presets,
+            save_physics_preset,
+            delete_physics_preset,
             import_source_package,
             analyze_materials,
             new_project,
@@ -326,7 +413,17 @@ pub fn run() {
             crate::storage::commands::storage_clear,
             crate::storage::commands::storage_find_projects
         ])
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!())
+        .map(|app| {
+            app.run(|handle, event| {
+                // A normal exit; a crash leaves the session marker for recovery.
+                if let tauri::RunEvent::Exit = event {
+                    if let Some(application) = handle.try_state::<Arc<Application>>() {
+                        application.end_session();
+                    }
+                }
+            })
+        });
     if let Err(error) = result {
         eprintln!("Deadlock Mod Builder could not start: {error}");
     }

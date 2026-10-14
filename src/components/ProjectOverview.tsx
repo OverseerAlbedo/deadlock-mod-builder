@@ -6,8 +6,14 @@ import { Disclosure, Field, PageTitle, StateLabel } from './Primitives';
 import { PathValue } from './Paths';
 import { FilePathInput } from './FilePathInput';
 import { revealSection } from './workflowNavigation';
-import { basename } from '../api';
+import { useEffect, useState } from 'react';
+import { api, basename, type HeroProportions } from '../api';
 
+/** Shiv, Wraith and other heroes far outside ordinary proportions (same rule as preparation). */
+export function ProportionNotice({hero, value}: {hero: string; value: HeroProportions}) {
+  const what = value.extremes.map(e => e === 'arms' ? (Math.abs(value.arm_left - value.arm_right) > 0.05 ? `a long ${value.arm_right > value.arm_left ? 'right' : 'left'} arm` : 'long arms') : 'short legs').join(' and ');
+  return <p className="field-check field-check-warning hero-proportions" role="note">{hero} has unusual proportions: {what}. With <strong>Keep source proportions</strong>, preparation fits your model's body to {hero} and spreads the difference over the whole arm; with <strong>Match hero proportions</strong> your model takes {hero}'s proportions. Check the arms in game.</p>;
+}
 export function ProjectOverview({ document, report, fresh, disabled, update, selectHero, fail, go, loadOutfit, saveOutfit, chooseModel, prepareAgain }: {
   document: ProjectDocument; report: ProjectInspection | null; fresh: boolean; disabled: boolean;
   update: (project: Project) => void; selectHero: React.ComponentProps<typeof HeroPicker>['select'];
@@ -29,12 +35,18 @@ export function ProjectOverview({ document, report, fresh, disabled, update, sel
     : !source && !project.dmx ? {text:'Choose your character model file.',action:'Choose model file…',page:'project' as const,section:'your-model'}
     : !prepared ? {text:'Prepare your model: it is fitted to the hero automatically.',action:'Go to Prepare model →',page:'prepare' as const,section:undefined}
     : {text:state.ready?'Your project is ready to build.':'Check materials and weapons, then build your mod.',action:state.ready?'Go to Build & install →':'Go to Appearance & weapons →',page:state.ready?'build' as const:'appearance' as const,section:undefined};
+  const [proportions, setProportions] = useState<HeroProportions | null>(null);
+  useEffect(() => {
+    let current = true; setProportions(null);
+    if (project.original_model) Promise.resolve().then(() => api.heroProportions(project.original_model)).then(value => { if (current) setProportions(value ?? null); }).catch(() => undefined);
+    return () => { current = false; };
+  }, [project.original_model]);
   function navigate(page: ReviewDestination | 'prepare', section?: string) { if (page === 'project' && section) revealSection(section); else go(page, section); }
   return <>
     <PageTitle eyebrow="Step 1 of 5" title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use. Everything else is set up for you." />
     <div className="overview-start">
     <section className="overview-identity" aria-label="Project summary">
-      <div className="overview-character" id="character-selection"><span className="eyebrow">Hero to replace</span><strong className="hero-name">{hero}</strong><HeroPicker current={project.original_model} disabled={disabled} select={selectHero} fail={fail}/></div>
+      <div className="overview-character" id="character-selection"><span className="eyebrow">Hero to replace</span><strong className="hero-name">{hero}</strong><HeroPicker current={project.original_model} disabled={disabled} select={selectHero} fail={fail}/>{proportions&&proportions.extremes.length>0&&<ProportionNotice hero={hero} value={proportions}/>}</div>
       <div className="overview-model" id="your-model"><span className="eyebrow">Your model</span>
         <strong className="hero-name">{source ? basename(source) : project.dmx ? basename(project.dmx) : 'No model chosen'}</strong>
         <span className="muted">{prepared ? project.preparation_report ? 'Prepared and ready' : 'Game-ready model (DMX)' : source ? 'Not prepared yet' : 'Blender, FBX, GLB, glTF or DMX'}</span>

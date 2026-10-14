@@ -13,6 +13,14 @@ pub struct Hero {
     pub path: String,
     #[serde(default)]
     pub extras: Vec<Member>,
+    /// False for heroes whose files are in the game but who cannot be picked in
+    /// a match yet (Nurse Harrow and Violet in October 2026; the game's own
+    /// definitions do not mark them).
+    #[serde(default = "playable")]
+    pub playable: bool,
+}
+fn playable() -> bool {
+    true
 }
 pub fn roster() -> Result<Vec<Hero>> {
     serde_json::from_str(include_str!(
@@ -112,6 +120,8 @@ pub fn owned(path: &str, tokens: &BTreeSet<String>) -> bool {
 pub struct GameModels {
     /// Casefolded `.vmdl` path → hero definition keys that load it.
     pub by_model: BTreeMap<String, Vec<String>>,
+    /// Hero definitions the game marks `m_bDisabled` (heroes in development).
+    pub disabled: BTreeSet<String>,
 }
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
 #[serde(tag = "state", rename_all = "snake_case")]
@@ -122,6 +132,8 @@ pub enum GameTarget {
     Unused { model: String },
     /// The hero's definitions load several different models.
     Ambiguous { models: Vec<String> },
+    /// Only hero definitions the game disables load this model (in development).
+    Disabled { heroes: Vec<String> },
 }
 fn model_key(path: &str) -> String {
     casefold(path).trim_end_matches("_c").to_owned()
@@ -129,12 +141,16 @@ fn model_key(path: &str) -> String {
 impl GameModels {
     pub fn from_definition(doc: &deadlock_resource::Value) -> Result<Self> {
         let mut by_model: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut disabled = BTreeSet::new();
         for (key, hero) in doc.object().map_err(fail)? {
             if let Some(model) = hero.get("m_strModelName").and_then(|v| v.string().ok()).filter(|m| !m.is_empty()) {
                 by_model.entry(model_key(model)).or_default().push(key.clone());
             }
+            if matches!(hero.get("m_bDisabled").map(|v| &v.kind), Some(deadlock_resource::Kind::Bool(true))) {
+                disabled.insert(key.clone());
+            }
         }
-        Ok(Self { by_model })
+        Ok(Self { by_model, disabled })
     }
     /// `None` when the archive has no hero definitions (for example a partial archive).
     pub fn read(archive: &deadlock_vpk::Vpk) -> Result<Option<Self>> {
@@ -150,7 +166,10 @@ impl GameModels {
     pub fn target(&self, model: &str) -> Result<Option<GameTarget>> {
         let key = model_key(model);
         if let Some(heroes) = self.by_model.get(&key) {
-            return Ok(Some(GameTarget::Active { heroes: heroes.clone() }));
+            if heroes.iter().all(|h| self.disabled.contains(h)) {
+                return Ok(Some(GameTarget::Disabled { heroes: heroes.clone() }));
+            }
+            return Ok(Some(GameTarget::Active { heroes: heroes.iter().filter(|h| !self.disabled.contains(*h)).cloned().collect() }));
         }
         // Only hero body models from the roster are compared; other models in a
         // hero folder (weapons, ability props) are not the hero's body.
@@ -237,4 +256,32 @@ pub fn display_name(path: &str) -> Option<String> {
     roster().ok()?.into_iter().find(|hero| {
         casefold(&hero.path) == key || hero.extras.iter().any(|m| casefold(&m.path) == key)
     }).map(|hero| hero.name)
+}
+
+#[cfg(test)]
+mod availability_tests {
+    use super::*;
+    use deadlock_resource::{Kind, Value};
+    #[test]
+    fn heroes_in_development_and_unreleased_heroes_are_marked() {
+        let hero = |model: &str, disabled: bool| {
+            Value::new(Kind::Object(vec![
+                ("m_strModelName".into(), Value::new(Kind::String(model.into()))),
+                ("m_bDisabled".into(), Value::new(Kind::Bool(disabled))),
+            ]))
+        };
+        let doc = Value::new(Kind::Object(vec![
+            ("hero_chrono".into(), hero("models/heroes_staging/chrono/chrono.vmdl", false)),
+            ("hero_swan".into(), hero("models/heroes_staging/chrono/chrono.vmdl", true)),
+            ("hero_wrecker".into(), hero("models/heroes_staging/wrecker/wrecker.vmdl", true)),
+        ]));
+        let game = GameModels::from_definition(&doc).unwrap();
+        // A model a playable hero loads stays active (disabled definitions sharing it are left out).
+        assert_eq!(game.target("models/heroes_staging/chrono/chrono.vmdl").unwrap(), Some(GameTarget::Active { heroes: vec!["hero_chrono".into()] }));
+        assert_eq!(game.target("models/heroes_staging/wrecker/wrecker.vmdl").unwrap(), Some(GameTarget::Disabled { heroes: vec!["hero_wrecker".into()] }));
+        // Nurse Harrow and Violet: in the game files, not playable yet.
+        let roster = roster().unwrap();
+        let unplayable: Vec<&str> = roster.iter().filter(|h| !h.playable).map(|h| h.name.as_str()).collect();
+        assert_eq!(unplayable, ["Nurse Harrow", "Violet"]);
+    }
 }
