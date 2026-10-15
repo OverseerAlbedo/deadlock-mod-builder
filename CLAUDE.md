@@ -32,18 +32,19 @@ the Blender harness needs them. See DEVELOPMENT.md "Private assets".
 
 ## Repository and release
 
-GitHub repo `OverseerAlbedo/deadlock-mod-builder` (private until the public release;
-history purged of third-party data on October 15, 2026), default branch `main`.
-0.13.0-beta.3 (tag `v0.13.0-beta.3`, October 14, 2026) is the latest GitHub
-pre-release, with the installer .exe attached; beta.2 and beta.1 (October 13–14)
-and alpha.52 preceded it. The
+GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`, recreated
+on October 15, 2026 with its history purged of third-party data; the previous
+repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
+`OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (tag
+`v0.13.0-beta.4`, October 15, 2026) is the first release of the new repository;
+the user flips it public after a tutorial video. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
 the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.3 (October 14, 2026)
+## State as of 0.13.0-beta.4 (October 15, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -68,6 +69,10 @@ build and the VPK slot check at Analyze, the guide in the sidebar, the Blender
 preview texture fix, and privacy hardening of local builds. Rust workspace 525
 passed / 42 ignored, UI 229 passed, Blender harness 28/28 (with the private
 assets; the same Rust and UI counts without them).
+
+Beta 4 = beta 3 plus the private-assets split (TangTang data, rig captures and
+the compiled Vindicta references out of the tree; see the rule below) and the
+recreated repository. No other user-facing change.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
