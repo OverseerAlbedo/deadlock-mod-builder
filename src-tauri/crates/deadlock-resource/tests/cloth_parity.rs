@@ -1,6 +1,7 @@
 use deadlock_resource::{
     binary, cloth, constraints, container, independent, text::Document, Kind, Value,
 };
+mod common;
 use std::path::{Path, PathBuf};
 
 fn root() -> PathBuf {
@@ -48,8 +49,10 @@ fn all_python_constraint_cases_preserve_fail_pending_pass_decisions() {
 #[test]
 fn native_r12_structure_controls_rods_and_constraint_decisions_match() {
     for case in manifest()["native"].as_array().unwrap() {
+        // The native cases are the compiled Vindicta references: private assets, skipped with a note when absent.
         let path = case["path"].as_str().unwrap();
-        let raw = std::fs::read(root().join(path)).unwrap();
+        let Some(file) = common::private_path(path) else { continue };
+        let raw = std::fs::read(file).unwrap();
         let blocks = container::layout(&raw).unwrap().blocks;
         let read = |name: &str| {
             binary::decode(
@@ -165,8 +168,8 @@ fn independent_vrf_reader_verifies_every_data_phys_value_of_rust_encoded_resourc
         format!("{:x}", Sha256::digest(std::fs::read(&exe).unwrap())),
         manifest["platforms"][rid]["files"][entry].as_str().unwrap()
     );
-    let source =
-        root.join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c");
+    // The accepted Vindicta reference is a private asset; the test skips with a note without it.
+    let Some(source) = common::private_path("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c") else { return };
     let raw = std::fs::read(&source).unwrap();
     assert_eq!(
         format!("{:x}", Sha256::digest(&raw)),

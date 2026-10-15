@@ -32,7 +32,8 @@ the Blender harness needs them. See DEVELOPMENT.md "Private assets".
 
 ## Repository and release
 
-Private GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`.
+GitHub repo `OverseerAlbedo/deadlock-mod-builder` (private until the public release;
+history purged of third-party data on October 15, 2026), default branch `main`.
 0.13.0-beta.3 (tag `v0.13.0-beta.3`, October 14, 2026) is the latest GitHub
 pre-release, with the installer .exe attached; beta.2 and beta.1 (October 13–14)
 and alpha.52 preceded it. The
@@ -153,7 +154,11 @@ template check (`tests/cloth_bones.rs`).
   (`scripts/test_readable_names.py`).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
 - Anything captured from a third-party character (TangTang proxies and groups,
-  Daki/TangTang rig JSON) goes to `private-assets/`, never into the repository.
+  Daki/TangTang rig JSON, the anti-twist capture) and the compiled Vindicta
+  references go to `private-assets/`, never into the repository
+  (`scripts/sync-private-assets.mjs` copies the references into
+  `physics-references/`, gitignored, for a local build; the Physics page hides
+  the included reference when `get_capabilities` says it is absent).
   `deadlock-cloth-authoring/build.rs` sets `cfg(tangtang_assets)` when the
   folder is there; code reads the data through `tangtang_assets::GROUPS` /
   `R2_PROXY` / `REFERENCE_PROXY` (`Option`) and must work when they are `None`.

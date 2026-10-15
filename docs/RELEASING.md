@@ -13,11 +13,11 @@ A release requires an explicit user request. Normal development never increments
 1. Change the version together in all version files (see below) and run `node scripts/check-repository.mjs`.
 2. Turn the changelog's unreleased section into `## X.Y.Z-alpha.N — date`, and write `docs/RELEASE_NOTES.md` for players.
 3. Commit and push to `main`, and let the push check pass.
-4. Run the **Release** workflow with that version. A run takes about 30 minutes of Windows build time, which counts double against the free Actions minutes of a private repository.
+4. Run the **Release** workflow with that version. A run takes about 30 minutes of Windows build time (billed at double rate against the free Actions minutes while the repository is private; free once it is public).
 
 ## Current release
 
-Version **0.13.0-beta.3** (tag `v0.13.0-beta.3`) in the private `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`; the fourth release made by the Release workflow, after 0.13.0-beta.2, 0.13.0-beta.1 and 0.13.0-alpha.52. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
+Version **0.13.0-beta.3** (tag `v0.13.0-beta.3`) in the `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`; the fourth release made by the Release workflow, after 0.13.0-beta.2, 0.13.0-beta.1 and 0.13.0-alpha.52. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
 
 ## Version consistency
 

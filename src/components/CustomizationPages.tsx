@@ -21,7 +21,7 @@ export function Check({label,value,onChange,disabled}:{label:string;value:boolea
 export function SelectField({label,value,values,onChange,disabled}:{label:string;value:string;values:readonly(readonly[string,string])[];onChange:(value:string)=>void;disabled:boolean}){
   const id=useId();return <div className="field"><label htmlFor={id}>{label}</label><select id={id} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)}>{values.map(([key,text])=><option value={key} key={key}>{text}</option>)}</select></div>;
 }
-export function PhysicsPage({project,update,disabled,fail,summary,children,report=null,fresh=false,openPreparation,preview,expert=true,tangtangPresets=true}:{expert?:boolean;/** Whether this build carries the TangTang presets. */tangtangPresets?:boolean;report?:ProjectInspection|null;fresh?:boolean;summary:ModelSummary|null;children?:ReactNode;openPreparation?:()=>void;/** The 3D view of the prepared character. */preview?:ReactNode}&Props){
+export function PhysicsPage({project,update,disabled,fail,summary,children,report=null,fresh=false,openPreparation,preview,expert=true,tangtangPresets=true,vindictaReference=true}:{expert?:boolean;/** Whether this build carries the TangTang presets. */tangtangPresets?:boolean;/** Whether the included Vindicta cloth reference is installed with this build. */vindictaReference?:boolean;report?:ProjectInspection|null;fresh?:boolean;summary:ModelSummary|null;children?:ReactNode;openPreparation?:()=>void;/** The 3D view of the prepared character. */preview?:ReactNode}&Props){
   const physics=project.customization.physics??{},cloth=project.customization.cloth_setup??{},clothing=project.customization.clothing??{};
   const physicsUpdate=(values:Partial<PhysicsChoices>)=>update(changeCustomization(project,{physics:{...physics,...values,hero_path:project.original_model},...(values.enabled?{secondary_motion:{...project.customization.secondary_motion,enabled:false}}:{})}));
   const secondaryUpdate=(values:Partial<SecondaryMotionChoices>)=>update(changeCustomization(project,{secondary_motion:{...project.customization.secondary_motion,...values},physics:{...physics,enabled:false}}));
@@ -32,7 +32,7 @@ export function PhysicsPage({project,update,disabled,fail,summary,children,repor
   const meshes=summary?.path===project.dmx?summary.meshes.map(mesh=>mesh.name):[];
   const selected=cloth.meshes?.[0]??'', tested=testedPhysicsEnabled(project);
   const wanted=Boolean(project.customization.enabled&&physics.enabled),generated=Boolean(project.customization.enabled&&project.customization.secondary_motion?.enabled);
-  const includedAvailable=includedClothHero(project), qualified=qualifiedIncludedCloth(project,report,fresh);
+  const includedAvailable=includedClothHero(project)&&vindictaReference, qualified=qualifiedIncludedCloth(project,report,fresh);
   return <><PageTitle eyebrow="Step 4 of 5" title="Physics & preview" subtitle="Choose how hair, cloth, breasts and gun charms move, then look at your character."/>
     {preview}
     <Section title="Physics mode" className="physics-mode-section">

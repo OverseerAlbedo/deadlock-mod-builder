@@ -3,9 +3,11 @@
 use deadlock_cloth::generated::roll_lock::{self, Chain};
 use deadlock_resource::{binary, Kind, Value};
 use deadlock_skeleton::Skeleton;
-use std::{collections::BTreeMap, fs, path::Path};
-fn inputs() -> (Value, Skeleton, Vec<Chain>, serde_json::Value) {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/anti-twist");
+use std::{collections::BTreeMap, fs};
+mod common;
+/// The captured anti-twist data (compiled TangTang cloth on Haze: private assets), or `None` with a note.
+fn inputs() -> Option<(Value, Skeleton, Vec<Chain>, serde_json::Value)> {
+    let root = common::private_path("fixtures/anti-twist/phys.bin")?.parent().unwrap().to_path_buf();
     let physics = binary::decode(&fs::read(root.join("phys.bin")).unwrap())
         .unwrap()
         .root;
@@ -23,12 +25,12 @@ fn inputs() -> (Value, Skeleton, Vec<Chain>, serde_json::Value) {
                 .collect(),
         })
         .collect();
-    (
+    Some((
         physics.get("m_pFeModel").unwrap().clone(),
         sk,
         chains,
         serde_json::from_slice(&fs::read(root.join("accepted-plan.json")).unwrap()).unwrap(),
-    )
+    ))
 }
 fn array_mut<'a>(v: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     match &mut v.get_mut(key).unwrap().kind {
@@ -45,7 +47,7 @@ fn num(v: &Value) -> f64 {
 }
 #[test]
 fn reproduces_only_the_fourteen_accepted_orientation_rows() {
-    let (fe, sk, chains, plan) = inputs();
+    let Some((fe, sk, chains, plan)) = inputs() else { return };
     let patch = roll_lock::apply(&fe, &sk, &chains).unwrap();
     assert_eq!(patch.proof.chains.len(), 2);
     assert_eq!(patch.proof.chains[0].reference, [91, 92]);
@@ -96,7 +98,7 @@ fn reproduces_only_the_fourteen_accepted_orientation_rows() {
 }
 #[test]
 fn arbitrary_names_translation_and_scale_keep_the_same_attachment_choice() {
-    let (fe, mut sk, mut chains, _) = inputs();
+    let Some((fe, mut sk, mut chains, _)) = inputs() else { return };
     let baseline = roll_lock::apply(&fe, &sk, &chains).unwrap();
     let mut renamed = fe.clone();
     let names = fe.get("m_CtrlName").unwrap().array().unwrap();
@@ -151,7 +153,7 @@ fn arbitrary_names_translation_and_scale_keep_the_same_attachment_choice() {
 }
 #[test]
 fn unrelated_attachments_owners_disconnected_or_overlapping_chains_are_rejected() {
-    let (fe, sk, chains, _) = inputs();
+    let Some((fe, sk, chains, _)) = inputs() else { return };
     let mut bad = chains.clone();
     bad[0].anchor = "head".into();
     assert!(roll_lock::apply(&fe, &sk, &bad).is_err());
@@ -171,7 +173,7 @@ fn unrelated_attachments_owners_disconnected_or_overlapping_chains_are_rejected(
 
 #[test]
 fn curved_strand_can_choose_well_conditioned_references_per_joint() {
-    let (mut fe, sk, mut chains, _) = inputs();
+    let Some((mut fe, sk, mut chains, _)) = inputs() else { return };
     chains.truncate(1);
     let base = roll_lock::apply(&fe, &sk, &chains).unwrap();
     let reference = base.proof.chains[0].reference;

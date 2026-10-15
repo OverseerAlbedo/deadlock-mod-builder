@@ -30,3 +30,15 @@ pub fn private_asset(path: &str) -> Option<Vec<u8>> {
 pub fn private_text(path: &str) -> Option<String> {
     private_asset(path).map(|bytes| String::from_utf8(bytes).expect("private asset is UTF-8"))
 }
+
+/// The path of a private file when it exists (for code that opens paths
+/// itself), or `None` with a note.
+pub fn private_path(path: &str) -> Option<PathBuf> {
+    let file = private_assets().join(path);
+    if file.is_file() {
+        Some(file)
+    } else {
+        eprintln!("skipped: private asset {path} is not checked out ({})", file.display());
+        None
+    }
+}

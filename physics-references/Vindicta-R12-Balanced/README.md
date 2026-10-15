@@ -9,3 +9,5 @@ Keep the matching 95-bone prepared replacement selected, then Analyze and Build.
 The original R12 file remains in `../Vindicta-R12/` for regression tests and explicit rollback. The reference does not authorize another hero, changed rest pose or unrelated cloth topology. Build/install integrity checks remain active.
 
 Ownership and distribution scope are described in the root LICENSE and `docs/THIRD_PARTY.md`; this compiled game-derived resource is not licensed as application source.
+
+The compiled file itself is a private asset (private repository `deadlock-mod-builder-private-assets`, folder `physics-references/Vindicta-R12-Balanced/`); `scripts/sync-private-assets.mjs` copies it here for a local build, and the Physics page hides the included reference when it is absent.

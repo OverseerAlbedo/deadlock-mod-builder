@@ -2,6 +2,7 @@ use deadlock_cloth::*;
 use deadlock_resource::{binary, cloth, container, Kind, Value};
 use deadlock_skeleton::extensions::SourceBinding;
 use sha2::{Digest, Sha256};
+mod common;
 use std::{
     collections::BTreeMap,
     fs,
@@ -116,14 +117,14 @@ fn python_rejection_gates_remain_closed() {
         assert!(error.is_some(), "accepted Python rejection: {name}");
     }
 }
-fn path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c")
+/// The accepted Vindicta reference (private assets), or `None` with a note when it is not checked out.
+fn path() -> Option<PathBuf> {
+    common::private_path("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c")
 }
 #[test]
 fn accepted_native_baseline_qualifies_without_modification() {
-    let raw = fs::read(path()).unwrap();
+    let Some(path) = path() else { return };
+    let raw = fs::read(&path).unwrap();
     assert_eq!(hash(&raw), cloth::BALANCED_REFERENCE_SHA256);
     let proof = qualify_tested(&raw).unwrap();
     assert_eq!(proof.structure.node_count, 8381);
@@ -133,7 +134,7 @@ fn accepted_native_baseline_qualifies_without_modification() {
     assert_eq!(proof.constraint_feasibility.status, cloth::Status::Passed);
     assert!(!proof.in_game_motion_tested);
     assert_eq!(
-        hash(&fs::read(path()).unwrap()),
+        hash(&fs::read(&path).unwrap()),
         cloth::BALANCED_REFERENCE_SHA256
     );
 }

@@ -3,6 +3,7 @@ use deadlock_skeleton::{
     bindings, check_transfer, extensions, skeleton_identity, source_skeleton, transforms, Skeleton,
 };
 use serde_json::Value as Json;
+mod common;
 use std::{fs, path::PathBuf};
 fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -91,7 +92,7 @@ fn native_and_synthetic_compiled_mesh_animation_bindings_match_python() {
             name,
         );
     }
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    // The compiled Vindicta references are private assets; each is skipped with a note when absent.
     for (name, path) in [
         (
             "r12-original",
@@ -102,7 +103,7 @@ fn native_and_synthetic_compiled_mesh_animation_bindings_match_python() {
             "physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c",
         ),
     ] {
-        let raw = fs::read(root.join(path)).expect("Bundled R12 compiled fixture is required");
+        let Some(raw) = common::private_asset(path) else { continue };
         close(
             &serde_json::to_value(audit(&raw)).unwrap(),
             &json(&format!("{name}-bindings.json")),

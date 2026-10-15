@@ -132,7 +132,7 @@ Outputs land in `artifacts/portable/` (the portable app), `artifacts/release/` (
 | `src-tauri/crates/` | Rust pipeline: preparation, materials, skeleton/DMX export, cloth, compilation, VPK, storage, tools |
 | `src-tauri/crates/deadlock-preparation/resources/blender/` | Python scripts embedded into the app and run inside Blender |
 | `resources/` | Hero catalog, tool recipe and hash-pinned native readers |
-| `physics-references/` | Qualified movement references used by validation |
+| `physics-references/` | Acceptance records of the Vindicta cloth references; the compiled models are private assets |
 | `tools/cloth-reader/` | Source of the independent cloth reader |
 | `scripts/` | Repository checks, Windows packaging, startup check and Blender test harnesses |
 | `docs/` | Documentation |

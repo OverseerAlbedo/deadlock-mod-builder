@@ -242,6 +242,12 @@ impl Application {
         })
         .map(|(settings, _)| settings)
     }
+    /// Whether the included Vindicta cloth reference (a private asset) was packaged with this build.
+    pub fn included_reference_available(&self) -> bool {
+        self.resource_directory
+            .join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c")
+            .is_file()
+    }
     pub fn setup_status(&self, settings: &Settings) -> SetupStatus {
         let model = deadlock_tools::toolchain::select(settings, true);
         SetupStatus {

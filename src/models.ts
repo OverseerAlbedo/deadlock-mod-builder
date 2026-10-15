@@ -103,7 +103,7 @@ export interface SessionRecovery { unclean: boolean; autosaves: Autosave[] }
 export interface SetupTestStep { name: string; passed: boolean; detail: string; error?: unknown }
 export interface SetupTest { passed: boolean; steps: SetupTestStep[] }
 /** What this copy of the app was built with (backend get_capabilities). */
-export interface Capabilities { tangtang_presets: boolean }
+export interface Capabilities { tangtang_presets: boolean; vindicta_reference: boolean }
 export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean; fields?: FieldCheck[] }
 /** What went wrong and what to do (backend troubleshooting.rs). */
 export interface ErrorHelp { cause: string; steps: string[]; action?: { label: string; page: string } | null }

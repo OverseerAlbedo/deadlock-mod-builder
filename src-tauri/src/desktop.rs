@@ -90,10 +90,12 @@ fn get_setup_status(state: AppState<'_>, settings: Settings) -> SetupStatus {
 pub struct Capabilities {
     /// The TangTang presets (private data; see deadlock-cloth-authoring/build.rs).
     pub tangtang_presets: bool,
+    /// The included Vindicta cloth reference (a private asset copied in by scripts/sync-private-assets.mjs).
+    pub vindicta_reference: bool,
 }
 #[tauri::command]
-fn get_capabilities() -> Capabilities {
-    Capabilities { tangtang_presets: deadlock_pipeline::TANGTANG_PRESETS }
+fn get_capabilities(state: AppState<'_>) -> Capabilities {
+    Capabilities { tangtang_presets: deadlock_pipeline::TANGTANG_PRESETS, vindicta_reference: state.included_reference_available() }
 }
 /// Whether the hero has extreme proportions (Shiv, Wraith), for a notice at selection.
 #[tauri::command]

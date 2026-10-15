@@ -4,6 +4,7 @@ use deadlock_resource::{
     Annotation, Kind, Value,
 };
 use sha2::{Digest, Sha256};
+mod common;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -40,10 +41,11 @@ fn python_binary_encoder_and_compression_parity() {
 
 #[test]
 fn accepted_r12_native_every_supported_ordinal_matches_python() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    // The native resources are the compiled Vindicta references: private assets, skipped with a note when absent.
     for resource in manifest()["native"].as_array().unwrap() {
         let name = resource["path"].as_str().unwrap();
-        let raw = std::fs::read(root.join(name)).unwrap();
+        let Some(file) = common::private_path(name) else { continue };
+        let raw = std::fs::read(&file).unwrap();
         assert_eq!(hash(&raw), resource["sha256"].as_str().unwrap());
         let layout = container::layout(&raw).unwrap();
         for row in resource["blocks"].as_array().unwrap() {
@@ -62,7 +64,7 @@ fn accepted_r12_native_every_supported_ordinal_matches_python() {
             );
         }
         assert_eq!(
-            hash(&std::fs::read(root.join(name)).unwrap()),
+            hash(&std::fs::read(&file).unwrap()),
             resource["sha256"].as_str().unwrap()
         );
     }
@@ -250,11 +252,8 @@ fn lossless_text_edits_match_python_and_preserve_opaque_content() {
 
 #[test]
 fn container_rebuild_matches_untouched_payloads_and_rejects_trailing_data() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    let raw = std::fs::read(
-        root.join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c"),
-    )
-    .unwrap();
+    // The accepted Vindicta reference is a private asset; the test skips with a note without it.
+    let Some(raw) = common::private_asset("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c") else { return };
     let layout = container::layout(&raw).unwrap();
     let phys = container::unique(&layout.blocks, "PHYS").unwrap();
     let mut replacements = BTreeMap::new();

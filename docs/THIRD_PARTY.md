@@ -10,9 +10,9 @@ Reader source, SDK pin and NuGet lock are in `tools/cloth-reader/`. Component ve
 
 ## Physics references and fixtures
 
-The two compiled Vindicta references are required by the included-reference workflow and strict regression tests. The balanced resource's existing SHA-256 remains unchanged. Small format, animation, skeleton and model fixtures under Rust test directories are intentionally retained to test the current implementation. These are curated resources, not a complete game/content dump.
+The two compiled Vindicta references (`physics-references/*/…vmdl_c`), the TangTang preset data and the rig and cloth captures from third-party characters are not in this repository: they are private assets (see `docs/DEVELOPMENT.md`, Private assets). The repository keeps only their acceptance records and hash pins; `scripts/sync-private-assets.mjs` copies the compiled references in for a local build, and the tests that need a capture skip without it. The small format, animation, skeleton and model fixtures that remain under the Rust test directories are synthetic or reduced samples made to test the current implementation, not a game or content dump.
 
-These game-derived assets retain their original ownership. Their presence and user-provided provenance do not relicense them under MIT or establish redistribution permission. Before publishing a public repository or release, the maintainer must resolve rights to retained external assets; the application license cannot supply those rights. Do not add unrelated game dumps or third-party character models.
+Game-derived data retains its original ownership. Its presence and user-provided provenance do not relicense it under MIT or establish redistribution permission; the application license cannot supply those rights. Do not add game dumps or third-party character models or captures to this repository; they belong in the private assets.
 
 ## Separately obtained tools
 

@@ -23,6 +23,7 @@ function Invoke-Checked {
     Write-Host '::endgroup::'
     if ($code -ne 0) { throw "$Name failed with exit code $code. See artifacts/validation/$Name.log." }
 }
+Invoke-Checked 'private-assets' 'node' @('scripts/sync-private-assets.mjs')
 Invoke-Checked 'repository-checks' 'node' @('scripts/check-repository.mjs')
 Invoke-Checked 'npm-install' 'npm.cmd' @('ci', '--no-audit', '--no-fund')
 Invoke-Checked 'frontend-tests' 'npm.cmd' @('test', '--', '--maxWorkers=2')

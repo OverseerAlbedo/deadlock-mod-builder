@@ -53,8 +53,14 @@ fn input(path: &Path) -> Result<Value> {
 fn run(bench: &mut Bench, repo: &Path, v22: &Path, output: &Path) -> Result<Value> {
     let cancel = CancellationToken::new();
     let source = v22.join("Collection.dmx");
-    let cloth_path =
-        repo.join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c");
+    // The accepted Vindicta reference is a private asset (docs/DEVELOPMENT.md, Private assets).
+    let cloth_path = std::env::var_os("DMB_PRIVATE_ASSETS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.join("private-assets"))
+        .join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c");
+    if !cloth_path.is_file() {
+        return Err(format!("private asset missing: {}", cloth_path.display()).into());
+    }
     let oracle: Value = serde_json::from_slice(&fs::read(v22.join("rust-skeleton-oracle.json"))?)?;
     let reference: deadlock_skeleton::source_bones::SkeletonReference =
         serde_json::from_value(oracle["reference"].clone())?;

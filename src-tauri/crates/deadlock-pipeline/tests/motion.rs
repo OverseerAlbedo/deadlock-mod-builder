@@ -12,6 +12,7 @@ use deadlock_pipeline::motion::{selection, MotionService, Restoration, Validated
 use deadlock_project::{Customization, Project};
 use deadlock_resource::{binary, cloth, container, Kind};
 use deadlock_skeleton::extensions::SourceBinding;
+mod common;
 use std::{
     collections::BTreeMap,
     fs,
@@ -124,9 +125,11 @@ fn accepted_native_transfer_matches_python_and_actual_reader_cache_rechecks_raw_
         clock: &clock,
         log: &|_| {},
     };
-    let original_path = root().join("physics-references/Vindicta-R12/cloth_supported_hair.vmdl_c");
-    let reference_path = root()
-        .join("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c");
+    // The compiled Vindicta references are private assets; the test skips with a note without them.
+    let (Some(original_path), Some(reference_path)) = (
+        common::private_path("physics-references/Vindicta-R12/cloth_supported_hair.vmdl_c"),
+        common::private_path("physics-references/Vindicta-R12-Balanced/cloth_supported_hair_balanced.vmdl_c"),
+    ) else { return };
     let original = fs::read(&original_path).unwrap();
     let reference = fs::read(&reference_path).unwrap();
     assert_eq!(
