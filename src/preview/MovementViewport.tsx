@@ -72,7 +72,7 @@ function useCharacter(scene: PreviewScene, packet: MotionPacket) {
 function Player({scene, packet, nodes, tuning, clip, playing, speed, simulate}: {scene: PreviewScene; packet: MotionPacket; nodes: PreviewNode[]; tuning: Record<string, Tuning | undefined>; clip: string; playing: boolean; speed: number; simulate: boolean}) {
   const character = useCharacter(scene, packet);
   const rig = useMemo(() => new MotionRig(packet.header, nodes, tuning, character.tips), [packet, nodes, tuning, character]);
-  const time = useRef(0), drawn = useRef(false);
+  const time = useRef(0), drawn = useRef(false), lastLoop = useRef(0);
   const group = useRef<Group>(null), grid = useRef<GridHelper>(null);
   const shown = packet.header.clips.find(c => c.name === clip) ?? packet.header.clips[0];
   const skins = useMemo(() => new Float32Array(packet.header.bones.length * 12), [packet]);
@@ -88,6 +88,10 @@ function Player({scene, packet, nodes, tuning, clip, playing, speed, simulate}: 
     const dt = playing ? Math.min(delta, .1) * speed : 0;
     time.current += dt;
     const loop = time.current % (shown.frames / shown.fps);
+    // A jump ends settled in the stand and starts again from the take-off: that
+    // restart is a cut, not a motion, so the parts start the loop afresh.
+    if (shown.name === 'jump' && loop < lastLoop.current) rig.reset();
+    lastLoop.current = loop;
     sampleSkins(packet, shown, loop, skins);
     // A run keeps going forward (the floor passes under the character); a jump
     // rises and lands within each loop.

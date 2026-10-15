@@ -10,8 +10,14 @@ export interface ReviewIssue { text: string; page?: ReviewDestination; section?:
 export const modelEnabled = (project: Project) => !project.customization.enabled || project.customization.model_enabled !== false;
 export const testedPhysicsEnabled = (project: Project) => Boolean(modelEnabled(project) && project.customization.enabled && project.customization.physics?.enabled);
 
-/** Describes native inspection and saved choices. It never substitutes for a build gate. */
-export function projectReadiness(project: Project, report: ProjectInspection | null, fresh: boolean) {
+/** The VPK slot scan (`api.vpkSlots`) as far as readiness needs it: refreshed at
+ * every Analyze, so a slot another mod took is reported before the build. */
+export interface SlotScan { configured_slot: number; configured_slot_occupied: boolean; available_slot: number | null }
+
+/** Describes native inspection and saved choices. It never substitutes for a build gate.
+ * `replaceInstalled` is Build's "Replace an existing installed VPK" choice: with it, a
+ * slot another mod uses is noted but does not block. */
+export function projectReadiness(project: Project, report: ProjectInspection | null, fresh: boolean, slots: SlotScan | null = null, replaceInstalled = false) {
   const model = modelEnabled(project);
   const matching = report && (model ? 'dmx' in report : 'model_enabled' in report);
   const current = fresh && matching ? report : null;
@@ -33,6 +39,8 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   const packaging = project.build_vpk && (!model || project.compile_model);
   const invalidSlot = packaging && (!Number.isInteger(project.vpk_number) || project.vpk_number < 2 || project.vpk_number > 99);
   if (invalidSlot) issues.push({text:'Choose a VPK slot from 2 to 99 before packaging.',section:'output-settings',action:'Configure output'});
+  const slotTaken = Boolean(packaging && !invalidSlot && slots && slots.configured_slot === project.vpk_number && slots.configured_slot_occupied);
+  if (slotTaken && !replaceInstalled) issues.push({text:`VPK slot ${project.vpk_number} is in use by another mod in the game's addons folder${slots?.available_slot ? ` (slot ${slots.available_slot} is free)` : ''}.`,section:'output-settings',action:'Choose free slot'});
   const ready = Boolean(hasInputs && current && !issues.length && (!inspection || (!inspection.needs_review && !inspection.vertex_preflight.errors.length)));
   const physics = project.customization.physics;
   const tested = testedPhysicsEnabled(project);
@@ -49,7 +57,7 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
     { key: 'processing', label: 'Mesh processing', value: !model ? 'No model processing' : inspection?.vertex_preflight.errors.length ? `${inspection.vertex_preflight.errors.length} processing issue${inspection.vertex_preflight.errors.length === 1 ? '' : 's'}` : project.auto_split ? 'Automatic splitting enabled' : 'Automatic splitting disabled', tone: inspection?.vertex_preflight.errors.length ? 'attention' : model && (project.auto_split || inspection) ? 'ready' : 'neutral', page: 'appearance' },
     { key: 'physics', label: 'Physics', value: !model ? 'Original physics kept' : generated ? `${project.customization.secondary_motion?.preset==='tangtang_r2'?'TangTang R2 tuned':'Automatic secondary motion'}${inspection?.secondary_motion?' · groups checked':''}` : tested ? physics?.source ? `Replacement cloth setup${inspection ? ' · reference checked' : ' selected'}` : 'Choose a tested reference' : 'Preserve original physics', tone: generated ? inspection?.secondary_motion?'ready':'neutral' : tested && !physics?.source ? 'attention' : tested && !inspection ? 'neutral' : 'ready', page: 'physics' },
     { key: 'motion', label: 'Motion', value: animations ? `${animations} animation replacement${animations === 1 ? '' : 's'} enabled` : project.animation_policy === 'preserve' ? 'Original animations preserved' : 'Legacy animation references disabled', tone: animations || project.animation_policy !== 'preserve' ? 'neutral' : 'ready', page: 'motion' },
-    { key: 'output', label: 'Output', value: invalidSlot ? 'Select a VPK slot (2–99)' : model && !project.compile_model ? 'Source preparation only' : !project.build_vpk ? 'Compile only · no VPK' : `pak${String(project.vpk_number).padStart(2, '0')}_dir.vpk · ${project.install ? 'build and install' : 'build only'}`, tone: invalidSlot ? 'attention' : 'neutral', status: invalidSlot ? 'Needs attention' : 'Configured', page: 'build' },
+    { key: 'output', label: 'Output', value: invalidSlot ? 'Select a VPK slot (2–99)' : model && !project.compile_model ? 'Source preparation only' : !project.build_vpk ? 'Compile only · no VPK' : `pak${String(project.vpk_number).padStart(2, '0')}_dir.vpk · ${project.install ? 'build and install' : 'build only'}${slotTaken ? replaceInstalled ? ' · slot in use by another mod, will be replaced' : ' · slot in use by another mod' : slots && slots.configured_slot === project.vpk_number ? ' · slot free' : ''}`, tone: invalidSlot || (slotTaken && !replaceInstalled) ? 'attention' : 'neutral', status: invalidSlot || (slotTaken && !replaceInstalled) ? 'Needs attention' : 'Configured', page: 'build' },
   ];
   const actions: Record<string, [string, string?]> = {
     character: [project.original_model ? 'Change' : 'Choose', 'character-selection'],

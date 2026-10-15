@@ -62,10 +62,11 @@ from `Artzy_Tyrannical_Textures_and_Models.zip`), "Ghist" (Lady Geist,
 
 Not yet checked in game: the finger bend around the gun, the charm swing
 amount, dual-gun aim during animations, breast/butt/hair/tail motion amounts
-and Fine-tune values, source springs, Shiv/Wraith proportions, rigid
-accessories, color edits and a Rem build. Checked: Haze (tangwithgun) and Lady
-Geist (Ghist) builds compile and restore the game's cloth with new decompiles;
-Yamato's new decompile passes the template check (`tests/cloth_bones.rs`).
+and Fine-tune values, source springs, rigid accessories, color edits and a Rem
+build. Checked in game: Shiv and Wraith proportions (October 14). Checked on
+the PC: Haze (tangwithgun) and Lady Geist (Ghist) builds compile and restore
+the game's cloth with new decompiles; Yamato's new decompile passes the
+template check (`tests/cloth_bones.rs`).
 
 ## Rules that are easy to break
 
@@ -90,6 +91,16 @@ Yamato's new decompile passes the template check (`tests/cloth_bones.rs`).
 - Simple/Expert mode is UI-only (`localStorage` `dmb.uiMode`, default Simple). Page
   components take `expert` defaulting to `true`; only `App.tsx` passes the real mode
   (tests run in Expert via `src/test-setup.ts`). Never hide a required choice in Simple.
+- Themes (original, violet, mint) are `Settings.theme` (serde default "original"),
+  saved at once by the `set_theme` command, which also sets the window icon
+  (`src-tauri/icons/icon-{violet,mint}.png`, tauri feature `image-png`). The Theme
+  Manager `src/theme/themes.ts` holds each theme as tokens and `applyTheme` writes
+  them as CSS variables; custom themes are `Settings.custom_themes` (`ThemePreset`,
+  `deriveTokens` from three base colors, editor `ThemeCustomizer.tsx`, saved by
+  `save_theme_presets`); the sidebar mark is `BrandMark.tsx`. Never hard-code an
+  accent, a tinted grey or a green in CSS: accents use `--accent*`, tinted shades
+  are `hsl(calc(var(--hue) ± n) s% l%)`, success stays `--ok*` / `--good*` (not
+  themed), errors stay red. Keep text at 4.5:1 in every theme.
 - Keep source proportions has a separate path for heroes with extreme proportions
   (`retarget.py hero_extremes`, `scripts/test_hero_proportions.py`); ordinary heroes
   must keep the old numbers exactly (scale 1, floor alignment).

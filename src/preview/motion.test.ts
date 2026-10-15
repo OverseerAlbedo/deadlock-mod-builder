@@ -40,8 +40,8 @@ describe('Movement preview', () => {
     expect(near(Array.from(out),frame(),1e-4)).toBe(true);
   });
   it('lets a loose part trail when running, overshoot and settle, and sag with gravity', () => {
-    // Three frames into a run the strand still lags behind the body.
-    const run = (rig:MotionRig) => { let out = rig.step(frame(),[0,0,0],1/30); for (let i = 1; i <= 3; i++) out = rig.step(frame(),[i*260/30,0,0],1/30); return tipOf(out,[0,0,40]); };
+    // Standing, then a quarter second into a run (the start is a kick, delivered over a few frames) the strand lags behind the body.
+    const run = (rig:MotionRig) => { rig.step(frame(),[0,0,0],1/30); let out = rig.step(frame(),[0,0,0],1/30); for (let i = 1; i <= 8; i++) out = rig.step(frame(),[i*260/30,0,0],1/30); return tipOf(out,[0,0,40]); };
     const trailing = run(new MotionRig(hanging,[node({goal:.02,drag:.05})],{}));
     expect(trailing[0]).toBeLessThan(-1);
     expect(Math.abs(Math.hypot(trailing[0],trailing[1],trailing[2]-50)-10)).toBeLessThan(1e-3);
@@ -50,7 +50,7 @@ describe('Movement preview', () => {
     expect(stiff[0]).toBeGreaterThan(trailing[0]);
     // A springy part pulled back after a shove swings past its pose before it settles.
     const springy = new MotionRig(hanging,[node({goal:.45,drag:.1})],{});
-    springy.step(frame(),[0,0,0],1/30);
+    springy.step(frame(),[0,0,0],1/30); springy.step(frame(),[0,0,0],1/30);
     const xs:number[] = [];
     for (let i = 1; i <= 90; i++) { const o = springy.step(frame(),[i < 4 ? i*8 : 24,0,0],1/30); xs.push(tipOf(o,[0,0,40])[0]); }
     expect(Math.min(...xs)).toBeLessThan(-.5);
@@ -61,6 +61,41 @@ describe('Movement preview', () => {
     let lowest = 50;
     for (let i = 0; i < 60; i++) lowest = Math.min(lowest, tipOf(heavy.step(frame(),[0,0,0],1/30),[10,0,50])[2]);
     expect(lowest).toBeLessThan(43);
+  });
+  it('hangs steady during a run instead of streaming back like in a wind', () => {
+    // A hanging strand under gravity: three seconds into a steady run it hangs
+    // where it hangs when standing (the old world-space drag pinned it back).
+    const settle = (moving:boolean) => {
+      const rig = new MotionRig(hanging,[node({goal:.3,drag:.2,gravity:1})],{});
+      let out = rig.step(frame(),[0,0,0],1/60);
+      for (let i = 1; i <= 180; i++) out = rig.step(frame(),[moving ? i*260/60 : 0,0,0],1/60);
+      return tipOf(out,[0,0,40]);
+    };
+    const running = settle(true), standing = settle(false);
+    expect(Math.abs(running[0]-standing[0])).toBeLessThan(.3);
+    expect(Math.abs(running[2]-standing[2])).toBeLessThan(.3);
+  });
+  it('kicks the parts down at a landing, then lets them settle', () => {
+    const jump = {name:'jump',sources:[],fps:60,frames:180,segments:[30,36,60],offset:0};
+    const rig = new MotionRig(forward,[node({goal:.5,drag:.2,gravity:0})],{});
+    const zs:number[] = [];
+    for (let i = 0; i <= 179; i++) zs.push(tipOf(rig.step(frame(),travel(jump,i/60),i?1/60:0),[10,0,50])[2]);
+    const landing = Math.round((30+36+.1*60)/1)+1;
+    // In the air the strand floats up a little (never pinned straight up: the arc
+    // counts for one gravity at most); just after touching down it has swung
+    // down; later it is back level.
+    expect(Math.max(...zs.slice(40,landing))).toBeGreaterThan(51);
+    expect(Math.max(...zs.slice(40,landing))).toBeLessThan(58);
+    expect(Math.min(...zs.slice(landing,landing+20))).toBeLessThan(48);
+    expect(Math.abs(zs[179]-50)).toBeLessThan(.5);
+  });
+  it('treats a clip looping round as a teleport, not a kick', () => {
+    const rig = new MotionRig(hanging,[node({goal:.3,drag:.2,gravity:1})],{});
+    let out = rig.step(frame(),[0,0,0],1/60);
+    for (let i = 1; i <= 60; i++) out = rig.step(frame(),[i*260/60,0,0],1/60);
+    const before = tipOf(out,[0,0,40]);
+    const after = tipOf(rig.step(frame(),[0,0,0],1/60),[0,0,40]);
+    expect(Math.hypot(after[0]-before[0],after[1]-before[1],after[2]-before[2])).toBeLessThan(.3);
   });
   it('moves the character forward when running and up between take-off and landing', () => {
     expect(travel({name:'run',sources:[],fps:30,frames:16,segments:[16],offset:0},.5)[0]).toBe(130);

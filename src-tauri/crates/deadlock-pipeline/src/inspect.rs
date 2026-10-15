@@ -112,6 +112,10 @@ pub enum SourceBoneInspection {
 pub struct InspectionReport {
     #[serde(skip_serializing_if="Option::is_none")]
     pub secondary_motion: Option<deadlock_cloth_authoring::secondary::Setup>,
+    /// The movement preview's moving parts, also while mesh mapping is still
+    /// open (then from a plan that is not build authority).
+    #[serde(default, skip_serializing_if="Vec::is_empty")]
+    pub motion_preview_nodes: Vec<deadlock_cloth_authoring::secondary::PreviewNode>,
     #[serde(skip)] pub generated_contract: Option<crate::secondary_motion::NativeContract>,
     pub project: String,
     pub hero_root: String,
@@ -415,6 +419,13 @@ impl<'a> ModelPipeline<'a> {
             let secondary_motion = if secondary_waiting_for_mesh_mapping { None } else {
                 deadlock_cloth_authoring::secondary::setup(p,&dmx,binding.as_ref(),self.cancel).map_err(map_error)?
             };
+            // The movement preview needs the moving parts before mesh mapping is
+            // complete: plan them without the binding, for the preview only.
+            let motion_preview_nodes = match &secondary_motion {
+                Some(setup) => setup.preview_nodes.clone(),
+                None if secondary_waiting_for_mesh_mapping => deadlock_cloth_authoring::secondary::setup(p,&dmx,None,self.cancel).ok().flatten().map(|s|s.preview_nodes).unwrap_or_default(),
+                None => vec![],
+            };
             let plans=self.clock.measure("Plan material and texture mappings",Some(parent.id()),|_|deadlock_materials::plan(&summary.materials,&effective,if p.textures.is_empty(){Path::new("__no_textures__")}else{Path::new(&p.textures)},&p.materials,self.cancel).map_err(material_error))?;
             let materials=deadlock_materials::apply_materials(&plans,&p.customization).map_err(material_error)?;
             let source_mappings=mappings.clone();let mut vertex_preflight=limits::preflight(&summary,&selected);let mut automatic_split=None;
@@ -450,7 +461,7 @@ impl<'a> ModelPipeline<'a> {
             for(path,sha)in &initial_inputs{if input_hashes.get(path)!=Some(sha){return Err(invalid(format!("Source input changed during analysis: {}",path.display())));}}
             if input_hashes.get(Path::new(&p.dmx))!=Some(&source_sha256){return Err(invalid("Replacement DMX changed during analysis."));}
             let effective_hashes=inventory(&effective,self.cancel)?;
-            let report=InspectionReport{secondary_motion,generated_contract:None,project:p.name.clone(),hero_root:p.hero_root(),model,dmx:summary,geometry,source_materials,source_bones,source_identity,vertex_preflight,automatic_split,source_mappings,project_mappings,path_rebases,effective_sources:effective,mappings,unresolved_meshes,materials,warnings,unskinned_meshes,original,needs_review,source_sha256,project_sha256:project_hash(p)?,input_hashes,effective_hashes};
+            let report=InspectionReport{secondary_motion,motion_preview_nodes,generated_contract:None,project:p.name.clone(),hero_root:p.hero_root(),model,dmx:summary,geometry,source_materials,source_bones,source_identity,vertex_preflight,automatic_split,source_mappings,project_mappings,path_rebases,effective_sources:effective,mappings,unresolved_meshes,materials,warnings,unskinned_meshes,original,needs_review,source_sha256,project_sha256:project_hash(p)?,input_hashes,effective_hashes};
             self.cancel.check()?;safety::write_json(&root.join("inspection.json"),&report)?;
             for warning in &report.warnings{(self.log)(warning);}
             (self.log)(&format!("Replacement DMX parsed: {} meshes, {} materials, {} bones",names.len(),report.dmx.materials.len(),report.dmx.bones.len()));Ok(report)

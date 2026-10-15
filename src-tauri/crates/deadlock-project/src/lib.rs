@@ -63,6 +63,21 @@ pub struct Settings {
     pub keep_previous_preparation: bool,
     /// Remove caches and compiler folders the next build recreates after a successful build.
     pub clear_build_data_after_build: bool,
+    /// The app's look: "original", "violet", "mint" or a custom theme's id (colors, sidebar mark and window icon).
+    pub theme: String,
+    /// Themes made in Settings → Appearance → Customize.
+    pub custom_themes: Vec<ThemePreset>,
+}
+/// A custom theme: its tokens by name (as the UI's Theme Manager reads them),
+/// the three base colors it was derived from, and which built-in D is its icon.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct ThemePreset {
+    pub id: String,
+    pub name: String,
+    pub icon: String,
+    pub base: Option<std::collections::BTreeMap<String, String>>,
+    pub tokens: std::collections::BTreeMap<String, String>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -88,6 +103,8 @@ impl Default for Settings {
             keep_backups: 1,
             keep_previous_preparation: true,
             clear_build_data_after_build: false,
+            theme: "original".into(),
+            custom_themes: vec![],
         }
     }
 }

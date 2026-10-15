@@ -19,6 +19,35 @@ components take `expert` (default `true`, so component tests see everything);
 only `App.tsx` passes the real mode. Required choices (unmatched joints, shape
 key handling, red tool paths) are never hidden.
 
+**Themes** (Settings → Appearance): *Original*, *Violet D* and *Mint D*. The
+choice is `Settings.theme` (serde default `original`), saved at once by the
+`set_theme` command rather than with the tool paths, so it survives restarts and
+reinstalls like the other settings. The Theme Manager is `src/theme/themes.ts`:
+each theme is one `ThemeTokens` set (background, surfaces, text, chrome, the
+primary button, the accent family, the studio card and border, and `hue`), and
+`applyTheme` writes them to `<html>` as the CSS variables the stylesheets read
+(`VARIABLES` maps token → variable) plus `data-theme`. Every tinted shade in the
+four stylesheets is an `hsl(calc(var(--hue) ± n) s% l%)` relative to the theme's
+hue (153 reproduces the original exactly), so a theme recolors the tinted
+panels, borders and viewport frames without listing them; the plain greys were
+snapped to the neutral tokens (`--background` … `--text`) by lightness. Every
+page shares `--surface` as its background and `--studio-card` /
+`--studio-border` for its cards (`.studio-workspace .section` and
+`.prep-card` alike). Success, warning and error colors (`--ok*`, `--good*`,
+Completed, matched bones, red errors) are not themed. The sidebar mark is
+`BrandMark.tsx` (the icon's crossed D in the theme's gradient) and the window
+icon is switched with `WebviewWindow::set_icon` from
+`src-tauri/icons/icon-violet.png` / `icon-mint.png` (also at start-up in the
+Tauri setup hook). A taskbar shortcut keeps the installer's icon. Custom
+themes (`ThemeCustomizer.tsx`, Settings → Appearance → Customize) are
+`ThemePreset`s in `Settings.custom_themes` (saved at once by
+`save_theme_presets`): three base colors go through `deriveTokens` (surfaces
+step up from the background, text greys mix toward it, the accent family keeps
+the accent's hue, the primary button takes whichever text reads on the accent)
+plus any token set by hand under Advanced, and the chosen built-in D as the
+window icon (`icon_for` in `desktop.rs`). `presetToTheme` fills missing tokens
+from the original.
+
 Prepare model has one **3D view** on the right with three modes: *Your model*
 (the source file and its own animation), *Joint check* (the mapping viewer) and
 *Result* (the converted DMX). Rare fit options (arm skinning, arm alignment,
@@ -341,8 +370,20 @@ the animated (unswung) point, the drag a per-second damping from the per-frame
 share (at least damping ratio 0.18 so swings settle), gravity 386 in/s² × gravity,
 the pendulum length from the bone's head (which follows the parent's swing) and
 the travel limit from the animated point; goal ≥ 0.98 is rigid. The bone then
-turns about its pivot and children follow. `motion.ts tune` must stay identical
-to Rust `secondary_auto::tune` (same test numbers). The run moves the character
+turns about its pivot and children follow. The simulation runs in the
+character's own space: the bone's head and the animated point move smoothly
+across the substeps between frames (`pivotBefore`, `tipBefore`), the drag acts
+on the part's own motion through that space (not on the character's speed,
+which pinned hair back like a storm when running; not relative to the carrying
+bone either, which whipped long chains), the damping ratio is at least 0.55
+(the game's solver damps hair that has no drag and no gravity of its own, so
+the automatic hair values would ring freely otherwise), and the character's
+travel enters only through its changes of speed (`inertia`: a take-off or
+landing kicks the parts by at most `KICK_MAX`, a smooth arc counts for one
+gravity at most, the first measured speed of a clip is no kick, and a jump of
+the offset over 60 in is a clip looping round and is ignored). `OMEGA_MAX` is
+22 rad/s at full pose pull. `motion.ts tune` must stay identical to Rust
+`secondary_auto::tune` (same test numbers). The run moves the character
 forward at about 260 in/s (the grid floor scrolls under it, the character stays
 in view) and a jump rises about 55 in between the end of the take-off and the
 start of the landing (`jumpArc`), shown as height. It approximates the game's

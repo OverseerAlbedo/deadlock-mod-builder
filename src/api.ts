@@ -3,7 +3,7 @@ import type { ExtraPreviewRequest } from './extras/models';
 import type { PreparationAnalysis, PreparationOptions, PreparationResult, ResumedPreparation, ReviewIssue, Suggestions, Vec3, WeaponPreview } from './preparation/models';
 import type { BuildResponse, InspectionResult, OriginalValidation, PrepareResult } from './build/models';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
+import type { ThemePreset, AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
 
 export const isDesktop = () => isTauri();
 export interface ToolLogFile {path:string;bytes:number;kind:string}
@@ -17,6 +17,10 @@ export const api = {
   chooseFreeSlot: (project:Project) => invoke<{slot:number;filename:string;occupied_slots:number[];previous_outputs:number[];scanned_folders:string[]}>('choose_free_vpk_slot',{project}),
   /** Scan the game's addons folder and the project's output folder for VPK slots (fresh every call). */
   vpkSlots: (project:Project) => invoke<VpkSlots>('get_vpk_slots',{project}),
+  /** Save the theme in settings.json at once and switch the window icon to its D (`icon`: original, violet or mint). */
+  setTheme: (theme:string,icon?:string) => invoke<Settings>('set_theme',{theme,icon}),
+  /** Save the custom themes (Settings → Appearance → Customize) in settings.json at once. */
+  saveThemePresets: (presets:ThemePreset[]) => invoke<Settings>('save_theme_presets',{presets}),
   openOutput: (project:Project) => invoke<string>('open_output_folder',{project}),
   discoverComponents: (project:Project) => invoke<ComponentCatalog>('discover_components',{project}),
   discoverExtras: (project:Project) => invoke<ComponentCatalog>('discover_extras',{project}),

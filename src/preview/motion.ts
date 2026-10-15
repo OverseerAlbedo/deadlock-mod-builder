@@ -72,10 +72,17 @@ export function turnAbout(pivot:Vec3,u:Vec3,v:Vec3):number[]{
 }
 
 /** Inches per second² of gravity; the pose pull at full strength as a spring
- * frequency (rad/s), and the least damping ratio so swings settle after a few
- * passes (the game's solver damps a little on its own). */
-const GRAVITY=386.09, OMEGA_MAX=40, MIN_ZETA=.18, PHYSICS_HZ=120;
-interface SimNode {bone:number;tip:Vec3;length:number;goal:number;drag:number;gravity:number;travel:number;p:Vec3;v:Vec3}
+ * frequency (rad/s), and the least damping ratio: the game's solver damps a
+ * good deal on its own (hair with no drag and no gravity of its own still
+ * settles within a swing or two in game), so a part never rings freely here. */
+const GRAVITY=386.09, OMEGA_MAX=22, MIN_ZETA=.55, PHYSICS_HZ=120;
+/** A travel jump beyond this in one frame is a teleport (a clip looping round),
+ * not a kick. A kick (take-off, landing) reaches the parts over the next frames
+ * at up to `KICK_RATE` (knees bend, the body does not stop in one frame), and
+ * never more than `KICK_MAX` of speed is owed at once. */
+const TELEPORT=60, KICK_MAX=300, KICK_RATE=3*GRAVITY;
+interface SimNode {bone:number;tip:Vec3;length:number;goal:number;drag:number;gravity:number;travel:number;p:Vec3;v:Vec3;pivotBefore:Vec3|null;tipBefore:Vec3|null}
+const lerp=(a:Vec3,b:Vec3,f:number):Vec3=>[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];
 
 /** The prepared skeleton with its moving parts. `tips` gives the rest-pose
  * point a single bone swings (the middle of a breast, a charm); a bone with a
@@ -88,6 +95,8 @@ export class MotionRig {
   private nodes:SimNode[]=[];
   private depthOrder:number[];
   private fresh=true;
+  private frame:{offset:Vec3;velocity:Vec3|null}|null=null;
+  private owed:Vec3=[0,0,0];
   constructor(header:MotionHeader,nodes:PreviewNode[],tuning:Record<string,Tuning|undefined>,tips:Map<number,Vec3>=new Map()){
     this.bones=header.bones;
     const index=new Map(this.bones.map((b,i)=>[b.name,i]));
@@ -105,7 +114,7 @@ export class MotionRig {
       let tip=child>=0?this.bones[child].position:tips.get(bone);
       if(!tip){let back=parent>=0?sub(rest,this.bones[parent].position):[0,0,-1] as Vec3;if(len(back)<.05)back=[0,0,-1];const l=len(back);tip=add(rest,scale(back,Math.min(Math.max(l*.5,1),8)/l));}
       const values=tune(node,tuning[node.kind]);
-      this.nodes.push({bone,tip,length:Math.max(len(sub(tip,rest)),1e-3),...values,p:[0,0,0],v:[0,0,0]});
+      this.nodes.push({bone,tip,length:Math.max(len(sub(tip,rest)),1e-3),...values,p:[0,0,0],v:[0,0,0],pivotBefore:null,tipBefore:null});
     }
     const order=new Map(this.depthOrder.map((b,i)=>[b,i]));
     this.nodes.sort((a,b)=>(order.get(a.bone)??0)-(order.get(b.bone)??0));
@@ -113,42 +122,78 @@ export class MotionRig {
   get moving(){return this.nodes.length;}
   /** Start again from the animated pose (a new clip, or after a pause). */
   reset(){this.fresh=true;}
+  /** The character's travel as the inertia its parts feel: the frame's change of
+   * speed (a take-off, a landing), never its steady speed, so a run does not
+   * blow the parts back like a wind. A jump of the offset beyond `TELEPORT` is
+   * a clip looping round, not a kick. */
+  private inertia(offset:Vec3,dt:number):Vec3{
+    const before=this.frame;
+    if(this.fresh||dt<=0||!before){this.frame={offset,velocity:null};this.owed=[0,0,0];return [0,0,0];}
+    const moved=sub(offset,before.offset);
+    if(len(moved)>TELEPORT){this.frame={offset,velocity:before.velocity};return [0,0,0];}
+    const velocity=scale(moved,1/dt);
+    // The first measured speed is the clip's own (a run is already under way):
+    // no kick for starting it.
+    if(!before.velocity){this.frame={offset,velocity};return [0,0,0];}
+    const change=sub(velocity,before.velocity),k=len(change);
+    this.frame={offset,velocity};
+    let push:Vec3=[0,0,0];
+    // A smooth arc pushes the parts by at most one gravity (free fall leaves them
+    // weightless, no more); a sudden change of speed (take-off, landing) is owed
+    // to the parts and delivered over the next frames.
+    if(k/dt<=2*GRAVITY)push=k/dt>GRAVITY?scale(change,GRAVITY*dt/k):change;
+    else{this.owed=add(this.owed,change);const total=len(this.owed);if(total>KICK_MAX)this.owed=scale(this.owed,KICK_MAX/total);}
+    const owed=len(this.owed);
+    if(owed>1e-6){const part=Math.min(owed,KICK_RATE*dt),piece=scale(this.owed,part/owed);this.owed=sub(this.owed,piece);push=add(push,piece);}
+    return scale(push,-1/dt);
+  }
   /** One frame: `skins` holds the animated rest-to-pose 3x4 of every bone; `offset`
    * is how far the character has travelled in the world (run, jump), which the
-   * moving parts feel. Returns the skins with the moving parts swung, for display. */
+   * moving parts feel. Returns the skins with the moving parts swung, for display.
+   * The parts are simulated in the character's own space: the bone's head carries
+   * each part along (the animated pose and the ancestors' swings move it between
+   * frames, smoothly across the substeps), drag acts on the swing relative to that
+   * head, and the travel's changes of speed push the parts the other way. */
   step(skins:ArrayLike<number>,offset:Vec3,dt:number,simulate=true):Float32Array{
     const count=this.bones.length,out=new Float32Array(count*12);
     for(let i=0;i<count*12;i++)out[i]=skins[i];
     if(!simulate||!this.nodes.length)return out;
     const delta:Array<ArrayLike<number>|null>=new Array(count).fill(null);
-    const substeps=Math.max(1,Math.ceil(Math.min(dt,.1)*PHYSICS_HZ)),h=Math.min(dt,.1)/substeps;
+    const span=Math.min(dt,.1),substeps=Math.max(1,Math.ceil(span*PHYSICS_HZ)),h=span/substeps;
+    const inertia=this.inertia(offset,dt);
     for(const node of this.nodes){
       const b=node.bone,rest=this.bones[b].position;
       const inherited=this.inherited(b,delta);
       const head=apply(skins,rest,b*12),tip=apply(skins,node.tip,b*12);
       const pivot=inherited?apply(inherited,head):head;
       const bent=inherited?apply(inherited,tip):tip;
-      const pivotWorld=add(pivot,offset),goalWorld=add(tip,offset),bentWorld=add(bent,offset);
-      if(this.fresh||dt<=0||node.goal>=.98){node.p=bentWorld;node.v=[0,0,0];}
+      const still=this.fresh||dt<=0||node.goal>=.98;
+      const pivotFrom=still||!node.pivotBefore?pivot:node.pivotBefore,tipFrom=still||!node.tipBefore?tip:node.tipBefore;
+      node.pivotBefore=pivot;node.tipBefore=tip;
+      if(still){node.p=bent;node.v=[0,0,0];}
       else{
         const omega=OMEGA_MAX*node.goal;
         const perSecond=-30*Math.log(1-Math.min(node.drag,.99));
         const zeta=Math.max(MIN_ZETA,perSecond/(2*omega));
         for(let s=0;s<substeps;s++){
+          const f=(s+1)/substeps,pivotNow=lerp(pivotFrom,pivot,f),goal=lerp(tipFrom,tip,f);
           const before=node.p;
-          const pull=scale(sub(goalWorld,node.p),omega*omega);
+          const pull=scale(sub(goal,node.p),omega*omega);
+          // Drag on the part's own motion through the character's space (the
+          // game damps in the world; at a steady speed that is the same thing).
+          // Damping against the carrying bone's speed instead whipped long
+          // chains: every link chased its parent's swing.
           const damp=scale(node.v,-2*zeta*omega);
-          const a:Vec3=[pull[0]+damp[0],pull[1]+damp[1],pull[2]+damp[2]-GRAVITY*node.gravity];
+          const a:Vec3=[pull[0]+damp[0]+inertia[0],pull[1]+damp[1]+inertia[1],pull[2]+damp[2]+inertia[2]-GRAVITY*node.gravity];
           node.v=add(node.v,scale(a,h));
           node.p=add(node.p,scale(node.v,h));
-          const arm=sub(node.p,pivotWorld),l=len(arm);
-          if(l>1e-6)node.p=add(pivotWorld,scale(arm,node.length/l));
-          if(node.travel>0){const away=sub(node.p,goalWorld),d=len(away);if(d>node.travel)node.p=add(goalWorld,scale(away,node.travel/d));}
+          const arm=sub(node.p,pivotNow),l=len(arm);
+          if(l>1e-6)node.p=add(pivotNow,scale(arm,node.length/l));
+          if(node.travel>0){const away=sub(node.p,goal),d=len(away);if(d>node.travel)node.p=add(goal,scale(away,node.travel/d));}
           node.v=scale(sub(node.p,before),1/h);
         }
       }
-      const swung=sub(node.p,offset);
-      const turn=turnAbout(pivot,sub(bent,pivot),sub(swung,pivot));
+      const turn=turnAbout(pivot,sub(bent,pivot),sub(node.p,pivot));
       const total=new Array(12) as number[];
       if(inherited)compose(turn,inherited,total);else for(let i=0;i<12;i++)total[i]=turn[i];
       delta[b]=total;

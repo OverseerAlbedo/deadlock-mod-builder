@@ -20,6 +20,8 @@ type Props = {
   openProject: () => void; chooseModel: () => void; analyze: () => void;
   /** Step to show when the guide opens by itself (1 = tools, when a path is wrong). */
   startStep?: number;
+  /** Done on the last step: the guide leaves the sidebar (Settings reopens it). */
+  finish?: () => void;
 };
 /** Step labels (the test harness and screen readers use "N. Label"). */
 const steps: [string, string][] = [
@@ -41,9 +43,7 @@ export function OnboardingPage(props: Props) {
   useEffect(() => { if (props.startStep !== undefined) setStep(props.startStep); }, [props.startStep]);
   if (!props.active) return null;
   const { project, settings, busy, go } = props;
-  const physics = project.customization.physics;
   const readiness = setupReadiness(settings, props.status, props.dirty);
-  const testedEnabled = project.customization.enabled === true && project.customization.model_enabled !== false && physics?.enabled === true;
   const done = (index: number) => (index === 1 && readiness.ready) || (index === 2 && Boolean(project.original_model && (project.dmx || project.preparation_source)));
   return <div className="prep-workspace setup-workspace">
     <PageTitle eyebrow="Getting started" title="New-user setup" subtitle="Steps 1–2 set up the app once. Steps 3–5 walk you through your first mod; you can skip them and use the sidebar." action={<button className="prep-secondary" disabled={busy} onClick={() => go('settings')}>Back to Settings</button>} />
@@ -54,7 +54,7 @@ export function OnboardingPage(props: Props) {
       <p className="prep-section-intro">Already have a mod project? Open it to keep your model, materials, mappings and movement choices. Otherwise continue with the project you have open: this guide never resets it or your tool paths.</p>
       <dl className="summary-list"><dt>Current project</dt><dd>{project.name}</dd><dt>Replacement model</dt><dd>{project.dmx ? basename(project.dmx) : project.preparation_source ? basename(project.preparation_source) : 'Not selected'}</dd></dl>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => setStep(1)}>Set up programs<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy} onClick={props.openProject}>Open existing project…</button></div>
-      <p className="hint">You can reopen this guide any time from Settings → Open new-user setup.</p>
+      <p className="hint">This guide stays in the sidebar under Getting started until you press Done on its last step; Settings → Open new-user setup brings it back.</p>
     </Section>}
     {step === 1 && <>
       <Section title="Find and save your tools" className="prep-card">
@@ -83,18 +83,17 @@ export function OnboardingPage(props: Props) {
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('project')}>Choose character<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy} onClick={props.chooseModel}>Choose replacement model…</button><button className="prep-secondary" disabled={busy} onClick={() => go('appearance')}>Review textures and materials</button></div>
       <p className="hint">Use the exact hero from the game archive. Blender, GLB, glTF and FBX files are prepared for the hero automatically; a prepared DMX goes straight to the build.</p>
     </Section>}
-    {step === 3 && <Section title="Choose hair and cloth behavior" className="prep-card">
-      <p className="prep-section-intro">Automatic motion gives hair, skirts, cloth, tails and gun charms movement after preparation; switch parts on or off in <strong>Physics & preview</strong>. The original character's own runtime physics is preserved in normal builds.</p>
-      <p>For the matching Vindicta R12 replacement, open Physics → Configure replacement cloth and press <strong>Use included Vindicta cloth setup</strong>. This selects the accepted skirt and hair reference and enables <strong>Use tested hair and cloth physics</strong>; Build imports and validates it after compilation.</p>
-      <dl className="summary-list"><dt>Tested reference</dt><dd>{testedEnabled ? 'Enabled in this project' : 'Not enabled'}</dd><dt>Selected file</dt><dd><PathValue path={physics?.source} empty="None"/></dd></dl>
+    {step === 3 && <Section title="Hair, cloth and movement" className="prep-card">
+      <p className="prep-section-intro">Hair, skirts, cloth, tails, ears and gun charms get movement by themselves when the model is prepared. Nothing here is required for a first build.</p>
+      <ul className="setup-list"><li><strong>Physics &amp; preview</strong> lists every moving part: switch parts on or off, and set breast or butt motion if you want it.</li><li><strong>Fine-tune movement</strong> sets how stiff, damped, heavy and wide each kind of part swings, and the <strong>Movement</strong> preview plays the hero standing, running and jumping with your parts moving.</li><li>The hero's own cloth from the game is kept in every build.</li></ul>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('physics')}>Open Physics<PrepIcon name="arrow" size={18}/></button></div>
-      <p className="hint">A reference is not a compatibility approval: the replacement must have matching bones, rest poses and cloth bindings.</p>
+      <p className="hint">The preview approximates the game's cloth: check the real movement in Deadlock after the first build.</p>
     </Section>}
     {step === 4 && <Section title="Analyze, review, and build" className="prep-card">
       <ol className="setup-list"><li>Save your settings and project.</li><li>Click <strong>Analyze project</strong> and resolve any mapping, material or compatibility issue it lists.</li><li>In <strong>Build &amp; install</strong>, pick a free VPK slot and whether to install, then click <strong>Build mod</strong>.</li><li>Open Step timings and Logs for the full details of a run.</li></ol>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('build')}>Open Build &amp; install<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy || !project.original_model || (project.customization.model_enabled !== false && !project.dmx)} onClick={props.analyze}>Analyze project</button></div>
       <p className="hint">The build checks the current inputs and the compiled output before packaging or installing.</p>
     </Section>}
-    <footer className="onboarding-footer"><button className="prep-secondary" disabled={busy || step === 0} onClick={() => setStep(step - 1)}>Back</button><span className="muted">Step {step + 1} of {steps.length}{step > 1 ? ' · Optional guide' : ' · App setup'}</span>{step === steps.length - 1 ? <button className="prep-primary" disabled={busy} onClick={() => go('project')}>Done</button> : step !== 1 ? <button className="prep-primary" disabled={busy} onClick={() => setStep(step + 1)}>Next<PrepIcon name="arrow" size={18}/></button> : <span/>}</footer>
+    <footer className="onboarding-footer"><button className="prep-secondary" disabled={busy || step === 0} onClick={() => setStep(step - 1)}>Back</button><span className="muted">Step {step + 1} of {steps.length}{step > 1 ? ' · Optional guide' : ' · App setup'}</span>{step === steps.length - 1 ? <button className="prep-primary" disabled={busy} onClick={() => props.finish ? props.finish() : go('project')}>Done</button> : step !== 1 ? <button className="prep-primary" disabled={busy} onClick={() => setStep(step + 1)}>Next<PrepIcon name="arrow" size={18}/></button> : <span/>}</footer>
   </div>;
 }

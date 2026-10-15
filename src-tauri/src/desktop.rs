@@ -5,7 +5,7 @@ use crate::app::{
 use deadlock_core::TimingReport;
 use deadlock_project::{Project, Settings};
 use std::{path::PathBuf, sync::Arc};
-use tauri::{Emitter, Manager, State};
+use tauri::{image::Image, Emitter, Manager, State};
 
 type AppState<'a> = State<'a, Arc<Application>>;
 
@@ -26,6 +26,51 @@ async fn get_settings(state: AppState<'_>) -> Result<Settings> {
 async fn save_settings(state: AppState<'_>, settings: Settings) -> Result<()> {
     let app = state.inner().clone();
     background(move || app.save_settings(&settings)).await
+}
+/// The window icon of a theme: the plain D, or one of the gradient Ds (the
+/// taskbar and the title bar follow it while the app runs).
+fn theme_icon(theme: &str) -> Option<Image<'static>> {
+    let bytes: &'static [u8] = match theme {
+        "violet" => include_bytes!("../icons/icon-violet.png"),
+        "mint" => include_bytes!("../icons/icon-mint.png"),
+        _ => include_bytes!("../icons/icon.png"),
+    };
+    Image::from_bytes(bytes).ok()
+}
+fn apply_theme_icon(window: &tauri::WebviewWindow, theme: &str) {
+    if let Some(icon) = theme_icon(theme) {
+        let _ = window.set_icon(icon);
+    }
+}
+/// The window icon a theme uses: a built-in theme's own D, a custom theme's chosen one.
+fn icon_for(settings: &Settings) -> String {
+    settings.custom_themes.iter().find(|p| p.id == settings.theme).map(|p| p.icon.clone()).unwrap_or_else(|| settings.theme.clone())
+}
+/// Saves the theme at once (not with the tool paths) and switches the window icon.
+#[tauri::command]
+async fn set_theme(window: tauri::WebviewWindow, state: AppState<'_>, theme: String, icon: Option<String>) -> Result<Settings> {
+    let app = state.inner().clone();
+    let settings = background(move || {
+        let mut settings = app.settings()?;
+        settings.theme = theme;
+        app.save_settings(&settings)?;
+        Ok(settings)
+    })
+    .await?;
+    apply_theme_icon(&window, icon.as_deref().unwrap_or(&icon_for(&settings)));
+    Ok(settings)
+}
+/// Saves the custom themes at once (Settings → Appearance → Customize).
+#[tauri::command]
+async fn save_theme_presets(state: AppState<'_>, presets: Vec<deadlock_project::ThemePreset>) -> Result<Settings> {
+    let app = state.inner().clone();
+    background(move || {
+        let mut settings = app.settings()?;
+        settings.custom_themes = presets;
+        app.save_settings(&settings)?;
+        Ok(settings)
+    })
+    .await
 }
 #[tauri::command]
 async fn detect_settings(
@@ -315,6 +360,10 @@ pub fn run() {
                     }
                 }
             }
+            // The saved theme's icon from the first frame on.
+            if let (Ok(settings), Some(window)) = (application.settings(), host.get_webview_window("main")) {
+                apply_theme_icon(&window, &icon_for(&settings));
+            }
             host.manage(application);
             Ok(())
         })
@@ -334,6 +383,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_settings,
             save_settings,
+            set_theme,
+            save_theme_presets,
             detect_settings,
             get_setup_status,
             check_setting_fields,

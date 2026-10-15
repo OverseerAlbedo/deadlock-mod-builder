@@ -1,9 +1,12 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { Fragment, useEffect, useState } from 'react';
-import type { FieldCheck, Settings, SetupStatus, SetupTest } from '../models';
+import type { FieldCheck, Settings, SetupStatus, SetupTest, ThemePreset } from '../models';
 import { api, errorHelp, errorText, isDesktop } from '../api';
 import { ErrorNotice, PageTitle, Section, StateLabel } from './Primitives';
 import { CompactPathField } from './Paths';
+import { Check } from './CustomizationPages';
+import { themeById, type Theme } from '../theme/themes';
+import { ThemeCards, ThemeCustomizer } from '../theme/ThemeCustomizer';
 import { ToolDownloads, ToolLink } from '../setup/ToolDownloads';
 import type { ToolLinkId } from '../setup/toolLinks';
 
@@ -56,8 +59,11 @@ export function SetupTestPanel({ test, busy, go }: { test: () => Promise<SetupTe
   </div>;
 }
 
-export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go }: {
+export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go, theme = 'original', chooseTheme, guideShown, setGuideShown, customThemes = [], saveCustomThemes }: {
   /** Opens a page from an error's fix button. */ go?: (page: string) => void;
+  /** The look (Appearance): saved at once, not with the tool paths. */ theme?: string; chooseTheme?: (theme: string) => void;
+  /** Whether New-user setup is listed in the sidebar (hidden after Done, or here). */ guideShown?: boolean; setGuideShown?: (shown: boolean) => void;
+  /** The custom themes (saved at once) and how to save the list. */ customThemes?: ThemePreset[]; saveCustomThemes?: (presets: ThemePreset[]) => void;
   /** Expert shows the compiler backend and format choices. */ expert?: boolean;
   /** Runs Test my setup with these settings (shown when given). */ testSetup?: () => Promise<SetupTest | undefined>;
   settings: Settings | null; update: (settings: Settings) => void; persist: () => void;
@@ -67,6 +73,8 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
   embedded?: boolean; verify?: () => void;
 }) {
   const [fields, setFields] = useState<FieldCheck[] | null>(null);
+  /** The theme editor, when open: the theme it starts from and the custom theme it edits. */
+  const [editor, setEditor] = useState<{start: Theme; editing?: ThemePreset} | null>(null);
   // Live checks while typing or after choosing a path (files only; cheap).
   useEffect(() => {
     if (!settings || !isDesktop()) return;
@@ -99,6 +107,12 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
     {!settings ? <p className="empty-state">Settings are not available. Open the desktop application to load your configuration.</p> : <>
       {!embedded && (onboarding || modelSetup) && <div className="setup-entry"><div><h2>Getting started</h2><p>Reopen the setup guide or configure your model compiler.</p></div><div className="row">{onboarding && <button disabled={busy} onClick={onboarding}>Open new-user setup</button>}{modelSetup && <button className="tertiary" disabled={busy} onClick={modelSetup}>Set up model compiler…</button>}</div></div>}
       <ToolDownloads busy={busy} expanded={embedded} modelSetup={modelSetup}/>
+      {!embedded && chooseTheme && <Section title="Appearance" id="appearance">
+        <ThemeCards active={theme} customs={customThemes} disabled={busy} onChoose={chooseTheme} onCustomize={() => setEditor({start: themeById(theme, customThemes)})} onEdit={preset => setEditor({start: themeById(preset.id, customThemes), editing: preset})} onDelete={id => { if (saveCustomThemes) { saveCustomThemes(customThemes.filter(t => t.id !== id)); if (id === theme) chooseTheme('original'); } }}/>
+        {editor && <ThemeCustomizer start={editor.start} editing={editor.editing} customs={customThemes} disabled={busy} onCancel={() => setEditor(null)} onSave={preset => { saveCustomThemes?.([...customThemes.filter(t => t.id !== preset.id), preset]); chooseTheme(preset.id); setEditor(null); }}/>}
+        <p className="hint">A theme changes at once and is kept with your settings, so it survives restarts and reinstalls. The mark in the sidebar and the window icon (title bar and taskbar) follow it. Customize… makes your own from any theme: a color picker or a hex code for each color, with a live preview.</p>
+        {setGuideShown && <><Check label="Show New-user setup in the sidebar (Getting started)" value={guideShown !== false} onChange={setGuideShown} disabled={busy}/><p className="hint">Hide it once you know the five steps; Done on the guide's last step hides it as well. It stays available from Open new-user setup below.</p></>}
+      </Section>}
       <Section title="Folders and tools" actions={<div className="row"><button disabled={busy} onClick={()=>detect()}>Detect tools</button><button disabled={busy} onClick={()=>detect(true)}>Search a folder…</button>{fixable.length > 0 && <button disabled={busy} onClick={() => void fixAll()}>Fix {fixable.length === 1 ? 'the marked path' : `all ${fixable.length} marked paths`}</button>}{embedded && verify ? <button className="primary" disabled={busy} onClick={verify}>Save and check tools</button> : <button disabled={busy} onClick={check}>Check paths</button>}</div>}>
         {checks && <p className={`settings-check-summary ${problems.length ? 'has-problems' : 'all-good'}`} role="status">{problems.length === 0 ? 'All required paths look right.' : `${problems.length} ${problems.length === 1 ? 'path needs' : 'paths need'} fixing. Each one says what is wrong${fixable.length ? '; use the suggested path where offered' : ''}.`}</p>}
         <div className="settings-fields">{renderPaths(pathFields)}</div>

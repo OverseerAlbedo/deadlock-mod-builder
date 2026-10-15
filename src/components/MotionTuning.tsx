@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import type { MotionTuning, PhysicsPreset, SecondaryMotionChoices } from '../models';
 type Tuning = Record<string, Record<string, number>>;
@@ -16,6 +16,27 @@ const SETTINGS: [keyof MotionTuning, string, string][] = [
   ['swing', 'Swing range', 'How far it may swing. Parts that already swing freely stay free.'],
 ];
 const percent = (value: number) => value === 0 ? 'Automatic' : `${value > 0 ? '+' : '−'}${Math.round(Math.abs(value) * 100)}%`;
+/** Slider steps, in percent: fine enough to land on a value, coarse enough to read. */
+const STEP = 5;
+const clampPercent = (value: number) => Math.max(-100, Math.min(100, Math.round(value / STEP) * STEP));
+
+/** One setting: a centred slider (automatic in the middle, filled toward the
+ * value), − and + steps, the value as a percentage; double-click the slider
+ * to go back to automatic. */
+function TuningSlider({kind, label, hint, value, disabled, onChange}: {kind: TuningKind; label: string; hint: string; value: number; disabled: boolean; onChange: (percent: number) => void}) {
+  const pct = Math.round(value * 100);
+  const lo = Math.min(50, 50 + pct / 2), hi = Math.max(50, 50 + pct / 2);
+  return <div className={`tuning-slider ${pct ? 'tuned' : ''}`}>
+    <div className="tuning-slider-head"><span className="tuning-slider-label">{label}</span><small className="tuning-slider-hint">{hint}</small></div>
+    <div className="tuning-slider-track">
+      <button type="button" className="tuning-step" aria-label={`${label} less`} disabled={disabled || pct <= -100} onClick={() => onChange(clampPercent(pct - STEP))}>−</button>
+      <span className="tuning-slider-range"><input type="range" min={-100} max={100} step={STEP} value={pct} disabled={disabled} aria-label={`${KIND_LABELS[kind]} ${label.toLowerCase()}`} aria-valuetext={percent(value)}
+        style={{'--lo': `${lo}%`, '--hi': `${hi}%`} as CSSProperties} onChange={event => onChange(clampPercent(Number(event.target.value)))} onDoubleClick={() => onChange(0)}/></span>
+      <button type="button" className="tuning-step" aria-label={`${label} more`} disabled={disabled || pct >= 100} onClick={() => onChange(clampPercent(pct + STEP))}>+</button>
+      <output className={pct ? 'tuned' : ''} aria-live="polite">{percent(value)}</output>
+    </div>
+  </div>;
+}
 
 /** The project's tuning with one part type's values changed (zeros and empty types removed). */
 export function withTuning(current: Tuning | undefined, kind: TuningKind, values: MotionTuning | null): Tuning {
@@ -31,15 +52,8 @@ export function TuningSliders({kind, cfg, update, disabled}: {kind: TuningKind; 
   const changed = SETTINGS.some(([key]) => (values[key] ?? 0) !== 0);
   return <fieldset className="motion-tuning" aria-label={`Fine-tune ${KIND_LABELS[kind]}`}>
     <legend>{KIND_LABELS[kind]}{changed && <button type="button" className="tertiary" disabled={disabled} onClick={() => update({tuning: withTuning(cfg.tuning, kind, null)})}>Reset</button>}</legend>
-    {SETTINGS.map(([key, label, hint]) => {
-      const value = values[key] ?? 0;
-      return <label key={key} className="motion-tuning-row" title={hint}>
-        <span>{label}</span>
-        <input type="range" min={-100} max={100} step={10} value={Math.round(value * 100)} disabled={disabled} aria-label={`${KIND_LABELS[kind]} ${label.toLowerCase()}`}
-          onChange={event => update({tuning: withTuning(cfg.tuning, kind, {...values, [key]: Number(event.target.value) / 100})})}/>
-        <output>{percent(value)}</output>
-      </label>;
-    })}
+    {SETTINGS.map(([key, label, hint]) => <TuningSlider key={key} kind={kind} label={label} hint={hint} value={values[key] ?? 0} disabled={disabled}
+      onChange={pct => update({tuning: withTuning(cfg.tuning, kind, {...values, [key]: pct / 100})})}/>)}
   </fieldset>;
 }
 

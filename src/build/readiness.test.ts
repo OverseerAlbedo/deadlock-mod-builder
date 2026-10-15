@@ -11,6 +11,23 @@ describe('Readiness is based on current native evidence', () => {
     expect(stale.rows.find(row => row.key === 'skeleton')?.tone).toBe('neutral');
     expect(projectReadiness(reviewedProject, inspected, true).ready).toBe(true);
   });
+  it('reports a VPK slot another mod uses as an issue once the slot scan has run', () => {
+    const slot = reviewedProject.vpk_number;
+    const taken = projectReadiness(reviewedProject, inspected, true, {configured_slot: slot, configured_slot_occupied: true, available_slot: 7});
+    expect(taken.ready).toBe(false);
+    expect(taken.issues.map(issue => issue.text)).toContainEqual(expect.stringContaining(`slot ${slot} is in use by another mod`));
+    expect(taken.issues.find(issue => issue.action === 'Choose free slot')?.text).toContain('slot 7 is free');
+    expect(taken.rows.find(row => row.key === 'output')?.tone).toBe('attention');
+    const free = projectReadiness(reviewedProject, inspected, true, {configured_slot: slot, configured_slot_occupied: false, available_slot: slot});
+    expect(free.ready).toBe(true);
+    expect(free.rows.find(row => row.key === 'output')?.value).toContain('slot free');
+    // A scan of another slot (the project changed slot since) says nothing.
+    expect(projectReadiness(reviewedProject, inspected, true, {configured_slot: slot + 1, configured_slot_occupied: true, available_slot: null}).ready).toBe(true);
+    // Replace an existing installed VPK (Build's choice) keeps the note but not the block.
+    const replacing = projectReadiness(reviewedProject, inspected, true, {configured_slot: slot, configured_slot_occupied: true, available_slot: 7}, true);
+    expect(replacing.ready).toBe(true);
+    expect(replacing.rows.find(row => row.key === 'output')?.value).toContain('will be replaced');
+  });
   it('shows native blockers and review actions without hiding them behind a ready badge', () => {
     const report = { ...inspected, needs_review: true, unresolved_meshes: ['body'], materials: { 'body.vmat': { mode: 'generate', confirmed: false } }, vertex_preflight: { ...inspected.vertex_preflight, errors: ['Body exceeds vertex limit'] } };
     const state = projectReadiness({ ...reviewedProject, review_lods: false }, report, true);

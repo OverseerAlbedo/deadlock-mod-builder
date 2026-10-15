@@ -9,15 +9,27 @@ sys.path.insert(0, str(Path(__file__).parent))
 from source_helpers import mmd_helpers, helper_receipt
 
 
-def checked_path(path):
-    """Reject links before canonicalization, including Windows reparse points."""
+def checked_path(path, required=True):
+    """Reject links before canonicalization, including Windows reparse points.
+
+    A path that is not on this PC (a texture the model points at by a path from
+    another computer) is None when not required; the caller decides what that
+    means. A required one raises.
+    """
     path = Path(os.path.abspath(path))
     for item in (*reversed(path.parents), path):
-        info = item.lstat()
+        try:
+            info = item.lstat()
+        except OSError:
+            if required:
+                raise RuntimeError('Preview dependency is missing: ' + str(path)) from None
+            return None
         if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
             raise RuntimeError('Linked preview input is not supported: ' + str(item))
     if not path.is_file() or path.stat().st_size > 512 * 1024 * 1024:
-        raise RuntimeError('Preview dependency is missing or exceeds 512 MiB: ' + str(path))
+        if required:
+            raise RuntimeError('Preview dependency is missing or exceeds 512 MiB: ' + str(path))
+        return None
     return path
 
 
@@ -74,17 +86,24 @@ def main():
         for obj in bpy.context.scene.objects:
             obj.select_set(obj not in helpers and obj not in shapes)
     for library in bpy.data.libraries:
-        path = checked_path(bpy.path.abspath(library.filepath, library=library.parent))
-        if not path.is_file():
-            raise RuntimeError('Missing linked Blender library: ' + str(path))
+        path = checked_path(bpy.path.abspath(library.filepath, library=library.parent), required=False)
+        if path is None:
+            raise RuntimeError('Missing linked Blender library: ' + bpy.path.abspath(library.filepath, library=library.parent))
         dependencies[str(path)] = sha(path)
+    # A texture the file points at that is not on this PC (a path from another
+    # computer, a moved folder) leaves that material plain; the model still shows.
+    missing = []
     for image in bpy.data.images:
         if image.source != 'FILE' or image.packed_file:
             continue
-        path = checked_path(bpy.path.abspath(image.filepath, library=image.library))
-        if not path.is_file():
-            raise RuntimeError('Missing external Blender texture: ' + str(path))
+        path = checked_path(bpy.path.abspath(image.filepath, library=image.library), required=False)
+        if path is None:
+            missing.append(image.filepath)
+            continue
         dependencies[str(path)] = sha(path)
+    if missing:
+        shown = ', '.join(missing[:3]) + ('…' if len(missing) > 3 else '')
+        warnings.append(f'{len(missing)} texture file{"s" if len(missing) != 1 else ""} the model points at {"are" if len(missing) != 1 else "is"} not on this PC, shown without {"them" if len(missing) != 1 else "it"}: {shown}')
     if any(mod.type in ('CLOTH', 'SOFT_BODY', 'FLUID') for obj in bpy.data.objects for mod in obj.modifiers):
         warnings.append('Simulation modifiers are shown at the saved frame only; this viewer does not replay Blender cloth or fluids.')
     if any(getattr(obj, 'animation_data', None) and obj.animation_data.drivers for obj in bpy.data.objects):

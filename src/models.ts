@@ -78,7 +78,12 @@ export interface Settings {
   keep_backups?: number;
   keep_previous_preparation?: boolean;
   clear_build_data_after_build?: boolean;
+  /** The app's look: "original", "violet", "mint" or a custom theme's id. Saved at once, not with the tool paths. */
+  theme?: string;
+  /** Themes made in Settings → Appearance → Customize (tokens by name). */
+  custom_themes?: ThemePreset[];
 }
+export interface ThemePreset { id: string; name: string; icon?: string; base?: Record<string, string> | null; tokens: Record<string, string> }
 export type StorageKind = 'preparation' | 'originals' | 'backups' | 'output' | 'build_data' | 'compiler' | 'temporary' | 'records';
 export interface StorageUsage { kind: StorageKind; bytes: number; reclaimable: number }
 export interface StorageProject { id: string; name: string; hero: string; project_file: string | null; open: boolean; locked: boolean; workspace: string | null; modified: number | null; bytes: number; reclaimable: number; usage: StorageUsage[] }

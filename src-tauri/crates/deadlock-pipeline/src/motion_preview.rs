@@ -84,7 +84,9 @@ pub fn clips_for(base: &Path, model_folder: &Path) -> Vec<(&'static str, Vec<Par
     let landing = stance::find_ranked(base, model_folder, &LANDING, |s| stance::rank_words(s, &["land"], &AVOID).or_else(|| stance::rank_words(s, &["jump", "impact"], &AVOID)));
     if !start.is_empty() || !air.is_empty() {
         let landing = Part { candidates: landing, seconds: 1.2, base: idle.first().cloned() };
-        out.push(("jump", vec![part(start, 1.), part(air, 0.6), landing, part(idle, 0.7)]));
+        // A short stretch in the air: the game's jump is quick, and a longer hold
+        // of the in-air loop reads as floating.
+        out.push(("jump", vec![part(start, 1.), part(air, 0.35), landing, part(idle, 0.7)]));
     }
     out
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { JsonValue, Project, SecondaryMotionChoices } from '../models';
 import type { ProjectInspection } from '../build/models';
 import { Disclosure, StateLabel } from './Primitives';
@@ -6,6 +7,18 @@ import { charmNamed, namedBreast, namedButt } from '../preparation/secondary-bon
 import { KIND_LABELS, PhysicsPresets, TuningSliders, type TuningKind } from './MotionTuning';
 /** Part types most models have, offered before an Analyze names this model's own. */
 const COMMON_KINDS:TuningKind[]=['hair','streamer','tail','ear','cloth','long_skirt','accessory'];
+
+/** Every slider of every part type back to automatic, after a warning (saved presets are kept). */
+function ResetAllTuning({cfg,update,disabled}:{cfg:SecondaryMotionChoices;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean}){
+  const [confirming,setConfirming]=useState(false);
+  const tuned=Object.values(cfg.tuning??{}).reduce((n,values)=>n+Object.values(values??{}).filter(v=>typeof v==='number'&&v!==0).length,0);
+  if(!tuned&&!confirming)return <div className="tuning-toolbar"><span className="muted">Every slider is at automatic.</span></div>;
+  return <div className="tuning-toolbar">
+    {confirming
+      ?<div className="capability-notice tuning-reset-warning" role="alertdialog" aria-label="Reset all fine-tuning"><strong>Put every slider back to automatic?</strong><p>{tuned} {tuned===1?'setting':'settings'} across all part types will be cleared. Saved presets are kept; the next Analyze and Build use the automatic values.</p><div className="row"><button type="button" className="primary" disabled={disabled} onClick={()=>{update({tuning:{}});setConfirming(false);}}>Reset all</button><button type="button" onClick={()=>setConfirming(false)}>Keep my values</button></div></div>
+      :<><span className="muted">{tuned} {tuned===1?'setting':'settings'} changed from automatic.</span><button type="button" className="tertiary" disabled={disabled} onClick={()=>setConfirming(true)}>Reset all…</button></>}
+  </div>;
+}
 /** Part types that can be fine-tuned: from the last Analyze, the chosen part types, breast, butt and
  * charm groups, and any type already tuned. Before an Analyze every common type is offered (the
  * model's own types are not known yet). In the order of the labels. */
@@ -144,6 +157,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
         return <div className="source-springs"><label className="checkbox checkbox-line"><input type="checkbox" checked={cfg.use_source_springs===true} disabled={disabled} onChange={event=>update({use_source_springs:event.target.checked})}/>Start from your model's own {source} spring settings ({springs.length} {springs.length===1?'part':'parts'})</label>
           <p className="hint">Off: the builder's own values (used for every model so far). On: those parts start from the stiffness, damping and gravity your model came with; the sliders then adjust from there. Applies at the next Analyze and Build.</p></div>;})()}
       {!checked?.parts?.length&&<p className="hint">Showing every common part type. After Analyze on Build &amp; install, only the types found in this model are listed.</p>}
+      <ResetAllTuning cfg={cfg} update={update} disabled={disabled}/>
       <div className="motion-tuning-grid">{tunableKinds(project,fresh?report:null).map(kind=><TuningSliders key={kind} kind={kind} cfg={cfg} update={update} disabled={disabled}/>)}</div>
       <p className="hint">Each slider starts at the automatic value. The change applies to every part of that type at the next Analyze and Build; a part's own Movement choice under Adjust moving parts is applied first.</p>
       <PhysicsPresets cfg={cfg} update={update} disabled={disabled}/>

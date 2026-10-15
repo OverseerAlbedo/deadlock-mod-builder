@@ -262,9 +262,22 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'Open new-user setup'}));
     expect(screen.getByRole('button',{name:'2. Game and tools'})).toHaveAttribute('aria-current','step');
     fireEvent.click(screen.getByRole('button',{name:'4. Hair and cloth'}));
-    expect(screen.getByText('Use included Vindicta cloth setup',{selector:'strong'})).toBeInTheDocument();
+    expect(screen.getByText('Fine-tune movement',{selector:'strong'})).toBeInTheDocument();
+    expect(screen.queryByText(/Vindicta R12/)).toBeNull();
     fireEvent.click(screen.getByRole('button',{name:'Open Physics'}));
     expect(screen.getByRole('heading',{name:'Physics & preview'})).toBeInTheDocument();
+    // The guide stays in the sidebar while it is in progress, at the step left off.
+    const guide=screen.getByRole('button',{name:'New-user setup'});
+    expect(guide.closest('.nav-group')?.textContent).toContain('Getting started');
+    fireEvent.click(guide);
+    expect(screen.getByRole('button',{name:'4. Hair and cloth'})).toHaveAttribute('aria-current','step');
+    fireEvent.click(screen.getByRole('button',{name:'5. Build'}));
+    fireEvent.click(screen.getByRole('button',{name:'Done'}));
+    expect(screen.getByRole('heading',{name:'Character & model'})).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'New-user setup'})).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    fireEvent.click(screen.getByRole('button',{name:'Open new-user setup'}));
+    expect(screen.getByRole('button',{name:'New-user setup'})).toBeInTheDocument();
     expect(mocks.saveSettings).not.toHaveBeenCalled();
     expect(mocks.newProject).toHaveBeenCalledTimes(1);
   });

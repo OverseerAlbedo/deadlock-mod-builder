@@ -378,6 +378,9 @@ pub fn setup(
                 proxy = fitted;
                 preset_fit = Some(receipt);
             }
+            // The movement preview's moving parts for the bundled setup as well;
+            // the proxy stays the reviewed one (the automatic plan is thrown away).
+            let _ = generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &mut preview_nodes, cancel);
             (proxy, 900, 786)
         }
         "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &mut preview_nodes, cancel)?,
