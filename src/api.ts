@@ -3,7 +3,7 @@ import type { ExtraPreviewRequest } from './extras/models';
 import type { PreparationAnalysis, PreparationOptions, PreparationResult, ResumedPreparation, ReviewIssue, Suggestions, Vec3, WeaponPreview } from './preparation/models';
 import type { BuildResponse, InspectionResult, OriginalValidation, PrepareResult } from './build/models';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { ThemePreset, AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
+import type { Capabilities, ThemePreset, AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
 
 export const isDesktop = () => isTauri();
 export interface ToolLogFile {path:string;bytes:number;kind:string}
@@ -48,6 +48,8 @@ export const api = {
   importSourcePackage: (path: string, project: Project) => invoke<Project>('import_source_package', { path, project }),
   detectSettings: (settings: Settings, extraRoots: string[] = []) => invoke<Settings>('detect_settings', { settings, extraRoots }),
   setupStatus: (settings: Settings) => invoke<SetupStatus>('get_setup_status', { settings }),
+  /** What this build includes; the Physics page hides the TangTang presets when they are not compiled in. */
+  capabilities: () => invoke<Capabilities>('get_capabilities'),
   checkSettingFields: (settings: Settings) => invoke<FieldCheck[]>('check_setting_fields', { settings }),
   heroProportions: (path: string) => invoke<HeroProportions | null>('hero_proportions', { path }),
   prebuildWarnings: () => invoke<string[]>('prebuild_warnings'),

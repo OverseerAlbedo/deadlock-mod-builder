@@ -38,7 +38,7 @@ def capture(meshes,rig):
 
 
 def target_fixture():
-    rows=json.loads((ROOT/'src-tauri/crates/deadlock-preparation/tests/fixtures/tangtang-rig.json').read_text())['target']
+    rows=json.loads((Path(os.environ.get('DMB_PRIVATE_ASSETS') or ROOT/'private-assets')/'fixtures/tangtang-rig.json').read_text())['target']
     worlds={}
     for b in rows:
         m=np.eye(4);m[:3,3]=b['position'];worlds[b['name']]=m

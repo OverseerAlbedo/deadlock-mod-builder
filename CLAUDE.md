@@ -23,6 +23,11 @@ pwsh -NoProfile -File scripts/build-windows.ps1     # portable app in artifacts\
 Blender harness (18 awkward humanoid/gun cases, ends in native DMX validation):
 build `-p deadlock-preparation --example e2e_probe`, then run
 `scripts/test_blender_any_humanoid.py` with Blender (see DEVELOPMENT.md).
+Private assets: the TangTang preset data and the Daki/TangTang rig captures are
+not in the repository (private repo `deadlock-mod-builder-private-assets`,
+cloned to `private-assets/`, ignored; or `DMB_PRIVATE_ASSETS`). Builds and tests
+pass without them (TangTang presets compiled out, nine tests skip with a note);
+the Blender harness needs them. See DEVELOPMENT.md "Private assets".
 `src-tauri/target` grows to tens of GB; `cargo clean` is safe.
 
 ## Repository and release
@@ -59,8 +64,9 @@ customizer (custom presets in settings), the movement preview solver in the
 character's frame with calmer tuning and moving parts recorded by every
 Analyze, redrawn Fine-tune sliders with Reset all, build freshness after a
 build and the VPK slot check at Analyze, the guide in the sidebar, the Blender
-preview texture fix, and privacy hardening of local builds. Rust workspace 524
-passed / 42 ignored, UI 225 passed, Blender harness 28/28.
+preview texture fix, and privacy hardening of local builds. Rust workspace 525
+passed / 42 ignored, UI 228 passed, Blender harness 28/28 (with the private
+assets; the same Rust and UI counts without them).
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -146,6 +152,13 @@ template check (`tests/cloth_bones.rs`).
   `cjk_readings.txt`); ASCII names must keep their old slug byte for byte
   (`scripts/test_readable_names.py`).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
+- Anything captured from a third-party character (TangTang proxies and groups,
+  Daki/TangTang rig JSON) goes to `private-assets/`, never into the repository.
+  `deadlock-cloth-authoring/build.rs` sets `cfg(tangtang_assets)` when the
+  folder is there; code reads the data through `tangtang_assets::GROUPS` /
+  `R2_PROXY` / `REFERENCE_PROXY` (`Option`) and must work when they are `None`.
+  Tests load it with `tests/common/mod.rs` `private_text` and return early
+  when it is missing.
 - Do not update dependencies or lockfiles unless the change needs it.
 - Version must agree in package.json, package-lock.json, Cargo.toml files and
   tauri.conf.json (`node scripts/check-repository.mjs` checks this).

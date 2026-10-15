@@ -31,6 +31,10 @@ jobs:
       CARGO_INCREMENTAL: '0'
       CARGO_BUILD_JOBS: '2'
       RUST_BACKTRACE: '1'
+      # Optional: a token that can read OverseerAlbedo/deadlock-mod-builder-private-assets.
+      # With it the build carries the TangTang presets and the captured-rig tests run;
+      # without it everything builds and tests the same from the public source alone.
+      PRIVATE_ASSETS_TOKEN: ${{ secrets.PRIVATE_ASSETS_TOKEN }}
       VERSION: ${{ inputs.version }}
       TAG: v${{ inputs.version }}
       GH_TOKEN: ${{ github.token }}
@@ -38,6 +42,14 @@ jobs:
       - name: Check out source without changing fixture bytes
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - name: Check out the private assets (TangTang presets, captured rig fixtures) when a token is configured
+        if: env.PRIVATE_ASSETS_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: OverseerAlbedo/deadlock-mod-builder-private-assets
+          token: ${{ secrets.PRIVATE_ASSETS_TOKEN }}
+          path: private-assets
           persist-credentials: false
       - name: Check the requested version before building
         run: |
@@ -78,7 +90,8 @@ jobs:
           $installer = "artifacts/release/DeadlockModBuilder-v$env:VERSION-windows-x64-setup.exe"
           if (-not (Test-Path $installer)) { throw "Installer not found: $installer" }
           $sha = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          $notes = (Get-Content docs/RELEASE_NOTES.md -Raw) + "`n`n---`nInstaller SHA-256: ``$sha```nBuilt and tested by GitHub Actions from commit $env:GITHUB_SHA.`n"
+          $tangtang = if (Test-Path private-assets/cloth-authoring/tangtang-r2-proxy.dmx) { 'included' } else { 'not included (built from the public source alone)' }
+          $notes = (Get-Content docs/RELEASE_NOTES.md -Raw) + "`n`n---`nInstaller SHA-256: ``$sha```nBuilt and tested by GitHub Actions from commit $env:GITHUB_SHA. TangTang presets: $tangtang.`n"
           Set-Content -Path release-notes.md -Value $notes -Encoding utf8
           $arguments = @($env:TAG, $installer, '--repo', $env:GITHUB_REPOSITORY, '--target', $env:GITHUB_SHA,
             '--title', "Deadlock Mod Builder $env:VERSION", '--notes-file', 'release-notes.md')

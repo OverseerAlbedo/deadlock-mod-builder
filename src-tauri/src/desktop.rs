@@ -85,6 +85,16 @@ async fn detect_settings(
 fn get_setup_status(state: AppState<'_>, settings: Settings) -> SetupStatus {
     state.setup_status(&settings)
 }
+/// What this copy of the app was built with; the UI hides choices that are not compiled in.
+#[derive(serde::Serialize)]
+pub struct Capabilities {
+    /// The TangTang presets (private data; see deadlock-cloth-authoring/build.rs).
+    pub tangtang_presets: bool,
+}
+#[tauri::command]
+fn get_capabilities() -> Capabilities {
+    Capabilities { tangtang_presets: deadlock_pipeline::TANGTANG_PRESETS }
+}
 /// Whether the hero has extreme proportions (Shiv, Wraith), for a notice at selection.
 #[tauri::command]
 async fn hero_proportions(state: AppState<'_>, path: String) -> Result<Option<crate::hero_fit::HeroProportions>> {
@@ -387,6 +397,7 @@ pub fn run() {
             save_theme_presets,
             detect_settings,
             get_setup_status,
+            get_capabilities,
             check_setting_fields,
             hero_proportions,
             prebuild_warnings,

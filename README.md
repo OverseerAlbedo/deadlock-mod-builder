@@ -113,6 +113,8 @@ npm run tauri -- dev
 
 `npm run dev` serves only the browser frontend; native operations need `npm run tauri -- dev`.
 
+The TangTang presets and a few test fixtures come from a separate private repository (`private-assets/`, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#private-assets)); the app builds and tests without it, offering Automatic movement only.
+
 The same tests, portable build and startup check as CI:
 
 ```powershell

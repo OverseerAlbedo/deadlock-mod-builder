@@ -123,7 +123,7 @@ export function CharmMotion({project,update,disabled,report}:{project:Project;up
     {on&&<SelectField label="Charm movement" value={amount} values={[["automatic","Automatic light swing"],["soft","More movement"],["stiff","Stiffer"]]} onChange={value=>update({profiles:{...cfg.profiles,...Object.fromEntries(charms.map(root=>[root,value as Movement]))}})} disabled={disabled}/>}
   </div>;
 }
-export function SecondaryMotion({project,update,disabled,report,fresh,preparation,openPreparation,expert=true}:{expert?:boolean;project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void}){
+export function SecondaryMotion({project,update,disabled,report,fresh,preparation,openPreparation,expert=true,tangtangPresets=true}:{expert?:boolean;/** Whether this build carries the TangTang presets (private data); otherwise only Automatic is offered. */tangtangPresets?:boolean;project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void}){
   const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project);
   const selected=cfg.roots??roots,reference=cfg.preset==='tangtang_reference',tang=reference||cfg.preset==='tangtang_r2';
   const checked=fresh&&report&&'dmx' in report?report.secondary_motion:null;
@@ -131,9 +131,13 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
   const hairMotion=checked?.hair_motion;
   const longSkirt=checked?.long_skirt;
   const waitingForMapping=fresh&&report&&'dmx' in report&&!checked&&report.unresolved_meshes.length>0;
+  const tangOptions:[string,string][]=[["tangtang_reference","TangTang — reference hair and cloth"],["tangtang_r2","TangTang R2 — accepted Haze conversion"]];
+  // A build without the private TangTang data lists only Automatic; a project saved with a preset still shows its choice so the note below can explain it.
+  const presetOptions:[string,string][]=[["automatic","Automatic — match movement to each part"],...(tangtangPresets?tangOptions:tangOptions.filter(([key])=>key===cfg.preset).map(([key,text]):[string,string]=>[key,`${text} (not included in this build)`]))];
   return <div className="editor-fields secondary-motion-controls">
     {(expert||tang)&&<div className="motion-preset">
-    <SelectField label="Secondary motion preset" value={cfg.preset??'automatic'} values={[["automatic","Automatic — match movement to each part"],["tangtang_reference","TangTang — reference hair and cloth"],["tangtang_r2","TangTang R2 — accepted Haze conversion"]]} onChange={preset=>update({preset:preset as SecondaryMotionChoices['preset']})} disabled={disabled}/>
+    <SelectField label="Secondary motion preset" value={cfg.preset??'automatic'} values={presetOptions} onChange={preset=>update({preset:preset as SecondaryMotionChoices['preset']})} disabled={disabled}/>
+    {tang&&!tangtangPresets&&<p className="hint">This copy of the app was built without the TangTang presets. Choose Automatic; Analyze stops with that message otherwise.</p>}
     <p className="hint">{reference?'Accepted back streamers: flexible along their length, with anti-twist, damping and travel limits. Hair, ears, white cloth and tail keep their accepted tuning. Analyze fits the preset to compatible TangTang conversions, including Preserve source proportions.':tang?'Uses the exact R2 setup: accepted hair and tail, stiffer top ears, more movement in the back strips. Analyze fits the preset to compatible TangTang conversions.':'Build creates and compiles motion for the physics groups kept during model preparation. Body joints are excluded. Hair, streamers, tails, ears, long skirts, cloth and optional breast motion receive separate defaults. Halos, hats and hairpins stay rigid. Hair, tail and streamer chains receive automatic twist protection.'}</p>
     </div>}
     {roots.length===0?<p role="status">No prepared physics groups are saved. Use Model preparation → Keep existing physics bones, convert, then use the prepared model.</p>:<p><StateLabel tone={checked?'ready':'neutral'}>{checked?`${checked.groups.length} groups checked · native fitting checked during Build`:`${tang?roots.length:selected.length} groups selected · ${waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check'}`}</StateLabel></p>}

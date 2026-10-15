@@ -5,17 +5,19 @@ use deadlock_preparation::{
 use deadlock_project::PreparationOptions;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-fn fixture() -> (Vec<Bone>, Vec<String>, Vec<Bone>) {
-    let v: Value = serde_json::from_str(include_str!("fixtures/tangtang-rig.json")).unwrap();
-    (
+mod common;
+/// The captured TangTang rig (private assets), or `None` when it is not checked out.
+fn fixture() -> Option<(Vec<Bone>, Vec<String>, Vec<Bone>)> {
+    let v: Value = serde_json::from_str(&common::private_text("fixtures/tangtang-rig.json")?).unwrap();
+    Some((
         serde_json::from_value(v["source"].clone()).unwrap(),
         serde_json::from_value(v["weighted"].clone()).unwrap(),
         serde_json::from_value(v["target"].clone()).unwrap(),
-    )
+    ))
 }
 #[test]
 fn tangtang_body_uses_weighted_d_chain_and_common_pelvis_control() {
-    let (source, weighted, target) = fixture();
+    let Some((source, weighted, target)) = fixture() else { return };
     let result =
         automap::suggest(&source, &weighted, &target, &PreparationOptions::default()).unwrap();
     let sr = result.source.as_ref().unwrap();
@@ -85,7 +87,7 @@ fn tangtang_body_uses_weighted_d_chain_and_common_pelvis_control() {
 }
 #[test]
 fn wrong_head_or_pelvis_role_is_not_qualified() {
-    let (source, weighted, target) = fixture();
+    let Some((source, weighted, target)) = fixture() else { return };
     for (role, name) in [("head", "腰"), ("pelvis", "頭")] {
         let options: PreparationOptions =
             serde_json::from_value(json!({"source_roles":{role:name}})).unwrap();
@@ -96,7 +98,7 @@ fn wrong_head_or_pelvis_role_is_not_qualified() {
 }
 #[test]
 fn existing_extra_mapping_is_retained_and_invalid_target_removed() {
-    let (source, weighted, target) = fixture();
+    let Some((source, weighted, target)) = fixture() else { return };
     let options: PreparationOptions =
         serde_json::from_value(json!({"mapping":{"下半身":"pelvis","手捩.L":"missing-target"}}))
             .unwrap();
@@ -107,7 +109,7 @@ fn existing_extra_mapping_is_retained_and_invalid_target_removed() {
 }
 #[test]
 fn ambiguous_unweighted_leg_and_broken_finger_hierarchy_need_review() {
-    let (mut source, _, target) = fixture();
+    let Some((mut source, _, target)) = fixture() else { return };
     let roles = automap::roles(&source, &[], &BTreeMap::new()).unwrap();
     assert!(!roles.roles.contains_key("thigh_L"));
     source
@@ -121,7 +123,7 @@ fn ambiguous_unweighted_leg_and_broken_finger_hierarchy_need_review() {
 
 #[test]
 fn biped_and_mixamo_fingers_require_matching_complete_chains() {
-    let (original,weighted,target)=fixture();
+    let Some((original,weighted,target))=fixture() else { return };
     for names in [["Bip001_L_Finger2","Bip001_L_Finger21","Bip001_L_Finger22"],
                   ["mixamorig:LeftHandMiddle1","mixamorig:LeftHandMiddle2","mixamorig:LeftHandMiddle3"]] {
         let replacements: BTreeMap<_,_>=["中指１.L","中指２.L","中指３.L"].into_iter().zip(names).collect();

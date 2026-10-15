@@ -1,6 +1,7 @@
 use deadlock_resource::{Kind, Value};
 use deadlock_skeleton::{bindings, Skeleton};
 use std::collections::BTreeSet;
+mod common;
 fn typed(v: &serde_json::Value) -> Value {
     Value::new(match v {
         serde_json::Value::Null => Kind::Null,
@@ -16,8 +17,9 @@ fn typed(v: &serde_json::Value) -> Value {
 }
 #[test]
 fn actual_tangtang_native_drift_is_bounded_and_original_budget_is_unchanged() {
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/tangtang-native-binds.json")).unwrap();
+    // Captured from the TangTang conversion: private assets, skipped with a note when absent.
+    let Some(text) = common::private_text("fixtures/tangtang-native-binds.json") else { return };
+    let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
     let skeleton: Skeleton = serde_json::from_value(fixture["skeleton"].clone()).unwrap();
     let meshes: Vec<_> = fixture["mdats"]
         .as_array()

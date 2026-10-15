@@ -38,7 +38,7 @@ def main():
         data = payload(raw, unique(blocks, name))
         (output / (name.lower() + '.bin')).write_bytes(data)
         records[name] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
-    groups = json.loads((ROOT / 'src-tauri/crates/deadlock-cloth-authoring/resources/tangtang-r2-groups.json').read_text())['groups']
+    groups = json.loads((Path(os.environ.get('DMB_PRIVATE_ASSETS') or ROOT / 'private-assets') / 'cloth-authoring/tangtang-r2-groups.json').read_text())['groups']
 
     def compiler_name(name):
         return ''.join(chr(b) if chr(b).isascii() and (chr(b).isalnum() or b == 95)

@@ -122,7 +122,8 @@ pub(crate) fn rebind(
             ));
         }
     }
-    let saved: Saved = serde_json::from_str(include_str!("../resources/tangtang-r2-groups.json"))?;
+    let groups = crate::tangtang_assets::GROUPS.ok_or_else(|| invalid(crate::tangtang_assets::NOT_INCLUDED))?;
+    let saved: Saved = serde_json::from_str(groups)?;
     let mut matrices = vec![];
     let mut owners = vec![None; 900];
     let mut max_position: f64 = 0.;

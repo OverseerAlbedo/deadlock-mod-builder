@@ -4,17 +4,19 @@ use deadlock_preparation::{
 };
 use deadlock_project::PreparationOptions;
 use serde_json::{Value, json};
-fn fixture() -> (Vec<Bone>, Vec<String>, Vec<Bone>) {
-    let v: Value = serde_json::from_str(include_str!("fixtures/tangtang-rig.json")).unwrap();
-    (
+mod common;
+/// The captured TangTang rig (private assets), or `None` when it is not checked out.
+fn fixture() -> Option<(Vec<Bone>, Vec<String>, Vec<Bone>)> {
+    let v: Value = serde_json::from_str(&common::private_text("fixtures/tangtang-rig.json")?).unwrap();
+    Some((
         serde_json::from_value(v["source"].clone()).unwrap(),
         serde_json::from_value(v["weighted"].clone()).unwrap(),
         serde_json::from_value(v["target"].clone()).unwrap(),
-    )
+    ))
 }
 #[test]
 fn tangtang_groups_resolve_weights_only_after_explicit_secondary_choices() {
-    let (source, weighted, target) = fixture();
+    let Some((source, weighted, target)) = fixture() else { return };
     let result =
         automap::suggest(&source, &weighted, &target, &PreparationOptions::default()).unwrap();
     let mut mapping = result.mapping.clone();
@@ -64,7 +66,7 @@ fn tangtang_groups_resolve_weights_only_after_explicit_secondary_choices() {
 }
 #[test]
 fn unexpected_geometry_and_side_disable_automatic_helper_adaptation() {
-    let (mut source, weighted, target) = fixture();
+    let Some((mut source, weighted, target)) = fixture() else { return };
     let helper = source
         .iter_mut()
         .find(|b| b.name == "Bip001_L_Forearm_ty_minus")
@@ -100,7 +102,7 @@ fn unexpected_geometry_and_side_disable_automatic_helper_adaptation() {
 }
 #[test]
 fn existing_direct_choices_are_never_overwritten_by_helper_suggestions() {
-    let (source, weighted, target) = fixture();
+    let Some((source, weighted, target)) = fixture() else { return };
     let options: PreparationOptions =
         serde_json::from_value(json!({"mapping":{"手捩.L":"hand_L","HB_1_0":"pelvis"}})).unwrap();
     let result = automap::suggest(&source, &weighted, &target, &options).unwrap();
@@ -109,7 +111,7 @@ fn existing_direct_choices_are_never_overwritten_by_helper_suggestions() {
 }
 #[test]
 fn presets_bind_to_rig_geometry_and_never_restore_approval() {
-    let (source, weighted, mut target) = fixture();
+    let Some((source, weighted, mut target)) = fixture() else { return };
     let key = mapping_presets::fingerprint(&source, &weighted, &target, [0.; 3]).unwrap();
     let mut reordered = source.clone();
     reordered.reverse();

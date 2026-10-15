@@ -39,6 +39,10 @@ const MODEL_TOOLSET_STEPS: &[&str] = &[
 ];
 
 const RULES: &[Rule] = &[
+    Rule { any: &["not included in this build"], all: &["tangtang"],
+        cause: "This copy of the app was built without the TangTang preset data, which is kept outside the public source code.",
+        steps: &["Open Physics & preview → Automatic motion and choose Automatic — match movement to each part.", "Click Analyze project again. Automatic authors the movement from your model; the TangTang presets only ever applied to the accepted Haze conversion."],
+        action: Some(("Open Physics & preview", "physics")) },
     Rule { any: &["another operation is running"], all: &[],
         cause: "Another task was still running when you clicked.",
         steps: &["Wait until the status bar at the bottom says Ready, then click again.", "If a step is shown as running and you do not need it, click Cancel in the status bar.", "If it keeps happening with nothing running, restart the app."],
@@ -189,6 +193,7 @@ mod tests {
     #[test]
     fn real_failures_point_to_the_page_that_fixes_them() {
         for (message, expected) in [
+            ("The TangTang presets are not included in this build. Choose Automatic for the movement.", "physics"),
             ("Compiler startup schema mismatch (ParticleFloatType_t). This happens before VMDL loading", "setup"),
             (r"Model compiler is missing: \\?\C:\Deadlockmoddingtools\Reduced_CSDK_12\game\bin_cs2\win64\resourcecompiler.exe.", "setup"),
             (r"The Community SDK is incomplete: \\?\C:\Deadlockmoddingtools\Reduced_CSDK_12\game\citadel\gameinfo.gi is missing.", "settings"),

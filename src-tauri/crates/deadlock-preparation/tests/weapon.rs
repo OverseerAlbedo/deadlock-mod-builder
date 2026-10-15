@@ -3,11 +3,13 @@ use deadlock_preparation::{algorithms::Bone, weapon};
 use deadlock_skeleton::{export::{export_dmx, PreparedReport}, transforms::{prepare_target, PreparedBone}, Skeleton};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+mod common;
 
 type V = [f64; 3];
 
-fn hero() -> (Skeleton, Vec<PreparedBone>) {
-    let value: Value = serde_json::from_str(include_str!("fixtures/daki-rig.json")).unwrap();
+/// The hero captured with the Daki rig (private assets), or `None` when it is not checked out.
+fn hero() -> Option<(Skeleton, Vec<PreparedBone>)> {
+    let value: Value = serde_json::from_str(&common::private_text("fixtures/daki-rig.json")?).unwrap();
     let target: Vec<PreparedBone> = serde_json::from_value(value["target"].clone()).unwrap();
     let index: BTreeMap<_, _> = target.iter().enumerate().map(|(i, b)| (b.name.clone(), i as i32)).collect();
     let skeleton = Skeleton {
@@ -19,7 +21,7 @@ fn hero() -> (Skeleton, Vec<PreparedBone>) {
         flags: vec![0; target.len()],
     };
     let (target, _) = prepare_target(&skeleton).unwrap();
-    (skeleton, target)
+    Some((skeleton, target))
 }
 fn bones(target: &[PreparedBone]) -> Vec<Bone> {
     target
@@ -104,7 +106,7 @@ fn hero_gun_frame(target: &[Bone]) -> (V, V, V) {
 
 #[test]
 fn hero_gun_meshes_are_read_from_the_original_model_with_import_filters_and_lods() {
-    let (skeleton, target) = hero();
+    let Some((skeleton, target)) = hero() else { return };
     let bones = bones(&target);
     let (grip, f, u) = hero_gun_frame(&bones);
     let body = mesh("body", &[(cuboid([0., 0., 60.], [1., 0., 0.], [0., 0., 1.], [10., 30., 10.]), "pelvis".into())]);
@@ -134,7 +136,7 @@ fn hero_gun_meshes_are_read_from_the_original_model_with_import_filters_and_lods
 
 #[test]
 fn a_differently_shaped_gun_in_the_hand_is_fitted_onto_the_hero_gun() {
-    let (_, target) = hero();
+    let Some((_, target)) = hero() else { return };
     let bones = bones(&target);
     let (grip, f, u) = hero_gun_frame(&bones);
     // Hero pistol: short barrel, 25 units; two bones (slide moves for recoil).
@@ -222,7 +224,7 @@ fn a_differently_shaped_gun_in_the_hand_is_fitted_onto_the_hero_gun() {
 
 #[test]
 fn heroes_without_gun_meshes_use_their_weapon_and_muzzle_bones() {
-    let (_, target) = hero();
+    let Some((_, target)) = hero() else { return };
     let bones = bones(&target);
     let reference = weapon::Reference { policy: weapon::POLICY.into(), source: "skeleton".into(), ..Default::default() };
     let frame = weapon::target_frame(&reference, &bones).unwrap();
@@ -232,7 +234,8 @@ fn heroes_without_gun_meshes_use_their_weapon_and_muzzle_bones() {
     assert_eq!(frame.confidence, "low");
     assert_eq!(weapon::weapon_root(&bones).as_deref(), Some("weapon"));
     // TangTang-style rigs carry a weapon_bone under the hand.
-    let value: Value = serde_json::from_str(include_str!("fixtures/tangtang-rig.json")).unwrap();
+    let Some(text) = common::private_text("fixtures/tangtang-rig.json") else { return };
+    let value: Value = serde_json::from_str(&text).unwrap();
     let other: Vec<Bone> = serde_json::from_value(value["target"].clone()).unwrap();
     assert_eq!(weapon::weapon_root(&other).as_deref(), Some("weapon_bone"));
     let weapon_bones = weapon::weapon_bones(&other);
@@ -258,7 +261,7 @@ fn choices_are_validated_and_mesh_mappings_replace_every_gun_lod() {
 fn a_dual_wield_hero_has_one_gun_per_hand_and_each_is_measured_on_its_own() {
     // Haze holds a pistol in each hand: haze_gun_l on the left weapon bones,
     // haze_gun_r on the right ones, each with a lower detail level.
-    let (skeleton, target) = hero();
+    let Some((skeleton, target)) = hero() else { return };
     let bones = bones(&target);
     let find = |n: &str| bones.iter().find(|b| b.name == n).unwrap().position;
     let (f, u) = ([0., -1., 0.], [0., 0., 1.]);
@@ -296,7 +299,7 @@ fn decompiled_guns_without_a_bind_list_or_with_a_null_bind_state_are_still_read(
     // Haze's decompiled gun files have no named bind list and a null bindState
     // (the vertices are in currentState). They must still be read as guns,
     // never reported as a separate weapon model.
-    let (skeleton, target) = hero();
+    let Some((skeleton, target)) = hero() else { return };
     let bones = bones(&target);
     let find = |n: &str| bones.iter().find(|b| b.name == n).unwrap().position;
     let (f, u) = ([0., -1., 0.], [0., 0., 1.]);

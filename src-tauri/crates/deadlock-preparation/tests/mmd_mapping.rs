@@ -1,14 +1,16 @@
 use deadlock_preparation::{algorithms::{self,Bone}, automap, secondary_bones};
 use deadlock_project::PreparationOptions;
 use serde_json::{Value,json};
+mod common;
 
-fn fixture() -> (Vec<Bone>,Vec<String>,Vec<Bone>) {
-    let v:Value=serde_json::from_str(include_str!("fixtures/daki-rig.json")).unwrap();
-    (serde_json::from_value(v["source"].clone()).unwrap(),serde_json::from_value(v["weighted"].clone()).unwrap(),serde_json::from_value(v["target"].clone()).unwrap())
+/// The captured Daki rig (private assets), or `None` when it is not checked out.
+fn fixture() -> Option<(Vec<Bone>,Vec<String>,Vec<Bone>)> {
+    let v:Value=serde_json::from_str(&common::private_text("fixtures/daki-rig.json")?).unwrap();
+    Some((serde_json::from_value(v["source"].clone()).unwrap(),serde_json::from_value(v["weighted"].clone()).unwrap(),serde_json::from_value(v["target"].clone()).unwrap()))
 }
 #[test]
 fn duplicate_fullwidth_alias_uses_neck_ancestry_and_all_weighted_bones_have_a_plan() {
-    let (mut source,weighted,target)=fixture();
+    let Some((mut source,weighted,target))=fixture() else { return };
     for reversed in [false,true] {
         if reversed { source.reverse(); }
         let r=automap::suggest(&source,&weighted,&target,&PreparationOptions::default()).unwrap();
@@ -34,7 +36,7 @@ fn duplicate_fullwidth_alias_uses_neck_ancestry_and_all_weighted_bones_have_a_pl
 }
 #[test]
 fn static_follow_needs_the_correct_body_branch_bounded_skin_and_no_dynamic_binding() {
-    let (source,weighted,target)=fixture();
+    let Some((source,weighted,target))=fixture() else { return };
     for variant in ["wrong-branch","distant-skin","dynamic"] {
         let mut changed=source.clone();
         let b=changed.iter_mut().find(|b|b.name=="顔上").unwrap();
@@ -49,7 +51,7 @@ fn static_follow_needs_the_correct_body_branch_bounded_skin_and_no_dynamic_bindi
 }
 #[test]
 fn explicit_facial_mapping_survives_and_disconnected_chest_alias_is_not_guessed() {
-    let (mut source,weighted,target)=fixture();
+    let Some((mut source,weighted,target))=fixture() else { return };
     let options:PreparationOptions=serde_json::from_value(json!({"mapping":{"顎":"pelvis"}})).unwrap();
     let r=automap::suggest(&source,&weighted,&target,&options).unwrap();
     assert_eq!(r.mapping["顎"],"pelvis");assert!(!r.assistance.unwrap().anchors.contains_key("顎"));

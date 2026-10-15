@@ -35,6 +35,17 @@ Captured native/game tests marked `#[ignore]` require separately supplied inputs
 
 `.gitattributes` keeps exact fixture and resource bytes. Do not enable automatic JSON formatting across fixture directories. Reader hashes are anchored both in `resources/native/cloth-reader/manifest.json` and Rust production trust pins. Rebuilding the reader is an intentional qualification change, not a routine CI step; see its [README](../tools/cloth-reader/README.md).
 
+## Private assets
+
+Data captured from third-party characters is not in this repository: the TangTang presets (`tangtang_r2`, `tangtang_reference`: the accepted groups, the two proxies the app compiles in and the earlier reviewed proxies the cloth-authoring tests compare against) and the rig captures `daki-rig.json`, `tangtang-rig.json` and `tangtang-native-binds.json`. They live in the private repository `OverseerAlbedo/deadlock-mod-builder-private-assets`. Clone it to `private-assets/` at the repository root (ignored by git) or point `DMB_PRIVATE_ASSETS` at it:
+
+```powershell
+git clone https://github.com/OverseerAlbedo/deadlock-mod-builder-private-assets private-assets
+cargo clean --manifest-path src-tauri/Cargo.toml -p deadlock-cloth-authoring   # after adding the folder to an existing checkout
+```
+
+Without it everything builds and tests from the public source alone: `deadlock-cloth-authoring/build.rs` leaves `cfg(tangtang_assets)` unset, the Physics page offers only Automatic, a saved TangTang preset fails Analyze with "not included in this build", and the tests that need a capture (`automap`, `following`, `mmd_mapping`, `structure`, `weapon` in deadlock-preparation, `native_compiler` in deadlock-skeleton, the ignored TangTang tests in deadlock-cloth-authoring) print `skipped: private asset …` on stderr and pass. The Blender harness scripts (`test_blender_any_humanoid.py`, `test_blender_rig_recovery.py`, `test_blender_secondary_bones.py`) and `capture_compact_fitting.py` need the folder and say so. GitHub Actions checks the private repository out when the `PRIVATE_ASSETS_TOKEN` secret (a token that can read it) is set; without the secret, workflow builds and the installers they publish carry no TangTang presets, and the release notes say so.
+
 ## Runtime resources
 
 Tauri's `bundle.resources` is the source of truth for both installer and portable staging. The portable app must retain the folder layout next to its executable. `scripts/package-windows.mjs` rejects missing sources, wrong architecture, stale version names, or a mixed existing output folder. Production model and cloth algorithms are independent of these packaging scripts.
@@ -68,7 +79,7 @@ Biped digit aliases follow Autodesk's [MotionBuilder Biped template](https://hel
 
 ## Any-humanoid and gun probe
 
-`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against the captured 196-bone hero in `tests/fixtures/daki-rig.json`. It does not use `legacy/python`.
+`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against the captured 196-bone hero in `private-assets/fixtures/daki-rig.json` (private assets, above). It does not use `legacy/python`.
 
 ```powershell
 cargo build --manifest-path src-tauri/Cargo.toml -p deadlock-preparation --example e2e_probe

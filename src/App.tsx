@@ -8,7 +8,7 @@ import { BrandMark } from './components/BrandMark';
 import { applyTheme, themeById } from './theme/themes';
 import type { ThemePreset } from './models';
 import { saveBuildRecord } from './build/changes';
-import type { ErrorHelp, HeroRecord, LogEntry, ModelSummary, Project, ProjectDocument, Settings, SetupStatus, TimingEvent, TimingReport } from './models';
+import type { Capabilities, ErrorHelp, HeroRecord, LogEntry, ModelSummary, Project, ProjectDocument, Settings, SetupStatus, TimingEvent, TimingReport } from './models';
 import { ProjectOverview } from './components/ProjectOverview';
 import { ExtrasPage, MotionPage, PhysicsPage } from './components/CustomizationPages';
 import { decodePreview, type PreviewScene } from './preview/packet';
@@ -101,6 +101,8 @@ export function App() {
   const [savedSettings, setSavedSettings] = useState<Settings | null>(null);
   const settingsDirty = settings !== null && (savedSettings === null || Object.keys(settings).some(key => settings[key as keyof Settings] !== savedSettings[key as keyof Settings]));
   const [setupStatus,setSetupStatus]=useState<SetupStatus|null>(null);
+  /** What this build includes (null until the backend answers; every choice is shown meanwhile). */
+  const [capabilities,setCapabilities]=useState<Capabilities|null>(null);
   const [catalog,setCatalog]=useState<ComponentCatalog|null>(null);
   useEffect(()=>setCatalog(null),[document?.project.id,document?.project.original_model,settings?.pak]);
   const [inspection,setInspection]=useState<{report:ProjectInspection;project:string}|null>(null);
@@ -189,6 +191,8 @@ export function App() {
         releaseLogs = unlisten;
         const unlistenTimings=await listen<TimingEvent>('timing-event',()=>{timingPending=true;});
         if(disposed){unlistenTimings();return;}releaseTimings=unlistenTimings;
+        // Fire and forget: an older or faked backend without the command leaves every choice shown.
+        Promise.resolve().then(() => api.capabilities()).then(found => { if (!disposed) setCapabilities(found); }).catch(() => undefined);
         const [loadedSettings, loadedProject, retainedLogs, latestReport] = await Promise.all([api.settings(), api.newProject(), api.logs(), api.latestTimings()]);
         if (!disposed) { setSettings(loadedSettings); setSavedSettings(loadedSettings); setDocument(loadedProject); merge(retainedLogs); setReport(latestReport);setBackendRunning(latestReport?.status==='running');timingRunning=latestReport?.status==='running';
         // After a crash, offer the newest autosave.
@@ -462,7 +466,7 @@ export function App() {
         {error && <ErrorNotice {...error} dismiss={() => setError(null)} go={target => { setError(null); setPage(target as Page); }} />}
         {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={fresh} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()} chooseModel={()=>void chooseModel()} prepareAgain={prepareAgain}/> : <><PageTitle title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
         {page === 'appearance' && <Appearance weapons={document?<WeaponsSection project={document.project} update={updateProject} busy={unavailable} operate={run} refreshPreview={()=>void loadPreview(undefined,true)} openPreparation={prepareAgain} separate={{projectPath:document.path,saveProject:saveDuringOperation}}/>:undefined} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
-        {document&&<div hidden={page!=='physics'}><PhysicsPage expert={expert} preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>void loadPreview(undefined,true)} busy={unavailable} report={inspection?.report??null} fail={fail} analyze={()=>void inspectProject()} analyzing={busy==='Project analysis did not complete'}/>:null} openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
+        {document&&<div hidden={page!=='physics'}><PhysicsPage expert={expert} tangtangPresets={capabilities?.tangtang_presets??true} preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>void loadPreview(undefined,true)} busy={unavailable} report={inspection?.report??null} fail={fail} analyze={()=>void inspectProject()} analyzing={busy==='Project analysis did not complete'}/>:null} openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
         {page==='motion'&&document&&<MotionPage catalog={catalog?.includes_animations===false?null:catalog} discover={()=>void discoverComponents()} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
         {page==='extras'&&document&&<ExtrasPage catalog={catalog} discover={()=>discoverComponents(true)} discovering={busy==='Character asset discovery did not complete'} canDiscover={Boolean(settings?.pak)&&!settingsDirty} openSetup={()=>setPage('settings')} reviewBuild={()=>navigate('build')} key={`${document.project.id}:${document.project.original_model}`} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
         {document&&<div hidden={page!=='prepare'}><PreparationPage expert={expert} key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>setPage('appearance')}/></div>}

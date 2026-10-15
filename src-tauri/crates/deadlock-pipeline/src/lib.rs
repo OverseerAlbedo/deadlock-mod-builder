@@ -9,6 +9,9 @@ pub mod package;
 pub mod sources;
 pub mod storage;
 pub mod workspace;
+/// Whether this build carries the TangTang presets (private data compiled in
+/// by `deadlock-cloth-authoring/build.rs` when present).
+pub const TANGTANG_PRESETS: bool = deadlock_cloth_authoring::tangtang_assets::AVAILABLE;
 use deadlock_core::{CoreError, Result, TimingRecorder, TimingStatus};
 
 pub(crate) fn invalid(message: impl Into<String>) -> CoreError {

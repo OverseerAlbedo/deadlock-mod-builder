@@ -269,8 +269,9 @@ pub fn setup(
     let mut parts=crate::parts::analyze(d,&groups,&part_choices,cancel)?;
     // Recognize the complete accepted rig, never a partial name match. Rebind
     // its existing proxy for proportion changes using the existing strict fit.
+    // (Only in builds that carry the TangTang data; see tangtang_assets.rs.)
     #[derive(Deserialize)] struct Reference { groups:Vec<Group> }
-    let saved:Reference=serde_json::from_str(include_str!("../resources/tangtang-r2-groups.json"))?;
+    let saved:Reference=match crate::tangtang_assets::GROUPS {Some(text)=>serde_json::from_str(text)?,None=>Reference{groups:vec![]}};
     let by_root=|g:&[Group]|g.iter().map(|v|(v.source_root.clone(),v.clone())).collect::<BTreeMap<_,_>>();
     // Fine-tuning per part type (Physics → Fine-tune movement); TangTang presets keep their accepted tuning.
     let mut tuning=if tang {BTreeMap::new()} else {cfg.tuning.clone().unwrap_or_default()};
@@ -283,11 +284,12 @@ pub fn setup(
         }).collect()
     };
     tuning.retain(|_,t|[t.stiffness,t.damping,t.gravity,t.swing].iter().any(|v|v.is_some_and(|v|v!=0.)));
-    let mut reuse=preset=="automatic" && profiles.is_empty() && tuning.is_empty() && springs.is_empty() && cfg.part_kinds.as_ref().is_none_or(|v|v.is_empty())
+    let mut reuse=crate::tangtang_assets::AVAILABLE && preset=="automatic" && profiles.is_empty() && tuning.is_empty() && springs.is_empty() && cfg.part_kinds.as_ref().is_none_or(|v|v.is_empty())
         && p.source_model()=="models/heroes_staging/haze/haze.vmdl" && by_root(&groups)==by_root(&saved.groups);
     let mut automatic_fit=None;
     if reuse && sha!=TANG_SOURCE {
-        let reference=Dmx::parse(include_bytes!("../resources/tangtang-hinged-streamers-proxy.dmx").to_vec())?;
+        let bytes=crate::tangtang_assets::REFERENCE_PROXY.ok_or_else(||invalid(crate::tangtang_assets::NOT_INCLUDED))?;
+        let reference=Dmx::parse(bytes.to_vec())?;
         match crate::tangtang_fit::rebind(d,&reference,cancel) {
             Ok(fitted)=>automatic_fit=Some(fitted),
             // A different model may coincidentally use the same rig names.
@@ -341,6 +343,14 @@ pub fn setup(
     let mut preview_nodes = vec![];
     let (proxy, positions, dynamic) = match effective {
         "tangtang_r2" | "tangtang_reference" => {
+            // The data is private (see tangtang_assets.rs); a public build has none of it.
+            let (Some(groups_json), Some(reference_proxy), Some(r2_proxy)) = (
+                crate::tangtang_assets::GROUPS,
+                crate::tangtang_assets::REFERENCE_PROXY,
+                crate::tangtang_assets::R2_PROXY,
+            ) else {
+                return Err(invalid(crate::tangtang_assets::NOT_INCLUDED));
+            };
             if p.source_model() != "models/heroes_staging/haze/haze.vmdl" {
                 return Err(invalid("TangTang presets require the Haze conversion. Use Automatic for another hero."));
             }
@@ -348,8 +358,7 @@ pub fn setup(
             struct Saved {
                 groups: Vec<Group>,
             }
-            let saved: Saved =
-                serde_json::from_str(include_str!("../resources/tangtang-r2-groups.json"))?;
+            let saved: Saved = serde_json::from_str(groups_json)?;
             let by_root = |g: &[Group]| {
                 g.iter()
                     .map(|v| (v.source_root.clone(), v.clone()))
@@ -359,15 +368,9 @@ pub fn setup(
                 return Err(invalid("TangTang presets use all 38 saved groups and their saved tuning. Choose Automatic for custom group settings."));
             }
             let (bytes, expected): (&[u8], &str) = if effective == "tangtang_reference" {
-                (
-                    include_bytes!("../resources/tangtang-hinged-streamers-proxy.dmx"),
-                    TANG_REFERENCE_PROXY,
-                )
+                (reference_proxy, TANG_REFERENCE_PROXY)
             } else {
-                (
-                    include_bytes!("../resources/tangtang-r2-proxy.dmx"),
-                    TANG_PROXY,
-                )
+                (r2_proxy, TANG_PROXY)
             };
             let mut proxy = bytes.to_vec();
             if hash(&proxy) != expected {

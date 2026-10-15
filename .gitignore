@@ -41,3 +41,6 @@ Thumbs.db
 
 # Ignore build directories, not every model/JSON/EXE file.
 # Required readers and format fixtures must survive a fresh clone.
+
+# Private assets (TangTang cloth proxies, captured rig fixtures): a separate private repository cloned here; builds and tests work without it.
+/private-assets/

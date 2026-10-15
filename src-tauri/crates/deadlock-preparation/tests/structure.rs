@@ -1,4 +1,5 @@
 //! Structural humanoid recognition: rigs without usable anatomical names.
+mod common;
 use deadlock_preparation::{algorithms::{self, Bone, ROLES}, automap, structure};
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -132,8 +133,10 @@ fn lying_sources_get_an_upright_rotation() {
 
 #[test]
 fn real_mmd_rigs_renamed_to_generic_names_keep_their_body_roles() {
-    for fixture in [include_str!("fixtures/daki-rig.json"), include_str!("fixtures/tangtang-rig.json"), include_str!("fixtures/parallel-leg-rig.json")] {
-        let value: serde_json::Value = serde_json::from_str(fixture).unwrap();
+    // Daki and TangTang are private assets (skipped with a note when absent); the parallel-leg rig is public.
+    let private = ["fixtures/daki-rig.json", "fixtures/tangtang-rig.json"].into_iter().filter_map(common::private_text);
+    for fixture in private.chain([include_str!("fixtures/parallel-leg-rig.json").to_owned()]) {
+        let value: serde_json::Value = serde_json::from_str(&fixture).unwrap();
         let bones: Vec<Bone> = serde_json::from_value(value["source"].clone()).unwrap();
         let weighted: Vec<String> = serde_json::from_value(value["weighted"].clone()).unwrap();
         let named = automap::roles(&bones, &weighted, &Default::default()).unwrap();

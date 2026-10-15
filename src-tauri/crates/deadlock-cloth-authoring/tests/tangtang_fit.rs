@@ -6,6 +6,7 @@ use deadlock_project::{customization::SecondaryMotion, Project};
 use deadlock_skeleton::extensions::SourceBinding;
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path};
+mod common;
 
 fn binding(d: &Dmx) -> SourceBinding {
     let mut skeleton = surface::binds(d).unwrap().skeleton;
@@ -37,7 +38,7 @@ fn project(preset: &str) -> Project {
         .values
         .insert("preserve_physics_bones".into(), true.into());
     let saved: serde_json::Value =
-        serde_json::from_str(include_str!("../resources/tangtang-r2-groups.json")).unwrap();
+        serde_json::from_str(&common::private_text("cloth-authoring/tangtang-r2-groups.json").expect("private assets")).unwrap();
     let roots = saved["groups"]
         .as_array()
         .unwrap()

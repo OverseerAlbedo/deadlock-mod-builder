@@ -141,3 +141,24 @@ describe('Gun charm motion on the Physics tab',()=>{
    expect(screen.queryByLabelText('Gun charm motion')).not.toBeInTheDocument();
  });
 });
+describe('Builds without the TangTang presets',()=>{
+ const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair']},customization:{enabled:true,secondary_motion:{enabled:true}}} as unknown as Project;
+ const options=()=>Array.from((screen.getByLabelText('Secondary motion preset') as HTMLSelectElement).options).map(option=>option.value);
+ it('lists only Automatic',()=>{
+   render(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={null} fresh={false} tangtangPresets={false}/>);
+   expect(options()).toEqual(['automatic']);
+   expect(screen.queryByText(/built without the TangTang presets/)).toBeNull();
+ });
+ it('keeps a saved TangTang choice visible and explains it',()=>{
+   const saved={...project,customization:{enabled:true,secondary_motion:{enabled:true,preset:'tangtang_reference'}}} as unknown as Project;
+   render(<SecondaryMotion project={saved} update={vi.fn()} disabled={false} report={null} fresh={false} tangtangPresets={false}/>);
+   expect(options()).toEqual(['automatic','tangtang_reference']);
+   expect((screen.getByLabelText('Secondary motion preset') as HTMLSelectElement).value).toBe('tangtang_reference');
+   expect(screen.getByText('TangTang — reference hair and cloth (not included in this build)')).toBeInTheDocument();
+   expect(screen.getByText(/built without the TangTang presets/)).toBeVisible();
+ });
+ it('lists every preset by default',()=>{
+   render(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={null} fresh={false}/>);
+   expect(options()).toEqual(['automatic','tangtang_reference','tangtang_r2']);
+ });
+});

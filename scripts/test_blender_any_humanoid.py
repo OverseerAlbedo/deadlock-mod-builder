@@ -26,7 +26,11 @@ import bpy  # noqa: E402
 import blender_fixtures as F  # noqa: E402
 
 WORKER = ROOT / 'src-tauri/crates/deadlock-preparation/resources/blender/worker.py'
-TARGET = ROOT / 'src-tauri/crates/deadlock-preparation/tests/fixtures/daki-rig.json'
+# Captured hero rig: private assets (a separate repository cloned to private-assets/, or DMB_PRIVATE_ASSETS); see docs/DEVELOPMENT.md.
+PRIVATE = Path(os.environ.get('DMB_PRIVATE_ASSETS') or ROOT / 'private-assets')
+TARGET = PRIVATE / 'fixtures/daki-rig.json'
+if not TARGET.is_file():
+    raise SystemExit(f'{TARGET} is missing: clone the private assets repository to private-assets/ (docs/DEVELOPMENT.md).')
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 OUT = Path(args[0] if args else os.environ.get('DMB_PREP_TEST_OUTPUT', 'dmb-any-humanoid')).resolve()
 OUT.mkdir(parents=True, exist_ok=True)

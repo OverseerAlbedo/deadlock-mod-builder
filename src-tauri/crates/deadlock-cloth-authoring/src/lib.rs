@@ -53,3 +53,5 @@ pub mod attachments;
 mod fabric_cohesion;
 mod skirt_surface;
 mod tangtang_fit;
+/// The private TangTang data behind the presets, when compiled in.
+pub mod tangtang_assets;

@@ -8,6 +8,7 @@ use deadlock_project::{customization::SecondaryMotion, Project};
 use deadlock_skeleton::extensions::SourceBinding;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path};
+mod common;
 fn raw(name: &str) -> Vec<u8> {
     fs::read(
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -233,9 +234,9 @@ fn supplied_tangtang_reuses_r2_and_automatic_preserves_its_geometry() {
     // Alpha.23 changes only selected proxy frames. The rendered source and
     // every serialized joint bind stay exact; accepted groups keep geometry.
     assert_eq!(surface::binds(&new).unwrap().skeleton, surface::binds(&old).unwrap().skeleton);
-    let receipt: serde_json::Value = serde_json::from_str(include_str!(
-        "../resources/tangtang-stabilized.json"
-    )).unwrap();
+    let receipt: serde_json::Value = serde_json::from_str(
+        &common::private_text("cloth-authoring/tangtang-stabilized.json").expect("private assets"),
+    ).unwrap();
     let positions = stream(&new, "position$0");
     let prior = stream(&old, "position$0");
     let mut target = vec![false; 900];
@@ -256,7 +257,7 @@ fn supplied_tangtang_reuses_r2_and_automatic_preserves_its_geometry() {
     // Alpha.25 changes only streamer proxy geometry/topology and free goals.
     // The independent Python checks additionally compare every corner normal
     // and face outside the two groups, and prove finite hinge rotations.
-    let approved = Dmx::parse(include_bytes!("../resources/tangtang-streamers-proxy.dmx").to_vec()).unwrap();
+    let approved = Dmx::parse(common::private_asset("cloth-authoring/tangtang-streamers-proxy.dmx").expect("private assets")).unwrap();
     for key in ["cloth_gravity$0", "cloth_drag$0", "cloth_stray_radius$0",
                 "cloth_stray_radius_stretchiness$0", "cloth_antishrink$0"] {
         assert_eq!(stream(&new, key), stream(&approved, key), "{key}");

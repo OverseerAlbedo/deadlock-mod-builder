@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The TangTang preset data (accepted groups and proxies) and the Daki/TangTang rig captures used by tests moved out of the repository into a private assets repository (`private-assets/`, ignored). Builds and tests pass without it: a build without the data offers only **Automatic** on the Physics page, a project saved with a TangTang preset shows the choice as *not included in this build* and Analyze explains how to switch, and the tests that need a capture skip with a note. GitHub Actions includes the data when the `PRIVATE_ASSETS_TOKEN` secret is set; the release notes of every published installer say whether the TangTang presets are included.
+
 ## 0.13.0-beta.3 — 2026-10-14
 
 - Fix: the **Movement** preview's moving parts went wild while running or jumping (fine while standing). The parts were simulated in the world and their drag fought the character's own speed, so a run pinned hair and cloth back like a storm and the travel limits jittered. They now swing relative to the bone that carries them; a take-off or landing still pushes them (a smooth arc by at most one gravity, so nothing is flung), a steady run does not, and a clip looping round no longer kicks them. The parts also swing about half as fast and settle within a swing or two (the game's solver damps hair that has no drag of its own, so the preview does too), long chains no longer whip (each link chased its parent's swing), starting the run no longer flings them, a take-off or landing pushes them over a few frames instead of in one, the jump hangs in the air for a third of a second instead of two thirds, so it reads as one movement instead of a float, and the parts start each jump afresh instead of being yanked when the clip starts over.

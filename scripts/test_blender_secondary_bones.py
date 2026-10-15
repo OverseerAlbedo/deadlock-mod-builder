@@ -21,7 +21,7 @@ source_path=Path(os.environ['DMB_SECONDARY_SOURCE']) if os.environ.get('DMB_SECO
 project_path=Path(os.environ['DMB_SECONDARY_PROJECT']) if os.environ.get('DMB_SECONDARY_PROJECT') else None
 cases=[]
 def target_from_positions():
-    rows=json.loads((ROOT/'src-tauri/crates/deadlock-preparation/tests/fixtures/tangtang-rig.json').read_text())['target']
+    rows=json.loads((Path(os.environ.get('DMB_PRIVATE_ASSETS') or ROOT/'private-assets')/'fixtures/tangtang-rig.json').read_text())['target']
     positions={b['name']:np.asarray(b['position']) for b in rows};worlds={};result=[]
     for b in rows:
         world=np.eye(4);world[:3,3]=positions[b['name']];worlds[b['name']]=world
