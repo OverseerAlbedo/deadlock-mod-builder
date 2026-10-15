@@ -28,16 +28,16 @@ build `-p deadlock-preparation --example e2e_probe`, then run
 ## Repository and release
 
 Private GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`.
-0.13.0-beta.2 (tag `v0.13.0-beta.2`, October 14, 2026) is the latest GitHub
-pre-release, with the installer .exe attached; beta.1 (October 13) and alpha.52
-preceded it. The
+0.13.0-beta.3 (tag `v0.13.0-beta.3`, October 14, 2026) is the latest GitHub
+pre-release, with the installer .exe attached; beta.2 and beta.1 (October 13–14)
+and alpha.52 preceded it. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
 the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.2 (October 14, 2026)
+## State as of 0.13.0-beta.3 (October 14, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -52,8 +52,15 @@ from the compiled model, KV3 types 26/27), self-checking setup (`setup_checks`,
 Test my setup, troubleshooting help on every error), Simple/Expert mode and the
 decluttered pages, movement preview with Fine-tune sliders, presets and source
 springs, butt/hair/tail motion rules, Shiv/Wraith proportions, autosave,
-readable CJK material names, hero picker tags, private logs. Rust workspace 524
-passed / 42 ignored, UI 215 passed, Blender harness 28/28.
+readable CJK material names, hero picker tags, private logs.
+
+Beta 3 = beta 2 plus: the Theme Manager with Original/Violet D/Mint D and the
+customizer (custom presets in settings), the movement preview solver in the
+character's frame with calmer tuning and moving parts recorded by every
+Analyze, redrawn Fine-tune sliders with Reset all, build freshness after a
+build and the VPK slot check at Analyze, the guide in the sidebar, the Blender
+preview texture fix, and privacy hardening of local builds. Rust workspace 524
+passed / 42 ignored, UI 225 passed, Blender harness 28/28.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
