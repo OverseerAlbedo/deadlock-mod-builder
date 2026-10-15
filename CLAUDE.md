@@ -66,7 +66,7 @@ character's frame with calmer tuning and moving parts recorded by every
 Analyze, redrawn Fine-tune sliders with Reset all, build freshness after a
 build and the VPK slot check at Analyze, the guide in the sidebar, the Blender
 preview texture fix, and privacy hardening of local builds. Rust workspace 525
-passed / 42 ignored, UI 228 passed, Blender harness 28/28 (with the private
+passed / 42 ignored, UI 229 passed, Blender harness 28/28 (with the private
 assets; the same Rust and UI counts without them).
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
