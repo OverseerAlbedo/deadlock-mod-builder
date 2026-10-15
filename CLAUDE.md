@@ -55,7 +55,7 @@ springs, butt/hair/tail motion rules, Shiv/Wraith proportions, autosave,
 readable CJK material names, hero picker tags, private logs. Rust workspace 524
 passed / 42 ignored, UI 215 passed, Blender harness 28/28.
 
-Test projects on the user's PC (`C:\Users\edome\OneDrive\Documents\DML_Projects`):
+Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
 from `Artzy_Tyrannical_Textures_and_Models.zip`), "Ghist" (Lady Geist,
 `CH10027_01_Rigged.blend`), "janeVen", "paimonRem".

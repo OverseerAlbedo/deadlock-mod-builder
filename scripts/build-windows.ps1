@@ -9,6 +9,12 @@ $reports = Join-Path $out 'validation'
 New-Item -ItemType Directory -Force -Path $reports | Out-Null
 $env:CARGO_TARGET_DIR = Join-Path $root 'src-tauri/target'
 $target = 'x86_64-pc-windows-msvc'
+# Keep the builder's user folder and checkout path out of the program: panic
+# locations of dependency sources would otherwise name C:\Users\<name>\.cargo\…
+# (encoded flags, so paths with spaces survive).
+$remap = @("--remap-path-prefix=$env:USERPROFILE=~", "--remap-path-prefix=$root=.")
+if ($env:CARGO_HOME) { $remap += "--remap-path-prefix=$env:CARGO_HOME=~/.cargo" }
+$env:CARGO_ENCODED_RUSTFLAGS = ($remap -join [char]0x1f)
 function Invoke-Checked {
     param([string]$Name, [string]$Program, [string[]]$Arguments)
     Write-Host "::group::$Name"

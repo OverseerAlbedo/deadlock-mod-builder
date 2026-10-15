@@ -396,8 +396,13 @@ impl Runner {
         let stdout_path = self.directory.join(format!("{command_id}-stdout.bin"));
         let stderr_path = self.directory.join(format!("{command_id}-stderr.bin"));
         let receipt_path = self.directory.join(format!("{command_id}.json"));
+        // The receipt keeps the arguments, except a Steam account name (DepotDownloader's -username).
+        let raw: Vec<String> = spec.args.iter().map(|s| s.to_string_lossy().into_owned()).collect();
+        let args: Vec<String> = raw.iter().enumerate()
+            .map(|(i, a)| if i > 0 && raw[i - 1].eq_ignore_ascii_case("-username") { "<account>".to_owned() } else { a.clone() })
+            .collect();
         let mut receipt = serde_json::json!({"schema_version":1,"command_id":command_id,"program":spec.program,
-            "args":spec.args.iter().map(|s|s.to_string_lossy()).collect::<Vec<_>>(),"cwd":spec.cwd,
+            "args":args,"cwd":spec.cwd,
             "started_utc":Utc::now(),"status":"running","stdout_path":stdout_path,"stderr_path":stderr_path,
             "timeout_seconds":spec.timeout.unwrap_or(self.options.timeout).min(self.options.timeout).as_secs_f64()});
         safety::write_json(&receipt_path, &receipt)?;
