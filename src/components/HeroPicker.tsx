@@ -8,13 +8,14 @@ const aliases:Record<string,string[]> = aliasesData;
 const roster = rosterData as {name:string;path:string;extras?:{name:string;path:string}[];playable?:boolean}[];
 const normalize = (path:string) => path.replace(/\\/g,'/').replace(/_c$/,'').toLowerCase();
 /** What a model is in the game: the model a hero uses in matches, another model of a hero
- * (alternate), a hero whose files are in the game but who cannot be picked yet (Nurse Harrow,
- * Violet), or a hero the game disables (in development). */
+ * (alternate), a hero whose files are in the game but who cannot be picked yet (the game's
+ * pre-release state; the roster flag is the fallback without game data), or a hero the game
+ * disables (in development). */
 export type HeroTag = {text:string;tone:'game'|'alternate'|'unplayable'};
 export function heroTag(hero:HeroRecord): HeroTag|null {
   const main=roster.find(item=>item.path.toLowerCase()===normalize(hero.path));
   if(hero.game?.state==='disabled')return {text:'In development',tone:'unplayable'};
-  if(main?.playable===false)return {text:'Not playable yet',tone:'unplayable'};
+  if(hero.game?.state==='pre_release'||(!hero.game&&main?.playable===false))return {text:'Not playable yet',tone:'unplayable'};
   if(main||hero.game?.state==='active')return {text:'In game',tone:'game'};
   if(hero.game?.state==='unused'||heroLabel(hero).includes(' · '))return {text:'Alternate',tone:'alternate'};
   return null;
@@ -23,12 +24,12 @@ export function heroTag(hero:HeroRecord): HeroTag|null {
 export function availabilityNote(hero:HeroRecord): string|null {
   const name=heroLabel(hero).split(' · ')[0];
   if(hero.game?.state==='disabled')return `${name} is a hero the game has switched off (in development). A replacement would not be seen in a match.`;
-  if(roster.find(item=>item.path.toLowerCase()===normalize(hero.path))?.playable===false)return `${name}'s files are in the game, but ${name} cannot be picked in a match yet. A replacement will only be seen once the hero is released.`;
+  if(hero.game?.state==='pre_release'||(!hero.game&&roster.find(item=>item.path.toLowerCase()===normalize(hero.path))?.playable===false))return `${name}'s files are in the game, but ${name} cannot be picked in a match yet. A replacement will only be seen once the hero is released.`;
   return null;
 }
 export function heroLabel(hero:HeroRecord): string {
   // The installed game's hero definitions decide which model is the playable body.
-  if(hero.game?.state==='active'&&hero.hero)return hero.hero;
+  if((hero.game?.state==='active'||hero.game?.state==='pre_release')&&hero.hero)return hero.hero;
   if(hero.game?.state==='unused')return `${hero.hero??staticLabel(hero)} · Not used in game`;
   return staticLabel(hero);
 }

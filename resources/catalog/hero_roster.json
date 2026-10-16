@@ -172,8 +172,7 @@
   },
   {
     "name": "Violet",
-    "path": "models/heroes_wip/artist/artist.vmdl",
-    "playable": false
+    "path": "models/heroes_wip/artist/artist.vmdl"
   },
   {
     "name": "Viscous",

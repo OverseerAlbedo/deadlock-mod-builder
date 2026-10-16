@@ -172,7 +172,7 @@ export interface ModelSummary {
 export interface AnalysisResult { summary: ModelSummary; timings: TimingReport }
 
 /** What the installed game does with a model, from its hero definitions (m_strModelName). */
-export type GameTarget = {state:'active';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]}|{state:'disabled';heroes:string[]};
+export type GameTarget = {state:'active';heroes:string[]}|{state:'pre_release';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]}|{state:'disabled';heroes:string[]};
 export interface HeroRecord { name: string; path: string; likely_hero: boolean; hero?: string; game?: GameTarget }
 export type AssetKind = 'icons' | 'animations' | 'effects' | 'audio';
 export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project' | 'weapon';

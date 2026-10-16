@@ -17,7 +17,7 @@ A release requires an explicit user request. Normal development never increments
 
 ## Current release
 
-Version **0.13.0-beta.4** (tag `v0.13.0-beta.4`) in the `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`: the first release of the repository recreated on October 15, 2026 with its history purged of third-party data. The earlier releases (0.13.0-alpha.52, beta.1, beta.2 and beta.3) and the old pull requests live in the private `OverseerAlbedo/deadlock-mod-builder-archive`. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
+Version **0.13.0-beta.5** (tag `v0.13.0-beta.5`, Violet) in the `OverseerAlbedo/deadlock-mod-builder` repository, default branch `main`, after 0.13.0-beta.4, the first release of the repository recreated on October 15, 2026 with its history purged of third-party data. The earlier releases (0.13.0-alpha.52, beta.1, beta.2 and beta.3) and the old pull requests live in the private `OverseerAlbedo/deadlock-mod-builder-archive`. Earlier handoffs (Alpha 46) were prepared without a repository destination. See [validation record](RELEASE_VALIDATION.md).
 
 ## Version consistency
 

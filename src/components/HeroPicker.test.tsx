@@ -11,7 +11,14 @@ describe('Main and alternate character targets',()=>{
     expect(heroTag(hero('models/heroes_staging/wraith/wraith.vmdl_c'))).toEqual({text:'Alternate',tone:'alternate'});
     expect(heroTag(hero('models/heroes_wip/familiar/familiar.vmdl_c'))).toEqual({text:'Alternate',tone:'alternate'});
     expect(heroTag(hero('models/heroes_wip/nurse/nurse.vmdl_c'))).toEqual({text:'Not playable yet',tone:'unplayable'});
-    expect(heroTag(hero('models/heroes_wip/artist/artist.vmdl_c'))?.text).toBe('Not playable yet');
+    // Violet was released on October 16, 2026: the roster no longer flags her, and the game data decides when it is there.
+    expect(heroTag(hero('models/heroes_wip/artist/artist.vmdl_c'))).toEqual({text:'In game',tone:'game'});
+    expect(heroTag({...hero('models/heroes_wip/artist/artist.vmdl_c'),hero:'Violet',game:{state:'active',heroes:['hero_artist']}})?.text).toBe('In game');
+    // The game's pre-release state wins over the roster, in both directions.
+    expect(heroTag({...hero('models/heroes_wip/nurse/nurse.vmdl_c'),hero:'Nurse Harrow',game:{state:'pre_release',heroes:['hero_nurse']}})).toEqual({text:'Not playable yet',tone:'unplayable'});
+    expect(heroTag({...hero('models/heroes_wip/nurse/nurse.vmdl_c'),hero:'Nurse Harrow',game:{state:'active',heroes:['hero_nurse']}})?.text).toBe('In game');
+    expect(heroLabel({...hero('models/heroes_wip/nurse/nurse.vmdl_c'),hero:'Nurse Harrow',game:{state:'pre_release',heroes:['hero_nurse']}})).toBe('Nurse Harrow');
+    expect(availabilityNote({...hero('models/heroes_wip/nurse/nurse.vmdl_c'),hero:'Nurse Harrow',game:{state:'pre_release',heroes:['hero_nurse']}})).toContain('cannot be picked in a match yet');
     expect(heroTag({...hero('models/heroes_staging/wrecker/wrecker.vmdl_c'),game:{state:'disabled',heroes:['hero_wrecker']}})?.text).toBe('In development');
     expect(availabilityNote(hero('models/heroes_wip/nurse/nurse.vmdl_c'))).toContain('cannot be picked in a match yet');
     expect(availabilityNote(hero('models/heroes_wip/abrams/abrams.vmdl_c'))).toBeNull();

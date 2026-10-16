@@ -35,16 +35,16 @@ the Blender harness needs them. See DEVELOPMENT.md "Private assets".
 GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`, recreated
 on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
-`OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (tag
-`v0.13.0-beta.4`, October 15, 2026) is the first release of the new repository;
-the user flips it public after a tutorial video. The
+`OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
+0.13.0-beta.5 (tag `v0.13.0-beta.5`, October 16, 2026, Violet) the latest; the
+repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
 the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.4 (October 15, 2026)
+## State as of 0.13.0-beta.5 (October 16, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -73,6 +73,12 @@ assets; the same Rust and UI counts without them).
 Beta 4 = beta 3 plus the private-assets split (TangTang data, rig captures and
 the compiled Vindicta references out of the tree; see the rule below) and the
 recreated repository. No other user-facing change.
+
+Beta 5 = beta 4 plus Violet: Violet (hero_artist, `models/heroes_wip/artist/artist.vmdl`) was
+released in the game on October 16, 2026 (game build 6790) and is playable in
+the app; Nurse Harrow follows on October 20. Hero playability now comes from the
+game's `m_eHeroDevelopmentState` (`GameTarget::PreRelease`); the roster's
+`playable: false` is only the fallback without game data.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -158,6 +164,10 @@ template check (`tests/cloth_bones.rs`).
   `cjk_readings.txt`); ASCII names must keep their old slug byte for byte
   (`scripts/test_readable_names.py`).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
+- Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
+  `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
+  playable yet, else In game); `hero_roster.json` `playable: false` is only the
+  fallback when the definitions cannot be read. Do not hand-flag released heroes.
 - Anything captured from a third-party character (TangTang proxies and groups,
   Daki/TangTang rig JSON, the anti-twist capture) and the compiled Vindicta
   references go to `private-assets/`, never into the repository

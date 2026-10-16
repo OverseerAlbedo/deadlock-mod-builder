@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-beta.5 — 2026-10-16
+
+- **Violet** (released in the game on October 16, 2026) is offered as a playable hero. Whether a hero can be picked in a match now comes from the installed game's hero definitions (its development state), so the next hero release (Nurse Harrow, October 20) shows **In game** on its own once the game updates; the roster's own flag is only used when the game data cannot be read.
+
 ## 0.13.0-beta.4 — 2026-10-15
 
 - The TangTang preset data (accepted groups and proxies) and the Daki/TangTang rig captures used by tests moved out of the repository into a private assets repository (`private-assets/`, ignored). The two compiled Vindicta cloth references and the anti-twist capture (compiled TangTang cloth) followed: a build without the private assets hides the included Vindicta reference on the Physics page, and `scripts/sync-private-assets.mjs` copies the references in for a build that has them. Builds and tests pass without it: a build without the data offers only **Automatic** on the Physics page, a project saved with a TangTang preset shows the choice as *not included in this build* and Analyze explains how to switch, and the tests that need a capture skip with a note. GitHub Actions includes the data when the `PRIVATE_ASSETS_TOKEN` secret is set; the release notes of every published installer say whether the TangTang presets are included.

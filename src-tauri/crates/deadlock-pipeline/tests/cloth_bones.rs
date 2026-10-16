@@ -18,7 +18,10 @@ fn a_new_decompile_lists_the_compiled_cloth_bones_for_the_template_check() {
     let (listed, aligned) = deadlock_model::modeldoc::with_compiled_bone_transforms(&listed, &compiled).unwrap();
     let (stripped, removed) = deadlock_model::modeldoc::without_decompiled_cloth(&listed).unwrap();
     println!("{model}: {added} cloth bones listed, {aligned} bone transforms taken from the game's model, {removed} cloth definitions left out");
-    assert!(added > 0 && removed > 0);
+    // Heroes whose compiled skeleton carries no $cloth bones (Violet) have nothing to list.
+    let compiler_cloth = compiled.names.iter().any(|n| n.starts_with("$cloth"));
+    assert!(added > 0 || !compiler_cloth, "{added} cloth bones listed for a skeleton with $cloth bones");
+    assert!(removed > 0, "no decompiled cloth definition was left out");
     // Some new decompiles place bones off the compiled model (Lady Geist's fur;
     // Yamato's match); the source now agrees with it within the physics
     // transfer budget either way.
@@ -52,7 +55,7 @@ fn a_new_decompile_lists_the_compiled_cloth_bones_for_the_template_check() {
         assert_eq!(bones[&b.name].parent, b.parent, "{}", b.name);
     }
     // The listed bones carry the compiled transforms (Source 2 Viewer's spelling).
-    let first = compiled.names.iter().position(|n| n.starts_with("$cloth")).unwrap();
+    let Some(first) = compiled.names.iter().position(|n| n.starts_with("$cloth")) else { return };
     let origin = format!("origin = [ {}, {}, {} ]", compiled.positions[first][0] as f32, compiled.positions[first][1] as f32, compiled.positions[first][2] as f32);
     assert!(stripped.contains(&origin), "{origin}");
     assert!(!stripped.contains("ClothProxyMeshFile") && !stripped.contains("\"Softbody\""));
