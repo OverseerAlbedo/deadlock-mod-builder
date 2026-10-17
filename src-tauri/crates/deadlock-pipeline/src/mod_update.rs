@@ -202,11 +202,22 @@ pub fn update(
     if updated.is_empty() {
         return Err(invalid(format!("{file} needs no update.")));
     }
-    let pending = stage.path().join("rebuilt.vpk");
+    // Release the original archive before replacing it (Windows refuses to
+    // replace an open file).
+    let version = vpk.version;
+    let entry_count = vpk.entries.len();
+    drop(vpk);
+    // The writer refuses an output inside the folder it packs, so the rebuilt
+    // archive goes to a sibling temporary folder (removed with it on any error).
+    let output = tempfile::Builder::new()
+        .prefix(".dmb-mod-update-out-")
+        .tempdir_in(path.parent().ok_or_else(|| invalid("VPK needs a parent folder."))?)
+        .map_err(|e| CoreError::io("Create update output folder", e))?;
+    let pending = output.path().join("rebuilt.vpk");
     let mut check = || cancel.check().map_err(|_| deadlock_vpk::Error::Cancelled);
-    deadlock_vpk::write_vpk(stage.path(), &files, &pending, None, vpk.version, &mut check).map_err(vpk_error)?;
+    deadlock_vpk::write_vpk(stage.path(), &files, &pending, None, version, &mut check).map_err(vpk_error)?;
     let rebuilt = Vpk::open(&pending).map_err(vpk_error)?;
-    if rebuilt.entries.len() != vpk.entries.len() {
+    if rebuilt.entries.len() != entry_count {
         return Err(invalid("The rebuilt VPK lost entries; nothing was changed."));
     }
     for relative in &updated {

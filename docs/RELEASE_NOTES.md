@@ -1,6 +1,6 @@
-# Deadlock Mod Builder 0.13.0-beta.6
+# Deadlock Mod Builder 0.13.0-beta.7
 
-A fix for the game update of October 16, 2026, which broke the camera of every hero-model mod built before it. Everything from the earlier betas is still in; see `CHANGELOG.md`.
+A fix for the game update of October 16, 2026, which broke the camera of every hero-model mod built before it. Beta 7 repairs the **Update** button of beta 6, which stopped with "Package output must be outside its source folder" before changing anything. Everything from the earlier betas is still in; see `CHANGELOG.md`.
 
 ## What happened
 

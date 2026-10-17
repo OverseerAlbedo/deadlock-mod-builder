@@ -36,8 +36,8 @@ GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`, recrea
 on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
-0.13.0-beta.5 (Violet) and 0.13.0-beta.6 (tag `v0.13.0-beta.6`, October 16, 2026,
-installed-mods repair) followed, the latter being the latest; the
+0.13.0-beta.5 (Violet) and 0.13.0-beta.6 (installed-mods repair) and 0.13.0-beta.7 (tag `v0.13.0-beta.7`,
+October 17, 2026, its Update button fixed) followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -45,7 +45,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.6 (October 16, 2026)
+## State as of 0.13.0-beta.7 (October 17, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a

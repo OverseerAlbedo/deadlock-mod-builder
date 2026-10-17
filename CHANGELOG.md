@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-beta.7 — 2026-10-17
+
+- Fix: **Update** under Build & install → Installed mods stopped with “Package output must be outside its source folder” (beta 6) before changing anything. The rebuilt VPK is now written beside the staging folder and the original archive is closed before it is replaced; an end-to-end test on synthetic archives covers the scan, the in-place update, the backup and the refusals.
+
 ## 0.13.0-beta.6 — 2026-10-16
 
 - **Game update of October 16, 2026 (camera pivots):** the game now stores attachments parented to `root_motion` without that bone's rotation, so every hero-model mod compiled before the update has its camera 90 degrees off in a match. **Build & install → Installed mods** lists every VPK in the game's addons folder with its state and **Update** rewrites the affected hero models in place (the game's current attachment values; custom root attachments converted by the same rule; the previous file kept as a backup). Works for any single-file VPK, not only this app's. Builds now take the attachments from the game's compiled model after compiling, so the output no longer depends on the decompiler's spelling of them.
