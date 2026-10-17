@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { fireEvent,render,screen,waitFor } from '@testing-library/react';
 import { describe,expect,it,vi } from 'vitest';
-import { AppearanceOverrides, MaterialEditor, colorFilter } from './MaterialEditor';
+import { AppearanceOverrides, FaceDetails, MaterialEditor, colorFilter } from './MaterialEditor';
 import type { Project } from '../models';
 import fixture from '../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json';
 vi.mock('./ImagePreview',()=>({ImagePreview:({path,filter}:{path:string;filter?:string})=><span data-testid="texture-preview" data-filter={filter}>{path}</span>}));
@@ -71,5 +71,25 @@ describe('Experimental color editor',()=>{
     fireEvent.click(screen.getByLabelText('Adjust colors 1 (experimental)'));
     expect(screen.queryByLabelText('Hue shift 1')).toBeNull();
     expect(colorFilter({})).toBe('hue-rotate(0deg) saturate(1) brightness(1)');
+  });
+});
+describe('Face details',()=>{
+  it('lists only the face layers the model has, hidden by default, and shows a kind when switched on',()=>{
+    const layer=(face_layer:string)=>({mode:'generate',confirmed:true,textures:{},face_layer});
+    const project={...initial,materials:{...initial.materials,'a/blush.vmat':layer('blush'),'a/blush2.vmat':layer('blush'),'a/tears.vmat':layer('tears')}} as unknown as Project;
+    const update=vi.fn();
+    const view=render(<FaceDetails project={project} update={update} disabled={false}/>);
+    expect(screen.getByRole('checkbox',{name:'Show blush (2 materials)'})).not.toBeChecked();
+    expect(screen.getByRole('checkbox',{name:'Show tears (1 material)'})).not.toBeChecked();
+    expect(screen.queryByText(/other hidden layers/)).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox',{name:'Show blush (2 materials)'}));
+    const result=update.mock.calls[0][0] as Project;
+    expect(result.customization.face_layers).toEqual({blush:true});
+    expect(result.customization.enabled).toBe(true);
+    view.rerender(<FaceDetails project={result} update={update} disabled={false}/>);
+    expect(screen.getByRole('checkbox',{name:'Show blush (2 materials)'})).toBeChecked();
+    // A model without face layers shows nothing.
+    view.rerender(<FaceDetails project={initial} update={update} disabled={false}/>);
+    expect(screen.queryByText('Face details')).toBeNull();
   });
 });

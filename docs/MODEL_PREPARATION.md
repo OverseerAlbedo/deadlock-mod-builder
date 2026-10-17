@@ -205,6 +205,39 @@ choose the other slots. Prepared material names have the form
 `Mesh__Material`; the Appearance planner also matches an image named like the
 source material inside that name.
 
+MMD materials (mmd_tools) feed three images into the MMD shader group: the base
+texture (`mmd_base_tex`), a toon ramp (`mmd_toon_tex`) and a sphere (shine) map
+(`mmd_sphere_tex`). Inside the group they meet in a chain of color mixes
+(base × toon, then × sphere and + sphere); followed through it, base and toon
+made one branch ambiguous and the sphere map became the color (SiViolet's MMD
+version: skin.png on the body, a .bmp sphere map, which cannot be copied, on the
+clothes). Toon and sphere image nodes (`MMD_SHADING_NODE`) are never a color
+source, and such materials carry the review note that toon effects are not
+baked. `scripts/test_blender_material_recovery.py` has the mmd_tools group case.
+
+**Face layers** (`material_textures.py source_hidden`, `face_layer`;
+`deadlock-materials face_layers.rs`). A material the source shows fully
+transparent (the MMD shader's Alpha, else a single Principled BSDF's Alpha, else
+the viewport alpha, at 0 and not linked) is a layer an expression fades in:
+MMD blush (赤面, 照れ, 頬, cheek), tears (涙, tear) or other (sweat, effect
+quads). Preparation records it as the material's `face_layer` and notes it. A
+game build has no expressions, so when material files are written
+(`patch_face_layers`, after the appearance changes) each such material is fully
+transparent (`F_TRANSLUCENT 1`, `TextureTranslucency1 [0 0 0 1]`) unless its kind
+is shown in `Customization.face_layers` (Appearance > Face details). A shown
+layer gets a grayscale mask written from its color image's alpha
+(`<image>_a.png` beside the staged copy) as its translucency, so the blush keeps
+its soft edges; an image without transparency is drawn as it is. Before,
+SiViolet's MMD version drew its blush and tears solid (a red face). Switching
+needs no new preparation; finding the layers does. Re-preparing always takes
+`face_layer` from the new preparation (`refreshed_material`).
+
+When the same hero is prepared again, a material keeps what the user changed,
+but a texture or tint that is still the previous preparation's automatic pick
+(the same prepared file name, which carries the image's hash) takes the new
+automatic pick (`service.rs refreshed_material`); the computed candidate lists
+always come from the new preparation.
+
 A texture connected to the Principled Base Color is not tinted: the material
 gets a white tint, since Blender ignores the colour behind a connected socket
 (materials without a base-color image keep their colour, MMD materials their
@@ -400,12 +433,41 @@ thigh swing is the leg capsules' job. Fine-tune swing still scales the capped
 values. `parts_report.rs` with `SKIRTGAP=<name part>` prints each joint's travel
 and fabric-to-body gap.
 
-**Shorter skirt panels** (`long_skirt.rs`). A panel that starts near the waist
-but reaches only 0.4 torso lengths down and spans 0.5 (instead of 0.5 and
-0.65) joins the long skirt when it shares at least three rendered triangles
-with a panel that qualifies on its own, on the same anchor. SiViolet's back
-center panel (8 weighted joints, the others 10) used to stay plain cloth with
-no travel limit and swung into the butt when she walked backwards.
+**Head and neck colliders** (`body_colliders.rs head_collider`, `NECK`). The
+neck gets a capsule from `neck_0` to `head`, measured like the legs (95th
+percentile of the neck vertices, shrunk to clear every moving node). The head
+gets a short upright capsule (`HEAD_HALF_LENGTH` 1 in above and below its
+centre). Its radius is the distance to the nearest moving node less
+`CLEARANCE`, at most the median distance of the vertices weighted at least 90%
+to the head (static hair included); its centre is the best of a grid up to 2 in
+up or down and 1.5 in forward or back from those vertices' centre, so a helper
+node inside the head (SiViolet's strandA weights at 1.35 in) does not shrink it
+to nothing. SiViolet's MMD version gets a 4.45 in head and a 1.41 in neck (her
+collar pieces sit at the neck), the Blender version 3.25 and 2.22 in; Valve's
+Violet has a 4.0 in head capsule. Shoulders and upper back have none yet.
+
+**Parts hanging on one bone** (`secondary_auto::simulated_bones`). A part with
+exactly one weighted bone (a hair bun) gets proxy points only on that bone and
+the group bones above it; mesh-less helper bones below it stay unsimulated and
+follow it. SiViolet's buns (`L/R_hairD_01_jnt`) each carry an unweighted
+`wingB` chain of three bones joined to the bun's 0.78 in ring by rods; swinging
+freely, it twisted the right bun's ring (the two rings sit at different angles,
+since MMD bones have no orientation) and flung the 5 in bun around. Parts with
+mesh on several bones keep every bone, mesh or not (their helper bones shape
+the motion). If a bun still bounces, its root ring is the next suspect: hair
+gives it attraction 0.5 with no damping, a spring like the ears were.
+
+**Shorter skirt panels** (`long_skirt.rs`). A panel qualifies as a long skirt
+on its own when its weighted joints and its visible fabric reach `SKIRT_REACH`
+(0.45) torso lengths below the pelvis and span `SKIRT_SPAN` (0.6); until
+October 2026 that was 0.5 and 0.65, which SiViolet's MMD version (a skirt ending
+around mid-thigh) just missed in all 16 panels. A panel that reaches only
+`JOINED_REACH` (0.4) and spans `JOINED_SPAN` (0.5), in its joints or in its
+visible fabric, joins when it shares at least three rendered triangles with the
+skirt on the same anchor, panel by panel (a ring of panels joins through its
+neighbors). SiViolet's back center panel (8 weighted joints, the others 10)
+used to stay plain cloth with no travel limit and swung into the butt when she
+walked backwards.
 
 **The hero's own cloth names** (`Setup.hero_vertex_sets`, automatic motion
 only). A hero's animation clips can carry legacy `AE_CL_CLOTH_STIFFEN` events
@@ -463,6 +525,20 @@ joints get their drag multiplied by 10 / joints
 added for SiViolet's sleeves hanging still for a second, whose real cause was
 Violet's cloth-stiffen events (above); revert it if long streamers swing too
 loosely. Valve's own long cloth has no drag. Read a build's rods with `examples/fe_chain.rs`.
+
+**Hair buns** (`parts.rs hair_bun`). A Hair part that is one round piece on one
+weighted bone (no axis more than 1.6 times the next) or has a bun name (the word
+bun, 団子, 丸子, 髻, odango) is Rigid, so it is not simulated and follows the
+head; an explicit part type still wins. SiViolet's buns (`L/R_hairD_01_jnt`,
+about 1.5 x 1.4 x 0.8 in) bounced; the user wants buns still.
+
+**Long sleeves.** A sleeve name (`sleeve`, 袖) on one thin, flat chain of at
+least 6 weighted joints (`parts.rs long_strip`) is a streamer, even where its
+mesh joins the rest of the sleeve; so is any such strip whose mesh only joins
+groups with at most a quarter of its joints and length, like a cuff or a band
+(`joined_only_to_small_parts`). Strips joined to panels of their own size (a
+skirt) stay cloth. SiViolet's MMD version names her floor-length sleeves 袖1.L to
+袖24.L; both join their cuffs and stayed stiff cloth.
 
 **Part types that pair up.** A left/right pair (`parts.rs mirror_key`: L/R,
 Left/Right as a word, 左/右) where one side became cloth only because its mesh

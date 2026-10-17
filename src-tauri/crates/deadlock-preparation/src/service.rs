@@ -1099,12 +1099,75 @@ fn renamed_materials<'a>(old: impl Iterator<Item = &'a String>, new: &BTreeMap<S
         .collect()
 }
 
+/// Whether two texture paths name the same prepared image. Prepared images are
+/// named `<material>_<channel>_<hash>.<ext>` after their bytes, so the same
+/// image keeps its file name across preparations of one source.
+fn same_image(a: Option<&String>, b: Option<&String>) -> bool {
+    let file = |p: &String| p.replace('\\', "/").rsplit('/').next().unwrap_or_default().to_owned();
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => file(a) == file(b),
+        _ => false,
+    }
+}
+/// A material's settings after preparing the same hero again: what the user
+/// changed is kept, while a texture or tint that is still the previous
+/// preparation's automatic pick takes the new automatic pick. Before October
+/// 2026 every earlier value was kept, so a wrong automatic pick (an MMD
+/// sphere map) survived every new preparation.
+fn refreshed_material(kept: &MaterialChoices, earlier: Option<&MaterialChoices>, fresh: &MaterialChoices) -> MaterialChoices {
+    let mut out = kept.clone();
+    // Whether the material is a hidden face layer (blush, tears) describes the
+    // new preparation, like the review lists.
+    match fresh.extensions.get("face_layer") {
+        Some(kind) => { out.extensions.insert("face_layer".into(), kind.clone()); }
+        None => { out.extensions.remove("face_layer"); }
+    }
+    let Some(earlier) = earlier else { return out };
+    let empty = BTreeMap::new();
+    let (kept_textures, earlier_textures, fresh_textures) = (
+        kept.textures.as_ref().unwrap_or(&empty),
+        earlier.textures.as_ref().unwrap_or(&empty),
+        fresh.textures.as_ref().unwrap_or(&empty),
+    );
+    let channels: std::collections::BTreeSet<&String> = kept_textures.keys().chain(earlier_textures.keys()).chain(fresh_textures.keys()).collect();
+    let mut textures = kept_textures.clone();
+    let mut refreshed = false;
+    for channel in channels {
+        if same_image(kept_textures.get(channel), earlier_textures.get(channel)) {
+            refreshed |= !same_image(kept_textures.get(channel), fresh_textures.get(channel));
+            match fresh_textures.get(channel) {
+                Some(path) => textures.insert(channel.clone(), path.clone()),
+                None => textures.remove(channel),
+            };
+        }
+    }
+    if !refreshed {
+        // Nothing automatic changed: the material stays exactly as it was.
+        return out;
+    }
+    out.textures = Some(textures);
+    // The tint goes with the texture pick (white over a base-color image),
+    // unless the user changed it.
+    if kept.color == earlier.color {
+        out.color = fresh.color;
+    }
+    if let Some(sources) = fresh.extensions.get("texture_match_sources") {
+        out.extensions.insert("texture_match_sources".into(), sources.clone());
+    }
+    // The review lists describe the new preparation.
+    out.candidates = fresh.candidates.clone();
+    out.ambiguous = fresh.ambiguous.clone();
+    out
+}
+
 pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project> {
     if result.target_model != project.original_model {
         return Err(invalid("Prepared result targets another hero."));
     }
     let report: Receipt = load(Path::new(&result.report))?;
-    let same_hero_preparation = load::<Receipt>(Path::new(&project.preparation_report)).ok()
+    let earlier_report = load::<Receipt>(Path::new(&project.preparation_report)).ok();
+    let same_hero_preparation = earlier_report.as_ref()
         .is_some_and(|old| old.target_model == report.target_model && old.target_sha256 == report.target_sha256);
     let mut p = project.clone();
     p.dmx = result.dmx.clone();
@@ -1135,9 +1198,12 @@ pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project>
         // A material whose readable name was shortened keeps its identity
         // hash; its choices and surface changes follow it to the new path.
         let renamed = renamed_materials(project.materials.keys(), &p.materials);
-        for (name, settings) in &project.materials {
-            let name = renamed.get(name).unwrap_or(name);
-            if p.materials.contains_key(name) { p.materials.insert(name.clone(), settings.clone()); }
+        for (old_name, settings) in &project.materials {
+            let name = renamed.get(old_name).unwrap_or(old_name);
+            if let Some(fresh) = p.materials.get(name).cloned() {
+                let earlier = earlier_report.as_ref().and_then(|r| r.prepared.materials.get(old_name));
+                p.materials.insert(name.clone(), refreshed_material(settings, earlier, &fresh));
+            }
         }
         if let Some(rows) = p.customization.appearance.as_mut().and_then(|a| a.materials.as_mut()) {
             for row in rows {
@@ -1338,5 +1404,35 @@ mod tests {
         // Unchanged paths need nothing; two new paths with one hash are ambiguous;
         // only the prepared-material folder counts.
         assert_eq!(renamed, BTreeMap::from([(old[0].clone(), format!("{root}/optional_frost___translu_2362886d.vmat"))]));
+    }
+    #[test]
+    fn preparing_again_refreshes_automatic_texture_picks_and_keeps_user_choices() {
+        let textures = |pairs: &[(&str, &str)]| Some(pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<BTreeMap<_, _>>());
+        let material = |t: Option<BTreeMap<String, String>>, color: [f64; 3]| MaterialChoices { textures: t, color: Some(color), confirmed: Some(true), ..Default::default() };
+        // The previous preparation picked an MMD sphere map for color and no
+        // normal; the project still holds that pick (in an older run's folder).
+        let earlier = material(textures(&[("color", "C:/w/prep-2/textures/body_color_cd89ade64349.png")]), [1., 1., 1.]);
+        let kept = material(textures(&[("color", "../w/prep-1/textures/body_color_cd89ade64349.png")]), [1., 1., 1.]);
+        let fresh = material(textures(&[("color", "C:/w/prep-3/textures/body_color_a3712397e07c.png"), ("normal", "C:/w/prep-3/textures/body_normal_0123456789ab.png")]), [1., 1., 1.]);
+        let out = refreshed_material(&kept, Some(&earlier), &fresh);
+        assert_eq!(out.textures, fresh.textures);
+        assert_eq!(out.confirmed, Some(true));
+        // A texture or tint the user chose stays.
+        let chosen = material(textures(&[("color", "D:/my art/body_fixed.png")]), [0.8, 0.7, 0.6]);
+        let out = refreshed_material(&chosen, Some(&earlier), &fresh);
+        assert_eq!(out.textures.unwrap()["color"], "D:/my art/body_fixed.png");
+        assert_eq!(out.color, Some([0.8, 0.7, 0.6]));
+        // A channel the previous run could not fill (a BMP sphere map) is filled now.
+        let unfilled = material(Some(BTreeMap::new()), [1., 1., 1.]);
+        let out = refreshed_material(&unfilled, Some(&material(Some(BTreeMap::new()), [1., 1., 1.])), &fresh);
+        assert_eq!(out.textures, fresh.textures);
+        // Without the previous preparation's report nothing is replaced.
+        assert_eq!(refreshed_material(&kept, None, &fresh), kept);
+        // A face layer found by the new preparation always arrives, even when
+        // nothing else about the material changed.
+        let mut layer = kept.clone();
+        layer.extensions.insert("face_layer".into(), serde_json::json!("blush"));
+        assert_eq!(refreshed_material(&kept, Some(&kept), &layer).extensions.get("face_layer"), Some(&serde_json::json!("blush")));
+        assert!(!refreshed_material(&layer, Some(&layer), &kept).extensions.contains_key("face_layer"));
     }
 }

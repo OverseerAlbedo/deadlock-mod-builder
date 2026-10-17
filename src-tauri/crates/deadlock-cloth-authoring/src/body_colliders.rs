@@ -32,6 +32,9 @@ pub const LEGS: [(&str, &str, f64); 4] = [
     ("leg_upper_R", "leg_lower_R", 0.2),
     ("leg_lower_R", "ankle_R", 0.0),
 ];
+/// The neck: (bone, tip bone, start), measured like the legs, so long hair
+/// stops at the neck when the hero turns.
+pub const NECK: (&str, &str, f64) = ("neck_0", "head", 0.0);
 /// Inches between a moving proxy node at rest and a collider's surface.
 pub const CLEARANCE: f64 = 0.25;
 /// Thinner colliders than this (inches) are left out.
@@ -81,7 +84,7 @@ pub fn leg_colliders(d: &Dmx, moving: &[V], cancel: &CancellationToken) -> Resul
     let palette: Vec<Option<usize>> = bind.palette.iter().map(|&e| lookup.get(d.elements[e].name.as_str()).copied()).collect();
     let meshes = surface::mesh_data(d)?;
     let mut out = vec![];
-    for (bone, tip, start) in LEGS {
+    for (bone, tip, start) in LEGS.into_iter().chain([NECK]) {
         let (Some(&index), Some(&tip_index)) = (lookup.get(bone), lookup.get(tip)) else { continue };
         let joint = |i: usize| -> V { std::array::from_fn(|row| state.world[i][row][3]) };
         let (top, bottom) = (joint(index), joint(tip_index));
@@ -126,7 +129,90 @@ pub fn leg_colliders(d: &Dmx, moving: &[V], cancel: &CancellationToken) -> Resul
         out.push(proposal(&state, index, bone, tip, [a, bottom], radius));
     }
     out.extend(hip_colliders(d, &state, &palette, &meshes, moving, cancel)?);
+    out.extend(head_collider(d, &state, &palette, &meshes, moving, cancel)?);
     Ok(out)
+}
+
+/// The head capsule (SiViolet's bangs and short hair swung into her face). A
+/// short upright capsule (`HEAD_HALF_LENGTH` above and below its centre) as
+/// large as the hair allows: its radius is the distance to the nearest moving
+/// node less [`CLEARANCE`], at most the median distance of the head's own
+/// vertices (those weighted at least 90% to the head, which includes hair that
+/// does not move). The centre is the best of a grid around those vertices'
+/// centre, up to 2 in up or down and 1.5 in forward or back, so a helper node
+/// near the middle of the head (SiViolet's strandA weights) does not shrink it.
+pub const HEAD_HALF_LENGTH: f64 = 1.0;
+fn head_collider(
+    d: &Dmx,
+    state: &BindState,
+    palette: &[Option<usize>],
+    meshes: &std::collections::BTreeMap<String, surface::MeshData>,
+    moving: &[V],
+    cancel: &CancellationToken,
+) -> Result<Option<ColliderProposal>> {
+    let skeleton = &surface::binds(d)?.skeleton;
+    let lookup = skeleton.indices();
+    let Some(&head) = lookup.get("head") else { return Ok(None) };
+    let joint = |i: usize| -> V { std::array::from_fn(|row| state.world[i][row][3]) };
+    let up = match lookup.get("pelvis") {
+        Some(&pelvis) if norm(sub(joint(head), joint(pelvis))) > 1e-3 => {
+            let v = sub(joint(head), joint(pelvis));
+            v.map(|x| x / norm(v))
+        }
+        _ => [0., 0., 1.],
+    };
+    let forward = match (lookup.get("arm_upper_L"), lookup.get("arm_upper_R")) {
+        (Some(&l), Some(&r)) => {
+            let lateral = sub(joint(l), joint(r));
+            let side = sub(lateral, up.map(|x| x * dot(lateral, up)));
+            if norm(side) < 1e-3 { return Ok(None); }
+            cross(side.map(|x| x / norm(side)), up)
+        }
+        _ => return Ok(None),
+    };
+    let mut points = vec![];
+    for mesh in meshes.values() {
+        for (i, p) in mesh.positions.iter().enumerate() {
+            if i % 4096 == 0 {
+                cancel.check()?;
+            }
+            if !mesh.drawn[i] {
+                continue;
+            }
+            let weight: f64 = mesh.joints[i]
+                .iter()
+                .zip(&mesh.weights[i])
+                .filter(|(slot, _)| palette.get(**slot).copied().flatten() == Some(head))
+                .map(|(_, w)| *w)
+                .sum();
+            if weight >= 0.9 {
+                points.push(*p);
+            }
+        }
+    }
+    if points.len() < 12 {
+        return Ok(None);
+    }
+    let middle: V = std::array::from_fn(|k| points.iter().map(|p| p[k]).sum::<f64>() / points.len() as f64);
+    let step = points.len().div_ceil(4096).max(1);
+    let mut best: Option<(f64, [V; 2])> = None;
+    for a in -4..=4 {
+        for b in -3..=3 {
+            cancel.check()?;
+            let centre: V = std::array::from_fn(|k| middle[k] + up[k] * (a as f64 * 0.5) + forward[k] * (b as f64 * 0.5));
+            let ends = [-1., 1.].map(|s| -> V { std::array::from_fn(|k| centre[k] + up[k] * s * HEAD_HALF_LENGTH) });
+            let mut distances: Vec<f64> = points.iter().step_by(step).map(|p| segment_distance(*p, ends[0], ends[1]).0).collect();
+            distances.sort_by(f64::total_cmp);
+            let mut radius = distances[distances.len() / 2];
+            for point in moving {
+                radius = radius.min(segment_distance(*point, ends[0], ends[1]).0 - CLEARANCE);
+            }
+            if radius.is_finite() && radius >= MIN_RADIUS && best.as_ref().is_none_or(|(r, _)| radius > r + 1e-9) {
+                best = Some((radius, ends));
+            }
+        }
+    }
+    Ok(best.map(|(radius, ends)| proposal(state, head, "head", "head", ends, radius)))
 }
 
 /// A capsule on `bone` between two model-space points, stored in the bone's

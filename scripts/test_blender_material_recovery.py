@@ -99,6 +99,29 @@ cfg,notes,obj=extract(mat,'mmd');assert sha(cfg['textures']['color'])==sha(base.
 assert len(cfg['candidates']['color'])==1 and notes
 results.append({'case':'connected-mmd-base-keeps-opaque-material-binding-and-excludes-toon-sphere','passed':True})
 
+# The mmd_tools shader group (MMDShaderDev): base x toon, then x sphere and
+# + sphere, mixed into a Diffuse BSDF inside the group. Followed through those
+# mixes, the sphere map used to become the color (SiViolet's MMD version).
+mmd=bpy.data.node_groups.new('MMDShaderDev test','ShaderNodeTree')
+for socket in ['Base Tex','Toon Tex','Sphere Tex']:mmd.interface.new_socket(name=socket,in_out='INPUT',socket_type='NodeSocketColor')
+mmd.interface.new_socket(name='Shader',in_out='OUTPUT',socket_type='NodeSocketShader')
+gin=mmd.nodes.new('NodeGroupInput');gout=mmd.nodes.new('NodeGroupOutput');diffuse=mmd.nodes.new('ShaderNodeBsdfDiffuse')
+with_toon,with_sphere,plus_sphere,blend=[mmd.nodes.new('ShaderNodeMixRGB') for _ in range(4)]
+mmd.links.new(gin.outputs['Base Tex'],with_toon.inputs[1]);mmd.links.new(gin.outputs['Toon Tex'],with_toon.inputs[2])
+mmd.links.new(with_toon.outputs[0],with_sphere.inputs[1]);mmd.links.new(gin.outputs['Sphere Tex'],with_sphere.inputs[2])
+mmd.links.new(with_toon.outputs[0],plus_sphere.inputs[1]);mmd.links.new(gin.outputs['Sphere Tex'],plus_sphere.inputs[2])
+mmd.links.new(with_sphere.outputs[0],blend.inputs[1]);mmd.links.new(plus_sphere.outputs[0],blend.inputs[2])
+mmd.links.new(blend.outputs[0],diffuse.inputs['Color']);mmd.links.new(diffuse.outputs[0],gout.inputs['Shader'])
+mat,out=material('M_actor_mmd_body');tree=mat.node_tree;shader=tree.nodes.new('ShaderNodeGroup');shader.node_tree=mmd
+base=image('T_actor_mmd_body_01.png',.3);toon=image('skintoon.png',.6);sphere=image('skin.png',.9)
+for img,name,socket in [(base,'mmd_base_tex','Base Tex'),(toon,'mmd_toon_tex','Toon Tex'),(sphere,'mmd_sphere_tex','Sphere Tex')]:
+    tree.links.new(texture(tree,img,name).outputs['Color'],shader.inputs[socket])
+tree.links.new(shader.outputs['Shader'],out.inputs['Surface'])
+cfg,notes,obj=extract(mat,'mmd-group')
+assert sha(cfg['textures']['color'])==sha(base.filepath),cfg['textures']
+assert len(cfg['candidates']['color'])==1 and notes
+results.append({'case':'mmd-shader-group-uses-base-texture-not-sphere-map','passed':True})
+
 mat,out=material('complex');tree=mat.node_tree
 one=image('T_actor_tangtang_iris_01_D.png',.2);two=image('T_actor_tangtang_iris_02_D.png',.8)
 first=texture(tree,one);second=texture(tree,two);unused=texture(tree,image('unused_D.png'))
@@ -108,6 +131,24 @@ cfg,_,_=extract(mat,'ambiguous')
 assert not cfg['textures'] and cfg['ambiguous']==['color'] and len(cfg['candidates']['color'])==2
 assert {sha(p) for p in cfg['candidates']['color']}=={sha(one.filepath),sha(two.filepath)}
 results.append({'case':'multiple-connected-images-remain-choices-disconnected-image-ignored','passed':True})
+
+# Fully transparent MMD layers (an expression fades them in) are face layers,
+# named blush, tears or other; an opaque material and a linked Alpha are not.
+for name,alpha,kind in [('赤面',0.0,'blush'),('照れ',0.0,'blush'),('涙2',0.0,'tears'),('汗',0.0,'other'),('肌',1.0,None)]:
+    mat,out=material(name);tree=mat.node_tree;shader=tree.nodes.new('ShaderNodeGroup');shader.node_tree=mmd;shader.name='mmd_shader'
+    if 'Alpha' not in [s.name for s in mmd.interface.items_tree]:
+        mmd.interface.new_socket(name='Alpha',in_out='INPUT',socket_type='NodeSocketFloat')
+    shader.inputs['Alpha'].default_value=alpha
+    tree.links.new(texture(tree,image(name+'.png'),'mmd_base_tex').outputs['Color'],shader.inputs['Base Tex'])
+    tree.links.new(shader.outputs['Shader'],out.inputs['Surface'])
+    cfg,notes,obj=extract(mat,'face-'+name)
+    assert cfg.get('face_layer')==kind,(name,cfg.get('face_layer'))
+    assert (kind is None) or any('Face details' in n for n in notes)
+mat,out=material('principled-linked-alpha');tree=mat.node_tree;shader=tree.nodes.new('ShaderNodeBsdfPrincipled')
+shader.inputs['Alpha'].default_value=0.0;alpha_tex=texture(tree,image('mask_alpha.png'))
+tree.links.new(alpha_tex.outputs['Alpha'],shader.inputs['Alpha']);tree.links.new(shader.outputs[0],out.inputs['Surface'])
+cfg,_,_=extract(mat,'linked-alpha');assert 'face_layer' not in cfg
+results.append({'case':'fully-transparent-source-layers-become-face-layers','passed':True})
 
 mat,out=material('packed-only');tree=mat.node_tree
 tex=texture(tree,image('T_actor_body_ORM.png'));diffuse=tree.nodes.new('ShaderNodeBsdfDiffuse')

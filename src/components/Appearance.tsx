@@ -5,7 +5,7 @@ import type { ModelSummary, Project, ProjectDocument } from '../models';
 import { basename } from '../api';
 import { Check, SelectField } from './CustomizationPages';
 import { FilePathInput } from './FilePathInput';
-import { AppearanceOverrides, MaterialEditor, NumberField } from './MaterialEditor';
+import { AppearanceOverrides, FaceDetails, MaterialEditor, NumberField } from './MaterialEditor';
 import { Equipment } from './Equipment';
 import { Disclosure, PageTitle, Section, StateLabel } from './Primitives';
 import { PathValue } from './Paths';
@@ -60,6 +60,7 @@ export function Appearance({ document, summary, choose, analyze, busy, drag, upd
       <Section title="Textures" id="textures" actions={project.textures&&<button className="tertiary" disabled={busy} onClick={()=>revealSection('materials')}>Manage textures</button>}>{project.textures&&<p className="texture-count">{textureCount ? `${textureCount} texture${textureCount===1?'':'s'} assigned` : 'Folder selected · analyze materials to assign textures'}</p>}<FilePathInput label="Texture folder" kind="texture_directory" value={project.textures} update={textures => update({ ...project, textures })} disabled={busy} fail={fail} /></Section>
       </div>
       <MaterialEditor checked={Boolean(inspection)} analyze={analyzeMaterials} project={project} update={update} disabled={busy} fail={fail} />
+      <FaceDetails project={project} update={update} disabled={busy} />
       <Disclosure title="Surface changes and expression" hint={`${project.customization.appearance?.enabled ? `${project.customization.appearance.materials?.length??0} surface changes` : 'Optional surface changes'} · ${project.customization.face?.enabled?'Static expression saved':'Expression off'}`}><AppearanceOverrides project={project} update={update} disabled={busy} fail={fail} /></Disclosure>
       <Disclosure title="Equipment" hint={project.customization.equipment?.enabled?'Equipment choices saved · open to manage':'Optional weapons, accessories, props and alternate forms'}><Equipment project={project} update={update} disabled={busy} fail={fail} summary={current} /></Disclosure>
       <Disclosure title="Saved inputs and mappings" hint="File locations and assignment counts"><dl className="summary-list"><dt>Textures</dt><dd><PathValue path={project.textures} empty="No texture folder selected" /></dd><dt>Material assignments</dt><dd>{Object.keys(project.materials).length}</dd><dt>Model mappings</dt><dd>{Object.keys(project.meshes).length}</dd></dl><p className="hint">These assignments are saved with the project and checked during preparation and build.</p></Disclosure>

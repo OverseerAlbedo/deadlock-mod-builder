@@ -37,8 +37,8 @@ on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
 0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
-fixed) and 0.13.0-beta.8 (tag `v0.13.0-beta.8`, October 17, 2026, automatic-movement fixes)
-followed, the latter being the latest; the
+fixed), 0.13.0-beta.8 (automatic-movement fixes) and 0.13.0-beta.9 (tag `v0.13.0-beta.9`,
+October 17, 2026, MMD and Face details) followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -46,7 +46,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.8 (October 17, 2026)
+## State as of 0.13.0-beta.9 (October 17, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -97,6 +97,13 @@ Rigid parts not simulated, the Ear motion switch, part-type rules, and the
 build's attachment step fixed. Checked in a match on October 17, 2026: Violet
 cloth no longer freezes, skirt fixed. Open: floor-length arm cloth ruffles a
 bit too much.
+
+Beta 9 = beta 8 plus the MMD round (an MMD version of SiViolet): MMD base
+textures instead of sphere maps, automatic texture picks refreshed on
+re-preparation, Face details (source alpha-0 layers hidden or shown at build),
+head and neck colliders, still hair buns, one-bone parts leaving their helper
+bones still, shorter long skirts (0.45/0.6 and panel-by-panel joining) and
+long sleeves as streamers. Checked in a match on October 17, 2026: Face details.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -161,7 +168,7 @@ template check (`tests/cloth_bones.rs`).
   `cloth_gravity` stream by `GAME_GRAVITY` (360, Valve's compiled unit; the
   compiler copies proxy streams raw). Never scale gravity anywhere else.
   Check compiled values with `deadlock-resource/examples/fe_stats.rs`.
-- Leg and hip colliders (`body_colliders.rs`) are automatic-motion only, measured
+- Leg, hip, neck and head colliders (`body_colliders.rs`) are automatic-motion only, measured
   at Analyze into `Setup.body_colliders` and written by
   `proxy_source::author_direct_proxy`; they must never start with a moving
   proxy node inside them (radius reduced by `CLEARANCE`).
@@ -175,6 +182,17 @@ template check (`tests/cloth_bones.rs`).
   so the hero's `AE_CL_CLOTH_STIFFEN` animation events stiffen nothing (Violet's
   froze the whole cloth on run start/stop). The constraint audit accepts empty
   maps only; never give these sets nodes.
+- MMD toon ramps and sphere maps (`mmd_toon_tex`, `mmd_sphere_tex`) are never a
+  color source (`material_textures.py MMD_SHADING_NODE`). Preparing the same hero
+  again refreshes only automatic picks (`service.rs refreshed_material`, compared
+  by prepared file name); never copy old material settings over wholesale.
+- Face layers (source alpha 0: blush, tears, other) are marked at preparation
+  (`face_layer` on the material) and switched at build in
+  `deadlock-materials face_layers.rs` from `Customization.face_layers` (hidden by
+  default, shown = alpha mask); never fold them into `Customization.face` (the
+  static expression), which is a preparation input.
+- Long-skirt limits are `long_skirt::SKIRT_REACH`/`SKIRT_SPAN` (0.45/0.6) and
+  `JOINED_REACH`/`JOINED_SPAN` (0.4/0.5, panel by panel through shared mesh).
 - Long-skirt travel is capped by each joint's fabric-to-body gap
   (`body_colliders::fabric_gaps`, `body_capped_skirt_travel`) in
   `long_skirt::analyze`; the floor `BODY_TRAVEL_FLOOR` keeps it above 0 (0 = free).

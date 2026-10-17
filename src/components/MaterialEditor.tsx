@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { AppearanceMaterial, Material, Project } from '../models';
+import type { AppearanceMaterial, FaceLayerKind, Material, Project } from '../models';
 import { ImagePreview } from './ImagePreview';
 import { api, basename } from '../api';
 import { FilePathInput } from './FilePathInput';
@@ -44,6 +44,14 @@ function ColorAdjustment({row,index,image,edit,remove,disabled,fail}:{row:Appear
       {image?<ImagePreview path={image} disabled={disabled} fail={fail} filter={colorFilter(row)} label="Preview adjusted base color"/>:<p className="hint">No base-color image is assigned in Materials; a plain base color is adjusted instead.</p>}
       <p className="hint">Build changes a copy of this material’s base-color image (or its plain color). Your files and other materials stay unchanged. The preview is approximate; check the result in game.</p></>}
   </div>;
+}
+const faceLayers:[FaceLayerKind,string][]=[['blush','blush'],['tears','tears'],['other','other hidden layers']];
+/** Face layers the source keeps invisible until an expression shows them (MMD blush, tears): hidden unless shown here. */
+export function FaceDetails({project,update,disabled}:{project:Project;update:(project:Project)=>void;disabled:boolean}){
+  const counts=faceLayers.map(([kind,label])=>({kind,label,count:Object.values(project.materials).filter(m=>m.face_layer===kind).length})).filter(row=>row.count>0);
+  if(!counts.length)return null;
+  const shown=project.customization.face_layers??{};
+  return <Section title="Face details" id="face-details"><p className="hint">Your model keeps these layers invisible until an expression shows them. Deadlock has no expressions, so they stay hidden unless you show them here. A shown layer keeps the soft edges of its own image.</p>{counts.map(({kind,label,count})=><Check key={kind} label={`Show ${label} (${count} material${count===1?'':'s'})`} value={shown[kind]===true} onChange={value=>update(changeCustomization(project,{face_layers:{...shown,[kind]:value}}))} disabled={disabled}/>)}</Section>;
 }
 export function AppearanceOverrides({project,update,disabled,fail}:Props){
   const appearance=project.customization.appearance??{},rows=appearance.materials??[],face=project.customization.face??{};

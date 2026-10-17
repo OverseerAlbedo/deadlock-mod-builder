@@ -118,12 +118,27 @@ choices!(Variant {
     project: String
 });
 choices!(Face { enabled: bool, mode: String, weights: BTreeMap<String, f64> });
+// Face layers a source keeps fully transparent until an expression fades them
+// in (blush, tears, other): true shows that kind in game, unset or false hides
+// it. Applied when material files are written, so no new preparation is needed.
+choices!(FaceLayers { blush: bool, tears: bool, other: bool });
+impl FaceLayers {
+    /// Whether layers of `kind` (blush, tears or other) are shown.
+    pub fn shown(&self, kind: &str) -> bool {
+        match kind {
+            "blush" => self.blush,
+            "tears" => self.tears,
+            _ => self.other,
+        }
+        .unwrap_or(false)
+    }
+}
 choices!(Customization {
     schema: u32, enabled: bool, model_enabled: bool, hero_path: String,
     icons: Vec<ResourceReplacement>, animations: Vec<ResourceReplacement>,
     effects: Vec<ResourceReplacement>, audio: Vec<ResourceReplacement>,
     clothing: Clothing, physics: Physics, cloth_setup: ClothSetup, secondary_motion: SecondaryMotion,
-    appearance: Appearance, equipment: Equipment, face: Face
+    appearance: Appearance, equipment: Equipment, face: Face, face_layers: FaceLayers
 });
 fn error(text: impl Into<String>) -> Error {
     Error::Validation(text.into())

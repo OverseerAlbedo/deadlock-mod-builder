@@ -179,6 +179,42 @@ fn semantic(name: &str) -> Option<Kind> {
     }
 }
 /// The hero's hip bones, where tails hang.
+/// A sleeve name: "sleeve" in any case, or 袖 (sleeve in Japanese and Chinese,
+/// as in 袖1.L or 袖子).
+/// Bun names besides the word "bun": お団子 / 団子 (dango), 丸子, 发髻 / 髻, odango.
+const BUN_WORDS: [&str; 5] = ["団子", "だんご", "丸子", "髻", "odango"];
+/// A hair bun: a bun name, or one round piece of hair on one weighted bone
+/// (no axis much longer than the others; SiViolet's two buns behind her head).
+/// Buns stay still (Rigid) unless the user picks another part type.
+fn hair_bun(name: &str, weighted_bones: usize, shape: [f64; 3]) -> bool {
+    let lower = name.to_lowercase();
+    let named = lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "bun" || w == "buns")
+        || BUN_WORDS.iter().any(|w| lower.contains(w));
+    let round = weighted_bones == 1 && shape[0] > 0.3 && shape[1] > 1e-5 && shape[0] / shape[1] <= 1.6;
+    named || round
+}
+fn sleeve_named(name: &str) -> bool {
+    name.to_lowercase().contains("sleeve") || name.contains('袖')
+}
+/// Weighted joints a long hanging strip has at least (a floor-length sleeve has
+/// 24 to 30).
+const LONG_STRIP_JOINTS: usize = 6;
+/// A long hanging strip: one chain of at least [`LONG_STRIP_JOINTS`] weighted
+/// joints whose mesh is thin and elongated.
+fn long_strip(joints: usize, slender: bool, flat: bool) -> bool {
+    joints >= LONG_STRIP_JOINTS && slender && flat
+}
+/// Whether every group whose mesh joins group `i` (3 or more shared triangles)
+/// is a small part next to it: at most a quarter of its joints (2 or fewer
+/// anyway) and a quarter of its length, like a cuff or a band. `sizes` are the
+/// groups' (weighted joints, chain length).
+fn joined_only_to_small_parts(i: usize, shared: &BTreeMap<(usize, usize), usize>, sizes: &[(usize, f64)]) -> bool {
+    let (joints, length) = sizes[i];
+    shared.iter().filter(|(&(a, b), &n)| n >= 3 && (a == i || b == i)).all(|(&(a, b), _)| {
+        let (other_joints, other_length) = sizes[if a == i { b } else { a }];
+        other_joints <= (joints / 4).max(2) && other_length <= length * 0.25
+    })
+}
 fn is_hips(anchor: &str) -> bool {
     ["pelvis", "spine_0"].iter().any(|n| anchor.eq_ignore_ascii_case(n))
 }
@@ -355,6 +391,7 @@ pub fn analyze(
             "A saved part type refers to an unselected motion group.",
         ));
     }
+    let sizes:Vec<(usize,f64)>=groups.iter().map(|g|{let chain=chain(sk,g);(chain.len(),chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>())}).collect();
     let decided=groups.iter().enumerate().map(|(i,g)|{
         let chain=chain(sk,g);let length=chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>();
         let shape=radii(&points[i]);let slender=shape[1]>1e-5 && shape[0]/shape[1]>=3.;let flat=shape[1]>1e-5&&shape[2]/shape[1]<=0.35;
@@ -363,7 +400,7 @@ pub fn analyze(
         let supported=chain.len()>=2&&length>1e-4;
         // A chain that ends where it starts is a band or ring, never a strand.
         let looped=chain.len()>=4&&length>1e-4&&norm(sub(position(&chain[chain.len()-1]),position(&chain[0])))<0.3*length;
-        let (kind,mut reason,mut review):(Kind,String,bool)=if let Some(kind)=explicit{(kind,"Selected part type".into(),false)}
+        let (kind,reason,review):(Kind,String,bool)=if let Some(kind)=explicit{(kind,"Selected part type".into(),false)}
         else if looped&&matches!(hint,None|Some(Kind::Hair)){(Kind::Rigid,"Closed ring (halo, crown or hat band); follows its bone without motion".into(),true)}
         else if on_weapon(sk,&g.anchor)&&!matches!(hint,Some(Kind::Rigid|Kind::Breast|Kind::Butt)){(Kind::Charm,"Hangs from the fitted gun; light charm swing".into(),false)}
         else if let Some(kind)=hint{
@@ -379,11 +416,18 @@ pub fn analyze(
         // Unnamed strands on the head are hair (names in other scripts are
         // often stripped, e.g. F_0_1 ... F_18_1), even when strips join.
         else if g.anchor.eq_ignore_ascii_case("head")&&supported{(Kind::Hair,"Unnamed strand on the head; hair motion".into(),false)}
+        // A long hanging sleeve swings like a streamer even where its mesh
+        // joins the rest of the sleeve (SiViolet's floor-length 袖1.L/R).
+        else if sleeve_named(&g.source_root)&&long_strip(chain.len(),slender,flat){(Kind::Streamer,"Long hanging sleeve; streamer motion".into(),false)}
+        else if joined_panel&&long_strip(chain.len(),slender,flat)&&joined_only_to_small_parts(i,&shared,&sizes){(Kind::Streamer,"Long thin strip whose mesh only joins small parts (a cuff or band); streamer motion".into(),false)}
         else if joined_panel{(Kind::Cloth,JOINED_PANEL.into(),false)}
         // A long, round, unnamed strand on the hips is a tail.
         else if is_hips(&g.anchor)&&supported&&chain.len()>=4&&slender&&!flat{(Kind::Tail,"Unnamed long round strand on the hips; tail motion".into(),false)}
         else if supported&&slender&&flat{(Kind::Streamer,"Thin, elongated weighted mesh on one connected joint chain".into(),false)}
         else{(Kind::Accessory,"No unambiguous part identity; conservative accessory support".into(),true)};
+        // Hair buns stay still (SiViolet: the right bun flung around).
+        let (kind,mut reason,mut review)=if explicit.is_none()&&kind==Kind::Hair&&hair_bun(&g.source_root,g.weighted_bones.len(),shape)
+            {(Kind::Rigid,"Hair bun (one round piece of hair, or a bun name); stays still".into(),false)} else {(kind,reason,review)};
         if kind==Kind::Streamer&&!supported{return Err(invalid(format!("{} cannot use streamer motion: it needs one chain of at least two weighted bones. Choose Cloth for a branching part.",g.source_root)));}
         let strand=matches!(kind,Kind::Hair|Kind::Tail);
         if strand&&!supported {
@@ -404,6 +448,40 @@ mod tests {
     }
     fn basis(explicit: bool, by_join: bool, own_streamer: bool, bones: usize, length: f64) -> Basis {
         Basis { explicit, by_join, own_streamer, bones, length }
+    }
+    #[test]
+    fn hair_buns_are_round_one_bone_pieces_or_bun_names() {
+        // SiViolet's buns: one weighted bone, about 1.5 x 1.4 x 0.8 in.
+        assert!(hair_bun("L_hairD_01_jnt", 1, [1.54, 1.38, 0.83]));
+        // A strand on one bone is long, not round; strands on several bones move.
+        assert!(!hair_bun("ahoge_01", 1, [2.4, 0.5, 0.2]));
+        assert!(!hair_bun("L_hairC_01_jnt", 3, [4.21, 1.23, 0.42]));
+        // Names count whatever the shape, but not words that merely contain "bun".
+        for name in ["hair_bun_L", "Buns", "お団子.R", "发髻", "Odango_01"] {
+            assert!(hair_bun(name, 4, [3., 0.5, 0.2]), "{name}");
+        }
+        assert!(!hair_bun("bunny_ear_L", 3, [3., 0.5, 0.2]));
+    }
+    #[test]
+    fn long_sleeves_and_strips_joined_only_to_cuffs_are_streamers() {
+        for name in ["L_sleeveD_01_jnt_1", "Sleeve_L", "袖1.L", "左袖子"] {
+            assert!(sleeve_named(name), "{name}");
+        }
+        assert!(!sleeve_named("L_ribbonA_01_jnt_1"));
+        // A floor-length sleeve (24 joints, thin and flat) is a long strip; a
+        // one- or two-joint cuff is not, and neither is a round cord.
+        assert!(long_strip(24, true, true));
+        assert!(!long_strip(2, true, true) && !long_strip(24, true, false) && !long_strip(24, false, true));
+        // Group 0 is the sleeve; 1 and 2 are a cuff and a band; 3 is a panel of
+        // the same size (a skirt panel next to another).
+        let sizes = [(24, 56.), (1, 0.), (2, 3.2), (24, 50.)];
+        let only_cuffs = BTreeMap::from([((0, 1), 12), ((0, 2), 5), ((1, 2), 3)]);
+        assert!(joined_only_to_small_parts(0, &only_cuffs, &sizes));
+        let with_panel = BTreeMap::from([((0, 1), 12), ((0, 3), 40)]);
+        assert!(!joined_only_to_small_parts(0, &with_panel, &sizes));
+        // Two or fewer shared triangles are not a join.
+        let touching = BTreeMap::from([((0, 3), 2)]);
+        assert!(joined_only_to_small_parts(0, &touching, &sizes));
     }
     #[test]
     fn mirror_names_match_by_their_side_marker() {

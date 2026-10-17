@@ -246,7 +246,7 @@ pub(crate) fn number(value: f64) -> String {
         }
     }
 }
-fn vector(values: &[f64; 3]) -> String {
+pub(crate) fn vector(values: &[f64; 3]) -> String {
     format!(
         "[{} {} {} 1]",
         number(values[0]),
@@ -264,7 +264,7 @@ pub fn patch_text(text: &str, row: &AppearanceMaterial) -> Result<String> {
         return Ok(text.into());
     }
     validate_row(row)?;
-    let (params, end) = layer(text)?;
+    let (params, _) = layer(text)?;
     if params
         .get("shader")
         .is_none_or(|v| casefold(&v.value) != "pbr.vfx")
@@ -295,6 +295,12 @@ pub fn patch_text(text: &str, row: &AppearanceMaterial) -> Result<String> {
             edits.push(("TextureSelfIllumMask1", vector(&[1.0; 3])));
         }
     }
+    apply_edits(text, edits)
+}
+/// Sets parameters of a flat Layer0 VMAT: replaces existing values in place and
+/// appends missing ones before the closing brace.
+pub(crate) fn apply_edits(text: &str, edits: Vec<(&str, String)>) -> Result<String> {
+    let (params, end) = layer(text)?;
     let mut replacements = Vec::new();
     let mut added = String::new();
     for (key, value) in edits {

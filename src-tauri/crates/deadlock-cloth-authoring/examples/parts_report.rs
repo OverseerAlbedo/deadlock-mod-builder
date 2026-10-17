@@ -74,6 +74,36 @@ fn main() {
             let bottom = h.iter().copied().fold(f64::INFINITY, f64::min);
             println!("SKIRT {:<12} {:?} anchor {} weighted {} top {top:.2} bottom {bottom:.2} span {:.2}", g.source_root, part.kind, g.anchor, h.len(), top - bottom);
         }
+        // The visible-fabric check of long skirts: heights (torso lengths) of the
+        // vertices each matching group dominates, 5th and 95th percentile.
+        if let Ok(filter) = std::env::var("SKIRT") {
+            let bind = surface::binds(&d).unwrap();
+            let owner: std::collections::BTreeMap<&str, usize> = setup.groups.iter().enumerate()
+                .filter(|(_, g)| g.source_root.contains(filter.as_str()))
+                .flat_map(|(i, g)| g.weighted_bones.iter().map(move |n| (n.as_str(), i))).collect();
+            let slot_name: Vec<&str> = bind.palette.iter().map(|&e| d.elements[e].name.as_str()).collect();
+            let mut samples: std::collections::BTreeMap<usize, Vec<f64>> = Default::default();
+            for mesh in surface::mesh_data(&d).unwrap().values() {
+                for i in 0..mesh.positions.len() {
+                    if !mesh.drawn[i] { continue; }
+                    let mut totals: std::collections::BTreeMap<usize, f64> = Default::default();
+                    for (j, w) in mesh.joints[i].iter().zip(&mesh.weights[i]) {
+                        if let Some(&g) = slot_name.get(*j).and_then(|n| owner.get(n)) { *totals.entry(g).or_default() += w; }
+                    }
+                    if let Some((&g, &w)) = totals.iter().max_by(|a, b| a.1.total_cmp(b.1)) {
+                        if w >= 0.5 {
+                            let p = mesh.positions[i];
+                            samples.entry(g).or_default().push((0..3).map(|k| (p[k] - pelvis[k]) * up[k]).sum::<f64>() / torso);
+                        }
+                    }
+                }
+            }
+            for (g, mut s) in samples {
+                s.sort_by(f64::total_cmp);
+                let (low, high) = (s[(s.len() - 1) * 5 / 100], s[(s.len() - 1) * 95 / 100]);
+                println!("FABRIC {:<12} vertices {:>5} low {low:.2} high {high:.2} span {:.2} (long skirt needs low <= -0.50, high <= 0.35, span >= 0.65)", setup.groups[g].source_root, s.len(), high - low);
+            }
+        }
     }
     // Where the hip capsules sit relative to the hip joints, against the
     // direction the feet point (toes are in front).
@@ -123,6 +153,32 @@ fn main() {
                 println!("SKIRTGAP {bone:<28} travel {travel:5.2} in  fabric-to-body {gap:5.2} in  joint-to-body {node:5.2} in  ({} fabric vertices)", patch.len());
             }
         }
+    }
+    // HEAD=1: the head's own vertices (mostly weighted to the head bone) around
+    // their centre, and the moving nodes closest to that centre.
+    if std::env::var("HEAD").is_ok() {
+        let bind = surface::binds(&d).unwrap();
+        let slot_name: Vec<&str> = bind.palette.iter().map(|&e| d.elements[e].name.as_str()).collect();
+        let mut head = vec![];
+        for mesh in surface::mesh_data(&d).unwrap().values() {
+            for i in 0..mesh.positions.len() {
+                if !mesh.drawn[i] { continue; }
+                let w: f64 = mesh.joints[i].iter().zip(&mesh.weights[i]).filter(|(j, _)| slot_name.get(**j) == Some(&"head")).map(|(_, w)| *w).sum();
+                if w >= 0.9 { head.push(mesh.positions[i]); }
+            }
+        }
+        let c: [f64; 3] = std::array::from_fn(|k| head.iter().map(|p| p[k]).sum::<f64>() / head.len() as f64);
+        let dist = |p: &[f64; 3]| (0..3).map(|k| (p[k] - c[k]).powi(2)).sum::<f64>().sqrt();
+        let mut ds: Vec<f64> = head.iter().map(dist).collect();
+        ds.sort_by(f64::total_cmp);
+        let q = |f: f64| ds[((ds.len() - 1) as f64 * f) as usize];
+        let hj = lookup.get("head").map(|&i| at(&skeleton.names[i])).unwrap_or([0.; 3]);
+        println!("HEAD {} vertices, centre [{:.2},{:.2},{:.2}] (head joint [{:.2},{:.2},{:.2}]), distance p10 {:.2} p50 {:.2} p95 {:.2}", head.len(), c[0], c[1], c[2], hj[0], hj[1], hj[2], q(0.1), q(0.5), q(0.95));
+        let mut near: Vec<(f64, String)> = moving.iter().map(|p| (dist(p), nearest_bone(*p))).collect();
+        near.sort_by(|x, y| x.0.total_cmp(&y.0));
+        let mut seen = std::collections::BTreeSet::new();
+        near.retain(|x| seen.insert(x.1.clone()));
+        println!("HEAD closest moving nodes: {}", near.iter().take(12).map(|(d, n)| format!("{} {d:.2}", n.replace("dmb_secondary_", ""))).collect::<Vec<_>>().join(", "));
     }
     for c in &free {
         let (a, b) = (c.endpoints_world[0], c.endpoints_world[1]);

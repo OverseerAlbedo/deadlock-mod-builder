@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.0-beta.9 — 2026-10-17
+
+- Fix: MMD models (imported with mmd_tools) got their sphere (shine) maps as their main texture, and parts whose sphere map is a .bmp got no texture at all, so skin, hair and clothes looked wrong. The base texture is now always used; toon ramps and sphere maps are never picked.
+- Preparing a model again now replaces textures the app picked automatically with the new automatic picks; textures and tints you chose yourself are kept. Before, a wrong automatic pick stayed through every new preparation.
+- Long skirts: a skirt ending around mid-thigh is now recognized (its panels need to reach 0.45 instead of 0.5 torso lengths below the hips and span 0.6 instead of 0.65), and shorter panels join the skirt panel by panel through shared mesh. Before, such a skirt stayed stiff, plain cloth.
+- Floor-length sleeves (names with "sleeve" or 袖, or any long thin strip whose mesh only touches small parts such as a cuff) move as streamers instead of stiff cloth.
+- **Head and neck colliders** for automatic movement: bangs, short hair and long hair stop at the head and neck instead of swinging into the face. Each is sized to your character and as large as the hair around it allows; no hair starts inside one.
+- **Face details** on the Appearance page: layers a model keeps invisible until an expression shows them (MMD blush and tears) are now hidden in game, and you can show the blush, the tears or other such layers with a switch. A shown layer keeps the soft edges of its own image. Before, they were drawn solid (SiViolet's MMD version had a red face). Prepare the model again to find these layers; the switches need no new preparation.
+- Hair buns stay still: a round piece of hair on one bone, or a part with a bun name (bun, お団子, 发髻), is set to Rigid and follows the head. Pick another part type on the Physics tab to make one move again.
+- Fix: a hair bun (a part whose mesh hangs on one bone) could fling around because invisible helper bones under it (MMD weight chains) were simulated and twisted it. Those bones now simply follow the bun.
+- Checked in a match on October 17, 2026 (an MMD version of SiViolet on Violet): Face details hide the blush and tears and show them when switched on.
+
 ## 0.13.0-beta.8 — 2026-10-17
 
 - Fix: automatic movement had almost no gravity in game. Valve's cloth compiles gravity as 360 per node, but the cloth streams the app writes were copied as 0–1, so tails looked static, sleeves only moved with sharp arm motion and long parts floated. Gravity is now written in the game's unit; the movement preview, Fine-tune and saved presets are unchanged, and the Fine-tune gravity slider now works in game. Rebuild to get it; the TangTang presets are unchanged.

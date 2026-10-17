@@ -40,6 +40,39 @@ ALIASES = {'d':'color','diff':'color','diffuse':'color','albedo':'color','baseco
            'alpha':'opacity','opacity':'opacity'}
 # Shaders whose 'Color' input is the surface color when no Principled BSDF exists.
 COLOR_SHADERS = {'BSDF_DIFFUSE','EMISSION','BSDF_TOON','SUBSURFACE_SCATTERING','BSDF_TRANSLUCENT','BACKGROUND'}
+# MMD (mmd_tools) toon ramps and sphere (shine) maps shade the base texture
+# inside the MMD shader; they are never the base color. Followed through that
+# shader's color mixes, the sphere map used to win over the base texture.
+MMD_SHADING_NODE = re.compile(r'mmd_(?:toon|sphere)_tex(?:\.\d+)?')
+
+
+# Face layers an MMD model keeps fully transparent until an expression fades
+# them in (blush, tears ...): a game build has no expressions, so they are
+# hidden unless the user shows them (Appearance > Face details). Recorded as
+# the material's 'face_layer'. SiViolet's 赤面/照れ blush and 涙 tears were drawn
+# solid and turned her face red.
+FACE_LAYER_WORDS = (('blush', ('赤面','照れ','頬','チーク','blush','cheek','紅潮')),
+                    ('tears', ('涙','泪','tear','namida')))
+
+
+def source_hidden(mat, nodes):
+    """Whether the source shows this material fully transparent: the MMD
+    shader's Alpha (mmd_tools), else a single Principled BSDF's Alpha, else the
+    material's viewport alpha; an Alpha fed by a link is not a constant."""
+    for node,_ in nodes:
+        if node.type=='GROUP' and node.name.startswith('mmd_shader') and node.inputs.get('Alpha') is not None:
+            inp=node.inputs['Alpha']
+            return not inp.is_linked and inp.default_value<=0.001
+    principled=[n for n,_ in nodes if n.type=='BSDF_PRINCIPLED']
+    if len(principled)==1 and principled[0].inputs.get('Alpha') is not None:
+        inp=principled[0].inputs['Alpha']
+        return not inp.is_linked and inp.default_value<=0.001
+    return mat.diffuse_color[3]<=0.001
+
+
+def face_layer(name):
+    lowered=name.lower()
+    return next((kind for kind,words in FACE_LAYER_WORDS if any(w in lowered for w in words)),'other')
 
 
 def corresponding(sockets, source):
@@ -83,7 +116,8 @@ def direct_image(inp, context, channel, seen=None):
     key=(socket.as_pointer(),tuple(n.as_pointer() for n in context))
     if key in seen or len(seen)>64 or node.mute:return None
     seen.add(key)
-    if node.type=='TEX_IMAGE':return node.image
+    if node.type=='TEX_IMAGE':
+        return None if MMD_SHADING_NODE.fullmatch(node.name.lower()) else node.image
     if node.type=='REROUTE':return direct_image(node.inputs[0],context,channel,seen)
     if channel=='normal' and node.type=='NORMAL_MAP':
         return direct_image(node.inputs.get('Color'),context,channel,seen)
@@ -139,8 +173,10 @@ def copy_image(image, folder, slug, channel):
 def recover_material(mat, folder, slug):
     cfg={'preset':'generic','mode':'generate','confirmed':False,'textures':{},
          'color':list(mat.diffuse_color[:3]),'source_material_name':mat.name}
-    warnings=[];direct={};fallback={};mmd=[]
-    if not mat.use_nodes or not mat.node_tree:return cfg,warnings
+    warnings=[];direct={};fallback={};mmd=[];mmd_shading=False
+    if not mat.use_nodes or not mat.node_tree:
+        if source_hidden(mat,[]):cfg['face_layer']=face_layer(mat.name)
+        return cfg,warnings
     nodes=connected_nodes(mat.node_tree)
     principled=[(n,c) for n,c in nodes if n.type=='BSDF_PRINCIPLED']
     if len(principled)==1:
@@ -168,7 +204,8 @@ def recover_material(mat, folder, slug):
         name=node.name.lower()
         if re.fullmatch(r'mmd_base_tex(?:\.\d+)?',name):
             mmd.append(node.image);continue
-        if name.startswith(('mmd_toon_tex','mmd_sphere_tex')):continue
+        if MMD_SHADING_NODE.fullmatch(name):
+            mmd_shading=True;continue
         channel=image_channel(node.image)
         if channel and node.image.as_pointer() not in assigned_images:
             fallback.setdefault(channel,[]).append(node.image)
@@ -206,7 +243,10 @@ def recover_material(mat, folder, slug):
         cfg['color']=[1.0,1.0,1.0]
     cfg['ambiguous']=[channel for channel,paths in candidates.items() if len(paths)>1]
     cfg['texture_match_sources']=sources
-    if len(principled)>1 or any(channel not in direct for channel in channels):
+    if source_hidden(mat,nodes):
+        cfg['face_layer']=face_layer(mat.name)
+        warnings.append(mat.name+': fully transparent in the source (an expression layer); hidden in the game unless shown in Appearance > Face details.')
+    if len(principled)>1 or mmd_shading or any(channel not in direct for channel in channels):
         warnings.append(mat.name+': recovered image references where available. Complex Blender shader mixing/toon effects are not baked; review the material appearance.')
     return cfg,warnings
 

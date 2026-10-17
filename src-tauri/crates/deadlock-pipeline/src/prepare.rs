@@ -146,6 +146,11 @@ impl ModelPipeline<'_> {
                 self.clock.skip_step("Generate material sources and textures",Some(parent.id()),"Existing material sources selected")?;vec![]
             };
             for changed in self.clock.measure("Apply material customization",Some(parent.id()),|_|deadlock_materials::patch_materials(&content,&report.materials,&p.customization,self.cancel).map_err(material_error))?{if !created.contains(&changed){created.push(changed);}}
+            // Face layers the source keeps transparent (blush, tears): hidden
+            // unless shown in Appearance > Face details.
+            let face_layers=self.clock.measure("Apply face layers",Some(parent.id()),|_|deadlock_materials::patch_face_layers(&content,&report.materials,&p.customization,self.cancel).map_err(material_error))?;
+            if !face_layers.is_empty(){(self.log)(&format!("Face layers: {} hidden or shown as chosen in Appearance > Face details.",face_layers.len()));}
+            for changed in face_layers{if !created.contains(&changed){created.push(changed);}}
             let texture_sizes=self.clock.measure("Adapt texture dimensions",Some(parent.id()),|_|deadlock_materials::normalize_staged_textures(&content,&report.materials.keys().cloned().collect::<Vec<_>>(),self.cancel).map_err(material_error))?;
             safety::write_json(&root.join("texture-dimensions.json"),&texture_sizes)?;
             if !texture_sizes.resized.is_empty(){(self.log)(&format!("Resized {} copied textures to power-of-two dimensions for the native compiler; original images and UVs are unchanged.",texture_sizes.resized.len()));}

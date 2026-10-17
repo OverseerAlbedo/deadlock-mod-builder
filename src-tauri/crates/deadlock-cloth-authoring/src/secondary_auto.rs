@@ -199,6 +199,26 @@ fn charm_parameters(t: f64, root: bool, length: f64, choice: Option<&str>) -> Re
     let travel = ((length * 0.35).clamp(0.2, 1.2) * travel_scale).min(1.6);
     Ok([if root { 1. } else { goal }, drag, 1., 0., travel, 0., 0., 0.])
 }
+/// The bones of a part that get proxy points (the streamer and breast paths
+/// choose their own). A part whose mesh hangs on one bone (a hair bun, a knot)
+/// moves as that bone alone: the bones below it that carry no mesh (an MMD
+/// helper chain such as SiViolet's wingB under each bun) get no points. Swinging
+/// freely, they twisted the bun's small ring and flung the right bun around.
+/// Every other part keeps all its bones, mesh or not.
+pub(crate) fn simulated_bones<'a>(group: &'a Group, lookup: &BTreeMap<&str, usize>, sk: &Skeleton) -> Vec<&'a String> {
+    if group.weighted_bones.len() != 1 {
+        return group.bones.iter().collect();
+    }
+    // The weighted bone and the group bones above it.
+    let members: std::collections::BTreeSet<usize> = group.bones.iter().map(|n| lookup[n.as_str()]).collect();
+    let mut keep = std::collections::BTreeSet::new();
+    let mut at = lookup[group.weighted_bones[0].as_str()] as i32;
+    while at >= 0 && members.contains(&(at as usize)) {
+        keep.insert(at as usize);
+        at = sk.parents[at as usize];
+    }
+    group.bones.iter().filter(|n| keep.contains(&lookup[n.as_str()])).collect()
+}
 pub(crate) fn point(
     s: &mut Surface,
     maps: &mut Vec<Maps>,
@@ -397,7 +417,7 @@ pub(crate) fn append(
             .fold(0f64, f64::max)
             .max(pitch);
         let mut frames = BTreeMap::new();
-        for name in &group.bones {
+        for name in simulated_bones(group, lookup, sk) {
             let i = lookup[name.as_str()];
             let p = pos(name);
             let t = skirt.map_or_else(|| hair_coordinates.as_ref().map_or_else(
@@ -795,6 +815,30 @@ mod new_motion_tests {
         // The friend's 19-bone hair strand and 25-bone tail.
         assert!((dense_chain_multiplier(19) - 6. / 19.).abs() < 1e-12);
         assert!((dense_chain_multiplier(25) * 25. - 6.).abs() < 1e-12);
+    }
+    #[test]
+    fn a_part_hanging_on_one_bone_leaves_its_helper_bones_still() {
+        let sk = Skeleton {
+            names: ["head", "bun", "wing1", "wing2", "strand1", "strand2", "strand3"].map(String::from).to_vec(),
+            parents: vec![-1, 0, 1, 2, 0, 4, 5],
+            positions: vec![[0.; 3]; 7],
+            rotations: vec![[0., 0., 0., 1.]; 7],
+            scales: vec![1.; 7],
+            flags: vec![0; 7],
+        };
+        let lookup: BTreeMap<&str, usize> = sk.names.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
+        let group = |bones: &[&str], weighted: &[&str]| Group {
+            source_root: bones[0].into(), root: bones[0].into(), anchor: "head".into(),
+            bones: bones.iter().map(|s| s.to_string()).collect(),
+            weighted_bones: weighted.iter().map(|s| s.to_string()).collect(),
+        };
+        let names = |v: Vec<&String>| v.into_iter().cloned().collect::<Vec<_>>();
+        // A bun: only the bun bone carries mesh; the wing helper chain stays still.
+        assert_eq!(names(simulated_bones(&group(&["bun", "wing1", "wing2"], &["bun"]), &lookup, &sk)), ["bun"]);
+        // Mesh on a lower bone keeps the bones above it.
+        assert_eq!(names(simulated_bones(&group(&["strand1", "strand2", "strand3"], &["strand2"]), &lookup, &sk)), ["strand1", "strand2"]);
+        // A strand with mesh on several bones keeps every bone, mesh or not.
+        assert_eq!(names(simulated_bones(&group(&["strand1", "strand2", "strand3"], &["strand1", "strand2"]), &lookup, &sk)), ["strand1", "strand2", "strand3"]);
     }
     #[test]
     fn long_streamers_keep_the_drag_of_a_ten_joint_streamer() {

@@ -12,8 +12,11 @@ export interface Material {
   existing?: boolean;
   ambiguous?: string[];
   candidates?: Record<string,string[]>;
+  /** Set by preparation: a layer the source keeps fully transparent until an expression shows it. */
+  face_layer?: FaceLayerKind;
   [key: string]: JsonValue | undefined;
 }
+export type FaceLayerKind = 'blush' | 'tears' | 'other';
 export interface Project {
   schema: number;
   id: string;
@@ -213,5 +216,7 @@ export interface Customization {
   appearance?: { enabled?: boolean; materials?: AppearanceMaterial[]; [key: string]: unknown };
   equipment?: { enabled?: boolean; meshes?: EquipmentMesh[]; props?: PropChoices[]; variants?: VariantChoices[]; [key: string]: unknown };
   face?: { enabled?: boolean; mode?: string; weights?: Record<string,number>; [key: string]: unknown };
+  /** Shown face layers; unset or false keeps a kind hidden. */
+  face_layers?: { blush?: boolean; tears?: boolean; other?: boolean; [key: string]: unknown };
   [key: string]: unknown;
 }

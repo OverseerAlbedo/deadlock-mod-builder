@@ -11,6 +11,16 @@ use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const POLICY: &str = "surface-fitted-long-skirt-v7";
+/// A panel that is a long skirt on its own reaches at least this far below the
+/// pelvis and spans at least this much (torso lengths, head to pelvis), in its
+/// weighted joints and in its visible fabric. Until October 2026 it was 0.5 and
+/// 0.65, which a skirt ending at mid-thigh (SiViolet's MMD version) just missed.
+pub const SKIRT_REACH: f64 = 0.45;
+pub const SKIRT_SPAN: f64 = 0.6;
+/// A shorter panel joins the skirt when it reaches and spans this much and
+/// shares mesh, panel by panel, with a panel that qualifies on its own.
+pub const JOINED_REACH: f64 = 0.4;
+pub const JOINED_SPAN: f64 = 0.5;
 
 #[derive(Debug, Serialize)]
 pub struct SkirtGroup {
@@ -83,8 +93,9 @@ pub(crate) fn analyze(
     if !body.contains(&pelvis) { return if explicit { Err(missing()) } else { Ok(None) }; }
     let mut candidates = BTreeSet::new();
     // Shorter panels (SiViolet's back panel ends higher and starts lower than
-    // its neighbors) join the skirt only when they share mesh with a panel that
-    // qualifies on its own; alone they stay independent cloth.
+    // its neighbors) join the skirt only when they share mesh, directly or
+    // through other joining panels, with a panel that qualifies on its own;
+    // alone they stay independent cloth.
     let mut shorter = BTreeSet::new();
     let mut extents = BTreeMap::new();
     for (g, (group, part)) in groups.iter().zip(parts.iter()).enumerate() {
@@ -102,10 +113,10 @@ pub(crate) fn analyze(
         // Weighted joints must start near the waist and extend well down the
         // legs. This excludes shoulder capes and upper-body ribbons even when
         // an exporter leaves very long terminal/helper bones on them.
-        if top.abs() <= torso * 0.25 && bottom <= -torso * 0.5 && top - bottom >= torso * 0.65 {
+        if top.abs() <= torso * 0.25 && bottom <= -torso * SKIRT_REACH && top - bottom >= torso * SKIRT_SPAN {
             candidates.insert(g);
             extents.insert(g, (top, bottom));
-        } else if top.abs() <= torso * 0.25 && bottom <= -torso * 0.4 && top - bottom >= torso * 0.5 {
+        } else if top.abs() <= torso * 0.25 && bottom <= -torso * JOINED_REACH && top - bottom >= torso * JOINED_SPAN {
             shorter.insert(g);
             extents.insert(g, (top, bottom));
         }
@@ -155,10 +166,19 @@ pub(crate) fn analyze(
         let high = points[(points.len()-1)*95/100];
         high.abs() <= torso * 0.35 && low <= -torso * reach && high-low >= torso*span
     };
-    candidates.retain(|&g| visible(&mut samples[g], 0.5, 0.65));
-    shorter.retain(|&g| visible(&mut samples[g], 0.4, 0.5)
-        && candidates.iter().any(|&c| groups[c].anchor == groups[g].anchor && group_faces.get(&pair(c,g)).copied().unwrap_or(0) >= 3));
-    candidates.extend(shorter);
+    // A panel whose joints qualify but whose visible fabric falls short may
+    // still join as a shorter panel.
+    let joints_only: Vec<usize> = candidates.iter().copied().filter(|&g| !visible(&mut samples[g], SKIRT_REACH, SKIRT_SPAN)).collect();
+    for g in joints_only { candidates.remove(&g); shorter.insert(g); }
+    shorter.retain(|&g| visible(&mut samples[g], JOINED_REACH, JOINED_SPAN));
+    // Join panel by panel through shared mesh on the same anchor, starting
+    // from the panels that qualify on their own.
+    loop {
+        let joining: Vec<usize> = shorter.iter().copied().filter(|&g| candidates.iter().any(|&c|
+            groups[c].anchor == groups[g].anchor && group_faces.get(&pair(c,g)).copied().unwrap_or(0) >= 3)).collect();
+        if joining.is_empty() { break; }
+        for g in joining { shorter.remove(&g); candidates.insert(g); }
+    }
     // Mutual nearest-height matching prevents diagonal braces between every
     // neighboring skin influence. Only independently evidenced mesh neighbors
     // qualify, and no proximity-based connection closes a split or slit.
