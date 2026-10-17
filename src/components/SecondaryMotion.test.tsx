@@ -162,3 +162,30 @@ describe('Builds without the TangTang presets',()=>{
    expect(options()).toEqual(['automatic','tangtang_reference','tangtang_r2']);
  });
 });
+describe('Ear motion on the Physics tab',()=>{
+ const base={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['L_ear_01_jnt','R_ear_01_jnt','L_hairB_01_jnt','Bang_Ear_Clip'],physics_kinds:{}},customization:{enabled:true,secondary_motion:{enabled:true}}} as unknown as Project;
+ it('turns both ears off and back on together, leaving other parts alone',()=>{
+   const update=vi.fn();
+   const {rerender}=render(<SecondaryMotion project={base} update={update} disabled={false} report={null} fresh={false}/>);
+   const box=screen.getByLabelText('Ear motion');
+   expect(box).toBeChecked();
+   fireEvent.click(box);
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{L_ear_01_jnt:'rigid',R_ear_01_jnt:'rigid'}});
+   // An ear clip is a rigid accessory, not an ear.
+   expect(screen.getByText(/L_ear_01_jnt, R_ear_01_jnt:/)).toBeVisible();
+   const off={...base,customization:{enabled:true,secondary_motion:{enabled:true,part_kinds:{L_ear_01_jnt:'rigid',R_ear_01_jnt:'rigid',L_hairB_01_jnt:'hair'}}}} as unknown as Project;
+   rerender(<SecondaryMotion project={off} update={update} disabled={false} report={null} fresh={false}/>);
+   expect(screen.getByLabelText('Ear motion')).not.toBeChecked();
+   expect(screen.getByText(/follow the head without moving/)).toBeVisible();
+   fireEvent.click(screen.getByLabelText('Ear motion'));
+   expect(update).toHaveBeenLastCalledWith({part_kinds:{L_hairB_01_jnt:'hair'}});
+ });
+ it('finds ears from the last Analyze and stays hidden without any',()=>{
+   const plain={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','fluff_01'],physics_kinds:{}}} as unknown as Project;
+   const {rerender}=render(<SecondaryMotion project={plain} update={vi.fn()} disabled={false} report={null} fresh={false}/>);
+   expect(screen.queryByLabelText('Ear motion')).toBeNull();
+   const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'s',proxy_sha256:'p',proxy_positions:4,groups:[],parts:[{root:'fluff_01',kind:'ear',reason:'',weighted_chain:[],chain_length_inches:1,shape_radii_inches:[1,1,1],roll_locked:false,review_recommended:false}]}};
+   rerender(<SecondaryMotion project={plain} update={vi.fn()} disabled={false} report={report as never} fresh/>);
+   expect(screen.getByLabelText('Ear motion')).toBeChecked();
+ });
+});

@@ -26,6 +26,12 @@ assert breast_bones(bones,weighted,roles)==data['breast_bones']
 renamed=data['renamed_breast_bones']
 generic=[{**b,'name':renamed.get(b['name'],b['name'])} for b in bones]
 assert breast_bones(generic,[renamed.get(n,n) for n in weighted],roles)==[renamed.get(n,n) for n in data['breast_bones']]
+# Ribbons on the chest are a mirrored pair in front of the chest too, but their
+# names make them ribbons; renamed without a part word they count as breasts.
+ribbons=data['chest_ribbons']
+assert not any(r in data['breast_bones'] for r in ribbons)
+decorated=[{**b,'name':ribbons.get(b['name'],b['name'])} for b in bones]
+assert breast_bones(decorated,[ribbons.get(n,n) for n in weighted],roles)==sorted(data['breast_bones']+list(ribbons.values())),breast_bones(decorated,[ribbons.get(n,n) for n in weighted],roles)
 # Butts: by name and as a low mirrored pair behind the hips, never breasts, moving only with butt motion on.
 assert butt_bones(bones,weighted,roles)==data['butt_bones'],butt_bones(bones,weighted,roles)
 assert [g['root'] for g in physics_groups(bones,weighted,roles,roles,None,True)]==data['expected_roots_with_butt_motion']

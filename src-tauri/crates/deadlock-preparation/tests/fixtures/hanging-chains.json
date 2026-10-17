@@ -1,5 +1,5 @@
 {
- "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too. A pistol in the left hand (its bones are marked as gun bones at inspection) carries an unnamed three-link charm hanging below it and a strap, which move; its slide, magazine and a sideways fin stay on the gun. Named charms move anywhere: a key chain on the hand, a necklace pendant and a dangle earring (dangle wins over earring). An unnamed tag hanging from the hand stays a body bone. Butts are separate from breasts and move only with butt motion on: a named Butt_L/R pair on the pelvis and an unnamed mirrored pair low behind the hips. Each foot has a toe on the ground and a longer boot flap pointing backwards; only the lowest child (the toe) tells the facing direction, so the renamed breasts are still found in front. butt_names lists names that are and are not butts (尻尾 is a tail, Button is not a butt).",
+ "_comment": "Moving parts: two sashes named Robe on the chest (named), an unnamed four-bone strap on the pelvis (hanging chain), back hair and a ribbon on a hat (named). The short pouch chain, the finger chain, a hairpin and a ring-shaped hair loop stay body bones. Two ribbons on the chest (Chest_Ribbon_L/R) are a mirrored pair in front of the chest, but their names make them ribbons, never breasts; renamed without a part word (chest_ribbons) the same bones count as breasts. The two breast bones move only with breast motion on; renamed, they are still found as a mirrored pair in front of the chest. A DAZ-style lPectoral/rPectoral pair on the spine counts as breasts too. A pistol in the left hand (its bones are marked as gun bones at inspection) carries an unnamed three-link charm hanging below it and a strap, which move; its slide, magazine and a sideways fin stay on the gun. Named charms move anywhere: a key chain on the hand, a necklace pendant and a dangle earring (dangle wins over earring). An unnamed tag hanging from the hand stays a body bone. Butts are separate from breasts and move only with butt motion on: a named Butt_L/R pair on the pelvis and an unnamed mirrored pair low behind the hips. Each foot has a toe on the ground and a longer boot flap pointing backwards; only the lowest child (the toe) tells the facing direction, so the renamed breasts are still found in front. butt_names lists names that are and are not butts (尻尾 is a tail, Button is not a butt).",
  "bones": [
   {
    "name": "Bip001_Pelvis",
@@ -242,6 +242,24 @@
     -0.05,
     -0.03,
     1.23
+   ]
+  },
+  {
+   "name": "Chest_Ribbon_L",
+   "parent": "Bip001_Spine1",
+   "position": [
+    0.07,
+    -0.08,
+    1.3
+   ]
+  },
+  {
+   "name": "Chest_Ribbon_R",
+   "parent": "Bip001_Spine1",
+   "position": [
+    -0.07,
+    -0.08,
+    1.3
    ]
   },
   {
@@ -748,6 +766,8 @@
   "Pouch_02",
   "Bone_Breast_L_00",
   "Bone_Breast_R_00",
+  "Chest_Ribbon_L",
+  "Chest_Ribbon_R",
   "Hair_Back_00",
   "Hair_Back_01",
   "Hair_Back_02",
@@ -839,6 +859,10 @@
  "renamed_breast_bones": {
   "Bone_Breast_L_00": "Bone_C_L_00",
   "Bone_Breast_R_00": "Bone_C_R_00"
+ },
+ "chest_ribbons": {
+  "Chest_Ribbon_L": "Chest_Deco_L",
+  "Chest_Ribbon_R": "Chest_Deco_R"
  },
  "gun": "Pistol",
  "gun_charm_roots": [

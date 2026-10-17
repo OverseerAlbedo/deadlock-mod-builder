@@ -160,7 +160,7 @@ fn semantic(name: &str) -> Option<Kind> {
         Some(Kind::Ear)
     } else if has(&["chest", "胸", "ornament", "board"]) {
         Some(Kind::Accessory)
-    } else if has(&["streamer", "ribbon", "リボン", "飘带", "飄帶"]) {
+    } else if has(&["streamer", "ribbon", "リボン", "飘带", "飄帶", "tassel", "タッセル", "流苏", "流蘇"]) {
         Some(Kind::Streamer)
     } else if has(&[
         "cloth",
@@ -215,6 +215,75 @@ fn group_semantic(group: &Group) -> (Option<Kind>, bool) {
         }
     }
     (None, false)
+}
+/// Why a part got its type, for the mirror rule below.
+#[derive(Debug, Clone)]
+struct Basis {
+    /// The user chose the type.
+    explicit: bool,
+    /// Typed cloth only because its mesh joins another moving group.
+    by_join: bool,
+    /// Its own chain and mesh are a streamer's (one chain, thin and flat).
+    own_streamer: bool,
+    bones: usize,
+    length: f64,
+}
+const JOINED_PANEL: &str = "Weighted mesh joins adjacent moving groups into one cloth panel";
+
+/// The name with its side marker replaced (L/R, Left/Right as a word, 左/右),
+/// when it has exactly one: L_sleeveD_01_jnt_1 and R_sleeveD_01_jnt_1 match.
+fn mirror_key(name: &str) -> Option<String> {
+    let chars: Vec<char> = name.chars().collect();
+    let (mut out, mut sides, mut i) = (String::new(), 0, 0);
+    while i < chars.len() {
+        if chars[i] == '左' || chars[i] == '右' {
+            out.push('*');
+            sides += 1;
+            i += 1;
+        } else if chars[i].is_ascii_alphanumeric() {
+            let start = i;
+            while i < chars.len() && chars[i].is_ascii_alphanumeric() {
+                i += 1;
+            }
+            let word: String = chars[start..i].iter().collect();
+            if ["l", "r", "left", "right"].contains(&word.to_ascii_lowercase().as_str()) {
+                out.push('*');
+                sides += 1;
+            } else {
+                out.push_str(&word);
+            }
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    (sides == 1).then_some(out)
+}
+
+/// A left/right pair is one part on two sides. When one side became a cloth
+/// panel only because its mesh touches a moving group the other side does not
+/// have (SiViolet: the left sleeve and a cord on the left forearm), while its
+/// twin is a streamer by its own shape and both chains match, the joined side
+/// takes the twin's type, provided its own shape is a streamer's too. Sheets
+/// joined on both sides (MMD sleeves and skirts) and chosen types never change.
+fn harmonize_mirrors(mut decided: Vec<(Part, Basis)>) -> Vec<Part> {
+    let keys: Vec<Option<String>> = decided.iter().map(|(p, _)| mirror_key(&p.root)).collect();
+    for i in 0..decided.len() {
+        let Some(key) = &keys[i] else { continue };
+        let Some(j) = (0..decided.len()).find(|&j| j != i && keys[j].as_ref() == Some(key)) else { continue };
+        let ((a, sa), (b, sb)) = (&decided[i], &decided[j]);
+        let matching = sa.bones == sb.bones && (sa.length - sb.length).abs() <= 0.1 * sa.length.max(sb.length);
+        if sa.explicit || sb.explicit || !sa.by_join || sb.by_join || !sa.own_streamer || b.kind != Kind::Streamer || a.kind == b.kind || !matching {
+            continue;
+        }
+        let twin = b.root.clone();
+        let part = &mut decided[i].0;
+        part.kind = Kind::Streamer;
+        part.roll_locked = true;
+        part.review_recommended = false;
+        part.reason = format!("Same type as its mirror twin {twin}: a thin, elongated chain whose mesh also touches a moving group the other side does not have");
+    }
+    decided.into_iter().map(|(p, _)| p).collect()
 }
 pub fn analyze(
     d: &Dmx,
@@ -286,7 +355,7 @@ pub fn analyze(
             "A saved part type refers to an unselected motion group.",
         ));
     }
-    groups.iter().enumerate().map(|(i,g)|{
+    let decided=groups.iter().enumerate().map(|(i,g)|{
         let chain=chain(sk,g);let length=chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>();
         let shape=radii(&points[i]);let slender=shape[1]>1e-5 && shape[0]/shape[1]>=3.;let flat=shape[1]>1e-5&&shape[2]/shape[1]<=0.35;
         let joined_panel=shared.iter().any(|(&(a,b),&n)|n>=3&&(a==i||b==i));
@@ -298,14 +367,19 @@ pub fn analyze(
         else if looped&&matches!(hint,None|Some(Kind::Hair)){(Kind::Rigid,"Closed ring (halo, crown or hat band); follows its bone without motion".into(),true)}
         else if on_weapon(sk,&g.anchor)&&!matches!(hint,Some(Kind::Rigid|Kind::Breast|Kind::Butt)){(Kind::Charm,"Hangs from the fitted gun; light charm swing".into(),false)}
         else if let Some(kind)=hint{
-            if kind==Kind::Streamer && !(supported&&slender&&flat){(Kind::Cloth,"Ribbon name, but geometry is not a thin, elongated chain; using cloth support".into(),true)}
+            if kind==Kind::Streamer && !(supported&&slender&&flat){
+                // A long, slender but round chain is a cord or a tassel bundle (SiViolet's
+                // right arm tassel): it swings like a streamer. Wide or short ones are cloth.
+                if supported&&slender{(Kind::Streamer,"Ribbon or tassel name on a long, round cord; streamer motion".into(),false)}
+                else{(Kind::Cloth,"Ribbon name, but geometry is not a thin, elongated chain; using cloth support".into(),true)}
+            }
             else if descendant_hint{(kind,"Consistent hair/tail names within the preserved physics group".into(),false)}
             else{(kind,"Part name checked against its weighted mesh and attachment hierarchy".into(),false)}
         }
         // Unnamed strands on the head are hair (names in other scripts are
         // often stripped, e.g. F_0_1 ... F_18_1), even when strips join.
         else if g.anchor.eq_ignore_ascii_case("head")&&supported{(Kind::Hair,"Unnamed strand on the head; hair motion".into(),false)}
-        else if joined_panel{(Kind::Cloth,"Weighted mesh joins adjacent moving groups into one cloth panel".into(),false)}
+        else if joined_panel{(Kind::Cloth,JOINED_PANEL.into(),false)}
         // A long, round, unnamed strand on the hips is a tail.
         else if is_hips(&g.anchor)&&supported&&chain.len()>=4&&slender&&!flat{(Kind::Tail,"Unnamed long round strand on the hips; tail motion".into(),false)}
         else if supported&&slender&&flat{(Kind::Streamer,"Thin, elongated weighted mesh on one connected joint chain".into(),false)}
@@ -316,13 +390,54 @@ pub fn analyze(
             review=true;
             reason.push_str(if kind==Kind::Hair {"; shared hair movement and twist protection need one non-collapsed chain of at least two weighted bones"} else {"; twist protection needs one non-collapsed chain of at least two weighted bones"});
         }
-        Ok(Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review})
-    }).collect()
+        let basis=Basis{explicit:explicit.is_some(),by_join:reason==JOINED_PANEL,own_streamer:supported&&slender&&flat,bones:chain.len(),length};
+        Ok((Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review},basis))
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(harmonize_mirrors(decided))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn part(root: &str, kind: Kind) -> Part {
+        Part { root: root.into(), kind, reason: String::new(), weighted_chain: vec![], chain_length_inches: 56.2, shape_radii_inches: [0.; 3], roll_locked: kind == Kind::Streamer, review_recommended: false }
+    }
+    fn basis(explicit: bool, by_join: bool, own_streamer: bool, bones: usize, length: f64) -> Basis {
+        Basis { explicit, by_join, own_streamer, bones, length }
+    }
+    #[test]
+    fn mirror_names_match_by_their_side_marker() {
+        assert_eq!(mirror_key("L_sleeveD_01_jnt_1"), mirror_key("R_sleeveD_01_jnt_1"));
+        assert_eq!(mirror_key("sleeve.L"), mirror_key("sleeve.R"));
+        assert_eq!(mirror_key("Hair_Left_01"), mirror_key("Hair_Right_01"));
+        assert_eq!(mirror_key("袖左"), mirror_key("袖右"));
+        assert!(mirror_key("M_hairA_01_jnt").is_none() && mirror_key("裙子_0_1").is_none() && mirror_key("L_R_strap").is_none());
+        assert_ne!(mirror_key("L_sleeveD_01_jnt_1"), mirror_key("R_sleeveI_01_jnt"));
+    }
+    #[test]
+    fn a_side_joined_only_on_its_own_follows_its_streamer_twin() {
+        // SiViolet: the left sleeve touches a cord on the left forearm only.
+        let parts = harmonize_mirrors(vec![
+            (part("L_sleeveD_01_jnt_1", Kind::Cloth), basis(false, true, true, 30, 56.2)),
+            (part("R_sleeveD_01_jnt_1", Kind::Streamer), basis(false, false, true, 30, 56.2)),
+            (part("L_sleeveI_01_jnt", Kind::Accessory), basis(false, false, false, 2, 3.2)),
+        ]);
+        assert_eq!(parts.iter().map(|p| p.kind).collect::<Vec<_>>(), [Kind::Streamer, Kind::Streamer, Kind::Accessory]);
+        assert!(parts[0].roll_locked && parts[0].reason.contains("R_sleeveD_01_jnt_1"));
+    }
+    #[test]
+    fn sheets_joined_on_both_sides_chosen_types_and_different_chains_stay() {
+        let kinds = |rows: Vec<(Part, Basis)>| harmonize_mirrors(rows).into_iter().map(|p| p.kind).collect::<Vec<_>>();
+        // MMD sleeve or skirt sheets: both sides join their neighbors.
+        assert_eq!(kinds(vec![(part("袖_L_0", Kind::Cloth), basis(false, true, true, 8, 20.)), (part("袖_R_0", Kind::Cloth), basis(false, true, true, 8, 20.))]), [Kind::Cloth, Kind::Cloth]);
+        // The user chose cloth for the joined side.
+        assert_eq!(kinds(vec![(part("L_sleeve", Kind::Cloth), basis(true, false, true, 30, 56.)), (part("R_sleeve", Kind::Streamer), basis(false, false, true, 30, 56.))]), [Kind::Cloth, Kind::Streamer]);
+        // Its own shape is not a streamer's (a wide panel).
+        assert_eq!(kinds(vec![(part("L_sleeve", Kind::Cloth), basis(false, true, false, 30, 56.)), (part("R_sleeve", Kind::Streamer), basis(false, false, true, 30, 56.))]), [Kind::Cloth, Kind::Streamer]);
+        // The chains differ (bone count or length).
+        assert_eq!(kinds(vec![(part("L_sleeve", Kind::Cloth), basis(false, true, true, 12, 56.)), (part("R_sleeve", Kind::Streamer), basis(false, false, true, 30, 56.))]), [Kind::Cloth, Kind::Streamer]);
+        assert_eq!(kinds(vec![(part("L_sleeve", Kind::Cloth), basis(false, true, true, 30, 30.)), (part("R_sleeve", Kind::Streamer), basis(false, false, true, 30, 56.))]), [Kind::Cloth, Kind::Streamer]);
+    }
     #[test]
     fn generic_group_uses_consistent_descendants_but_never_overrides_a_known_part() {
         let mut group = Group {
@@ -354,6 +469,8 @@ mod tests {
             ("tail_base", Kind::Tail),
             ("ear_L", Kind::Ear),
             ("ribbon_left", Kind::Streamer),
+            ("tasselA_01_jnt", Kind::Streamer),
+            ("sword_tassel_R", Kind::Streamer),
             ("skirt_front", Kind::Cloth),
         ] {
             assert_eq!(semantic(n), Some(k));

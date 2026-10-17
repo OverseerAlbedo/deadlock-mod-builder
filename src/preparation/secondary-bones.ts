@@ -32,7 +32,7 @@ function tokens(name:string):string[]{
   if(word)out.push(word.toLowerCase());
   return out.map(t=>t.replace(/[0-9]+$/,'')).filter(Boolean);
 }
-function rigidNamed(name:string):boolean{
+export function rigidNamed(name:string):boolean{
   const words=tokens(name),n=name.toLowerCase();
   const rigid=RIGID_HINTS.some(h=>isAscii(h)?words.includes(h)||(h.length>=6&&n.includes(h)):n.includes(h));
   const moving=SECONDARY_HINTS.filter(h=>!['hair','髪','发','髮','耳'].includes(h)).some(h=>n.includes(h))||charmNamed(name);
@@ -129,7 +129,8 @@ function breastRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,str
   const found=bodyPairOptions(bones,names,children,weighted,sourceRoles);if(!found)return new Set();
   const {options,torso,pelvis,high}=found,spine=names.get(sourceRoles.spine??''),low=spine?spine.position[2]:pelvis,floor=Math.max(low,pelvis+0.35*(high-pelvis));
   const output=new Set(options.filter(b=>namedBreast(b.name)).map(b=>b.name));
-  const above=options.filter(b=>b.parent!==sourceRoles.pelvis&&!namedButt(b.name));
+  // An unnamed pair whose own name says it is another moving part (chest ribbons over the breasts, hair, a cape) is never a breast.
+  const above=options.filter(b=>b.parent!==sourceRoles.pelvis&&!namedButt(b.name)&&!namedSecondary(b.name));
   for(const name of mirroredPairs(above,names,children,sourceRoles,torso,(forward,z)=>forward>=0.02*torso&&z>floor&&z<high))output.add(name);
   return output;
 }

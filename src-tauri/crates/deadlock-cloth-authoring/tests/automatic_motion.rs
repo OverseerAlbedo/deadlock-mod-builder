@@ -70,6 +70,13 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .as_mut()
             .unwrap()
             .part_kinds = Some(BTreeMap::from([("garment_root".into(), kind.into())]));
+        if kind == "rigid" {
+            // A part set to stay still is not simulated at all; with nothing
+            // else moving, motion has to be turned off instead.
+            let error = secondary::setup(&p, &d, Some(&source), &CancellationToken::new()).unwrap_err();
+            assert!(error.to_string().contains("Every moving part is set to stay still"), "{error}");
+            continue;
+        }
         let setup = secondary::setup(&p, &d, Some(&source), &CancellationToken::new())
             .unwrap()
             .unwrap();
@@ -95,11 +102,12 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .map(|(_, g)| *g)
             .collect::<Vec<_>>();
         // A breast group's hanging parts swing like charms (checked below).
+        // Gravity is written in the game's unit (1 g = 360, as Valve's own cloth).
         assert!(kind == "breast" || kind == "butt" || active.iter().all(|g| *g
             == if ["hair", "ear", "charm", "rigid"].contains(&kind) {
                 0.
             } else {
-                1.
+                360.
             }));
         if kind == "streamer" {
             assert_eq!(
@@ -156,9 +164,6 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             for &i in &swinging {
                 assert!(goals[i] >= 0.3 && goals[i] <= 0.5 + 1e-6 && drag[i] >= 0.3 - 1e-6 && radius[i] >= 0.2 && radius[i] <= 1.6, "{i}");
             }
-        }
-        if kind == "rigid" {
-            assert!(enable.iter().zip(&goals).filter(|(v, _)| **v > 0.).all(|(_, g)| *g == 1.));
         }
         settings.insert(kind, goals);
     }
@@ -355,9 +360,63 @@ fn source_rig_springs_are_starting_values_only_when_chosen() {
     let ([enable, goal, drag, gravity], nodes) = maps(&p);
     for i in 0..enable.len() {
         if enable[i] > 0. && goal[i] < 0.999 {
-            assert!((goal[i] - 0.33).abs() < 1e-4 && (drag[i] - 0.21).abs() < 1e-4 && (gravity[i] - 0.5).abs() < 1e-4, "{i}");
+            assert!((goal[i] - 0.33).abs() < 1e-4 && (drag[i] - 0.21).abs() < 1e-4 && (gravity[i] - 0.5 * 360.).abs() < 1e-2, "{i}");
         }
     }
     // The movement preview starts from them too.
     assert!(nodes.iter().any(|n| (n.goal - 0.33).abs() < 1e-4));
+}
+
+#[test]
+fn parts_set_to_stay_still_get_no_simulated_points() {
+    let d = Dmx::parse(
+        fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/independent.dmx")).unwrap(),
+    )
+    .unwrap();
+    let source = binding(&d, b"test authority");
+    let roots: Vec<String> = ["garment_root", "garment_mid", "garment_tip"].map(String::from).to_vec();
+    let mut p = project(roots);
+    let all = secondary::setup(&p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+    assert!(all.still_roots.is_empty());
+    assert_eq!(all.simulated_groups().count(), 3);
+    p.customization.secondary_motion.as_mut().unwrap().part_kinds =
+        Some(BTreeMap::from([("garment_mid".into(), "rigid".into())]));
+    let still = secondary::setup(&p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+    assert_eq!(still.still_roots, vec!["garment_mid".to_string()]);
+    assert_eq!(still.groups.len(), 3);
+    assert_eq!(
+        still.simulated_groups().map(|g| g.source_root.as_str()).collect::<Vec<_>>(),
+        ["garment_root", "garment_tip"]
+    );
+    // The still part's ring and anchor frame are gone; the others are unchanged.
+    assert_eq!(still.dynamic_positions * 3, all.dynamic_positions * 2);
+    assert_eq!(still.proxy_positions * 3, all.proxy_positions * 2);
+    assert!(still.preview_nodes.iter().all(|n| n.root != "garment_mid"));
+    assert!(still.roll_lock_chains.iter().all(|c| !c.bones.iter().any(|b| b.contains("garment_mid"))));
+}
+
+#[test]
+fn the_heros_own_vertex_set_names_are_carried_as_empty_sets() {
+    let d = Dmx::parse(
+        fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap(),
+    )
+    .unwrap();
+    let source = binding(&d, b"test authority");
+    let p = project(vec!["garment_root".into()]);
+    let sets = vec!["apron_outer_l_vm".to_string(), "pony_tail_vm".to_string()];
+    let setup = secondary::setup_with(&p, &d, Some(&source), &sets, &CancellationToken::new()).unwrap().unwrap();
+    assert_eq!(setup.hero_vertex_sets, sets);
+    let proxy = Dmx::parse(setup.proxy.clone()).unwrap();
+    let points = stream(&proxy, "cloth_enable$0").len();
+    for set in &sets {
+        let values = stream(&proxy, &format!("cloth_vertex_set_{set}$0"));
+        assert_eq!(values.len(), points);
+        assert!(values.iter().all(|v| *v == 0.), "{set} must name an empty set");
+    }
+    // Everything else about the proxy is unchanged.
+    let plain = secondary::setup(&p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+    assert!(plain.hero_vertex_sets.is_empty());
+    assert_eq!(stream(&Dmx::parse(plain.proxy).unwrap(), "cloth_goal_strength$0"), stream(&proxy, "cloth_goal_strength$0"));
+    // A name the proxy cannot carry is refused rather than written.
+    assert!(secondary::setup_with(&p, &d, Some(&source), &["bad name".into()], &CancellationToken::new()).is_err());
 }

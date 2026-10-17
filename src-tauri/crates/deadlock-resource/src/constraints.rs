@@ -207,9 +207,23 @@ fn check(physics: &Value, e: &mut Evidence) -> Check<()> {
     e.cloth_solver_present = Some(true);
     let capsules = array(fe, "m_TaperedCapsuleRigids")?;
     e.capsule_count = Some(capsules.len());
+    // Named vertex maps with no nodes in them only give a hero's animation
+    // events a name to find (they stiffen cloth by vertex map name); they
+    // exclude nothing from collision. Any map with nodes is still unsupported,
+    // and so are its values.
+    let maps = array(fe, "m_VertexMaps")?;
+    let empty_maps = maps.iter().all(|m| {
+        ["nVertexCount", "nNodeListCount"]
+            .iter()
+            .all(|k| m.get(k).is_some_and(|v| cloth::integer(v).is_ok_and(|n| n == 0)))
+    });
+    if !empty_maps {
+        return Err(pending("unsupported exclusions, collider or animated rods: m_VertexMaps"));
+    }
+    if maps.is_empty() && !array(fe, "m_VertexMapValues")?.is_empty() {
+        return Err(pending("unsupported exclusions, collider or animated rods: m_VertexMapValues"));
+    }
     for key in [
-        "m_VertexMaps",
-        "m_VertexMapValues",
         "m_DynNodeVertexSet",
         "m_TaperedCapsuleStretches",
         "m_SphereRigids",

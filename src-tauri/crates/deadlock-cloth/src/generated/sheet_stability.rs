@@ -21,7 +21,18 @@ pub struct Plan {
     pub frames: Vec<super::sheet_frames::Frame>,
     #[serde(default)]
     pub attachments: super::attachment_limits::Plan,
+    /// Streamer chains (joints root first). Each joint may bend at most
+    /// [`STRAND_BEND_DEGREES`] beyond its rest bend, so a long streamer swings
+    /// but never folds or bunches onto itself when the body turns quickly, and
+    /// a tether from the static point it hangs from to each joint keeps it from
+    /// stretching beyond its own length.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub strands: Vec<Vec<String>>,
 }
+/// Extra bend allowed at each streamer joint (degrees beyond its rest bend).
+/// SiViolet's 30-joint sleeves folded up like an accordion on quick turns
+/// with only the compiler's neighbor rods.
+pub const STRAND_BEND_DEGREES: f64 = 35.;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Proof {
     pub policy: String,
@@ -36,6 +47,10 @@ pub struct Proof {
     pub surface_frames: Vec<super::sheet_frames::FrameProof>,
     #[serde(default)]
     pub attachments: super::attachment_limits::Proof,
+    #[serde(default)]
+    pub strand_bend_rods: usize,
+    #[serde(default)]
+    pub strand_tethers: usize,
 }
 fn n(v: f64) -> Value { Value::new(Kind::F32(v as f32)) }
 fn i(v: usize) -> Value { Value::new(Kind::I64(v as i64)) }
@@ -46,7 +61,7 @@ fn length(v: [f64;3]) -> f64 { dot(v,v).sqrt() }
 pub fn apply(fe: &Value, plan: &Plan) -> Result<(Value,Proof)> {
     let mut out=fe.clone();
     let mut proof=Proof {policy:POLICY.into(),original_records_preserved:true,..Default::default()};
-    if plan.bones.is_empty() {
+    if plan.bones.is_empty() && plan.strands.is_empty() {
         if !plan.hinges.is_empty() || !plan.seams.is_empty() || !plan.frames.is_empty() {return Err(invalid("Fabric constraints have no selected fabric."));}
         let (limited,attachments)=super::attachment_limits::apply(&out,&plan.attachments)?;
         out=limited;proof.original_records_preserved=attachments.bones.is_empty();proof.attachments=attachments;
@@ -208,6 +223,64 @@ pub fn apply(fe: &Value, plan: &Plan) -> Result<(Value,Proof)> {
         let limit=(rest+std::f64::consts::FRAC_PI_3).min(std::f64::consts::PI-0.05);
         let min=(a*a+b*b+2.*a*b*limit.cos()).max(0.).sqrt().min(length(sub(pos(nodes[2])?,pos(nodes[0])?)));
         if add(nodes[0],nodes[2],min,a+b)? {proof.bend_limit_rods+=1;}
+    }
+    // Streamer bend limits: one rod from each joint's position node to the one
+    // two joints further, no shorter than the chord at the bend limit and no
+    // longer than both links laid straight.
+    for chain in &plan.strands {
+        if chain.len()<3 || chain.iter().collect::<BTreeSet<_>>().len()!=chain.len() {
+            return Err(invalid("Streamer bend limits need one chain of at least three distinct joints."));
+        }
+        let mut nodes=Vec::with_capacity(chain.len());
+        for name in chain {
+            let &ctrl=lookup.get(name.as_str()).ok_or_else(||invalid(format!("Streamer native control is missing: {name}")))?;
+            if ctrl<driven {return Err(invalid("Streamer bend limits include an animated body control."));}
+            let node=match reverse.get(&ctrl) {
+                Some(&node)=>node,
+                None=>{
+                    let rest=vector::<8>(&poses[ctrl])?;
+                    let mut closest=None;
+                    for p in (static_..driven).filter(|&p|parents[p].integer().ok()==Some(ctrl as i128)) {
+                        let q=vector::<8>(&poses[p])?;let distance=(0..3).map(|i|(q[i]-rest[i]).powi(2)).sum::<f64>();
+                        if closest.is_none_or(|(best,_)|distance<best){closest=Some((distance,p));}
+                    }
+                    closest.ok_or_else(||invalid(format!("Streamer joint has no simulated position: {name}")))?.1
+                }
+            };
+            if node<static_ || node>=driven || number(&masses[node]).map_or(true,|m|m<=0.) {
+                return Err(invalid(format!("Streamer joint has no simulated position: {name}")));
+            }
+            nodes.push(node);
+        }
+        for w in nodes.windows(3) {
+            let first=sub(pos(w[1])?,pos(w[0])?);let second=sub(pos(w[2])?,pos(w[1])?);
+            let (a,b)=(length(first),length(second));
+            if a<1e-6 || b<1e-6 {return Err(invalid("Collapsed streamer link."));}
+            let rest=(dot(first,second)/(a*b)).clamp(-1.,1.).acos();
+            let limit=(rest+STRAND_BEND_DEGREES.to_radians()).min(std::f64::consts::PI-0.05);
+            let min=(a*a+b*b+2.*a*b*limit.cos()).max(0.).sqrt().min(length(sub(pos(w[2])?,pos(w[0])?)));
+            if add(w[0],w[2],min,a+b)? {proof.strand_bend_rods+=1;}
+        }
+        // Tethers: from the static anchor point the streamer hangs from to each
+        // joint, no longer than the streamer's own length up to that joint, so
+        // a quick start cannot stretch it beyond its length (SiViolet's sleeves
+        // grew visibly longer when she started to run). Bending and swinging
+        // stay free: the tether only stops extension.
+        let &root_ctrl=lookup.get(chain[0].as_str()).ok_or_else(||invalid("Streamer native control is missing."))?;
+        let ring:Vec<usize>=(static_..driven).filter(|&p|parents[p].integer().ok()==Some(root_ctrl as i128)).collect();
+        let mut anchor=None;
+        for &node in &ring {
+            for &other in &adjacency[node] {
+                if other>=static_ {continue;}
+                let distance=length(sub(pos(other)?,pos(nodes[0])?));
+                if anchor.is_none_or(|(best,_)|distance<best){anchor=Some((distance,other));}
+            }
+        }
+        let (mut reach,anchor)=anchor.ok_or_else(||invalid(format!("Streamer has no static anchor point next to its root: {}",chain[0])))?;
+        for k in 1..nodes.len() {
+            reach+=length(sub(pos(nodes[k])?,pos(nodes[k-1])?));
+            if add(anchor,nodes[k],reach*0.01,reach)? {proof.strand_tethers+=1;}
+        }
     }
     // Keep the compiler's scalar and SIMD schedules intact; append separate
     // packs, duplicating only the last new rod to fill its final SIMD lane.

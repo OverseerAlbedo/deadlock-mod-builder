@@ -21,6 +21,13 @@ const MAPS: [&str; 8] = [
     "cloth_suspenders$0",
     "cloth_stretch$0",
 ];
+/// Node gravity in the game's unit. Valve's own cloth (ModelDoc ClothChain,
+/// `gravity_z = 1`) compiles to 360 per node in every hero, while the compiler
+/// copies proxy streams as they are. The gravity scale used for tuning and the
+/// movement preview (0 to 1.5) is therefore written multiplied by this; before
+/// October 17, 2026 it was written as is, so automatic parts had almost no
+/// gravity in game.
+pub const GAME_GRAVITY: f64 = 360.;
 fn unit(v: [f64; 3]) -> Result<[f64; 3]> {
     let n = norm(v);
     if n <= 1e-6 || !n.is_finite() {
@@ -146,6 +153,16 @@ pub(crate) const DENSE_CHAIN_NODES: usize = 6;
 /// Pose-pull multiplier for a strand with `nodes` weighted bones.
 pub(crate) fn dense_chain_multiplier(nodes: usize) -> f64 {
     if nodes > DENSE_CHAIN_NODES { DENSE_CHAIN_NODES as f64 / nodes as f64 } else { 1. }
+}
+/// Streamers with more weighted joints than this get their drag divided out.
+/// Drag slows every node, so a long, finely jointed streamer (SiViolet's
+/// 30-joint sleeves) hung almost still for a second before it began to swing,
+/// while TangTang's 7-joint streamers with the same drag swing freely. Valve's
+/// own long cloth uses no drag at all.
+pub(crate) const LONG_STREAMER_JOINTS: usize = 10;
+/// Drag multiplier for a streamer with `joints` weighted joints.
+pub(crate) fn streamer_drag_multiplier(joints: usize) -> f64 {
+    if joints > LONG_STREAMER_JOINTS { LONG_STREAMER_JOINTS as f64 / joints as f64 } else { 1. }
 }
 /// Body vertices (skinned to bones outside every moving part), used to keep
 /// long strands from swinging through the body: a node whose travel limit is
@@ -315,7 +332,7 @@ pub(crate) fn append(
             // open strip can hinge at each width edge; no closed tube braces it.
             let at = s.points.len();
             let t = (traveled / part.chain_length_inches).clamp(0., 1.);
-            let settings = parameters(
+            let mut settings = parameters(
                 part.kind,
                 t,
                 level == 0,
@@ -323,6 +340,9 @@ pub(crate) fn append(
                 radius,
                 choice,
             )?;
+            if choice.is_none_or(|c| c == "automatic") {
+                settings[1] *= streamer_drag_multiplier(chain.len());
+            }
             for (fraction, sign) in [(0., -1.), (0., 1.), (0.5, -1.)] {
                 point(
                     s,
@@ -612,7 +632,16 @@ pub(crate) fn connect(s: &mut Surface, a: [usize; 3], b: [usize; 3]) {
         s.faces.extend([[a[i], b[i], b[j]], [a[i], b[j], a[j]]]);
     }
 }
-pub(crate) fn write_maps(raw: &[u8], maps: &[Maps]) -> Result<Vec<u8>> {
+/// Writes the motion streams of every proxy point, and one all-zero
+/// `cloth_vertex_set_<name>` stream per name in `hero_sets`. The compiler turns
+/// each into a named vertex map with no nodes in it. The replaced hero's own
+/// animations stiffen cloth by those names (Violet's run start, jumps, dashes
+/// and slides fire `AE_CL_CLOTH_STIFFEN` on `pony_tail_vm`, `apron_*_vm` and
+/// more); without a map of that name the game stiffened the whole replacement
+/// cloth, which then stood still for about two seconds whenever she started or
+/// stopped running. An empty map of the same name gives those events nothing
+/// to stiffen.
+pub(crate) fn write_maps(raw: &[u8], maps: &[Maps], hero_sets: &[String]) -> Result<Vec<u8>> {
     let d = Dmx::parse(raw.to_vec())?;
     let mut out = Editable::new(&d);
     let states = d
@@ -642,7 +671,7 @@ pub(crate) fn write_maps(raw: &[u8], maps: &[Maps]) -> Result<Vec<u8>> {
             state,
             name,
             35,
-            surface::numeric_f32(maps.iter().map(|m| m[k])),
+            surface::numeric_f32(maps.iter().map(|m| if k == 3 { m[k] * GAME_GRAVITY } else { m[k] })),
         )?;
         out.set(
             state,
@@ -654,6 +683,17 @@ pub(crate) fn write_maps(raw: &[u8], maps: &[Maps]) -> Result<Vec<u8>> {
             formats.push((*name).into());
         }
     }
+    for set in hero_sets {
+        if !valid_set_name(set) {
+            return Err(invalid(format!("Unsupported cloth vertex set name: {set}")));
+        }
+        let name = format!("cloth_vertex_set_{set}$0");
+        out.set(state, &name, 35, surface::numeric_f32(maps.iter().map(|_| 0.)))?;
+        out.set(state, &format!("{name}Indices"), 34, surface::numeric_i32(corners.iter().map(|&i| i as usize))?)?;
+        if !formats.contains(&name) {
+            formats.push(name);
+        }
+    }
     out.set(state, "vertexFormat", 37, surface::string_array(&formats)?)?;
     let bytes = out.bytes()?;
     let checked = Dmx::parse(bytes.clone())?;
@@ -661,6 +701,12 @@ pub(crate) fn write_maps(raw: &[u8], maps: &[Maps]) -> Result<Vec<u8>> {
         return Err(invalid("Automatic maps changed the skeleton."));
     }
     Ok(bytes)
+}
+
+/// A vertex set name the proxy can carry: 1 to 64 ASCII letters, digits or
+/// underscores (Valve's are like `pony_tail_vm`).
+pub(crate) fn valid_set_name(name: &str) -> bool {
+    (1..=64).contains(&name.len()) && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
 }
 
 #[cfg(test)]
@@ -749,6 +795,15 @@ mod new_motion_tests {
         // The friend's 19-bone hair strand and 25-bone tail.
         assert!((dense_chain_multiplier(19) - 6. / 19.).abs() < 1e-12);
         assert!((dense_chain_multiplier(25) * 25. - 6.).abs() < 1e-12);
+    }
+    #[test]
+    fn long_streamers_keep_the_drag_of_a_ten_joint_streamer() {
+        // TangTang's 7-joint streamers keep their drag exactly.
+        for joints in 0..=LONG_STREAMER_JOINTS { assert_eq!(streamer_drag_multiplier(joints), 1.); }
+        // SiViolet's 30-joint sleeves: a third of the drag.
+        assert!((streamer_drag_multiplier(30) - 1. / 3.).abs() < 1e-12);
+        let drag = parameters(Kind::Streamer, 0.5, false, 56., 0.2, None).unwrap()[1] * streamer_drag_multiplier(30);
+        assert!((drag * 30. - 1.8).abs() < 1e-9, "{drag}");
     }
     #[test]
     fn fine_tuning_moves_each_setting_from_its_automatic_value() {

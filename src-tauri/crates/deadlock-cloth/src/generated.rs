@@ -241,9 +241,21 @@ fn qualify_locked(
     );
     let constraints = constraints::audit(&decoded.physics.root);
     if capacity.status != cloth::Status::Passed || constraints.status != cloth::Status::Passed {
-        return Err(invalid(
-            "Generated secondary solver failed native capacity or rest-constraint validation.",
-        ));
+        // Name the check that failed and its reason, so a report says which.
+        let mut causes = vec![];
+        if capacity.mesh_remapping.status != cloth::Status::Passed {
+            causes.push(format!("mesh remapping {:?}: {}", capacity.mesh_remapping.status, capacity.mesh_remapping.reason.as_deref().unwrap_or("no reason given")));
+        }
+        if capacity.scalar_simd_rods.status != cloth::Status::Passed {
+            causes.push(format!("rods {:?}: {}", capacity.scalar_simd_rods.status, capacity.scalar_simd_rods.reason.as_deref().unwrap_or("no reason given")));
+        }
+        if constraints.status != cloth::Status::Passed {
+            causes.push(format!("rest constraints {:?}: {}", constraints.status, constraints.reason.as_deref().unwrap_or("no reason given")));
+        }
+        return Err(invalid(format!(
+            "Generated secondary solver failed native capacity or rest-constraint validation ({}).",
+            causes.join("; ")
+        )));
     }
     rotation_import::audit(&actual, &original_sk, &raw_source, &decoded.physics.root, &mut source_rotation_import)?;
     Ok(Audit {
@@ -346,6 +358,7 @@ fn planned_roll_lock(native: &[u8], source: &SourceBinding, chains: &[roll_lock:
 fn planned_sheet(fe: &Value, plan: &sheet_stability::Plan, weighted: &BTreeSet<String>, aliases: &BTreeMap<String,String>) -> Result<(Value,sheet_stability::Proof)> {
     if plan.bones.iter().any(|n|!weighted.contains(n)) {return Err(invalid("Fabric selection includes an unweighted or body bone."));}
     if plan.attachments.bones.iter().any(|n|!weighted.contains(&n.bone)) {return Err(invalid("Attachment selection includes an unweighted or body bone."));}
+    if plan.strands.iter().flatten().any(|n|!weighted.contains(n)) {return Err(invalid("Streamer selection includes an unweighted or body bone."));}
     let name=|n:&String|aliases.get(n).unwrap_or(n).clone();
     sheet_stability::apply(fe,&sheet_stability::Plan {bones:plan.bones.iter().map(name).collect(),
         hinges:plan.hinges.iter().map(|h|h.each_ref().map(name)).collect(),
@@ -353,13 +366,14 @@ fn planned_sheet(fe: &Value, plan: &sheet_stability::Plan, weighted: &BTreeSet<S
         frames:plan.frames.iter().map(|f|sheet_frames::Frame {bone:name(&f.bone),
             along:f.along.each_ref().map(name),across:f.across.each_ref().map(name)}).collect(),
         attachments:attachment_limits::Plan {bones:plan.attachments.bones.iter().map(|r|attachment_limits::Restraint {
-            bone:name(&r.bone),anchor:name(&r.anchor),radius_inches:r.radius_inches,region:r.region.clone()}).collect()}})
+            bone:name(&r.bone),anchor:name(&r.anchor),radius_inches:r.radius_inches,region:r.region.clone()}).collect()},
+        strands:plan.strands.iter().map(|c|c.iter().map(name).collect()).collect()})
 }
 /// Native FE remains the authority. Only the deterministic, source-selected
 /// strand orientation transform is allowed between that snapshot and output.
 fn apply_locked_qualified(original: &[u8], native: &[u8], source: &SourceBinding,
     selected: &BTreeSet<String>, weighted: &BTreeSet<String>, chains: &[roll_lock::Chain], sheet: &sheet_stability::Plan) -> Result<(Vec<u8>,Audit)> {
-    if chains.is_empty() && sheet.bones.is_empty() && sheet.attachments.bones.is_empty(){return apply_qualified(original,native,source,selected,weighted);}
+    if chains.is_empty() && sheet.bones.is_empty() && sheet.attachments.bones.is_empty() && sheet.strands.is_empty(){return apply_qualified(original,native,source,selected,weighted);}
     let (baseline,audit)=apply_qualified(original,native,source,selected,weighted)?;
     let patch=planned_roll_lock(native,source,chains,weighted,&audit.compiler_aliases)?;
     let mut decoded=Decoded::read(&baseline)?;
@@ -370,7 +384,7 @@ fn apply_locked_qualified(original: &[u8], native: &[u8], source: &SourceBinding
 }
 fn validate_locked_qualified(original: &[u8], native: &[u8], candidate: &[u8], source: &SourceBinding,
     selected: &BTreeSet<String>, weighted: &BTreeSet<String>, chains: &[roll_lock::Chain], sheet: &sheet_stability::Plan) -> Result<Audit> {
-    if chains.is_empty() && sheet.bones.is_empty() && sheet.attachments.bones.is_empty(){return validate_qualified(original,native,candidate,source,selected,weighted);}
+    if chains.is_empty() && sheet.bones.is_empty() && sheet.attachments.bones.is_empty() && sheet.strands.is_empty(){return validate_qualified(original,native,candidate,source,selected,weighted);}
     let native_audit=qualify(original,native,source,selected,weighted)?;
     let patch=planned_roll_lock(native,source,chains,weighted,&native_audit.compiler_aliases)?;
     let (expected,sheet_proof)=planned_sheet(&patch.fe,sheet,weighted,&native_audit.compiler_aliases)?;

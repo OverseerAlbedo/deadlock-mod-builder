@@ -23,14 +23,14 @@ pub struct NativeContract {
     #[serde(default)]
     pub motion_plan_sha256:String,
 }
+/// The bones the cloth solver moves (all bones, and the weighted ones). Parts
+/// set to stay still are left out: they have no simulated points.
 fn selected(s: &Setup) -> (BTreeSet<String>, BTreeSet<String>) {
     (
-        s.groups
-            .iter()
+        s.simulated_groups()
             .flat_map(|g| g.bones.iter().cloned())
             .collect(),
-        s.groups
-            .iter()
+        s.simulated_groups()
             .flat_map(|g| g.weighted_bones.iter().cloned())
             .collect(),
     )
@@ -52,7 +52,8 @@ impl ModelPipeline<'_> {
             let asset=format!("{}/dmx/dmb_secondary_proxy.dmx",p.hero_root());
             if safety::inside(content,&asset)?.exists(){return Err(invalid("Secondary proxy path conflicts with an existing source asset."));}
             safety::atomic_write(&safety::inside(content,&asset)?,&setup.proxy)?;
-            let analysis=proxy_source::Analysis{units:proxy_source::UNITS.into(),millimeters_per_unit:25.4,leg_colliders:vec![],collision_disabled:true};
+            // Leg colliders measured at Analyze (none for the TangTang presets).
+            let analysis=proxy_source::Analysis{units:proxy_source::UNITS.into(),millimeters_per_unit:25.4,leg_colliders:setup.body_colliders.clone(),collision_disabled:setup.body_colliders.is_empty()};
             let (authored,_)=proxy_source::author_direct_proxy(before,&asset,&analysis,&binding.skeleton,"dmb_secondary",true).map_err(|e|invalid(e.to_string()))?;
             let (authored,_)=proxy_source::configure_secondary_proxy(&authored,"dmb_secondary_proxy").map_err(|e|invalid(e.to_string()))?;
             safety::write_json(&self.root(p)?.join("secondary-motion-source.json"),setup)?;

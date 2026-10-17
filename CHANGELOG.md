@@ -1,8 +1,24 @@
 # Changelog
 
+## 0.13.0-beta.8 — 2026-10-17
+
+- Fix: automatic movement had almost no gravity in game. Valve's cloth compiles gravity as 360 per node, but the cloth streams the app writes were copied as 0–1, so tails looked static, sleeves only moved with sharp arm motion and long parts floated. Gravity is now written in the game's unit; the movement preview, Fine-tune and saved presets are unchanged, and the Fine-tune gravity slider now works in game. Rebuild to get it; the TangTang presets are unchanged.
+- **Leg and hip colliders** for automatic movement: a capsule along each thigh and shin, sized to your character's legs, and up to two across the back of the hips, so skirts, coat tails and tails stop at the legs and the butt instead of passing through the body (for example when walking backwards). No cloth starts inside one.
+- Long skirts: a shorter panel between long skirt panels (SiViolet's back panel) now moves with the rest of the skirt, with the same travel limits, instead of swinging freely into the body.
+- Fix: on Violet, all moving parts stood still for about two seconds whenever she started or stopped running, and on jumps, dashes and slides. Violet's own animations stiffen her cloth by name (ponytail, apron, tassel, front hair); a replacement's cloth has none of those names, so the game stiffened all of it. Builds now give the replacement cloth empty sets with the replaced hero's names, so those animations stiffen nothing. This applies to every hero whose own cloth has such names.
+- Streamers no longer fold up on quick turns: each joint of a streamer may bend at most 35 degrees more than at rest. Long, finely jointed streamers (more than 10 joints, such as SiViolet's sleeves that reach the floor) get less drag.
+- Streamers no longer stretch longer than they are when the hero starts moving: each joint is tethered to the point the streamer hangs from, at the streamer's own length.
+- Long skirts no longer pass into the body (SiViolet's back panel showed her underwear when she walked backwards): each skirt joint may move at most as far as its fabric is from the body, less a quarter inch. The upper part of a skirt, which sits close to the body, moves a little less.
+- Checked in a match on October 17, 2026 (SiViolet on Violet): the cloth no longer stands still when she starts or stops running, the skirt no longer shows through to the body when walking backwards, and the tail and short hair move well. Still to tune: the floor-length cloth on her arms ruffles up a bit too much.
+- Parts set to stay still (Rigid, the Ear motion switch turned off, gun charms turned off) are no longer simulated at all, so they cannot bounce. Before, the game turned the full pose pull into a soft spring.
+- **Ear motion** switch on the Physics tab (Automatic motion): turn the ears' movement off and on.
+- Moving parts: long round ribbons and tassels (a cord or tassel bundle) get streamer motion instead of stiff cloth, “tassel” names count as streamers, a left/right pair whose sides differ only because one side's mesh touches a neighbor gets the same type on both sides, and a pair of ribbons over the breasts is no longer taken for breasts.
+- Fix: builds since beta 6 that use the game's compiled model replaced the freshly compiled model with the game's original one at the new “Take attachments from the game's compiled model” step (the two models were passed the wrong way round). Builds with automatic movement then stopped with “Missing or ambiguous generated bone: dmb_secondary_…”; nothing wrong was packaged or installed. The step now keeps the compiled model, refuses any result whose model data differs from it, and has a regression test.
+
 ## 0.13.0-beta.7 — 2026-10-17
 
 - Fix: **Update** under Build & install → Installed mods stopped with “Package output must be outside its source folder” (beta 6) before changing anything. The rebuilt VPK is now written beside the staging folder and the original archive is closed before it is replaced; an end-to-end test on synthetic archives covers the scan, the in-place update, the backup and the refusals.
+- Checked in a match: after Update, the camera of a Haze replacement built before October 16 is right again (standing and crouching).
 
 ## 0.13.0-beta.6 — 2026-10-16
 

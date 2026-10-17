@@ -58,6 +58,26 @@ pub struct UpdateReport {
     pub backup: String,
 }
 
+/// After compiling: the freshly compiled model at `output` takes the attachment
+/// values of `game_model` (the game's current compiled model of the hero).
+/// Only the attachment lists of the compiled model change; its skeleton,
+/// meshes and everything else stay. Returns how many attachments were taken.
+pub fn take_game_attachments(output: &Path, game_model: &[u8]) -> Result<usize> {
+    let compiled = fs::read(output).map_err(|e| CoreError::io("Read compiled model", e))?;
+    let Some(update) = attachments::update(&compiled, game_model, false).map_err(|e| invalid(e.to_string()))? else {
+        return Ok(0);
+    };
+    // The result must still be the compiled model: same model data block
+    // (skeleton, meshes, materials). Anything else would replace the build.
+    let before = deadlock_resource::container::read_blocks(&compiled, "DATA").map_err(|e| invalid(e.to_string()))?;
+    let after = deadlock_resource::container::read_blocks(&update.bytes, "DATA").map_err(|e| invalid(e.to_string()))?;
+    if before.len() != after.len() || before.iter().zip(&after).any(|(a, b)| !a.root.canonical_eq(&b.root)) {
+        return Err(invalid("Taking the game's attachments would change the compiled model's data; the compiled model was left as it is."));
+    }
+    safety::atomic_write(output, &update.bytes)?;
+    Ok(update.taken_from_game)
+}
+
 fn addons(settings: &Settings) -> Result<PathBuf> {
     if settings.deadlock.is_empty() {
         return Err(invalid("Choose the Deadlock folder in Settings first."));

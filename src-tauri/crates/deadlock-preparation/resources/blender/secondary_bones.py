@@ -128,6 +128,12 @@ def on_gun(root, bones, source_roles, gun):
     return False
 
 
+def named_secondary(name):
+    """Named as a moving part (HINTS, ear, charm). Same as secondary_bones.rs named_secondary."""
+    n = name.lower()
+    return any(h in n for h in HINTS) or any(t in ('ear','ears') for t in re.split('[^a-z0-9]+', n)) or charm_named(name)
+
+
 def named_breast(name):
     n = name.lower()
     return not named_butt(name) and (any(h in n for h in BREAST_HINTS)
@@ -258,7 +264,9 @@ def breast_roots(bones, byname, children, weighted, source_roles):
     low = spine['position'][2] if spine is not None else pelvis
     floor = max(low, pelvis + 0.35*(high - pelvis))
     output = {b['name'] for b in options if named_breast(b['name'])}
-    above = [b for b in options if b.get('parent') != source_roles.get('pelvis') and not named_butt(b['name'])]
+    # An unnamed pair whose own name says it is another moving part (chest
+    # ribbons over the breasts, hair, a cape) is never a breast.
+    above = [b for b in options if b.get('parent') != source_roles.get('pelvis') and not named_butt(b['name']) and not named_secondary(b['name'])]
     output |= mirrored_pairs(above, byname, children, source_roles, torso,
                              lambda forward, z: forward >= 0.02*torso and floor < z < high)
     return output
@@ -347,8 +355,7 @@ def physics_groups(bones, weighted, source_roles, target_roles, breasts=None, bu
         physical -= butt_set
     verified = set(physical)
     for bone in bones:
-        if not (any(h in bone['name'].lower() for h in HINTS) or any(t in ('ear','ears') for t in re.split('[^a-z0-9]+',bone['name'].lower()))
-                or charm_named(bone['name'])
+        if not (named_secondary(bone['name'])
                 or hanging_chain(bone, byname, children, weighted_set, source_roles)
                 or gun_charm(bone, byname, children, source_roles)):
             continue

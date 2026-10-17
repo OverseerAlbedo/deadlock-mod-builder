@@ -3,7 +3,7 @@ import type { JsonValue, Project, SecondaryMotionChoices } from '../models';
 import type { ProjectInspection } from '../build/models';
 import { Disclosure, StateLabel } from './Primitives';
 import { SelectField } from './CustomizationPages';
-import { charmNamed, namedBreast, namedButt } from '../preparation/secondary-bones';
+import { charmNamed, namedBreast, namedButt, rigidNamed } from '../preparation/secondary-bones';
 import { KIND_LABELS, PhysicsPresets, TuningSliders, type TuningKind } from './MotionTuning';
 /** Part types most models have, offered before an Analyze names this model's own. */
 const COMMON_KINDS:TuningKind[]=['hair','streamer','tail','ear','cloth','long_skirt','accessory'];
@@ -123,6 +123,30 @@ export function CharmMotion({project,update,disabled,report}:{project:Project;up
     {on&&<SelectField label="Charm movement" value={amount} values={[["automatic","Automatic light swing"],["soft","More movement"],["stiff","Stiffer"]]} onChange={value=>update({profiles:{...cfg.profiles,...Object.fromEntries(charms.map(root=>[root,value as Movement]))}})} disabled={disabled}/>}
   </div>;
 }
+/** Ear names, as the native part rule reads them (parts.rs semantic): ear, ears or mimi as a word, or 耳. */
+export const earNamed=(name:string)=>name.toLowerCase().split(/[^a-z0-9]+/).some(s=>['ear','ears','mimi'].includes(s))||name.includes('耳');
+/** Moving-part groups that are ears: by name, by the preparation's part type, or by the last Analyze. */
+export function earGroups(project:Project,report:ProjectInspection|null):string[]{
+  const kinds=(project.preparation_options.physics_kinds??{}) as Record<string,unknown>;
+  const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
+  return preparedMotionRoots(project).filter(root=>(earNamed(root)&&!rigidNamed(root))||kinds[root]==='ear'||analyzed.some(p=>p.root===root&&p.kind==='ear'));
+}
+/** Ear motion on (the default) or off. Off holds the ears still on the head (part type Rigid); on returns them to automatic ear motion. */
+export function EarMotion({project,update,disabled,report}:{project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null}){
+  const cfg=project.customization.secondary_motion??{};
+  const ears=earGroups(project,report);
+  if(!ears.length)return null;
+  const on=ears.some(root=>cfg.part_kinds?.[root]!=='rigid');
+  function toggle(enabled:boolean){
+    const kinds={...cfg.part_kinds};
+    for(const root of ears){if(enabled)delete kinds[root];else kinds[root]='rigid';}
+    update({part_kinds:kinds});
+  }
+  return <div className="breast-motion-control">
+    <label className="checkbox checkbox-line"><input type="checkbox" checked={on} disabled={disabled} onChange={event=>toggle(event.target.checked)}/>Ear motion</label>
+    <p className="hint">{on?`On for ${ears.join(', ')}: the ears sway lightly with the head. Applies at the next Analyze and Build.`:`Off: ${ears.join(', ')} follow the head without moving; anything hanging from them, such as earrings in the same group, stays still too.`}</p>
+  </div>;
+}
 export function SecondaryMotion({project,update,disabled,report,fresh,preparation,openPreparation,expert=true,tangtangPresets=true}:{expert?:boolean;/** Whether this build carries the TangTang presets (private data); otherwise only Automatic is offered. */tangtangPresets?:boolean;project:Project;update:(choice:Partial<SecondaryMotionChoices>)=>void;disabled:boolean;report:ProjectInspection|null;fresh:boolean;preparation?:(values:Record<string,JsonValue>)=>void;openPreparation?:()=>void}){
   const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project);
   const selected=cfg.roots??roots,reference=cfg.preset==='tangtang_reference',tang=reference||cfg.preset==='tangtang_r2';
@@ -144,6 +168,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
     {!tang&&<BreastMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
     {!tang&&<ButtMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
     {!tang&&<CharmMotion project={project} update={update} disabled={disabled} report={fresh?report:null}/>}
+    {!tang&&<EarMotion project={project} update={update} disabled={disabled} report={fresh?report:null}/>}
     <div className="motion-status-grid">
     {checked?.parts&&<p role="status">Detected: {Object.entries(checked.parts.reduce<Record<string,number>>((counts,p)=>({...counts,[p.kind]:(counts[p.kind]??0)+1}),{})).map(([kind,n])=>`${n} ${kind.replaceAll('_',' ')}`).join(' · ')}. {checked.parts.filter(p=>p.review_recommended).length>0?'Some parts need review; check their type and twist protection under Adjust moving parts.':''}</p>}
     {checked?.parts&&<p role="status">Twist protection planned for {protectedCount} {protectedCount===1?'group':'groups'} · checked during Build.</p>}

@@ -82,6 +82,10 @@ pub(crate) fn analyze(
     }
     if !body.contains(&pelvis) { return if explicit { Err(missing()) } else { Ok(None) }; }
     let mut candidates = BTreeSet::new();
+    // Shorter panels (SiViolet's back panel ends higher and starts lower than
+    // its neighbors) join the skirt only when they share mesh with a panel that
+    // qualifies on its own; alone they stay independent cloth.
+    let mut shorter = BTreeSet::new();
     let mut extents = BTreeMap::new();
     for (g, (group, part)) in groups.iter().zip(parts.iter()).enumerate() {
         cancel.check()?;
@@ -101,10 +105,13 @@ pub(crate) fn analyze(
         if top.abs() <= torso * 0.25 && bottom <= -torso * 0.5 && top - bottom >= torso * 0.65 {
             candidates.insert(g);
             extents.insert(g, (top, bottom));
+        } else if top.abs() <= torso * 0.25 && bottom <= -torso * 0.4 && top - bottom >= torso * 0.5 {
+            shorter.insert(g);
+            extents.insert(g, (top, bottom));
         }
     }
     let mut owner = BTreeMap::<usize,usize>::new();
-    for &g in &candidates {
+    for &g in candidates.iter().chain(&shorter) {
         for name in &groups[g].weighted_bones { owner.insert(lookup[name.as_str()],g); }
     }
     let palette: Vec<_> = bind.palette.iter().map(|&e| lookup.get(d.elements[e].name.as_str()).copied()).collect();
@@ -141,14 +148,17 @@ pub(crate) fn analyze(
     }
     // Require actual visible fabric, not only a misleading long rig. Trim
     // sparse outliers so a distant decoration cannot qualify a short garment.
-    candidates.retain(|&g| {
-        let points = &mut samples[g];
+    let visible = |points: &mut Vec<f64>, reach: f64, span: f64| {
         points.sort_by(f64::total_cmp);
         if points.len() < 12 { return false; }
         let low = points[(points.len()-1)*5/100];
         let high = points[(points.len()-1)*95/100];
-        high.abs() <= torso * 0.35 && low <= -torso * 0.5 && high-low >= torso*0.65
-    });
+        high.abs() <= torso * 0.35 && low <= -torso * reach && high-low >= torso*span
+    };
+    candidates.retain(|&g| visible(&mut samples[g], 0.5, 0.65));
+    shorter.retain(|&g| visible(&mut samples[g], 0.4, 0.5)
+        && candidates.iter().any(|&c| groups[c].anchor == groups[g].anchor && group_faces.get(&pair(c,g)).copied().unwrap_or(0) >= 3));
+    candidates.extend(shorter);
     // Mutual nearest-height matching prevents diagonal braces between every
     // neighboring skin influence. Only independently evidenced mesh neighbors
     // qualify, and no proximity-based connection closes a split or slit.
@@ -181,6 +191,12 @@ pub(crate) fn analyze(
         }
     }
     if links.is_empty() { return Ok(None); }
+    // How close each skirt joint's own fabric comes to the body: its travel
+    // limit is capped so the fabric cannot reach the body (SiViolet's back
+    // panel showed her underwear when she walked backwards).
+    let moving: BTreeSet<usize> = groups.iter().flat_map(|g| g.bones.iter().map(|n| lookup[n.as_str()])).collect();
+    let skirt_joints: BTreeSet<usize> = linked.iter().flat_map(|&g| groups[g].bones.iter().map(|n| lookup[n.as_str()])).collect();
+    let gaps = crate::body_colliders::fabric_gaps(d, &moving, &skirt_joints, torso * 0.35, cancel)?;
     let mut planned = vec![];
     for g in linked {
         let group = &groups[g];
@@ -210,6 +226,16 @@ pub(crate) fn analyze(
             let p = pos(lookup[name.as_str()]);
             let (_,width) = evidence.iter().min_by(|a,b|norm(sub(p,a.0)).total_cmp(&norm(sub(p,b.0)))).unwrap();
             widths.insert(name.clone(),*width);
+        }
+        // A joint with no fabric of its own takes the gap of the nearest joint
+        // of its panel that has some.
+        for name in &group.bones {
+            let p = pos(lookup[name.as_str()]);
+            let gap = gaps.get(&lookup[name.as_str()]).copied().or_else(|| group.bones.iter()
+                .filter_map(|other| gaps.get(&lookup[other.as_str()]).map(|gap| (norm(sub(pos(lookup[other.as_str()]), p)), *gap)))
+                .min_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, gap)| gap));
+            let limit = travel.get_mut(name).unwrap();
+            *limit = crate::body_colliders::body_capped_skirt_travel(*limit, gap);
         }
         parts[g].kind = Kind::LongSkirt;
         parts[g].reason = "Waist-height weighted fabric extends down the legs; source mesh verifies neighboring skirt panels".into();

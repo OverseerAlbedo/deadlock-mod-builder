@@ -152,6 +152,17 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     let generic: Vec<Bone> = source.iter().map(|b| Bone { name: rename(&b.name), ..b.clone() }).collect();
     let generic_weighted: Vec<String> = weighted.iter().map(rename).collect();
     assert_eq!(secondary::breast_bones(&generic, &generic_weighted, &roles), breasts.iter().map(rename).collect::<Vec<_>>());
+    // Ribbons on the chest are a mirrored pair in front of the chest too, but
+    // their names make them ribbons (SiViolet's L/R_ribbonG); renamed without
+    // a part word the same bones count as breasts.
+    let ribbons: BTreeMap<String, String> = serde_json::from_value(data["chest_ribbons"].clone()).unwrap();
+    assert!(ribbons.keys().all(|r| !breasts.contains(r)));
+    let deco = |n: &String| ribbons.get(n).cloned().unwrap_or_else(|| n.clone());
+    let decorated: Vec<Bone> = source.iter().map(|b| Bone { name: deco(&b.name), ..b.clone() }).collect();
+    let mut with_deco = breasts.clone();
+    with_deco.extend(ribbons.values().cloned());
+    with_deco.sort();
+    assert_eq!(secondary::breast_bones(&decorated, &weighted.iter().map(deco).collect::<Vec<_>>(), &roles), with_deco);
     // Butts are found by name and as a low mirrored pair behind the hips; they
     // never count as breasts and move only with butt motion on.
     let butts: Vec<String> = serde_json::from_value(data["butt_bones"].clone()).unwrap();

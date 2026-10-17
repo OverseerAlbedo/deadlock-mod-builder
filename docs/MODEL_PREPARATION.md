@@ -348,6 +348,132 @@ is unchanged). `generate_inner` then replaces the automatic goal, drag and
 gravity of that part's moving points (pinned points stay pinned) before Fine-tune.
 `scripts/test_source_springs.py` checks the conversion with plain Python.
 
+**Gravity in the game's unit** (October 17, 2026). Valve's own cloth
+(`ClothChain`, `gravity_z = 1`) compiles to 360 per node in every hero, while
+the compiler copies proxy streams as they are. Automatic motion keeps its 0–1.5
+gravity scale everywhere (motion profiles, Fine-tune, source springs, the
+movement preview) and `secondary_auto::write_maps` writes it multiplied by
+`GAME_GRAVITY` (360). Before, automatic parts had about 1/360 of normal gravity
+in game: tails looked static, sleeves only moved with sharp arm motion. Hair,
+ears, charms and breasts have gravity 0 by design and stay so; the Fine-tune
+gravity slider of each part type now works in game. The TangTang presets keep
+their accepted proxies unchanged. Read a build's values with the development
+example `deadlock-resource/examples/fe_stats.rs` (or `fe_parts.rs` per bone).
+
+**Leg colliders** (`body_colliders.rs`, automatic motion only). Analyze measures
+a capsule along each thigh (`leg_upper_*` to `leg_lower_*`, starting 20% below
+the hip so a waistband never sits inside it) and shin (`leg_lower_*` to
+`ankle_*`) from the character's own leg: the 95th percentile distance of the
+leg-dominant vertices. Each radius is reduced to clear every moving proxy node
+at rest by `CLEARANCE`, and a capsule thinner than `MIN_RADIUS` is left out.
+They are stored in `Setup.body_colliders` and written as `ClothShapeCapsule`
+nodes beside the proxy (`proxy_source::author_direct_proxy`), as the cloth
+authoring flow did for the Vindicta reference; the compiled cloth gets matching
+`m_TaperedCapsuleRigids` (`examples/fe_capsules.rs`). Skirts, coat tails and
+tails then stop at the legs instead of passing through the body.
+
+Up to two **hip capsules** on the pelvis (`hip_colliders`, at `HIP_LEVELS`: hip
+joint height and 0.15 thigh lengths lower) run from hip joint to hip joint
+behind the hips. The butt's depth is the 95th percentile of how far the
+hip- and thigh-dominant vertices around hip height reach behind the hip joints
+(back is the opposite of side × up). Each capsule tries 17 set-backs from the
+hip line to half that depth, takes at most half the depth as its radius,
+shrinks it to clear every moving node, and keeps the placement whose back
+surface reaches furthest. Skirt bones usually rest inside the butt (SiViolet's
+back panel bones sit 1.7 in behind the hip joints), so the capsule ends up
+just in front of them: a back panel cannot move further into the body than it
+rests. `examples/parts_report.rs` prints each collider and, as FREE lines,
+its unshrunk radius and the moving nodes that limit it.
+
+**Skirt travel stops at the body** (`long_skirt.rs`, `body_colliders.rs
+fabric_gaps`). A skirt joint's travel limit (`torso × (0.02 + 0.30 t)`) let the
+fabric of SiViolet's back panel reach her body: row 3 could travel 2.5 in with
+its fabric 1.45 in from the body. Each drawn vertex is fabric of the moving bone
+that weights it most (moving bones weight it at least half) or body (bones
+outside every moving part weight it at least half); a joint's gap is the
+nearest body point to any of its fabric (`BodyGrid`, searched up to 0.35 torso
+lengths), a joint without fabric takes the gap of the nearest joint of its
+panel that has some, and the travel becomes `min(travel, max(gap − CLEARANCE,
+BODY_TRAVEL_FLOOR))` (`body_capped_skirt_travel`). The body is measured in the
+bind pose: this covers fabric over pelvis-skinned skin such as the butt, while
+thigh swing is the leg capsules' job. Fine-tune swing still scales the capped
+values. `parts_report.rs` with `SKIRTGAP=<name part>` prints each joint's travel
+and fabric-to-body gap.
+
+**Shorter skirt panels** (`long_skirt.rs`). A panel that starts near the waist
+but reaches only 0.4 torso lengths down and spans 0.5 (instead of 0.5 and
+0.65) joins the long skirt when it shares at least three rendered triangles
+with a panel that qualifies on its own, on the same anchor. SiViolet's back
+center panel (8 weighted joints, the others 10) used to stay plain cloth with
+no travel limit and swung into the butt when she walked backwards.
+
+**The hero's own cloth names** (`Setup.hero_vertex_sets`, automatic motion
+only). A hero's animation clips can carry legacy `AE_CL_CLOTH_STIFFEN` events
+(Value, SpeedIn, SpeedOut, Length, VertexSet) that pull cloth toward the
+animation by vertex map name. Violet has 27 such clips: the run blend's center
+clip `out_of_combat_run_center` (so while she speeds up from standing or slows
+to a stop), jumps, dashes, slides, zipline and rope clips, on `pony_tail_vm`,
+`hair_front_vm`, `tassel_vm` and `apron_{inner,outer}_{l,r}_vm`. Haze has none.
+A replacement's cloth had no map of those names and the whole cloth stood still
+for about two seconds on every start and stop (inferred from the game's
+behavior: a name it cannot find seems to mean every node). Analyze reads the
+names from the game's compiled model (`secondary::hero_vertex_sets`, the
+`m_VertexMaps` `sName`s) and `secondary_auto::write_maps` adds an all-zero
+`cloth_vertex_set_<name>$0` stream for each; the compiler turns each into a
+map of that name and hash with no nodes (`nVertexCount` 0), so the events find
+their map and stiffen nothing. The rest-constraint audit accepts such empty
+maps only (`deadlock-resource constraints.rs`). Read a clip's events with
+`deadlock-resource/examples/clip_events.rs` and a model's maps with
+`fe_field.rs MODEL m_VertexMaps`; `deadlock-vpk/examples/vpk_dump.rs`
+extracts a hero's clips from the game VPK.
+
+**Parts that stay still** (`Setup.still_roots`, automatic motion only). The
+compiler turns a pose pull of 1 into an attraction of 0.5 with no damping,
+which is a spring, never a lock (ears with Ear motion off bounced). Parts of
+kind Rigid (Ear motion off, gun charms off, a Rigid choice) therefore get no
+proxy points at all (`generate_inner` skips them) and their bones follow the
+body like any skinned bone; every group is attached to a body bone, so nothing
+moving sits above them. `Setup::simulated_groups` leaves them out of the
+solver's selected and weighted bones (`deadlock-pipeline secondary_motion.rs
+selected`), which the compiled-model check needs, and out of the roll-lock
+chains. A model whose every part is Rigid is refused with a message to turn
+movement off.
+
+**Streamer bend limits and drag.** The compiler links a streamer's joints
+only to their neighbors, and its lengthwise rods may shrink to 80%, so a
+long streamer folded up like an accordion on quick turns (SiViolet's 30-joint
+sleeves). Valve's own cloth has extra rods two and three joints apart.
+`Setup.strand_bends` lists every streamer chain (3 or more weighted joints)
+and `sheet_stability::apply` (`Plan.strands`) adds one rod from each joint's
+position node to the one two joints further: no shorter than the chord when
+the joint bends `STRAND_BEND_DEGREES` (35) beyond its rest bend, no longer than
+both links laid straight. It runs after compile and again at install from the
+native snapshot, like the fabric rods (`Proof.strand_bend_rods`). The same
+pass tethers every joint to the static point the streamer hangs from (the one
+next to its root ring, closest to the root's position node): no longer than
+the streamer's rest length up to that joint, 1% of it at least, with the anchor
+weighted 0 (`Proof.strand_tethers`). A streamer can bend and swing freely but
+not stretch; SiViolet's 30-joint sleeves grew visibly longer on quick starts,
+since the compiler gives them only neighbor rods. A streamer with no static
+point next to its root is refused. New rods never share a node within one SIMD
+pack, as the compiler's own packs never do. Drag slows
+every node, so streamers with more than `LONG_STREAMER_JOINTS` (10) weighted
+joints get their drag multiplied by 10 / joints
+(`secondary_auto::streamer_drag_multiplier`, Automatic setting only). It was
+added for SiViolet's sleeves hanging still for a second, whose real cause was
+Violet's cloth-stiffen events (above); revert it if long streamers swing too
+loosely. Valve's own long cloth has no drag. Read a build's rods with `examples/fe_chain.rs`.
+
+**Part types that pair up.** A left/right pair (`parts.rs mirror_key`: L/R,
+Left/Right as a word, 左/右) where one side became cloth only because its mesh
+touches a moving group the other side lacks takes its streamer twin's type
+(`harmonize_mirrors`; SiViolet's left sleeve and its forearm cord). A ribbon
+or tassel name on a long, slender but round chain (a cord or tassel bundle) is
+a streamer, not stiff cloth; tassel names (tassel, タッセル, 流苏) are streamer
+words. On the Physics tab, **Ear motion** turns ear groups off (part type
+Rigid; anything hanging from them, such as an earring in the same group, stays
+still too) and back to automatic.
+
 **Movement preview** (items 10 and 18; Physics → Your character → Movement):
 `deadlock_pipeline::motion_preview::build` reads the prepared DMX skeleton and the
 hero's own clips (`stance::find_ranked`, candidates best first: the gun-ready

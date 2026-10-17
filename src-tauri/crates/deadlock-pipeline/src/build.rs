@@ -209,14 +209,7 @@ impl BuildService<'_> {
                 // of any age may spell them differently. Taking the game's values makes
                 // the output independent of both (deadlock_resource::attachments).
                 let taken = clock.measure("Take attachments from the game's compiled model", None, |_| {
-                    let candidate = std::fs::read(&output).map_err(|e| CoreError::io("Read compiled model", e))?;
-                    match deadlock_resource::attachments::update(&original, &candidate, false).map_err(|e| invalid(e.to_string()))? {
-                        Some(update) => {
-                            safety::atomic_write(&output, &update.bytes)?;
-                            Ok(update.taken_from_game)
-                        }
-                        None => Ok(0),
-                    }
+                    crate::mod_update::take_game_attachments(&output, &original)
                 })?;
                 if taken > 0 {
                     (self.model.log)(&format!("Attachments: {taken} taken from the game's compiled model (camera pivots follow the game's October 2026 convention)."));

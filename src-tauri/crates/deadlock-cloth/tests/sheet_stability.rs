@@ -149,3 +149,89 @@ fn evidenced_panel_seams_bound_separation_without_locking_bending() {
     assert!(sheet_stability::apply(&after,&plan).unwrap().0.canonical_eq(&after));
     plan.seams[0][1]="unrelated".into();assert!(sheet_stability::apply(&fe,&plan).is_err());
 }
+
+/// A streamer hanging from a body control: a static row of four points on the
+/// body (nodes 0-3), then three joints a, b, c of four points each, one inch
+/// apart, straight down.
+fn streamer() -> Value {
+    let mut positions=vec![];
+    for row in 0..4 {
+        for (side,down) in [(-0.2,0.),(0.2,0.),(-0.2,-0.5),(0.2,-0.5)] {
+            positions.push(vec![side,0.,1.-(row as f64)+down,1.,0.,0.,0.,1.]);
+        }
+    }
+    let mut edges=vec![];
+    for row in 0..4 {
+        let offset=row*4;
+        edges.extend([[0,1],[0,2],[1,2],[1,3],[2,3]].map(|e|[e[0]+offset,e[1]+offset]));
+        if row>0 {edges.extend([[offset-2,offset],[offset-1,offset+1],[offset-1,offset]]);}
+    }
+    let rods=edges.iter().map(|&[a,b]|{
+        let distance=(0..3).map(|i|(positions[a][i]-positions[b][i]).powi(2)).sum::<f64>().sqrt();
+        json!({"nNode":[a,b],"flMinDist":distance,"flMaxDist":distance,"flWeight0":0.5,"flRelaxationFactor":1.})
+    }).collect::<Vec<_>>();
+    let simd=rods.iter().map(|r|json!({"nNode":[vec![r["nNode"][0].clone();4],vec![r["nNode"][1].clone();4]],
+        "f4MinDist":vec![r["flMinDist"].clone();4],"f4MaxDist":vec![r["flMaxDist"].clone();4],
+        "f4Weight0":vec![0.5;4],"f4RelaxationFactor":vec![1.;4]})).collect::<Vec<_>>();
+    let mut names=(0..16).map(|i|format!("point{i}")).collect::<Vec<_>>();names.extend(["body".into(),"a".into(),"b".into(),"c".into()]);
+    positions.push(vec![0.,0.,1.,1.,0.,0.,0.,1.]);
+    positions.extend((0..3).map(|i|vec![0.,0.,-(i as f64),1.,0.,0.,0.,1.]));
+    let mut parents=vec![16;4];parents.extend([17;4]);parents.extend([18;4]);parents.extend([19;4]);parents.extend([-1,16,17,18]);
+    let mut masses=vec![0.;4];masses.extend(vec![1.;12]);masses.extend(vec![0.;4]);
+    value(json!({"m_CtrlName":names,"m_InitPose":positions,"m_SkelParents":parents,
+        "m_NodeInvMasses":masses,"m_nNodeCount":20,"m_nStaticNodes":4,"m_nFirstPositionDrivenNode":16,
+        "m_ReverseOffsets":[{"nBoneCtrl":17,"nTargetNode":4},{"nBoneCtrl":18,"nTargetNode":8},{"nBoneCtrl":19,"nTargetNode":12}],
+        "m_Rods":rods,"m_SimdRods":simd}))
+}
+
+#[test]
+fn streamer_chains_get_bend_limits_and_tethers_to_their_anchor() {
+    let fe=streamer();
+    let plan=Plan{strands:vec![vec!["a".into(),"b".into(),"c".into()]],..Default::default()};
+    let (after,proof)=sheet_stability::apply(&fe,&plan).unwrap();
+    assert_eq!(proof.strand_bend_rods,1);
+    assert_eq!(proof.strand_tethers,2);
+    assert_eq!(proof.rigid_support_rods+proof.bend_limit_rods+proof.seam_limit_rods,0);
+    // One bend rod a-c, and tethers to b and c from the static point closest
+    // to a (node 2, half an inch above it).
+    assert_eq!(proof.added_rods,vec![[4,12],[2,8],[2,12]]);
+    for key in ["m_Rods","m_SimdRods"] {
+        let old=fe.get(key).unwrap().array().unwrap();let new=after.get(key).unwrap().array().unwrap();
+        assert!(new.len()>old.len() && old.iter().zip(new).all(|(a,b)|a.canonical_eq(b)),"{key}");
+    }
+    let rods=after.get("m_Rods").unwrap().array().unwrap();
+    let rod=|a:i64,b:i64|rods.iter().find(|r|r.get("nNode").unwrap().canonical_eq(&value(json!([a,b])))).unwrap().clone();
+    let number=|rod:&Value,key|match rod.get(key).unwrap().kind {Kind::F32(n)=>n as f64,_=>panic!()};
+    // The links are straight at rest: the joint may bend 35 degrees, never fold.
+    let chord=|angle:f64|(2.+2.*angle.to_radians().cos()).sqrt();
+    let bend=rod(4,12);
+    assert!((number(&bend,"flMinDist")-chord(sheet_stability::STRAND_BEND_DEGREES)).abs()<1e-5);
+    assert!(chord(60.)<number(&bend,"flMinDist") && number(&bend,"flMinDist")<2.);
+    assert_eq!(number(&bend,"flMaxDist"),2.);
+    // Tethers allow any bend but no length beyond the streamer's own: half an
+    // inch to a, then one inch per link.
+    for (node,reach) in [(8,1.5),(12,2.5)] {
+        let tether=rod(2,node);
+        assert!((number(&tether,"flMaxDist")-reach).abs()<1e-6,"{node}");
+        assert!(number(&tether,"flMinDist")<reach*0.02);
+        // The anchor never moves: the joint takes the whole correction.
+        assert_eq!(number(&tether,"flWeight0"),0.);
+    }
+    let mut physics=value(json!({"m_pFeModel":null}));*physics.get_mut("m_pFeModel").unwrap()=after.clone();
+    assert_eq!(cloth::audit_rods(&physics).status,cloth::Status::Passed,"{:?}",cloth::audit_rods(&physics));
+    // No SIMD pack uses a node in two lanes, as the compiler's own packs.
+    for pack in &after.get("m_SimdRods").unwrap().array().unwrap()[fe.get("m_SimdRods").unwrap().array().unwrap().len()..] {
+        let nodes=pack.get("nNode").unwrap().array().unwrap();
+        let distinct=(0..4).map(|i|[nodes[0].array().unwrap()[i].integer().unwrap(),nodes[1].array().unwrap()[i].integer().unwrap()]).collect::<BTreeSet<_>>();
+        assert_eq!(distinct.iter().flatten().collect::<BTreeSet<_>>().len(),distinct.len()*2,"SIMD lanes share a node");
+    }
+    // Recomputing on the result changes nothing (install recomputes from the snapshot).
+    assert!(sheet_stability::apply(&after,&plan).unwrap().0.canonical_eq(&after));
+    for bad in [vec!["a","b"],vec!["a","b","a"],vec!["a","b","outside"],vec!["point4","b","c"]] {
+        let plan=Plan{strands:vec![bad.iter().map(|n|n.to_string()).collect()],..Default::default()};
+        assert!(sheet_stability::apply(&fe,&plan).is_err(),"{bad:?}");
+    }
+    // A streamer that hangs from nothing static is refused.
+    let (loose,_)=fixture();
+    assert!(sheet_stability::apply(&loose,&plan).unwrap_err().to_string().contains("static anchor"));
+}

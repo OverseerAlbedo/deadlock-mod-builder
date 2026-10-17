@@ -215,3 +215,38 @@ fn independent_vrf_reader_verifies_every_data_phys_value_of_rust_encoded_resourc
     }
     assert_eq!(std::fs::read(source).unwrap(), raw);
 }
+
+/// Empty named vertex maps (the compiler's output for an all-zero
+/// `cloth_vertex_set_<name>` proxy stream) let a hero's animation events find
+/// their vertex map by name; they exclude nothing, so the constraint decision
+/// is unchanged. A map with nodes, or a vertex set, is still unsupported.
+#[test]
+fn empty_named_vertex_maps_do_not_change_constraint_decisions() {
+    let bytes = std::fs::read(fixtures().join("cloth-maximum-3.0.kv3")).unwrap();
+    let base = binary::decode(&bytes).unwrap().root;
+    assert_eq!(serde_json::to_value(constraints::audit(&base)).unwrap()["status"], "passed");
+    let int = |n: i64| Value::new(Kind::I64(n));
+    let map = |count: i64| {
+        Value::new(Kind::Object(vec![
+            ("sName".into(), Value::new(Kind::String("pony_tail_vm".into()))),
+            ("nNameHash".into(), int(3036289150)),
+            ("nVertexBase".into(), int(0)),
+            ("nVertexCount".into(), int(count)),
+            ("nMapOffset".into(), int(0)),
+            ("nNodeListOffset".into(), int(0)),
+            ("nNodeListCount".into(), int(count)),
+        ]))
+    };
+    let with = |maps: Vec<Value>, values: usize, sets: usize| {
+        let mut physics = base.clone();
+        let fe = physics.get_mut("m_pFeModel").unwrap();
+        *fe.get_mut("m_VertexMaps").unwrap() = Value::new(Kind::Array(maps));
+        *fe.get_mut("m_VertexMapValues").unwrap() = Value::new(Kind::Array((0..values).map(|_| int(255)).collect()));
+        *fe.get_mut("m_DynNodeVertexSet").unwrap() = Value::new(Kind::Array((0..sets).map(|_| int(0)).collect()));
+        serde_json::to_value(constraints::audit(&physics)).unwrap()["status"].clone()
+    };
+    assert_eq!(with(vec![map(0), map(0)], 15, 0), "passed");
+    assert_eq!(with(vec![map(0), map(1)], 16, 0), "pending");
+    assert_eq!(with(vec![map(0)], 15, 3), "pending");
+    assert_eq!(with(vec![], 15, 0), "pending");
+}

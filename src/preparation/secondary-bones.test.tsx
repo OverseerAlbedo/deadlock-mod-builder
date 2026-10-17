@@ -64,6 +64,10 @@ describe('unnamed and robe moving parts',()=>{
     expect(breastBones(hanging.bones as Bone[],hanging.weighted,roles!)).toEqual(hanging.breast_bones);
     const renamed=hanging.renamed_breast_bones as Record<string,string>,rename=(n:string)=>renamed[n]??n;
     expect(breastBones((hanging.bones as Bone[]).map(b=>({...b,name:rename(b.name)})),hanging.weighted.map(rename),roles!)).toEqual(hanging.breast_bones.map(rename));
+    // Ribbons on the chest are a mirrored pair in front of the chest too, but their names make them ribbons; renamed without a part word they count as breasts.
+    const ribbons=hanging.chest_ribbons as Record<string,string>,deco=(n:string)=>ribbons[n]??n;
+    expect(Object.keys(ribbons).some(r=>hanging.breast_bones.includes(r))).toBe(false);
+    expect(breastBones((hanging.bones as Bone[]).map(b=>({...b,name:deco(b.name)})),hanging.weighted.map(deco),roles!)).toEqual([...hanging.breast_bones,...Object.values(ribbons)].sort());
     // Butts: by name and as a low mirrored pair behind the hips, never breasts, moving only with butt motion on.
     expect(buttBones(hanging.bones as Bone[],hanging.weighted,roles!)).toEqual(hanging.butt_bones);
     expect(physicsGroups(hanging.bones as Bone[],hanging.weighted,{source_roles:roles,target_roles:roles,butt_motion:true}).map(g=>g.root)).toEqual(hanging.expected_roots_with_butt_motion);

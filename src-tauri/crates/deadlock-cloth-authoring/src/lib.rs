@@ -45,6 +45,7 @@ mod surface_geometry;
 pub mod motion;
 pub mod secondary;
 pub mod parts;
+pub mod body_colliders;
 mod secondary_auto;
 mod hair_motion;
 pub mod hair_limits;

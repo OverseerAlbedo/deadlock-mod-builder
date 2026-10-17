@@ -36,8 +36,9 @@ GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`, recrea
 on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
-0.13.0-beta.5 (Violet) and 0.13.0-beta.6 (installed-mods repair) and 0.13.0-beta.7 (tag `v0.13.0-beta.7`,
-October 17, 2026, its Update button fixed) followed, the latter being the latest; the
+0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
+fixed) and 0.13.0-beta.8 (tag `v0.13.0-beta.8`, October 17, 2026, automatic-movement fixes)
+followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -45,7 +46,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.7 (October 17, 2026)
+## State as of 0.13.0-beta.8 (October 17, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -84,8 +85,18 @@ game's `m_eHeroDevelopmentState` (`GameTarget::PreRelease`); the roster's
 Beta 6 = beta 5 plus the repair for the game's October 16, 2026 attachment
 change: `deadlock_resource::attachments`, the build taking attachments from
 the game's compiled model, and Build & install → Installed mods
-(`mod_update.rs`) that rewrites installed VPKs in place. Not yet checked in a
-match.
+(`mod_update.rs`) that rewrites installed VPKs in place. Checked in a match on
+October 17, 2026 (Haze, standing and crouching camera right after Update).
+
+Beta 7 = beta 6 with the Update button fixed. Beta 8 = beta 7 plus the
+automatic-movement round from SiViolet on Violet: empty hero vertex sets so
+Violet's `AE_CL_CLOTH_STIFFEN` events no longer freeze the cloth, gravity in
+the game's unit, leg and hip colliders, skirt travel capped at the body,
+shorter skirt panels joining the skirt, streamer bend rods and anchor tethers,
+Rigid parts not simulated, the Ear motion switch, part-type rules, and the
+build's attachment step fixed. Checked in a match on October 17, 2026: Violet
+cloth no longer freezes, skirt fixed. Open: floor-length arm cloth ruffles a
+bit too much.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -145,6 +156,32 @@ template check (`tests/cloth_bones.rs`).
 - The movement preview simulation (`src/preview/motion.ts`) applies Fine-tune with
   `tune`, which must stay identical to Rust `secondary_auto::tune` (both tests use
   the same numbers). Its base values come from Analyze (`Setup.preview_nodes`).
+- Automatic motion keeps gravity as a 0–1.5 scale (profiles, `tune`, preview
+  nodes, source springs); only `secondary_auto::write_maps` multiplies the
+  `cloth_gravity` stream by `GAME_GRAVITY` (360, Valve's compiled unit; the
+  compiler copies proxy streams raw). Never scale gravity anywhere else.
+  Check compiled values with `deadlock-resource/examples/fe_stats.rs`.
+- Leg and hip colliders (`body_colliders.rs`) are automatic-motion only, measured
+  at Analyze into `Setup.body_colliders` and written by
+  `proxy_source::author_direct_proxy`; they must never start with a moving
+  proxy node inside them (radius reduced by `CLEARANCE`).
+- Rigid parts are not simulated (`Setup.still_roots`, automatic only): no proxy
+  points, and every solver bone set comes from `Setup::simulated_groups`, never
+  `setup.groups` (the compiled check rejects weighted bones without cloth
+  flags). A goal of 1 is not a lock: the compiler caps attraction at 0.5.
+- The replaced hero's cloth vertex map names (`Setup.hero_vertex_sets`, read at
+  Analyze from the game's compiled model) are written as all-zero
+  `cloth_vertex_set_<name>$0` proxy streams, which compile to empty named maps,
+  so the hero's `AE_CL_CLOTH_STIFFEN` animation events stiffen nothing (Violet's
+  froze the whole cloth on run start/stop). The constraint audit accepts empty
+  maps only; never give these sets nodes.
+- Long-skirt travel is capped by each joint's fabric-to-body gap
+  (`body_colliders::fabric_gaps`, `body_capped_skirt_travel`) in
+  `long_skirt::analyze`; the floor `BODY_TRAVEL_FLOOR` keeps it above 0 (0 = free).
+- Streamer chains get post-compile bend rods and anchor tethers (`Setup.strand_bends` →
+  `sheet_stability::Plan.strands`, `STRAND_BEND_DEGREES`); anything added to the
+  sheet plan must also be in the early-return checks of `generated.rs`
+  (`apply_locked_qualified`, `validate_locked_qualified`) and `planned_sheet`.
 - Source rig springs (`source_springs.py`, `physics_springs`) change build values
   only when `use_source_springs` is on; keep it off by default.
 - Gun planning is `weapon::plan_choice` / `suggest_choice` / `preview_choice`

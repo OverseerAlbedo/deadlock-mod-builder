@@ -215,7 +215,9 @@ fn breast_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&B
     let low=roles.get("spine").and_then(|n|names.get(n.as_str())).map_or(pelvis,|b|b.position[2]);
     let floor=low.max(pelvis+0.35*(high-pelvis));
     let mut output:BTreeSet<&str>=options.iter().filter(|b|named_breast(&b.name)).map(|b|b.name.as_str()).collect();
-    let above:Vec<&Bone>=options.iter().copied().filter(|b|roles.get("pelvis").is_none_or(|p|b.parent.as_deref()!=Some(p.as_str()))&&!named_butt(&b.name)).collect();
+    // An unnamed pair whose own name says it is another moving part (chest
+    // ribbons over the breasts, hair, a cape) is never a breast.
+    let above:Vec<&Bone>=options.iter().copied().filter(|b|roles.get("pelvis").is_none_or(|p|b.parent.as_deref()!=Some(p.as_str()))&&!named_butt(&b.name)&&!named_secondary(&b.name)).collect();
     output.extend(mirrored_pairs(&above,names,children,roles,torso,|forward,z|forward>=0.02*torso&&z>floor&&z<high));
     output
 }

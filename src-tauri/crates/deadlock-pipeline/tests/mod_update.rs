@@ -141,3 +141,50 @@ fn installed_mods_are_scanned_and_repaired_in_place_with_a_backup() {
     // The game's own archive and files outside the addons folder are never touched.
     assert!(mod_update::update(&settings, &game_pak, &backups, 2, &cancel, &|_| {}).is_err());
 }
+
+/// The compiled model of a build with an extra bone (as generated movement bones are).
+fn compiled_with_extra_bone(attachments_list: Vec<Value>) -> Vec<u8> {
+    let base = model(attachments_list);
+    let layout = container::layout(&base).unwrap();
+    let mut replacements = BTreeMap::new();
+    for (ordinal, block) in layout.blocks.iter().enumerate() {
+        if block.name != "DATA" {
+            continue;
+        }
+        let mut doc = binary::decode(container::payload(&base, block).unwrap()).unwrap();
+        let skeleton = doc.root.get_mut("m_modelSkeleton").unwrap();
+        let push = |value: &mut Value, item: Value| {
+            let Kind::Array(items) = &mut value.kind else { panic!() };
+            items.push(item);
+        };
+        push(skeleton.get_mut("m_boneName").unwrap(), Value::new(Kind::String("dmb_secondary_L_bowB_01_jnt".into())));
+        push(skeleton.get_mut("m_nParent").unwrap(), Value::new(Kind::I64(1)));
+        push(skeleton.get_mut("m_bonePosParent").unwrap(), f32s(&[0., 5., 0.]));
+        push(skeleton.get_mut("m_boneRotParent").unwrap(), f32s(&[0., 0., 0., 1.]));
+        replacements.insert(ordinal, binary::encode(&doc.root, doc.format_guid).unwrap());
+    }
+    container::rebuild_ordinals(&base, &replacements).unwrap()
+}
+
+#[test]
+fn a_build_keeps_its_compiled_model_and_takes_only_the_game_attachments() {
+    // October 16, 2026: the build passed the two models the wrong way round and
+    // wrote the game's original model over the compiled one ("Missing or
+    // ambiguous generated bone: dmb_secondary_L_bowB_01_jnt").
+    let temp = tempfile::tempdir().unwrap();
+    let output = temp.path().join("artist.vmdl_c");
+    std::fs::write(&output, compiled_with_extra_bone(vec![
+        attachment("standing_pivot", "root_motion", [0., 86.25, 0.], OLD_ROT),
+        attachment("crouching_pivot", "root_motion", [0., 57.5, 0.], OLD_ROT),
+        attachment("mask", "spine_0", [3.5, 8., 0.], [0., 0., 0., 1.]),
+    ])).unwrap();
+    let game = current();
+    assert_eq!(mod_update::take_game_attachments(&output, &game).unwrap(), 3);
+    let after = std::fs::read(&output).unwrap();
+    let skeleton = container::read_blocks(&after, "DATA").unwrap()[0].root.get("m_modelSkeleton").unwrap().clone();
+    let names: Vec<String> = skeleton.get("m_boneName").unwrap().array().unwrap().iter().map(|n| n.string().unwrap().to_string()).collect();
+    assert_eq!(names, ["root_motion", "spine_0", "dmb_secondary_L_bowB_01_jnt"], "the compiled skeleton stays");
+    assert_eq!(attachments::convention(&after, &game).unwrap(), Convention::Current);
+    // Already current: nothing to write.
+    assert_eq!(mod_update::take_game_attachments(&output, &game).unwrap(), 0);
+}

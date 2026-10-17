@@ -416,8 +416,15 @@ impl<'a> ModelPipeline<'a> {
             if deadlock_cloth_authoring::secondary::active(p) && deadlock_preparation::service::moving_parts_changed(p) {
                 return Err(invalid(deadlock_preparation::service::MOVING_PARTS_CHANGED));
             }
+            // The replaced hero's own cloth vertex map names: its animations stiffen
+            // cloth by these names (Violet's run start, jumps, dashes, slides).
+            let hero_sets = if deadlock_cloth_authoring::secondary::active(p) && original.compiled_snapshot.is_some() {
+                let sets = original.compiled_bytes(self.cancel).map(|raw| deadlock_cloth_authoring::secondary::hero_vertex_sets(&raw)).unwrap_or_default();
+                self.cancel.check()?;
+                sets
+            } else { vec![] };
             let secondary_motion = if secondary_waiting_for_mesh_mapping { None } else {
-                deadlock_cloth_authoring::secondary::setup(p,&dmx,binding.as_ref(),self.cancel).map_err(map_error)?
+                deadlock_cloth_authoring::secondary::setup_with(p,&dmx,binding.as_ref(),&hero_sets,self.cancel).map_err(map_error)?
             };
             // The movement preview needs the moving parts before mesh mapping is
             // complete: plan them without the binding, for the preview only.

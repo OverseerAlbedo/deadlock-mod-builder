@@ -78,6 +78,25 @@ pub struct Setup {
     pub dynamic_positions: usize,
     pub render_source_modified: bool,
     pub body_collisions_authored: bool,
+    /// Thigh and shin colliders sized to the character (automatic motion only),
+    /// written as `ClothShapeCapsule` nodes next to the proxy.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub body_colliders: Vec<crate::proxy_source::ColliderProposal>,
+    /// Parts set to stay still (Rigid) in automatic motion: they get no
+    /// simulated points and their bones simply follow the body, so they cannot
+    /// bounce (the compiler turns a full pose pull into a spring, never a lock).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub still_roots: Vec<String>,
+    /// Streamer chains (weighted joints, root first) that get bend limits
+    /// after compile, so a long streamer cannot fold onto itself.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub strand_bends: Vec<Vec<String>>,
+    /// Names of the replaced hero's own cloth vertex maps (from the game's
+    /// compiled model). The proxy carries an empty map of each name, so the
+    /// hero's animation events that stiffen cloth by name find nothing to
+    /// stiffen (automatic motion only; see `secondary_auto::write_maps`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hero_vertex_sets: Vec<String>,
     /// Motion values of each moving bone before Fine-tune (pose pull, drag,
     /// gravity, travel), for the movement preview, which applies the tuning live.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -90,9 +109,15 @@ pub struct Setup {
     pub proxy: Vec<u8>,
 }
 impl Setup {
+    /// The groups the cloth solver moves: every group except the parts set to
+    /// stay still.
+    pub fn simulated_groups(&self) -> impl Iterator<Item = &Group> {
+        self.groups.iter().filter(|g| !self.still_roots.contains(&g.source_root))
+    }
     pub fn fabric_stability(&self) -> deadlock_cloth::generated::sheet_stability::Plan {
         let mut plan=self.long_skirt.as_ref().map(|p|p.stability.clone()).unwrap_or_default();
         if let Some(attachments)=&self.attachments {plan.attachments=attachments.plan.clone();}
+        plan.strands=self.strand_bends.clone();
         plan
     }
     pub fn requires_animation_limits(&self) -> bool {
@@ -201,10 +226,38 @@ pub fn reviewed_groups(d: &Dmx, roots: &[String], source: &SourceBinding) -> Res
     }
     Ok(groups)
 }
+/// The cloth vertex map names of a compiled hero model (`m_VertexMaps` of its
+/// cloth solver), usable as proxy vertex sets; empty when the model has no
+/// cloth or cannot be read.
+pub fn hero_vertex_sets(compiled: &[u8]) -> Vec<String> {
+    let Ok(blocks) = deadlock_resource::container::read_blocks(compiled, "PHYS") else { return vec![] };
+    let mut names: Vec<String> = blocks
+        .iter()
+        .filter_map(|b| b.root.get("m_pFeModel")?.get("m_VertexMaps")?.array().ok().map(|maps| maps.to_vec()))
+        .flatten()
+        .filter_map(|m| m.get("sName").and_then(|n| n.string().ok()).map(str::to_owned))
+        .filter(|n| crate::secondary_auto::valid_set_name(n))
+        .collect();
+    names.sort();
+    names.dedup();
+    names.truncate(64);
+    names
+}
 pub fn setup(
     p: &Project,
     d: &Dmx,
     source: Option<&SourceBinding>,
+    cancel: &CancellationToken,
+) -> Result<Option<Setup>> {
+    setup_with(p, d, source, &[], cancel)
+}
+/// [`setup`] for a hero whose own cloth uses the vertex map names `hero_sets`
+/// (see [`hero_vertex_sets`]).
+pub fn setup_with(
+    p: &Project,
+    d: &Dmx,
+    source: Option<&SourceBinding>,
+    hero_sets: &[String],
     cancel: &CancellationToken,
 ) -> Result<Option<Setup>> {
     if !active(p) {
@@ -338,7 +391,23 @@ pub fn setup(
         }
     }
     if effective=="tangtang_r2" {for part in &mut parts{part.roll_locked=false;}}
-    let roll_lock_chains=parts.iter().zip(&groups).filter(|(p,_)|p.roll_locked).map(|(p,g)|deadlock_cloth::generated::roll_lock::Chain{anchor:g.anchor.clone(),bones:p.weighted_chain.clone(),per_joint_reference:matches!(p.kind,crate::parts::Kind::Hair|crate::parts::Kind::Tail)}).collect();
+    // Parts set to stay still get no simulated points (automatic motion only;
+    // the TangTang presets keep their accepted proxy). Each group is attached
+    // to a body bone, so its bones then follow the body exactly.
+    let still_roots:Vec<String>=if effective=="automatic" {
+        parts.iter().filter(|p|p.kind==crate::parts::Kind::Rigid).map(|p|p.root.clone()).collect()
+    } else {vec![]};
+    if !still_roots.is_empty() && still_roots.len()==parts.len() {
+        return Err(invalid("Every moving part is set to stay still. Turn Secondary motion off, or let at least one part move."));
+    }
+    let still:BTreeSet<String>=still_roots.iter().cloned().collect();
+    let hero_vertex_sets:Vec<String>=if effective=="automatic" {hero_sets.to_vec()} else {vec![]};
+    // Streamers get bend limits between every second joint after compile.
+    let strand_bends:Vec<Vec<String>>=if effective=="automatic" {
+        parts.iter().filter(|p|p.kind==crate::parts::Kind::Streamer && p.weighted_chain.len()>=3 && !still.contains(&p.root))
+            .map(|p|p.weighted_chain.clone()).collect()
+    } else {vec![]};
+    let roll_lock_chains=parts.iter().zip(&groups).filter(|(p,_)|p.roll_locked && !still.contains(&p.root)).map(|(p,g)|deadlock_cloth::generated::roll_lock::Chain{anchor:g.anchor.clone(),bones:p.weighted_chain.clone(),per_joint_reference:matches!(p.kind,crate::parts::Kind::Hair|crate::parts::Kind::Tail)}).collect();
     let mut preset_fit = None;
     let mut preview_nodes = vec![];
     let (proxy, positions, dynamic) = match effective {
@@ -383,10 +452,10 @@ pub fn setup(
             }
             // The movement preview's moving parts for the bundled setup as well;
             // the proxy stays the reviewed one (the automatic plan is thrown away).
-            let _ = generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &mut preview_nodes, cancel);
+            let _ = generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, cancel);
             (proxy, 900, 786)
         }
-        "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &mut preview_nodes, cancel)?,
+        "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, cancel)?,
         _ => return Err(invalid("Unknown secondary motion preset.")),
     };
     cancel.check()?;
@@ -401,6 +470,14 @@ pub fn setup(
     {
         return Err(invalid("Secondary proxy changed the source skeleton."));
     }
+    // Leg colliders so skirts and tails stop at the legs (automatic motion only;
+    // the TangTang presets keep their accepted setup unchanged).
+    let body_colliders = if effective == "automatic" {
+        let moving = crate::body_colliders::moving_points(&Dmx::parse(proxy.clone())?)?;
+        crate::body_colliders::leg_colliders(d, &moving, cancel)?
+    } else {
+        vec![]
+    };
     Ok(Some(Setup {
         policy: POLICY.into(),
         preset: preset.into(),
@@ -417,7 +494,11 @@ pub fn setup(
         proxy_positions: positions,
         dynamic_positions: dynamic,
         render_source_modified: false,
-        body_collisions_authored: false,
+        body_collisions_authored: !body_colliders.is_empty(),
+        body_colliders,
+        still_roots,
+        strand_bends,
+        hero_vertex_sets,
         preview_nodes,
         replaces_original_cloth_solver: true,
         native_compiled: false,
@@ -468,7 +549,7 @@ pub fn generate(
     profiles: &BTreeMap<String, String>,
     cancel: &CancellationToken,
 ) -> Result<(Vec<u8>, usize, usize)> {
-    generate_inner(d,groups,profiles,&BTreeMap::new(),&BTreeMap::new(),None,None,&mut vec![],cancel)
+    generate_inner(d,groups,profiles,&BTreeMap::new(),&BTreeMap::new(),None,None,&BTreeSet::new(),&[],&mut vec![],cancel)
 }
 /// Body vertices for strand clearance: skinned at least half to bones outside
 /// every moving part. At most 24,000 evenly sampled points.
@@ -487,7 +568,7 @@ fn body_points(d:&Dmx,groups:&[Group],cancel:&CancellationToken)->Result<crate::
     let step=points.len().div_ceil(24_000).max(1);
     Ok(crate::secondary_auto::Body{points:points.into_iter().step_by(step).collect()})
 }
-fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tuning:&BTreeMap<String,deadlock_project::customization::MotionTuning>,springs:&BTreeMap<String,[f64;3]>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,nodes:&mut Vec<PreviewNode>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
+fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tuning:&BTreeMap<String,deadlock_project::customization::MotionTuning>,springs:&BTreeMap<String,[f64;3]>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,still:&BTreeSet<String>,hero_sets:&[String],nodes:&mut Vec<PreviewNode>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
     let bind = surface::binds(d)?;
     let sk = &bind.skeleton;
     let state = transforms::bind_state(sk)?;
@@ -526,6 +607,10 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
     let body=parts.map(|_|body_points(d,groups,cancel)).transpose()?;
     for (ordinal,group) in groups.iter().enumerate() {
         cancel.check()?;
+        // A part set to stay still gets no proxy points: its bones follow the body.
+        if still.contains(&group.source_root) {
+            continue;
+        }
         let root = lookup[group.root.as_str()];
         let b = basis(root);
         let center = position(root);
@@ -642,7 +727,7 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
     let mut edited = Editable::new(d);
     surface::write_surface(&mut edited, &row, &s)?;
     let raw = surface::prune_proxy(edited, &BTreeSet::from([row.mesh]))?;
-    let raw=if parts.is_some(){crate::secondary_auto::write_maps(&raw,&part_maps)?}else{
+    let raw=if parts.is_some(){crate::secondary_auto::write_maps(&raw,&part_maps,hero_sets)?}else{
         motion::author_motion_maps_by_group(&raw, &profile("balanced")?, &ranges, cancel)?.0
     };
     Ok((raw, positions, dynamic))
