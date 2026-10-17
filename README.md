@@ -37,6 +37,7 @@ Built with **Tauri 2, Rust, React and TypeScript**. Blender runs in the backgrou
 - **Movement:** automatic secondary motion for hair, tails, ears, skirts, cloth, streamers and gun charms, optional breast and butt motion, rigid accessories, per-part-type **Fine-tune** sliders with saved presets, and a **Movement** preview that plays the hero's stand, run and jump with your moving parts swinging.
 - **Setup that checks itself:** every tool path is checked as you type with one-click fixes, **Test my setup** compiles a test material and probes the model compiler, and every error says what to do and where.
 - **Extras:** hero icons, ability images and sounds, with previews and drag-and-drop replacement.
+- **Installed mods after a game update:** Build & install lists every VPK in the game's addons folder and repairs hero models compiled before the game's October 16, 2026 attachment change in place, whichever tool made them, keeping the previous file as a backup.
 - **Themes:** Original, Violet D and Mint D, plus a customizer that builds a theme from three colors (color picker or hex) with a live preview and saves it as a preset.
 - **Trustworthy builds:** every stage is hash-verified, compiled with the official Source 2 toolset, validated against the installed game, packaged as a VPK and installed in place, with autosave and recovery, complete tool logs and step timings.
 

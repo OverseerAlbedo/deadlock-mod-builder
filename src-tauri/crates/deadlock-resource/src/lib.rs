@@ -2,6 +2,7 @@
 //! Binary serialization is validated independently of UI/JSON representation.
 #![forbid(unsafe_code)]
 
+pub mod attachments;
 pub mod binary;
 pub mod cloth;
 pub mod constraints;

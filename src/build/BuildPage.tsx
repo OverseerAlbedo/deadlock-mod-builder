@@ -10,6 +10,7 @@ import { PathValue } from '../components/Paths';
 import { revealSection } from '../components/workflowNavigation';
 import { MeshMapping } from './MeshMapping';
 import { changesSince, loadBuildRecord } from './changes';
+import { InstalledMods } from './InstalledMods';
 
 /** Whether the chosen slot is free: the folders are read again each time the slot
  * changes, the window comes back or the project is analyzed (`scan`). */
@@ -97,6 +98,7 @@ export function BuildPage({project,update,report,fresh,prepared,original,busy,in
       <details className="technical"><summary>Replace existing output</summary><Check label="Replace an existing output VPK for this project and slot" value={overwriteOutput} onChange={setOverwriteOutput} disabled={busy}/><Check label="Replace an existing installed VPK at the selected slot" value={overwriteInstall} onChange={setOverwriteInstall} disabled={busy}/></details>
     </Disclosure>
     </Disclosure>
+    <InstalledMods busy={busy}/>
     {expert&&<Disclosure title="Developer / compiler tools" hint="Source preparation, compiler tests and existing VPK installation">
       <Section title="Compiler preparation" actions={<button disabled={busy||!modelReport||!fresh||modelReport.needs_review||Boolean(modelReport.vertex_preflight.errors.length)} onClick={()=>prepare(offline)}>Prepare source files</button>}><Check label="Prepare offline source workspace" value={offline} onChange={setOffline} disabled={busy}/><p className="hint">Preparation writes compiler sources without compiling, packaging or installing.</p>{prepared&&<dl className="summary-list"><dt>Content</dt><dd><PathValue path={prepared.content}/></dd><dt>Compiled output directory</dt><dd><PathValue path={prepared.game}/></dd><dt>Model</dt><dd><PathValue path={prepared.model}/></dd><dt>Generated materials</dt><dd>{prepared.generated_materials.length}</dd></dl>}</Section>
       <Section title="Original model test" actions={<div className="row"><button disabled={busy||!project.original_model} onClick={()=>validateOriginal(false)}>Inspect compiler plan</button><button disabled={busy||!project.original_model} onClick={()=>validateOriginal(true)}>Compile original test</button></div>}><p className="hint">Test the original character with the selected toolchain. The result is not packaged or installed.</p>{original&&<><p className="status">{original.compiled?'Original test compiled':'Original compiler plan inspected'}</p>{original.compiled_model&&<PathValue path={original.compiled_model}/>}<details className="technical"><summary>Original test receipt</summary><pre>{JSON.stringify(original,null,2)}</pre></details></>}</Section>

@@ -60,3 +60,12 @@ Use **Logs** to save complete application/tool output and **Step timings** to se
 Extract all files before launching. Keep `native/cloth-reader`, `physics-references`, and `licenses` beside the EXE. Install WebView2 Runtime if absent. The ZIP version still saves settings and workspaces in the Windows user profile.
 
 For a CI failure, download `DeadlockModBuilder-Windows-validation` from that run and inspect the first failed command. The workflow tests/builds only; it has no release-publishing permission.
+
+## The camera is sideways or too low with a model mod (game update of October 16, 2026)
+
+The October 16, 2026 game update changed how attachments parented to the `root_motion` bone are stored in compiled models: the bone's rotation is no longer baked into them. The game's own hero models were recompiled; a mod compiled before that date still carries the old values, so its camera pivots (`standing_pivot`, `crouching_pivot`) and a few other root attachments are rotated by 90 degrees in a match. Every hero-model VPK built before the update is affected, whichever tool made it; VPKs that only replace materials, sounds or icons are not.
+
+Two ways to fix it:
+
+- **Build & install → Installed mods → Check installed mods** lists every VPK in the game's addons folder with its state. **Update** rewrites the affected hero models in place (the attachments take the game's current values; custom attachments on the root bone are converted by the same rule) and keeps the previous file as a backup. This works for any single-file VPK, including mods made elsewhere.
+- **Rebuild** the project: a build always decompiles the current game model and, since this version, takes the attachments from the game's compiled model regardless of the decompiler.

@@ -5,6 +5,7 @@ pub mod compilation;
 pub mod motion;
 pub mod secondary_motion;
 pub mod motion_preview;
+pub mod mod_update;
 pub mod package;
 pub mod sources;
 pub mod storage;

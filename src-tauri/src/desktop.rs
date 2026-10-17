@@ -93,6 +93,17 @@ pub struct Capabilities {
     /// The included Vindicta cloth reference (a private asset copied in by scripts/sync-private-assets.mjs).
     pub vindicta_reference: bool,
 }
+/// Installed mods after the game's October 16, 2026 attachment change (Build & install → Installed mods).
+#[tauri::command]
+async fn scan_installed_mods(state: AppState<'_>) -> Result<Vec<deadlock_pipeline::mod_update::InstalledMod>> {
+    let app = state.inner().clone();
+    background(move || app.installed_mods()).await
+}
+#[tauri::command]
+async fn update_installed_mods(state: AppState<'_>, paths: Vec<PathBuf>) -> Result<Vec<deadlock_pipeline::mod_update::UpdateReport>> {
+    let app = state.inner().clone();
+    background(move || app.update_installed_mods(paths)).await
+}
 #[tauri::command]
 fn get_capabilities(state: AppState<'_>) -> Capabilities {
     Capabilities { tangtang_presets: deadlock_pipeline::TANGTANG_PRESETS, vindicta_reference: state.included_reference_available() }
@@ -400,6 +411,8 @@ pub fn run() {
             detect_settings,
             get_setup_status,
             get_capabilities,
+            scan_installed_mods,
+            update_installed_mods,
             check_setting_fields,
             hero_proportions,
             prebuild_warnings,

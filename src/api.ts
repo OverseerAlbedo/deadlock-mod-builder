@@ -3,7 +3,7 @@ import type { ExtraPreviewRequest } from './extras/models';
 import type { PreparationAnalysis, PreparationOptions, PreparationResult, ResumedPreparation, ReviewIssue, Suggestions, Vec3, WeaponPreview } from './preparation/models';
 import type { BuildResponse, InspectionResult, OriginalValidation, PrepareResult } from './build/models';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Capabilities, ThemePreset, AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
+import type { Capabilities, InstalledMod, ModUpdateReport, ThemePreset, AnalysisResult, Autosave, ErrorHelp, FieldCheck, HeroRecord, LogEntry, PathKind, PhysicsChoices, PhysicsPreset, Project, ProjectDocument, Settings, SessionRecovery, SetupStatus, SetupTest, StorageClearRequest, StorageClearResult, StorageReport, TimingReport } from './models';
 
 export const isDesktop = () => isTauri();
 export interface ToolLogFile {path:string;bytes:number;kind:string}
@@ -50,6 +50,10 @@ export const api = {
   setupStatus: (settings: Settings) => invoke<SetupStatus>('get_setup_status', { settings }),
   /** What this build includes; the Physics page hides the TangTang presets when they are not compiled in. */
   capabilities: () => invoke<Capabilities>('get_capabilities'),
+  /** Every VPK in the game's addons folder with the state of its hero models (game update of October 16, 2026). */
+  scanInstalledMods: () => invoke<InstalledMod[]>('scan_installed_mods'),
+  /** Rewrite the hero models of these installed VPKs to the game's current attachment convention (backups kept). */
+  updateInstalledMods: (paths: string[]) => invoke<ModUpdateReport[]>('update_installed_mods', { paths }),
   checkSettingFields: (settings: Settings) => invoke<FieldCheck[]>('check_setting_fields', { settings }),
   heroProportions: (path: string) => invoke<HeroProportions | null>('hero_proportions', { path }),
   prebuildWarnings: () => invoke<string[]>('prebuild_warnings'),

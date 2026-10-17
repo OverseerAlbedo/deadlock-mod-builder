@@ -36,7 +36,8 @@ GitHub repo `OverseerAlbedo/deadlock-mod-builder`, default branch `main`, recrea
 on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
-0.13.0-beta.5 (tag `v0.13.0-beta.5`, October 16, 2026, Violet) the latest; the
+0.13.0-beta.5 (Violet) and 0.13.0-beta.6 (tag `v0.13.0-beta.6`, October 16, 2026,
+installed-mods repair) followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -44,7 +45,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.5 (October 16, 2026)
+## State as of 0.13.0-beta.6 (October 16, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -79,6 +80,12 @@ released in the game on October 16, 2026 (game build 6790) and is playable in
 the app; Nurse Harrow follows on October 20. Hero playability now comes from the
 game's `m_eHeroDevelopmentState` (`GameTarget::PreRelease`); the roster's
 `playable: false` is only the fallback without game data.
+
+Beta 6 = beta 5 plus the repair for the game's October 16, 2026 attachment
+change: `deadlock_resource::attachments`, the build taking attachments from
+the game's compiled model, and Build & install → Installed mods
+(`mod_update.rs`) that rewrites installed VPKs in place. Not yet checked in a
+match.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -164,6 +171,15 @@ template check (`tests/cloth_bones.rs`).
   `cjk_readings.txt`); ASCII names must keep their old slug byte for byte
   (`scripts/test_readable_names.py`).
 - `.gitattributes` keeps fixture bytes exact; do not reformat fixture JSON.
+- Attachments of a compiled model live in every `MDAT` block (`m_attachments`).
+  Since the game's October 16, 2026 update, attachments on the root bone
+  (`root_motion`) are stored without the bone's rest rotation (new = rest
+  rotation × old; other bones unchanged). `deadlock_resource::attachments`
+  classifies a model against the game's current model (`Convention`) and
+  rewrites it; the build takes the game's attachments after compiling
+  (`build.rs`), and `deadlock_pipeline::mod_update` scans and repairs installed
+  VPKs in place (Build & install → Installed mods). Never bake attachment
+  values into fixtures from game models.
 - Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
   `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
   playable yet, else In game); `hero_roster.json` `playable: false` is only the

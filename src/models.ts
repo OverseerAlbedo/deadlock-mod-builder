@@ -104,6 +104,11 @@ export interface SetupTestStep { name: string; passed: boolean; detail: string; 
 export interface SetupTest { passed: boolean; steps: SetupTestStep[] }
 /** What this copy of the app was built with (backend get_capabilities). */
 export interface Capabilities { tangtang_presets: boolean; vindicta_reference: boolean }
+/** Installed mods after a game update (backend mod_update.rs): a VPK in the game's addons folder and its hero models. */
+export type AttachmentConvention = 'current' | 'previous' | 'unknown' | 'no_attachments';
+export interface ModModel { path: string; hero?: string | null; convention: AttachmentConvention }
+export interface InstalledMod { path: string; file: string; bytes: number; models: ModModel[]; status: 'up_to_date' | 'needs_update' | 'no_hero_model' | 'unknown' | 'cannot_update'; note: string }
+export interface ModUpdateReport { path: string; file: string; updated: string[]; converted: string[]; backup: string }
 export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean; fields?: FieldCheck[] }
 /** What went wrong and what to do (backend troubleshooting.rs). */
 export interface ErrorHelp { cause: string; steps: string[]; action?: { label: string; page: string } | null }

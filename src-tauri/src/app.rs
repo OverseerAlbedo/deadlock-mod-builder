@@ -684,6 +684,37 @@ impl Application {
     pub fn prebuild_warnings(&self) -> Result<Vec<String>> {
         Ok(deadlock_tools::setup_checks::prebuild_warnings(&self.settings()?))
     }
+    /// Every VPK in the game's addons folder with the state of its hero models
+    /// after the game's October 16, 2026 attachment change.
+    pub fn installed_mods(&self) -> Result<Vec<deadlock_pipeline::mod_update::InstalledMod>> {
+        self.operation("Check installed mods", |_, token| {
+            let settings = self.settings()?;
+            deadlock_pipeline::mod_update::scan(&settings, token).map_err(AppError::from)
+        })
+        .map(|(mods, _)| mods)
+    }
+    /// Rewrites the hero models of these installed VPKs to the game's current
+    /// attachment convention; the previous files are kept under the workspace.
+    pub fn update_installed_mods(&self, paths: Vec<PathBuf>) -> Result<Vec<deadlock_pipeline::mod_update::UpdateReport>> {
+        self.operation("Update installed mods", |_, token| {
+            let settings = self.settings()?;
+            let backups = deadlock_project::asset_paths::resolve(Path::new(&settings.workspace))
+                .map_err(|e| AppError::validation("Invalid workspace folder", e))?
+                .join("mod-updates")
+                .join("backups");
+            let log = |message: &str| {
+                let _ = self.append_log("info", message);
+            };
+            paths
+                .iter()
+                .map(|path| {
+                    deadlock_pipeline::mod_update::update(&settings, path, &backups, settings.keep_backups as usize, token, &log)
+                        .map_err(AppError::from)
+                })
+                .collect()
+        })
+        .map(|(reports, _)| reports)
+    }
     pub fn log_entries(&self) -> Vec<LogEntry> {
         lock(&self.log).entries.clone()
     }

@@ -203,6 +203,24 @@ impl BuildService<'_> {
             }
             if inspection.original.compiled_available || p.build_vpk {
                 let original = inspection.original.compiled_bytes(cancel)?;
+                // The game's compiled model is the authority for attachments (camera
+                // pivots, muzzles, holsters): since October 16, 2026 the game stores
+                // root-bone attachments without the bone's rotation, and a decompiler
+                // of any age may spell them differently. Taking the game's values makes
+                // the output independent of both (deadlock_resource::attachments).
+                let taken = clock.measure("Take attachments from the game's compiled model", None, |_| {
+                    let candidate = std::fs::read(&output).map_err(|e| CoreError::io("Read compiled model", e))?;
+                    match deadlock_resource::attachments::update(&original, &candidate, false).map_err(|e| invalid(e.to_string()))? {
+                        Some(update) => {
+                            safety::atomic_write(&output, &update.bytes)?;
+                            Ok(update.taken_from_game)
+                        }
+                        None => Ok(0),
+                    }
+                })?;
+                if taken > 0 {
+                    (self.model.log)(&format!("Attachments: {taken} taken from the game's compiled model (camera pivots follow the game's October 2026 convention)."));
+                }
                 let source = inspection.source_binding();
                 let directory = root.join("runtime-motion");
                 let (restored, _) = if inspection.secondary_motion.is_some() {
