@@ -1,19 +1,19 @@
 {
-  "parser": "ValveResourceFormat 20.0.6980",
+  "parser": "ValveResourceFormat 20.1.7467",
   "runtime": ".NET 10.0.12",
-  "sdk": "10.0.100",
+  "sdk": "10.0.400",
   "dependencies": [
     {
       "id": "ValveResourceFormat",
-      "version": "20.0.6980",
-      "nuget_content_sha512_base64": "MUP5FTJsnYhDdYJ8S10WW9vMriyzHxG7P2ArrXpJtmvSfg+K5oOb3Veuv29DJ5j9u+k3SlmDm5CGvvvJaLnZsw==",
+      "version": "20.1.7467",
+      "nuget_content_sha512_base64": "Im2dd2li+5jiY3hcwLMPm9W4Wu+rbC2J6oYTOWtjFVVM/evXqxpqdX3TlS7BbHSB8PBTk5cYIsOhn3dYptG5sg==",
       "authors": "ValveResourceFormat Contributors",
       "copyright": "Copyright \u00a9 ValveResourceFormat Contributors",
       "license": "MIT",
       "repository": {
         "type": "git",
         "url": "https://github.com/ValveResourceFormat/ValveResourceFormat",
-        "commit": "a06886f7d06049052d32a7381ec05523064a2ca0"
+        "commit": "9e2e6c7f67e3c4e5a5f443a60c3a5d841ba8f304"
       }
     },
     {

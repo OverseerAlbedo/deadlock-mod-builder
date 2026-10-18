@@ -40,12 +40,12 @@ pub fn identity(root: &Path, cancel: &CancellationToken) -> Result<ReaderIdentit
     // These hashes belong to the reviewed binaries shipped with this application.
     // A user-editable manifest alone is not an independent reader trust anchor.
     let executable = match identity.platform.as_str() {
-        "linux-x64" => "3562369cf144d7ed8abde22cf21f9fcbb6668eef0dbed3365bddee38ee8920b5",
-        "win-x64" => "454e7db9f0a142077813e0b147dbc18a402226ad69633d915b2e8682fbc81694",
+        "linux-x64" => "1ac94a27d8af7687005062eed93d4391d239e8a4938269cbfb9d2bb2b6960d8a",
+        "win-x64" => "9571f8fda09c4c108d35c29ad2d97c6e4a85ebf9ef691f5e5b9d6acf8227436a",
         _ => return Err(damaged("unreviewed platform")),
     };
     if identity.manifest_sha256
-        != "7dc6e6ee9124aa0aa089de076ab8a097773e6df05977d24779d5e2f8783fcaed"
+        != "01be9567aeb5dcddf58505563269024695b20a41097240267a59b2524bcce938"
         || identity.executable_sha256 != executable
     {
         return Err(damaged(

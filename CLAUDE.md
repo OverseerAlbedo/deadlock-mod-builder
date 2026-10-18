@@ -259,6 +259,21 @@ template check (`tests/cloth_bones.rs`).
 - The manual download guide exists twice and must say the same steps: plain
   text in `manual_setup.rs guide` (instructions.txt) and the page
   `src/setup/ManualGuide.tsx`.
+- Kept source bones (custom bones next to the hero's restored cloth, Preserve
+  original physics) get the same animation-rest reconciliation as generated
+  bones before any source-binding check (`restore.rs kept_binds` →
+  `bind_repair::prepare_kept`, run before the alias repair); the compiler
+  rounds their DATA locals down long chains. Never widen the transfer
+  budgets instead. `tests/kept_bones.rs` (`DMB_KEPT_BONES`) and
+  `examples/bone_drift.rs` in deadlock-cloth-authoring measure it.
+- The full-precision cloth reader (`tools/cloth-reader`, bundled in
+  `resources/native/cloth-reader`) is a second, independent KV3 parser
+  (ValveResourceFormat). When Valve adds KV3 types, the Rust decoder
+  (`deadlock-resource binary.rs`) and the reader both need them; rebuild the
+  reader per its README and run `tests/motion.rs
+  current_game_models_pass_the_independent_reader` with `DMB_GAME_MODELS` set
+  to extracted hero models. Builds that keep the hero's own cloth are the ones
+  that feed it Valve-compiled data.
 - Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
   `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
   playable yet, else In game); `hero_roster.json` `playable: false` is only the

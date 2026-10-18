@@ -38,7 +38,8 @@ export const AUTOSAVE_MS = 3 * 60 * 1000;
 const forgetAutosaves = (id: string) => { void Promise.resolve().then(() => api.clearAutosaves(id)).catch(() => undefined); };
 const GUIDE_SEEN = 'dmb.setupGuideSeen', GUIDE_SHOWN = 'dmb.setupGuideShownThisSession', GUIDE_DONE = 'dmb.setupGuideDone', UI_MODE = 'dmb.uiMode';
 /** Pages only Expert mode lists in the sidebar. */
-const EXPERT_PAGES: Page[] = ['motion', 'extras', 'timings'];
+// Extras (icons, sounds, colors) stays in both modes; Motion and timings are Expert only.
+const EXPERT_PAGES: Page[] = ['motion', 'timings'];
 /** Paths a build cannot do without; a problem in one of them opens the setup guide. */
 const REQUIRED_FIELDS = ['workspace', 'deadlock', 'pak', 'source2viewer', 'resourcecompiler', 'csdk', 'cswin'];
 /** "about 2 minutes left" from earlier runs of the same operation. */

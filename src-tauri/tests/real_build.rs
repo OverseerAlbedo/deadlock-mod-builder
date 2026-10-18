@@ -1,13 +1,15 @@
 //! A real project built end to end into a separate workspace (run with
 //! --ignored): DMB_SETTINGS is the app's settings.json, DMB_PROJECT a saved
 //! project, DMB_BUILD_WORKSPACE an empty folder. The copy gets its own project
-//! ID and compiles only: no VPK, nothing installed.
+//! ID and compiles only: no VPK, nothing installed. DMB_BUILD_STATE (optional)
+//! keeps the app's state folder (timing reports, tool logs) for inspection.
 #[test]
 #[ignore = "needs the real tools, game and a prepared project"]
 fn a_real_project_compiles_with_the_current_game_files() {
     let (Ok(settings), Ok(project), Ok(workspace)) = (std::env::var("DMB_SETTINGS"), std::env::var("DMB_PROJECT"), std::env::var("DMB_BUILD_WORKSPACE")) else { return };
     let temp = tempfile::tempdir().unwrap();
-    let app = deadlock_desktop::app::Application::new(temp.path().join("state")).unwrap();
+    let state = std::env::var_os("DMB_BUILD_STATE").map_or_else(|| temp.path().join("state"), std::path::PathBuf::from);
+    let app = deadlock_desktop::app::Application::new(state).unwrap();
     let mut settings: deadlock_project::Settings = serde_json::from_str(&std::fs::read_to_string(settings).unwrap()).unwrap();
     settings.workspace = workspace;
     app.save_settings(&settings).unwrap();

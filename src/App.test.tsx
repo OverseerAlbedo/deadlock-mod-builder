@@ -384,16 +384,18 @@ describe('Phase 1 helpers in the app', () => {
 });
 
 describe('Simple and Expert interface', () => {
-  it('starts Simple with the five steps only, and the top bar switches to Expert', async () => {
+  it('starts Simple with the five steps and Extras, and the top bar switches to Expert', async () => {
     localStorage.removeItem('dmb.uiMode');
     render(<App/>);await screen.findByLabelText('Project name');
-    for (const name of ['Motion','Extras','Step timings']) expect(screen.queryByRole('button',{name})).not.toBeInTheDocument();
-    // A sidebar section with nothing to show in Simple has no heading either.
-    expect(screen.queryByText('More customization')).not.toBeInTheDocument();
+    for (const name of ['Motion','Step timings']) expect(screen.queryByRole('button',{name})).not.toBeInTheDocument();
+    // Extras (and its section) stays in Simple; Motion is Expert only.
+    expect(screen.getByRole('button',{name:'Extras'})).toBeInTheDocument();
+    expect(screen.getByText('More customization')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:'Settings'}));
     expect(screen.queryByText('Tool diagnostics',{selector:'summary span'})).not.toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('radiogroup',{name:'Interface mode'})).getByRole('radio',{name:'Expert'}));
     expect(screen.getByRole('button',{name:'Extras'})).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Motion'})).toBeInTheDocument();
     expect(screen.getByText('More customization')).toBeInTheDocument();
     expect(screen.getByText('Tool diagnostics',{selector:'summary span'})).toBeInTheDocument();
     expect(localStorage.getItem('dmb.uiMode')).toBe('expert');

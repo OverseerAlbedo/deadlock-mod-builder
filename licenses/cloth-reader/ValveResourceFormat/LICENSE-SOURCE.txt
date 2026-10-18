@@ -1,1 +1,1 @@
-https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/a06886f7d06049052d32a7381ec05523064a2ca0/LICENSE
+https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/9e2e6c7f67e3c4e5a5f443a60c3a5d841ba8f304/LICENSE

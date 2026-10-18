@@ -365,3 +365,31 @@ fn selection_requires_matching_hero_and_replacement_model() {
     project.customization.enabled = Some(false);
     assert!(selection(&project).unwrap().is_none());
 }
+/// Current game models through the whole independent check (bundled reader plus
+/// typed comparison). Game models are Valve's and never fixtures: set
+/// DMB_GAME_MODELS to a folder of extracted hero .vmdl_c files to run it. Since
+/// the October 16, 2026 game update their PHYS and DATA hold KV3 types 26/27
+/// (UINT32_ZERO/ONE), which reader 1.0.1 (ValveResourceFormat 20.0) rejected
+/// whenever a build kept the hero's own cloth (issue #3, Silver).
+#[test]
+fn current_game_models_pass_the_independent_reader() {
+    let Some(folder) = std::env::var_os("DMB_GAME_MODELS") else { return };
+    let models: Vec<PathBuf> = fs::read_dir(&folder)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "vmdl_c"))
+        .collect();
+    assert!(!models.is_empty(), "no .vmdl_c in DMB_GAME_MODELS");
+    for model in models {
+        let temp = tempfile::tempdir().unwrap();
+        let token = CancellationToken::new();
+        let clock = TimingRecorder::new("game-model-reader");
+        let runner = ObservedRunner::new(&temp.path().join("logs"), token.clone());
+        let reader = reader();
+        let directory = temp.path().join("motion");
+        let service = MotionService { directory: &directory, reader_root: &reader, runner: &runner, cancel: &token, clock: &clock, log: &|_| {} };
+        let audit = service.independent(&fs::read(&model).unwrap());
+        assert!(audit.is_ok(), "{}: {:?}", model.display(), audit.err());
+        assert_eq!(runner.calls.load(Ordering::SeqCst), 2, "{}", model.display());
+    }
+}

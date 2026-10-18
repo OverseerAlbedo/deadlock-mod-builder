@@ -19,7 +19,7 @@ internal static class Program
         {
             if (args.Length == 1 && args[0] == "--version")
             {
-                Console.WriteLine("Dmb.ClothReader 1.0.1; ValveResourceFormat 20.0.6980; round-trip-v1");
+                Console.WriteLine("Dmb.ClothReader 1.0.2; ValveResourceFormat 20.1.7467; round-trip-v1");
                 return 0;
             }
             if (args.Length != 4 || args[0] != "-i" || args[2] != "-b"

@@ -10,9 +10,9 @@
       },
       "ValveResourceFormat": {
         "type": "Direct",
-        "requested": "[20.0.6980, 20.0.6980]",
-        "resolved": "20.0.6980",
-        "contentHash": "MUP5FTJsnYhDdYJ8S10WW9vMriyzHxG7P2ArrXpJtmvSfg+K5oOb3Veuv29DJ5j9u+k3SlmDm5CGvvvJaLnZsw==",
+        "requested": "[20.1.7467, 20.1.7467]",
+        "resolved": "20.1.7467",
+        "contentHash": "Im2dd2li+5jiY3hcwLMPm9W4Wu+rbC2J6oYTOWtjFVVM/evXqxpqdX3TlS7BbHSB8PBTk5cYIsOhn3dYptG5sg==",
         "dependencies": {
           "K4os.Compression.LZ4": "1.3.8",
           "KeyValues2": "0.8.0",

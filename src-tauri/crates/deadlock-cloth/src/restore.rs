@@ -71,6 +71,37 @@ pub struct RestorationReceipt {
     pub data_changed_only_motion_flags_and_authorized_names: bool,
     pub in_game_motion_tested: bool,
     pub independent_reader_validation_required: bool,
+    /// Kept source bones whose rounded model-skeleton locals were replaced by
+    /// the compiler's own animation rest values before checking them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kept_bind_repair: Option<crate::generated::bind_repair::Proof>,
+}
+/// Preserve original physics with kept source bones (hair, tails kept by
+/// preparation but not simulated): the compiler rounds their model-skeleton
+/// locals more the further down a chain they are, past the source binding
+/// limits, while its animation rest table keeps the source values. They get
+/// the same reconciliation as generated bones (`bind_repair`), with no wider
+/// tolerances. Unchanged when the bones already match or the reconciliation
+/// cannot be proven; the usual check then reports as before.
+fn kept_binds(
+    original: &[u8],
+    canonical: &[u8],
+    expected: &RuntimeAudit,
+    source: &SourceBinding,
+) -> Result<(Vec<u8>, Option<crate::generated::bind_repair::Proof>)> {
+    let actual = audit_resource(canonical)?;
+    if !needs_extension(expected, &actual)
+        || deadlock_skeleton::extensions::source_binding(&actual.skeleton, &expected.skeleton, source, &hash(original)).is_ok()
+    {
+        return Ok((canonical.to_vec(), None));
+    }
+    match crate::generated::bind_repair::prepare_kept(original, canonical, source) {
+        Ok((output, proof)) if !proof.corrected_bones.is_empty() => {
+            unchanged_blocks(canonical, &output, &["DATA"])?;
+            Ok((output, Some(proof)))
+        }
+        _ => Ok((canonical.to_vec(), None)),
+    }
 }
 pub fn restore(
     original: &[u8],
@@ -80,10 +111,15 @@ pub fn restore(
     // Resources with no cloth (including no PHYS block) need no restoration.
     // Audit external dependencies before allowing the no-op path.
     let expected = audit_resource(original)?;
+    // Before the alias repair, which checks the kept bones against the source.
+    let (reconciled, kept_bind_repair) = match source {
+        Some(source) => kept_binds(original, candidate, &expected, source)?,
+        None => (candidate.to_vec(), None),
+    };
     let (canonical, names) = if expected.cloth_nodes == 0 && source.is_none() {
-        (candidate.to_vec(), None)
+        (reconciled, None)
     } else {
-        aliases::repair_aliases_with_source(original, candidate, true, source)?
+        aliases::repair_aliases_with_source(original, &reconciled, true, source)?
     };
     let actual = audit_resource(&canonical)?;
     let mut receipt = RestorationReceipt {
@@ -107,6 +143,7 @@ pub fn restore(
         data_changed_only_motion_flags_and_authorized_names: false,
         in_game_motion_tested: false,
         independent_reader_validation_required: true,
+        kept_bind_repair,
     };
     if expected.cloth_nodes == 0 {
         return Ok((canonical, receipt));
@@ -136,6 +173,8 @@ pub fn restore(
             receipt.data_changed_only_motion_flags_and_authorized_names = true;
             receipt.unchanged_blocks =
                 unchanged_blocks(candidate, &canonical, &["DATA", "MDAT", "AGRP"])?;
+        } else if receipt.kept_bind_repair.is_some() {
+            receipt.unchanged_blocks = unchanged_blocks(candidate, &canonical, &["DATA"])?;
         }
         return Ok((canonical, receipt));
     }
@@ -194,7 +233,8 @@ pub fn restore(
     receipt.control_names = expected.controls;
     receipt.control_bindings = Some(expected.control_bindings);
     receipt.physics_payload_exact_original = true;
-    receipt.data_changed_only_cloth_procedural_flags = receipt.bone_name_restoration.is_none();
+    receipt.data_changed_only_cloth_procedural_flags =
+        receipt.bone_name_restoration.is_none() && receipt.kept_bind_repair.is_none();
     receipt.data_changed_only_motion_flags_and_authorized_names =
         receipt.bone_name_restoration.is_some();
     if receipt.bone_name_restoration.is_some() {

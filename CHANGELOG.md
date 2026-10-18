@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Extras (and the More customization section) now shows in Simple mode too; only Motion and Step timings stay Expert-only.
+- Fix (issue #3): builds that keep the hero's own cloth (moving parts off, or nothing for automatic movement to replace) stopped at "Validate compiled runtime motion" with "Unknown KVType for variable 'datatype': 26 (0x1A)". Since the game's October 16, 2026 update, Valve's models store two new KV3 value types (26 and 27, unsigned 32-bit zero and one) that the bundled full-precision cloth reader did not know. The reader (1.0.2) now uses ValveResourceFormat 20.1.7467, which reads them; its output for models without the new types is byte for byte the same as before. Reported on Silver; Haze, Violet and every other hero were affected the same way.
+- Fix (issue #3, second error): a model prepared with its moving-part bones kept (Keep existing physics bones) and built with Preserve original physics stopped with "Bind transform outside original-physics transfer budget" or "Compiled skeleton bind transform changed" on a hair or tail bone. Valve's compiler stores those bones with rounding that grows down long chains (on SiViolet, a scale of 1.000126 eight joints down a hair chain, 0.01 inch at a tail tip) while its animation rest table keeps the exact values. Preserve builds now take those rest values for the kept bones, as automatic movement already did, before checking them with the same strict limits. Automatic movement builds are unchanged.
+
 ## 0.13.0-beta.10 — 2026-10-18
 
 - Fix (issue #2): with Steam mobile QR sign-in, the QR code now appears on screen as soon as Steam asks for it, renews when Steam renews it and closes when the sign-in is done. Before, the code was only in Logs, where nothing told you to look, and it was unreadable there (its block characters came out as replacement characters), so the sign-in timed out with "Failed to authenticate with Steam".

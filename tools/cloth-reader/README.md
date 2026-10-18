@@ -38,8 +38,8 @@ run `node scripts/check-repository.mjs` and
 supported test hosts, including Windows. Do not loosen trust checks to accept
 an unqualified binary. Ordinary source builds use the supplied qualified reader.
 
-Reader protocol/version: `round-trip-v1` / `1.0.1`. Parser package:
-`ValveResourceFormat 20.0.6980`, commit
-`a06886f7d06049052d32a7381ec05523064a2ca0`. Runtime: `.NET 10.0.12`.
+Reader protocol/version: `round-trip-v1` / `1.0.2`. Parser package:
+`ValveResourceFormat 20.1.7467`, commit
+`9e2e6c7f67e3c4e5a5f443a60c3a5d841ba8f304`. Runtime: `.NET 10.0.12`.
 Sources and notices: `licenses/cloth-reader/DEPENDENCIES.json` and adjacent files.
 Windows cross-publication is not evidence of Windows execution or gameplay.

@@ -6,7 +6,7 @@ $exe = Join-Path $Portable 'deadlock-mod-builder.exe'
 $reader = Join-Path $Portable 'native/cloth-reader/win-x64/Dmb.ClothReader.exe'
 $readerVersion = & $reader --version
 if ($LASTEXITCODE -ne 0) { throw "Bundled cloth reader failed to start (exit $LASTEXITCODE)." }
-if ($readerVersion -notmatch '1\.0\.1') { throw "Unexpected cloth reader version: $readerVersion" }
+if ($readerVersion -notmatch '1\.0\.2') { throw "Unexpected cloth reader version: $readerVersion" }
 $process = $null
 try {
     # Launch the copied package, not the executable inside Cargo's build tree.
