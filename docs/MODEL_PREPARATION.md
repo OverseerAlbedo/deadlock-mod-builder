@@ -946,9 +946,10 @@ DATA is decoded, existing `m_vectorParams` values change (the tint
 `g_vColorTint1` is replaced; `g_vAlbedoContrastSaturationBrightness1` y and z are
 multiplied by the saturation and brightness factors), DATA is encoded again
 (`deadlock_resource::binary::encode`, KV3 v1) and the resource is rebuilt with
-every other block byte exact (`container::rebuild`). Only `pbr.vfx` is accepted,
-and a parameter the material lacks is refused, never added. The package holds
-just the recolored `.vmat_c` files; their textures stay the game's. The receipt
+every other block byte exact (`container::rebuild`; color ranges also rewrite the
+reference table, below). Only `pbr.vfx` is accepted, and a parameter the material
+lacks is refused, never added. Without color ranges the package holds just the
+recolored `.vmat_c` files and their textures stay the game's. The receipt
 (`ComponentReceipt.materials`) records each original hash and its output, and
 snapshot and install checks recolor the current game material again and compare
 bytes.

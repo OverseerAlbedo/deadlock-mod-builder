@@ -4,8 +4,9 @@
 //! brightness factors of its albedo adjustment
 //! (`g_vAlbedoContrastSaturationBrightness1`, x contrast, y saturation, z
 //! brightness). The DATA block is decoded, edited and encoded again; every other
-//! block keeps its exact bytes, so the textures, shader and references stay the
-//! game's own and the package holds only the material at its game path.
+//! block keeps its exact bytes (color ranges, below, also rewrite the reference
+//! table), so the shader stays the game's own and, without ranges, so do the
+//! textures and references, and the package holds only the material at its game path.
 //! Roughness, metalness, opacity and emission are baked into textures or need
 //! shader options these materials do not have, so they are not offered.
 //!

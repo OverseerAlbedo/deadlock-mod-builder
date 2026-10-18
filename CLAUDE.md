@@ -277,8 +277,8 @@ template check (`tests/cloth_bones.rs`).
 - Hero colors (Extras → Colors, `Customization.hero_materials`,
   `deadlock-components materials.rs`) edit the hero's own compiled `.vmat_c` in
   place: only existing `m_vectorParams` values (`g_vColorTint1`, and y/z of
-  `g_vAlbedoContrastSaturationBrightness1`), `pbr.vfx` only, every non-DATA block
-  byte exact. Never add a parameter or decompile/recompile game materials. They
+  `g_vAlbedoContrastSaturationBrightness1`), `pbr.vfx` only, every block other
+  than DATA (and RERL when color ranges move `g_tColor`) byte exact. Never add a parameter or decompile/recompile game materials. They
   are refused with a replacement model (a separate mode); the asset-only package
   check counts `.vmat_c` as extras only then (`build.rs component_path`).
 - Hero color ranges (`HeroMaterial.ranges`) recolor a copy of the game's BC7
