@@ -1,11 +1,12 @@
-import { useState } from "react";
-import type { HeroMaterial, Project } from "../models";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import type { HeroColorRange, HeroMaterial, Project } from "../models";
 import type { ComponentCatalog, HeroMaterialEntry } from "../components/AssetCatalog";
 import { ColorField } from "../components/MaterialEditor";
 import { changeCustomization } from "../components/customization";
 import { modelEnabled } from "../build/readiness";
 import { ExtraIcon } from "./Icons";
 import { useExtraMedia } from "./media";
+import { RANGE_DEFAULTS, rangeAround, recolorPixels, recolorTexel, rgb, withDefaults, type ColorRange } from "./heroColorRanges";
 
 type Rgb = [number, number, number];
 /** A hero material from the catalog with its saved color, if any. */
@@ -58,28 +59,105 @@ function Slider({ label, value, update, disabled }: { label: string; value: numb
     </label>
   );
 }
-function MaterialPreview({ hero, item, revision }: { hero: string; item: HeroColorItem; revision: number }) {
+/** The enabled ranges of a saved color, with defaults for unset values. */
+export function activeRanges(row?: HeroMaterial): ColorRange[] {
+  return (row?.ranges ?? []).filter((range) => range.enabled !== false).map(withDefaults);
+}
+/** The image pixel under a click on an `object-fit: cover` element, or null outside the image. */
+export function coverPixel(box: { left: number; top: number; width: number; height: number }, x: number, y: number, width: number, height: number) {
+  const scale = Math.max(box.width / width, box.height / height);
+  const px = Math.floor((x - box.left - (box.width - width * scale) / 2) / scale);
+  const py = Math.floor((y - box.top - (box.height - height * scale) / 2) / scale);
+  return px >= 0 && py >= 0 && px < width && py < height ? { x: px, y: py } : null;
+}
+/** The preview image's pixels for the range preview and the color picker; null
+ * until loaded or without a 2D canvas. */
+function usePixels(url: string) {
+  const [pixels, setPixels] = useState<ImageData | null>(null);
+  useEffect(() => {
+    setPixels(null);
+    if (!url || typeof Image === "undefined") return;
+    let live = true;
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.width ? canvas.getContext("2d", { willReadFrequently: true }) : null;
+      if (!live || !context) return;
+      context.drawImage(image, 0, 0);
+      setPixels(context.getImageData(0, 0, canvas.width, canvas.height));
+    };
+    image.src = url;
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return pixels;
+}
+/** The base color with the ranges applied (or their selection), drawn with the build's own function. */
+function RecoloredCanvas({ pixels, ranges, mask, label }: { pixels: ImageData; ranges: ColorRange[]; mask: boolean; label: string }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const key = JSON.stringify(ranges);
+  useEffect(() => {
+    const context = canvas.current?.getContext("2d");
+    if (!canvas.current || !context) return;
+    canvas.current.width = pixels.width;
+    canvas.current.height = pixels.height;
+    const copy = new ImageData(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height);
+    recolorPixels(ranges, copy.data, mask);
+    context.putImageData(copy, 0, 0);
+  }, [pixels, key, mask]);
+  return <canvas ref={canvas} role="img" aria-label={label} />;
+}
+function MaterialPreview({ item, url, loading, error, mask, picking, pick }: {
+  item: HeroColorItem; url: string; loading: boolean; error: string; mask: boolean; picking: boolean;
+  pick: (color: [number, number, number]) => void;
+}) {
   const { entry, row } = item;
-  const { url, loading, error } = useExtraMedia(
-    entry.color_texture && !item.missing ? { hero_path: hero, target: entry.target, kind: "materials", max_dimension: 512 } : null,
-    `${entry.original_sha256}:${revision}`,
-  );
+  const ranges = activeRanges(row);
+  const pixels = usePixels(url);
   const tint = row?.color ?? entry.tint ?? [1, 1, 1];
+  function choose(event: MouseEvent<HTMLElement>) {
+    if (!picking || !pixels) return;
+    const spot = coverPixel(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY, pixels.width, pixels.height);
+    if (!spot) return;
+    const at = (spot.y * pixels.width + spot.x) * 4;
+    pick([pixels.data[at], pixels.data[at + 1], pixels.data[at + 2]]);
+  }
   return (
     <div className="extra-comparison">
-      {[["Game", undefined], ["Your colors", row]].map(([label, shown]) => (
-        <section key={label as string}>
-          <div className="extra-preview-label"><span>{label as string}</span>{shown ? <small>Approximate</small> : null}</div>
-          <div className="extra-media hero-color-media">
-            <div className="hero-color-stage" style={{ filter: heroColorFilter(entry, shown as HeroMaterial | undefined) }}>
-              {url ? <img src={url} alt={`${entry.label} base color`} /> : <div className="hero-color-blank" />}
-              <span className="hero-color-tint" style={{ background: css((shown ? tint : entry.tint ?? [1, 1, 1]) as Rgb) }} />
+      {[["Game", undefined], ["Your colors", row]].map(([label, shown]) => {
+        const game = label === "Game";
+        // The selection shows the ranges alone; colors add the tint and albedo approximation.
+        const recolored = !game && pixels && (mask || ranges.length > 0);
+        return (
+          <section key={label as string}>
+            <div className="extra-preview-label">
+              <span>{label as string}</span>
+              {!game && mask ? <small>Selection</small> : shown ? <small>Approximate</small> : null}
             </div>
-            {loading && <span className="extra-spinner" role="status" aria-label="Loading preview" />}
-            {error && <small className="extra-thumbnail-error">Preview unavailable</small>}
-          </div>
-        </section>
-      ))}
+            <div className="extra-media hero-color-media">
+              <div
+                className={`hero-color-stage ${game && picking ? "picking" : ""}`}
+                style={{ filter: mask && !game ? undefined : heroColorFilter(entry, shown as HeroMaterial | undefined) }}
+                onClick={game ? choose : undefined}
+              >
+                {recolored ? (
+                  <RecoloredCanvas pixels={pixels} ranges={ranges} mask={mask} label={`${entry.label} ${mask ? "color range selection" : "base color with your colors"}`} />
+                ) : url ? (
+                  <img src={url} alt={`${entry.label} base color`} />
+                ) : (
+                  <div className="hero-color-blank" />
+                )}
+                {!(mask && !game) && <span className="hero-color-tint" style={{ background: css((shown ? tint : entry.tint ?? [1, 1, 1]) as Rgb) }} />}
+              </div>
+              {loading && <span className="extra-spinner" role="status" aria-label="Loading preview" />}
+              {error && <small className="extra-thumbnail-error">Preview unavailable</small>}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -119,8 +197,9 @@ export function HeroColors({
     const base: HeroMaterial = item.row ?? { enabled: true, target: item.entry.target, original_sha256: item.entry.original_sha256, allow_shared: false };
     const next: HeroMaterial = { ...base, ...changes };
     removed.forEach((key) => delete next[key]);
-    // A color that changes nothing is not kept (the build would refuse it).
-    const empty = !next.color && (next.saturation ?? 1) === 1 && (next.brightness ?? 1) === 1;
+    // A color that changes nothing is not kept (the build would refuse it);
+    // color ranges keep it while they are being set up.
+    const empty = !next.color && (next.saturation ?? 1) === 1 && (next.brightness ?? 1) === 1 && !next.ranges?.length;
     if (item.index >= 0)
       setRows(empty ? rows.filter((_, index) => index !== item.index) : rows.map((row, index) => (index === item.index ? next : row)), !empty);
     else if (!empty && rows.length < 64 && item.entry.supported) setRows([...rows, next]);
@@ -202,7 +281,7 @@ export function HeroColors({
             <div className="extra-editor-empty">
               <span className="extras-eyebrow">HERO COLORS</span>
               <h2>Choose a material</h2>
-              <p>Pick one of the hero's materials to change its tint, saturation or brightness. For black clothes, set the tint to black or the brightness to 0%.</p>
+              <p>Pick one of the hero's materials to change its tint, saturation or brightness. For black clothes, set the tint to black or the brightness to 0%. To change only some of its colors, add a color range.</p>
               <ul>
                 <li><ExtraIcon name="check" size={16} />The game's textures and model stay unchanged</li>
                 <li><ExtraIcon name="check" size={16} />Only the changed materials go into the mod</li>
@@ -222,6 +301,20 @@ function HeroColorEditor({ item, hero, revision, disabled, full, edit, remove }:
 }) {
   const { entry, row } = item;
   const editable = entry.supported && !item.missing && (Boolean(row) || !full);
+  const { url, loading, error, media } = useExtraMedia(
+    entry.color_texture && !item.missing ? { hero_path: hero, target: entry.target, kind: "materials", max_dimension: 512 } : null,
+    `${entry.original_sha256}:${revision}`,
+  );
+  const [mask, setMask] = useState(false), [picking, setPicking] = useState<number | null>(null);
+  const ranges = row?.ranges ?? [];
+  const unsupported = typeof media?.details.ranges_unsupported === "string" ? media.details.ranges_unsupported : "";
+  const setRanges = (next: HeroColorRange[]) => edit(next.length ? { ranges: next } : {}, next.length ? [] : ["ranges"]);
+  function pick(color: [number, number, number]) {
+    if (picking === null) return;
+    const current = ranges[picking];
+    if (current) setRanges(ranges.map((range, i) => (i === picking ? (rangeAround(color, range) as HeroColorRange) : range)));
+    setPicking(null);
+  }
   return (
     <>
       <header className="extra-inspector-heading">
@@ -231,7 +324,7 @@ function HeroColorEditor({ item, hero, revision, disabled, full, edit, remove }:
       {item.missing ? (
         <div className="extra-editor-notice"><ExtraIcon name="warning" /><strong>This material is no longer in the game files</strong><p>Remove this saved color. Reload character assets after a game update.</p></div>
       ) : (
-        <MaterialPreview hero={hero} item={item} revision={revision} />
+        <MaterialPreview item={item} url={url} loading={loading} error={error} mask={mask} picking={picking !== null} pick={pick} />
       )}
       {!entry.supported && !item.missing && (
         <p className="extra-original-kept"><strong>Game colors kept</strong>{entry.reason.replace(/^Integrity check failed:\s*/, "")}</p>
@@ -257,6 +350,52 @@ function HeroColorEditor({ item, hero, revision, disabled, full, edit, remove }:
                 <Slider label="Brightness" value={row?.brightness ?? 1} update={(brightness) => edit({ brightness })} disabled={disabled || !editable} />
               </div>
             ) : <p className="hint">This material has no saturation or brightness setting.</p>}
+            {entry.color_texture && (
+              <section className="hero-color-ranges" aria-label="Color ranges">
+                <div className="hero-color-ranges-heading">
+                  <strong>Color ranges</strong>
+                  <p className="hint">Recolor only the colors you pick, for example the clothes but not the skin, with a real hue shift. The mod gets a recolored copy of this material's base-color texture.</p>
+                </div>
+                {unsupported ? (
+                  <p className="hint">{unsupported}</p>
+                ) : (
+                  <>
+                    {ranges.map((range, index) => (
+                      <RangeEditor
+                        key={index}
+                        index={index}
+                        range={range}
+                        disabled={disabled || !editable}
+                        picking={picking === index}
+                        pick={() => setPicking(picking === index ? null : index)}
+                        update={(changes) => setRanges(ranges.map((r, i) => (i === index ? { ...r, ...changes } : r)))}
+                        remove={() => {
+                          setPicking(null);
+                          setRanges(ranges.filter((_, i) => i !== index));
+                        }}
+                      />
+                    ))}
+                    {picking !== null && <p className="hint" role="status">Click the Game preview on the color this range should select.</p>}
+                    <div className="hero-color-range-actions">
+                      <button
+                        disabled={disabled || !editable || ranges.length >= 8}
+                        onClick={() => {
+                          setRanges([...ranges, { enabled: true, ...RANGE_DEFAULTS }]);
+                          setPicking(ranges.length);
+                          setMask(true);
+                        }}
+                      >
+                        Add color range
+                      </button>
+                      <label className="hero-color-check">
+                        <input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />
+                        Show selection
+                      </label>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
           </div>
         )}
         {entry.shared && !item.missing && (
@@ -281,16 +420,86 @@ function HeroColorEditor({ item, hero, revision, disabled, full, edit, remove }:
             <button className="extra-remove" disabled={disabled} onClick={remove}><ExtraIcon name="close" size={15} />Remove color</button>
           </div>
         )}
-        <p className="extra-inline-note">The build changes only this material's color settings; its textures stay the game's own. The preview is approximate, so check the result in game.</p>
+        <p className="extra-inline-note">
+          {ranges.length
+            ? "The build changes this material's color settings and adds a recolored copy of its base-color texture; the game's own files stay unchanged. The preview is approximate, so check the result in game."
+            : "The build changes only this material's color settings; its textures stay the game's own. The preview is approximate, so check the result in game."}
+        </p>
         <details className="extra-file-details">
           <summary>File details<ExtraIcon name="folder" size={15} /></summary>
           <dl>
             <dt>Game material</dt><dd>{entry.target}</dd>
+            {entry.color_texture && <><dt>Base-color texture</dt><dd>{entry.color_texture}</dd></>}
             {entry.shader && <><dt>Shader</dt><dd>{entry.shader}</dd></>}
             {entry.albedo && <><dt>Game saturation · brightness</dt><dd>{Math.round(entry.albedo[1] * 100)}% · {Math.round(entry.albedo[2] * 100)}%</dd></>}
           </dl>
         </details>
       </div>
     </>
+  );
+}
+
+const percent = (value: number) => `${Math.round(value * 100)}%`;
+function RangeSlider({ label, value, min, max, step, format, update, disabled }: {
+  label: string; value: number; min: number; max: number; step: number;
+  format: (value: number) => string; update: (value: number) => void; disabled: boolean;
+}) {
+  return (
+    <label className="color-slider">
+      <span>{label.replace(/^Range \d+ /, "")}</span>
+      <input type="range" aria-label={label} min={min} max={max} step={step} value={value} disabled={disabled} onChange={(event) => update(Number(event.target.value))} />
+      <output>{format(value)}</output>
+    </label>
+  );
+}
+/** One color range: what it selects and how it changes it. */
+function RangeEditor({ index, range, disabled, picking, pick, update, remove }: {
+  index: number; range: HeroColorRange; disabled: boolean; picking: boolean;
+  pick: () => void; update: (changes: Partial<HeroColorRange>) => void; remove: () => void;
+}) {
+  const values = withDefaults(range);
+  const name = `Range ${index + 1}`;
+  const middle = ([low, high]: [number, number]) => (low + high) / 2;
+  const centre = rgb(values.hue, middle(values.saturation_range), middle(values.brightness_range)).map((v) => Math.round(v * 255)) as [number, number, number];
+  const result = recolorTexel([values], [...centre, 255]);
+  // Keep each range's start at or below its end.
+  const bound = (key: "saturation_range" | "brightness_range", side: 0 | 1, value: number) => {
+    const next: [number, number] = [...values[key]];
+    next[side] = value;
+    if (next[0] > next[1]) next[1 - side] = value;
+    update({ [key]: next });
+  };
+  const slider = (label: string, value: number, min: number, max: number, step: number, format: (v: number) => string, set: (v: number) => void) => (
+    <RangeSlider label={`${name} ${label}`} value={value} min={min} max={max} step={step} format={format} update={set} disabled={disabled} />
+  );
+  return (
+    <fieldset className="hero-color-range" aria-label={name}>
+      <div className="hero-color-range-head">
+        <span className="hero-color-swatch small" aria-hidden="true" style={{ background: css(centre.map((v) => v / 255) as Rgb) }} />
+        <ExtraIcon name="arrow" size={14} />
+        <span className="hero-color-swatch small" aria-hidden="true" style={{ background: css(result.slice(0, 3).map((v) => v / 255) as Rgb) }} />
+        <strong>{name}</strong>
+        <button className="extra-text-button" aria-pressed={picking} disabled={disabled} onClick={pick}>{picking ? "Picking…" : "Pick color"}</button>
+        <label className="hero-color-check">
+          <input type="checkbox" checked={range.enabled !== false} disabled={disabled} onChange={(e) => update({ enabled: e.target.checked })} />
+          Use
+        </label>
+        <button className="extra-text-button" disabled={disabled} onClick={remove}>Remove</button>
+      </div>
+      <div className="color-sliders">
+        <span className="hero-color-range-group">Selects</span>
+        {slider("hue", values.hue, 0, 360, 1, (v) => `${Math.round(v)}°`, (hue) => update({ hue }))}
+        {slider("hue width", values.hue_width, 0, 180, 1, (v) => (v >= 180 ? "All" : `±${Math.round(v)}°`), (hue_width) => update({ hue_width }))}
+        {slider("saturation from", values.saturation_range[0], 0, 1, 0.01, percent, (v) => bound("saturation_range", 0, v))}
+        {slider("saturation to", values.saturation_range[1], 0, 1, 0.01, percent, (v) => bound("saturation_range", 1, v))}
+        {slider("brightness from", values.brightness_range[0], 0, 1, 0.01, percent, (v) => bound("brightness_range", 0, v))}
+        {slider("brightness to", values.brightness_range[1], 0, 1, 0.01, percent, (v) => bound("brightness_range", 1, v))}
+        {slider("softness", values.softness, 0, 1, 0.05, percent, (softness) => update({ softness }))}
+        <span className="hero-color-range-group">Changes</span>
+        {slider("hue shift", values.hue_shift, -180, 180, 1, (v) => `${Math.round(v)}°`, (hue_shift) => update({ hue_shift }))}
+        {slider("saturation", values.saturation, 0, 2, 0.05, percent, (saturation) => update({ saturation }))}
+        {slider("brightness", values.brightness, 0, 2, 0.05, percent, (brightness) => update({ brightness }))}
+      </div>
+    </fieldset>
   );
 }

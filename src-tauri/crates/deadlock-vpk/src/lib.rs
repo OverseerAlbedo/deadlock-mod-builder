@@ -8,7 +8,7 @@ mod snapshot;
 mod stable;
 mod writer;
 
-pub use envelope::{resource_blocks, resource_references, ResourceBlock, ResourceLayout};
+pub use envelope::{resource_blocks, resource_id, resource_references, ResourceBlock, ResourceLayout};
 pub use reader::{Entry, Model, Vpk};
 pub use snapshot::{
     create_snapshot, publish_directory, remove_snapshot, SnapshotOptions, SnapshotReceipt,

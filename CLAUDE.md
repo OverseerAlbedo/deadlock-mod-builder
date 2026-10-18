@@ -281,6 +281,19 @@ template check (`tests/cloth_bones.rs`).
   byte exact. Never add a parameter or decompile/recompile game materials. They
   are refused with a replacement model (a separate mode); the asset-only package
   check counts `.vmat_c` as extras only then (`build.rs component_path`).
+- Hero color ranges (`HeroMaterial.ranges`) recolor a copy of the game's BC7
+  `g_tColor`: the pixel function exists twice and must stay identical,
+  `deadlock-components color_ranges.rs` and `src/extras/heroColorRanges.ts`
+  (shared fixture `deadlock-components/tests/fixtures/hero-color-ranges.json`).
+  `texture_recolor.rs` recolors every mip and the BC3 fallback from their own
+  texels and refits only changed blocks (`block_refit.rs`, keeping every bit that
+  feeds alpha, so metalness stays byte exact); never add a fresh encoder, a mip
+  filter or an encoder dependency. The copy lives under
+  `materials/dmb_hero_colors/`, the material's `g_tColor` and RERL name it
+  (`deadlock_vpk::resource_id`). It is a packaged file, not a game file:
+  `service.rs packaged()` lists it, `targets()`, the closure and original hashes
+  keep game files only, and install/package checks take it from the receipt
+  (`materials::packaged_textures`).
 - Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
   `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
   playable yet, else In game); `hero_roster.json` `playable: false` is only the

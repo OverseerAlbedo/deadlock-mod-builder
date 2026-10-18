@@ -2,7 +2,7 @@
 use crate::{
     CancellationToken, Result, compiled, fail, icons, materials, motion, read, read_file,
     resources::{self, ResourceEntry, ResourceKind, ResourceReceipt},
-    sha,
+    sha, texture_recolor,
 };
 use deadlock_core::{TimingRecorder, process::ToolExecutor, safety, text::casefold};
 use deadlock_project::{
@@ -352,6 +352,21 @@ fn targets(receipt: &ComponentReceipt) -> Result<Vec<String>> {
     }
     Ok(targets)
 }
+/// Every packaged file: the replaced game files (`targets`) and the new files
+/// they name, the recolored textures of hero colors, which the game does not
+/// have (so they are not in the dependency closure).
+fn packaged(receipt: &ComponentReceipt) -> Result<Vec<String>> {
+    let mut files = targets(receipt)?;
+    let mut seen: BTreeSet<_> = files.iter().map(|p| casefold(p)).collect();
+    for texture in materials::packaged_textures(&receipt.materials) {
+        let key = casefold(&safety::relative_asset(&texture)?);
+        if !key.starts_with(&format!("{}/", texture_recolor::TEXTURE_FOLDER)) || !key.ends_with(".vtex_c") || !seen.insert(key) {
+            return Err(fail("A recolored hero texture is outside its folder or duplicated."));
+        }
+        files.push(texture);
+    }
+    Ok(files)
+}
 fn original_hashes(receipt: &ComponentReceipt) -> Result<Hashes> {
     let mut result = Hashes::new();
     for (target, hash) in receipt
@@ -479,7 +494,7 @@ fn verify_outputs(
     cancel: &CancellationToken,
     expected: Option<&Hashes>,
 ) -> Result<Hashes> {
-    let targets = targets(receipt)?;
+    let targets = packaged(receipt)?;
     let target_keys: BTreeSet<_> = targets.iter().map(|p| casefold(p)).collect();
     if let Some(expected) = expected {
         if expected.keys().cloned().collect::<BTreeSet<_>>() != targets.iter().cloned().collect() {
@@ -1111,6 +1126,6 @@ impl<'a> ComponentService<'a> {
         current_game: &Vpk,
     ) -> Result<()> {
         verify_audio_choices(project, receipt)?;
-        self.clock.measure("Validate installed character components",None,|_|{let selected=selection(project)?;let wanted=selected.targets();if wanted!=receipt.files.keys().map(|p|casefold(p)).collect()||casefold(&compiled(&project.original_model)?)!=casefold(&compiled(&receipt.hero_path)?)||receipt.model_enabled!=project.customization.model_enabled(){return Err(fail("Character extras changed since this VPK was built. Rebuild before installing."));}if !receipt.model_enabled&&candidate.entries.keys().cloned().collect::<BTreeSet<_>>()!=wanted{return Err(fail("An asset-only VPK must contain exactly its reviewed character extras."));}let root=self.root(project)?.join(format!("install-customization-{}",uuid::Uuid::new_v4().simple()));deadlock_vpk::check_unlinked_path(&root,true).map_err(fail)?;fs::create_dir_all(&root).map_err(fail)?;let _owner=OwnedMounts{paths:vec![root.clone()],executor:None};for(path,hash)in &receipt.files{self.cancel.check()?;let raw=read(candidate,path)?;if sha(&raw)!=*hash{return Err(fail("Character component package hash differs from its build receipt."));}safety::atomic_write(&safety::inside(&root,path)?,raw)?;}verify_snapshot(current_game,receipt,&root,self.cancel)})
+        self.clock.measure("Validate installed character components",None,|_|{let selected=selection(project)?;let mut wanted=selected.targets();/* Recolored hero textures are named by the receipt, whose choices verify_audio_choices bound to the project. */wanted.extend(materials::packaged_textures(&receipt.materials).iter().map(|p|casefold(p)));if wanted!=receipt.files.keys().map(|p|casefold(p)).collect()||casefold(&compiled(&project.original_model)?)!=casefold(&compiled(&receipt.hero_path)?)||receipt.model_enabled!=project.customization.model_enabled(){return Err(fail("Character extras changed since this VPK was built. Rebuild before installing."));}if !receipt.model_enabled&&candidate.entries.keys().cloned().collect::<BTreeSet<_>>()!=wanted{return Err(fail("An asset-only VPK must contain exactly its reviewed character extras."));}let root=self.root(project)?.join(format!("install-customization-{}",uuid::Uuid::new_v4().simple()));deadlock_vpk::check_unlinked_path(&root,true).map_err(fail)?;fs::create_dir_all(&root).map_err(fail)?;let _owner=OwnedMounts{paths:vec![root.clone()],executor:None};for(path,hash)in &receipt.files{self.cancel.check()?;let raw=read(candidate,path)?;if sha(&raw)!=*hash{return Err(fail("Character component package hash differs from its build receipt."));}safety::atomic_write(&safety::inside(&root,path)?,raw)?;}verify_snapshot(current_game,receipt,&root,self.cancel)})
     }
 }

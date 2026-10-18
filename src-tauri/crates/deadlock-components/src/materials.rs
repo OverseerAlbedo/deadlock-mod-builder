@@ -7,9 +7,17 @@
 //! block keeps its exact bytes, so the textures, shader and references stay the
 //! game's own and the package holds only the material at its game path.
 //! Roughness, metalness, opacity and emission are baked into textures or need
-//! shader options these materials do not have, and a hue shift needs a new
-//! texture, so they are not offered.
-use crate::{CancellationToken, Result, compiled, fail, read, read_file, sha};
+//! shader options these materials do not have, so they are not offered.
+//!
+//! Color ranges recolor only the base-color pixels they select (a real hue
+//! shift): the game's `g_tColor` texture is recolored into a new texture under
+//! `texture_recolor::TEXTURE_FOLDER` (`texture_recolor`, alpha byte-exact), and
+//! the material's `g_tColor` and reference table (RERL) name it instead.
+use crate::{
+    CancellationToken, Result,
+    color_ranges::ColorRange,
+    compiled, fail, read, read_file, sha, texture_recolor,
+};
 use deadlock_core::{safety, text::casefold};
 use deadlock_project::customization::HeroMaterial;
 use deadlock_resource::{Kind, Value, binary, container};
@@ -21,6 +29,8 @@ use std::{
 };
 
 pub const RECOLOR_POLICY: &str = "compiled-material-parameters-v1";
+/// Color ranges: `color_ranges`, `block_refit` and `texture_recolor` as they are now.
+pub const RANGE_POLICY: &str = "hero-color-ranges-v1";
 /// Shaders whose tint and albedo parameters were checked on the game's hero materials.
 pub const SHADERS: [&str; 1] = ["pbr.vfx"];
 const TINT: &str = "g_vColorTint1";
@@ -90,6 +100,43 @@ impl Recolor {
     }
 }
 
+/// The enabled color ranges of a hero color that change something, with defaults
+/// for unset values.
+pub fn ranges(row: &HeroMaterial) -> Vec<ColorRange> {
+    let base = ColorRange::default();
+    row.ranges
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| r.enabled.unwrap_or(true))
+        .map(|r| ColorRange {
+            hue: r.hue.unwrap_or(base.hue),
+            hue_width: r.hue_width.unwrap_or(base.hue_width),
+            saturation_range: r.saturation_range.unwrap_or(base.saturation_range),
+            brightness_range: r.brightness_range.unwrap_or(base.brightness_range),
+            softness: r.softness.unwrap_or(base.softness),
+            hue_shift: r.hue_shift.unwrap_or(base.hue_shift),
+            saturation: r.saturation.unwrap_or(base.saturation),
+            brightness: r.brightness.unwrap_or(base.brightness),
+        })
+        .filter(|r| !r.changes_nothing())
+        .collect()
+}
+
+/// The recolored base-color texture of one hero color with ranges.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct RangeTexture {
+    pub policy: String,
+    /// The game's compiled texture (`.vtex_c`) that `g_tColor` named.
+    pub source: String,
+    pub source_sha256: String,
+    /// The packaged texture (`.vtex_c`) under `texture_recolor::TEXTURE_FOLDER`.
+    pub target: String,
+    pub output_sha256: String,
+    pub ranges: Vec<ColorRange>,
+    pub changed_blocks: usize,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MaterialEntry {
     pub target: String,
@@ -102,6 +149,27 @@ pub struct MaterialEntry {
     #[serde(default)]
     pub used_by: Vec<String>,
     pub allow_shared: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<RangeTexture>,
+}
+
+/// The packaged textures of hero colors with ranges (files the game does not have).
+pub fn packaged_textures(receipt: &MaterialReceipt) -> Vec<String> {
+    receipt.entries.iter().filter_map(|e| e.texture.as_ref().map(|t| t.target.clone())).collect()
+}
+
+/// Where the recolored texture goes: fixed by the material, the game texture and the ranges.
+fn range_texture_path(material: &str, source: &str, source_sha256: &str, ranges: &[ColorRange]) -> Result<String> {
+    let fingerprint = sha(
+        format!(
+            "{RANGE_POLICY}|{}|{}|{source_sha256}|{}",
+            casefold(material),
+            casefold(source),
+            serde_json::to_string(ranges).map_err(fail)?
+        )
+        .as_bytes(),
+    );
+    texture_recolor::texture_path(source, &fingerprint)
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MaterialReceipt {
@@ -245,11 +313,23 @@ fn set_vector(root: &mut Value, name: &str, change: impl Fn(usize, f64) -> f64) 
 /// The compiled material with `edit` applied. Refuses shaders and parameters
 /// that are not verified, and never adds a parameter the material lacks.
 pub fn recolor(raw: &[u8], name: &str, edit: &Recolor) -> Result<Vec<u8>> {
+    edit_material(raw, name, edit, None)
+}
+/// `recolor`, with the material's base color (`g_tColor`) naming the recolored
+/// texture `texture` (a `.vtex` path) in its parameters and its reference table.
+/// The texture `g_tColor` named before leaves the table unless another
+/// parameter still names it. Returns the material and that previous texture.
+pub fn recolor_with_texture(raw: &[u8], name: &str, edit: &Recolor, texture: &str) -> Result<(Vec<u8>, String)> {
+    let mut previous = String::new();
+    let output = edit_material(raw, name, edit, Some((texture, &mut previous)))?;
+    Ok((output, previous))
+}
+fn edit_material(raw: &[u8], name: &str, edit: &Recolor, texture: Option<(&str, &mut String)>) -> Result<Vec<u8>> {
     edit.validate()?;
     let name = label(name);
-    if edit.is_empty() {
+    if edit.is_empty() && texture.is_none() {
         return Err(fail(format!(
-            "Hero color {name} changes nothing. Set a tint, saturation or brightness, or remove it."
+            "Hero color {name} changes nothing. Set a tint, saturation, brightness or a color range, or remove it."
         )));
     }
     let mut parsed = material(raw, &name)?;
@@ -272,26 +352,114 @@ pub fn recolor(raw: &[u8], name: &str, edit: &Recolor) -> Result<Vec<u8>> {
             )));
         }
     }
+    let mut blocks = BTreeMap::new();
+    let mut expected_references = None;
+    if let Some((path, previous)) = texture {
+        let old = texture_recolor::point_texture(root, COLOR, path)?;
+        let layout = container::layout(raw).map_err(fail)?;
+        let table = container::unique(&layout.blocks, "RERL")
+            .map_err(|_| fail(format!("{name} needs exactly one reference table.")))?;
+        let entries = texture_recolor::references(container::payload(raw, table).map_err(fail)?)?;
+        if !entries.iter().any(|(_, n)| casefold(n) == casefold(&old)) {
+            return Err(fail(format!("{name}'s reference table does not list its base color {old}.")));
+        }
+        let moved = texture_recolor::moved_references(&entries, &old, path, &texture_recolor::texture_paths(root));
+        expected_references = Some(moved.iter().map(|(_, n)| n.clone()).collect::<Vec<_>>());
+        blocks.insert("RERL".to_owned(), texture_recolor::reference_table(&moved));
+        *previous = old;
+    }
     let encoded = binary::encode(&parsed.data.root, parsed.data.format_guid).map_err(fail)?;
-    let output = container::rebuild(raw, &BTreeMap::from([("DATA".to_owned(), encoded)]))
-        .map_err(fail)?;
+    blocks.insert("DATA".to_owned(), encoded);
+    let output = container::rebuild(raw, &blocks).map_err(fail)?;
     // The new file must read back as the edited material, and every other block
     // must still be the game's exact bytes.
     let check = material(&output, &name)?;
     if !check.data.root.canonical_eq(&parsed.data.root) {
         return Err(fail(format!("{name} did not read back as the recolored material.")));
     }
+    if let Some(names) = expected_references {
+        if deadlock_vpk::resource_references(&output).map_err(fail)? != names {
+            return Err(fail(format!("{name}'s reference table did not read back.")));
+        }
+    }
     let (before, after) = (container::layout(raw).map_err(fail)?, container::layout(&output).map_err(fail)?);
     if before.blocks.len() != after.blocks.len()
         || before.blocks.iter().zip(&after.blocks).any(|(a, b)| {
             a.name != b.name
-                || (a.name != "DATA"
+                || (!blocks.contains_key(&a.name)
                     && container::payload(raw, a).ok() != container::payload(&output, b).ok())
         })
     {
         return Err(fail(format!("{name} changed outside its material settings.")));
     }
     Ok(output)
+}
+
+/// The recolored base-color texture of `row`'s ranges, written to `game`, and the
+/// receipt record for it.
+fn stage_texture(
+    archive: &Vpk,
+    row: &MaterialRow,
+    ranges: &[ColorRange],
+    game: &Path,
+    cancel: &CancellationToken,
+) -> Result<RangeTexture> {
+    let source = row.color_texture.clone().ok_or_else(|| {
+        fail(format!("{} has no base-color texture, so color ranges cannot change it.", row.label))
+    })?;
+    let raw = read(archive, &source)?;
+    let source_sha256 = sha(&raw);
+    if let Some(reason) = texture_recolor::unsupported(&raw) {
+        return Err(fail(format!("Color ranges cannot change {}: {reason}", row.label)));
+    }
+    // Other errors, a cancel among them, pass through as they are.
+    let recolored = texture_recolor::recolor_texture(&raw, ranges, cancel)?;
+    if recolored.changed_blocks == 0 {
+        return Err(fail(format!(
+            "The color ranges of {} select none of its base color. Widen a range, or pick a color from the preview.",
+            row.label
+        )));
+    }
+    let path = range_texture_path(&row.target, &source, &source_sha256, ranges)?;
+    let target = compiled(&path)?;
+    if archive.entries.contains_key(&casefold(&target)) {
+        return Err(fail(format!("The game already has a file at {target}; hero colors will not replace it.")));
+    }
+    safety::atomic_write(&safety::inside(game, &target)?, &recolored.bytes)?;
+    Ok(RangeTexture {
+        policy: RANGE_POLICY.into(),
+        source,
+        source_sha256,
+        target,
+        output_sha256: sha(&recolored.bytes),
+        ranges: ranges.to_vec(),
+        changed_blocks: recolored.changed_blocks,
+    })
+}
+/// The material and texture a receipt entry expects, from the current game files.
+fn expected_outputs(archive: &Vpk, entry: &MaterialEntry, original: &[u8], cancel: &CancellationToken) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+    let edit = Recolor { color: entry.color, saturation: entry.saturation, brightness: entry.brightness };
+    let Some(texture) = &entry.texture else {
+        return Ok((recolor(original, &entry.target, &edit)?, None));
+    };
+    let name = label(&entry.target);
+    if texture.policy != RANGE_POLICY {
+        return Err(fail("Hero color ranges were built by another version. Build again."));
+    }
+    let raw = read(archive, &texture.source)?;
+    if sha(&raw) != texture.source_sha256 {
+        return Err(fail(format!("The game texture of {name} changed (a game update). Build again.")));
+    }
+    let path = range_texture_path(&entry.target, &texture.source, &texture.source_sha256, &texture.ranges)?;
+    if casefold(&compiled(&path)?) != casefold(&texture.target) {
+        return Err(fail(format!("The recolored texture of {name} is not where its receipt says.")));
+    }
+    let (material, previous) = recolor_with_texture(original, &entry.target, &edit, &path)?;
+    if casefold(&compiled(&previous)?) != casefold(&texture.source) {
+        return Err(fail(format!("{name} no longer names the base-color texture its colors were made from. Build again.")));
+    }
+    let recolored = texture_recolor::recolor_texture(&raw, &texture.ranges, cancel)?;
+    Ok((material, Some(recolored.bytes)))
 }
 
 /// The resource references of one archive entry, reading only up to the end of
@@ -497,7 +665,18 @@ pub fn stage(
             return Err(fail("A game material changed while building. Build again."));
         }
         let edit = Recolor::from_row(choice);
-        let output = recolor(&original, &row.target, &edit)?;
+        let ranges = ranges(choice);
+        let (output, texture) = if ranges.is_empty() {
+            (recolor(&original, &row.target, &edit)?, None)
+        } else {
+            let texture = stage_texture(archive, row, &ranges, game, cancel)?;
+            let path = texture.target.strip_suffix("_c").unwrap_or(&texture.target);
+            let (output, previous) = recolor_with_texture(&original, &row.target, &edit, path)?;
+            if casefold(&compiled(&previous)?) != casefold(&texture.source) {
+                return Err(fail(format!("{} changed its base-color texture while building. Build again.", row.label)));
+            }
+            (output, Some(texture))
+        };
         safety::atomic_write(&safety::inside(game, &row.target)?, &output)?;
         receipt.entries.push(MaterialEntry {
             target: row.target.clone(),
@@ -508,7 +687,12 @@ pub fn stage(
             brightness: edit.brightness,
             used_by: row.used_by.clone(),
             allow_shared,
+            texture,
         });
+    }
+    let mut seen = BTreeSet::new();
+    if packaged_textures(&receipt).iter().any(|t| !seen.insert(casefold(t))) {
+        return Err(fail("Two hero colors made the same recolored texture."));
     }
     Ok(receipt)
 }
@@ -548,14 +732,22 @@ pub fn verify_compiled(
                 label(&entry.target)
             )));
         }
-        let edit = Recolor { color: entry.color, saturation: entry.saturation, brightness: entry.brightness };
-        let expected = recolor(&original, &entry.target, &edit)?;
+        let (expected, texture) = expected_outputs(archive, entry, &original, cancel)?;
         let staged = read_file(&safety::inside(game, &entry.target)?)?;
         if staged != expected || sha(&staged) != entry.output_sha256 {
             return Err(fail(format!(
                 "The recolored material {} differs from its build receipt.",
                 label(&entry.target)
             )));
+        }
+        if let (Some(expected), Some(record)) = (texture, &entry.texture) {
+            let staged = read_file(&safety::inside(game, &record.target)?)?;
+            if staged != expected || sha(&staged) != record.output_sha256 {
+                return Err(fail(format!(
+                    "The recolored texture of {} differs from its build receipt.",
+                    label(&entry.target)
+                )));
+            }
         }
     }
     Ok(())
@@ -572,6 +764,7 @@ pub fn same_choices(selected: &[HeroMaterial], receipt: &MaterialReceipt) -> boo
                     && entry.saturation == edit.saturation
                     && entry.brightness == edit.brightness
                     && entry.allow_shared == row.allow_shared.unwrap_or(false)
+                    && entry.texture.as_ref().map(|t| t.ranges.clone()).unwrap_or_default() == ranges(row)
             })
         })
 }

@@ -211,7 +211,19 @@ export interface HeroMaterial {
   /** Factors (0–2, 1 keeps the game's value) of the material's own albedo saturation and brightness. */
   saturation?: number; brightness?: number;
   /** Also recolor the other game models that use this material. */
-  allow_shared?: boolean; original_sha256?: string; [key: string]: JsonValue | undefined;
+  allow_shared?: boolean; original_sha256?: string;
+  /** Color ranges: recolor only the base-color pixels they select (a recolored copy of the texture). */
+  ranges?: HeroColorRange[];
+  [key: string]: unknown;
+}
+/** One color range of a hero color (`src/extras/heroColorRanges.ts`, Rust `color_ranges`): selects by
+ * hue centre (0–360) and half width (0–180, 180 = every hue), saturation and brightness ranges (0–1)
+ * and softness (0–1); changes by a hue shift (-180–180) and saturation and brightness factors (0–2). */
+export interface HeroColorRange {
+  enabled?: boolean; hue?: number; hue_width?: number;
+  saturation_range?: [number, number]; brightness_range?: [number, number]; softness?: number;
+  hue_shift?: number; saturation?: number; brightness?: number;
+  [key: string]: unknown;
 }
 export interface EquipmentMesh {
   target?: string; action?: 'keep' | 'hide' | 'replace'; sources?: string[]; include_lods?: boolean;

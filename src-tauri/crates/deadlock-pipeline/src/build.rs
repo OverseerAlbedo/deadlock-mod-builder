@@ -568,7 +568,22 @@ fn validate_component_receipt(
                 }
             }
         }
+        // Hero colors with color ranges also package their recolored texture,
+        // a new file the receipt names for one of the selected materials.
+        if let Some(receipt) = receipt {
+            for entry in &receipt.materials.entries {
+                let Some(texture) = &entry.texture else { continue };
+                if !selected.contains(&casefold(&entry.target)) {
+                    return Err(invalid("Character component receipt differs from the current project's exact selected targets. Rebuild first."));
+                }
+                safety::relative_asset(&texture.target)?;
+                if !selected.insert(casefold(&texture.target)) {
+                    return Err(invalid("Selected component targets are duplicated."));
+                }
+            }
+        }
     }
+    let colors_folder = format!("{}/", deadlock_components::texture_recolor::TEXTURE_FOLDER);
     let package_files = files
         .keys()
         .map(|path| casefold(path))
@@ -586,6 +601,7 @@ fn validate_component_receipt(
             // Hero colors exist only without a replacement model, whose own
             // compiled materials are never extras.
             || (!choices.model_enabled() && path.ends_with(".vmat_c"))
+            || (!choices.model_enabled() && path.starts_with(&colors_folder) && path.ends_with(".vtex_c"))
     };
     let packaged_components = package_files
         .iter()

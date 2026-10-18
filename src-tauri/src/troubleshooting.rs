@@ -60,6 +60,19 @@ const RULES: &[Rule] = &[
         cause: "The hero's materials in the game changed since you chose this color, usually after a game update.",
         steps: &["Open Extras and click Reload assets.", "Open Colors, check the material and its color, then build again."],
         action: Some(("Open Extras", "extras")) },
+    // Hero color ranges recolor the base-color texture.
+    Rule { any: &["select none of its base color"], all: &[],
+        cause: "The material's color ranges match none of its base-color pixels, so they would change nothing.",
+        steps: &["Open Extras → Colors and select the material named in the message.", "Turn on Show selection and click Pick color on the preview to center a range on the part you want, or widen the hue, saturation or brightness range.", "Build again."],
+        action: Some(("Open Extras", "extras")) },
+    Rule { any: &["color ranges cannot change", "color ranges need a bc7"], all: &[],
+        cause: "This material's base-color texture is stored in a form that color ranges cannot rewrite.",
+        steps: &["Open Extras → Colors and select the material named in the message.", "Remove its color ranges and use Tint, Saturation and Brightness instead.", "Build again."],
+        action: Some(("Open Extras", "extras")) },
+    Rule { any: &["the game texture of", "no longer names the base-color texture"], all: &[],
+        cause: "The game's base-color texture of this material changed since the mod was built, usually after a game update.",
+        steps: &["Open Build & install and build again.", "Install the new build."],
+        action: Some(("Open Build & install", "build")) },
     Rule { any: &["hero colors support pbr.vfx materials only", "has no tint setting", "has no saturation or brightness setting", "changes nothing. set a tint", "could not be read as a compiled material"], all: &[],
         cause: "This hero material does not have the color setting you changed.",
         steps: &["Open Extras → Colors and select the material named in the message.", "Use the controls it offers, or remove it and choose another material.", "Build again."],
@@ -298,6 +311,16 @@ mod tests {
             let found = help("validation", message, &format!("Integrity check failed: {message}")).unwrap();
             assert!(found.cause.contains(cause), "{message}: {found:?}");
             assert_eq!(found.action.unwrap().page, "extras", "{message}");
+        }
+        for (message, cause, page) in [
+            ("The color ranges of hazev2 select none of its base color. Widen a range, or pick a color from the preview.", "match none", "extras"),
+            ("Color ranges cannot change hazev2: Color ranges need a BC7 base-color texture; this one is DXT5.", "cannot rewrite", "extras"),
+            ("hazev2 has no base-color texture, so color ranges cannot change it.", "cannot rewrite", "extras"),
+            ("The game texture of hazev2 changed (a game update). Build again.", "game update", "build"),
+        ] {
+            let found = help("validation", message, &format!("Integrity check failed: {message}")).unwrap();
+            assert!(found.cause.contains(cause), "{message}: {found:?}");
+            assert_eq!(found.action.unwrap().page, page, "{message}");
         }
         // The replacement-model refusal keeps its plain message.
         assert!(help("validation", "Include a replacement model to use Appearance, Equipment or a static facial expression. To recolor the hero's own model instead, use Extras → Colors.", "").is_none());

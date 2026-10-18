@@ -959,12 +959,58 @@ textures), its `.vmat` carries a nested `Compiled Textures` block, the material'
 inputs live in the game's `core` search path, and re-encoding BC7 textures loses
 quality. Roughness and metalness are baked into textures (`g_tNormalRoughness`,
 `g_tColor` alpha), opacity and emission need static combos (`F_TRANSLUCENT`,
-`F_SELF_ILLUM`) these materials lack, and a hue shift needs a new texture, so none
-of them is offered. A material whose tint mask (`g_tTintMaskRimLightMask`) is not a
+`F_SELF_ILLUM`) these materials lack, so none of them is offered; a hue shift
+needs a new texture and is a color range (below). A material whose tint mask (`g_tTintMaskRimLightMask`) is not a
 `materials/default/` texture tints only its masked areas; the page says so.
 Checked on October 18, 2026: all 770 hero `pbr.vfx` materials have
 `g_vColorTint1` and 679 have the albedo vector; every decodable game material
 re-encodes to equal values.
+
+### Color ranges
+
+A hero color's `ranges` (`HeroColorRange`, up to 8) recolor only the base-color
+pixels they select. The pixel function is `deadlock-components color_ranges.rs`
+and, for the preview, `src/extras/heroColorRanges.ts`; both check the shared
+fixture `deadlock-components/tests/fixtures/hero-color-ranges.json`. A range
+selects by hue (centre and half width, wrapping around red), saturation and
+brightness (HSV value), each faded by the softness (30° and 0.15 at softness 1),
+then shifts the hue and scales saturation and brightness like the replacement
+model color editor. Every range selects by the original color; several ranges
+add up in order. Hue alone is not enough: Haze's orange clothes (hue 25,
+saturation 0.73) and her tan and beige skin (hue 20–27, saturation 0.16–0.47)
+share a hue.
+
+The build (`texture_recolor.rs`) rewrites a copy of the game's `g_tColor`
+texture in place: the header, flags, format, mip count, editor data (RED2) and
+display rectangle stay byte exact. Every mip is decoded and recolored from its
+own texels (no mip is filtered again), and only BC7 blocks whose texels change
+are encoded again (`block_refit.rs`). A refit keeps the block's mode, partition,
+rotation, index selection, p-bits, alpha endpoints and every index bit that feeds
+alpha, and fits only the color endpoints by least squares (modes 4 and 5 also
+choose their color indices again, from the old indices and from the colors'
+bounding box), so the decoded alpha, where Deadlock keeps metalness, stays byte
+exact; modes 0–3 (alpha 255) become mode 5 with a constant alpha. Every refit
+block is decoded with `bcdec_rs` and a changed alpha is an error. The fallback
+image (extra data kind 1, the texture at 32×32 in BC3) is recolored by refitting
+the color half of each block and keeping its alpha half. The four header floats
+after the flags (the mean linear color) move by the change of the top mip's mean.
+Only BC7 textures are supported (721 of the 723 hero base-color textures of
+October 2026; one DXT5 and one RGBA8888 are refused).
+
+The copy goes to `materials/dmb_hero_colors/<texture name>_<16 hex>.vtex_c`, a
+fingerprint of the policy, the material, the game texture and its hash and the
+ranges, and must not exist in the game. The material's `g_tColor` names it, and
+its reference table (RERL, ids `deadlock_vpk::resource_id`, MurmurHash64B of the
+lowercase name without `_c`, in name order) drops the old texture unless another
+parameter still uses it; all 774 hero material tables of October 2026 re-encode
+byte exact with these ids. The receipt entry records the texture (`RangeTexture`);
+snapshot and install checks read the current game texture and build it again.
+The packaged texture is not a game file: the dependency closure and original
+hashes use only the replaced game files, and install and package checks take
+the texture paths from the receipt. Haze's 2048² texture (10 mips): about 92,000
+of 350,000 blocks change for her orange clothes, 1.6 s. Not recolored: the
+alternate reveal texture `g_tAltColor_Reveal` (a different image, shown only when
+the game raises `g_flAltTextureAmount`, 0 for Haze).
 
 ## Verifying changes
 

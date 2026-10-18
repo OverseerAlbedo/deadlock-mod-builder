@@ -1,6 +1,8 @@
 //! Explicit cosmetic replacements preserve each original resource contract.
 #![forbid(unsafe_code)]
 pub mod audio;
+pub mod block_refit;
+pub mod color_ranges;
 pub mod heroes;
 pub mod icons;
 pub mod icon_catalog;
@@ -9,6 +11,7 @@ pub mod vector_icons;
 pub mod motion;
 pub mod resources;
 pub mod service;
+pub mod texture_recolor;
 pub mod variants;
 pub use deadlock_core::{CancellationToken, CoreError, Result};
 use sha2::{Digest, Sha256};

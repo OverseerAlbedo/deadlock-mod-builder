@@ -196,7 +196,9 @@ impl Application {
             }
             let raw = archive.read(&texture).map_err(|e| AppError::validation("Reload character assets", e))?;
             let png = deadlock_components::icons::preview_color_texture(&raw, request.max_dimension.unwrap_or(512).clamp(32, 1024), &cancel)?;
-            return media("image/png", serde_json::json!({"texture":texture,"tint":row.tint,"albedo":row.albedo}), png);
+            // Why color ranges cannot rewrite this texture, if they cannot (null when they can).
+            let ranges = deadlock_components::texture_recolor::unsupported(&raw);
+            return media("image/png", serde_json::json!({"texture":texture,"tint":row.tint,"albedo":row.albedo,"ranges_unsupported":ranges}), png);
         }
         let source = request.source.as_deref().filter(|s| !s.is_empty()).map(Path::new);
         if let Some(path) = source {

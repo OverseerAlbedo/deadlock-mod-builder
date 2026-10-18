@@ -70,6 +70,46 @@ pub fn resource_blocks(data: &[u8]) -> Result<ResourceLayout> {
     })
 }
 
+/// Source 2 resource IDs (RERL) use MurmurHash64B with seed EDABCDEF of the
+/// lowercase name as the table spells it (no `_c`).
+/// Verified against actual RERL entries, not the unrelated StringToken hash.
+pub fn resource_id(name: &str) -> u64 {
+    const M: u32 = 0x5bd1e995;
+    fn mix(mut k: u32) -> u32 {
+        k = k.wrapping_mul(M);
+        k ^= k >> 24;
+        k.wrapping_mul(M)
+    }
+    let name = name.to_ascii_lowercase();
+    let bytes = name.as_bytes();
+    let (mut h1, mut h2, mut at) = (0xedabcdefu32 ^ bytes.len() as u32, 0u32, 0usize);
+    let word = |at| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    while bytes.len() - at >= 8 {
+        h1 = h1.wrapping_mul(M) ^ mix(word(at));
+        at += 4;
+        h2 = h2.wrapping_mul(M) ^ mix(word(at));
+        at += 4;
+    }
+    if bytes.len() - at >= 4 {
+        h1 = h1.wrapping_mul(M) ^ mix(word(at));
+        at += 4;
+    }
+    if at < bytes.len() {
+        for (j, x) in bytes[at..].iter().enumerate() {
+            h2 ^= (*x as u32) << (8 * j);
+        }
+        h2 = h2.wrapping_mul(M);
+    }
+    h1 ^= h2 >> 18;
+    h1 = h1.wrapping_mul(M);
+    h2 ^= h1 >> 22;
+    h2 = h2.wrapping_mul(M);
+    h1 ^= h2 >> 17;
+    h1 = h1.wrapping_mul(M);
+    h2 ^= h1 >> 19;
+    h2 = h2.wrapping_mul(M);
+    (h1 as u64) << 32 | h2 as u64
+}
 /// Decode validated RERL tables only; preserve order and repeated references.
 /// A non-resource input has no references, matching dependency discovery in Python.
 pub fn resource_references(data: &[u8]) -> Result<Vec<String>> {

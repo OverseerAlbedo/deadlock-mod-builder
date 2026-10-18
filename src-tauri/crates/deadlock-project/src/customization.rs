@@ -114,7 +114,23 @@ choices!(HeroMaterial {
     saturation: f64,
     brightness: f64,
     allow_shared: bool,
-    original_sha256: String
+    original_sha256: String,
+    ranges: Vec<HeroColorRange>
+});
+// A color range recolors only the base-color pixels it selects (a new texture,
+// `deadlock-components color_ranges`): hue centre (0-360) and half width
+// (0-180, 180 = every hue), saturation and brightness ranges (0-1), softness
+// (0-1), then a hue shift (-180-180) and saturation and brightness factors (0-2).
+choices!(HeroColorRange {
+    enabled: bool,
+    hue: f64,
+    hue_width: f64,
+    saturation_range: [f64; 2],
+    brightness_range: [f64; 2],
+    softness: f64,
+    hue_shift: f64,
+    saturation: f64,
+    brightness: f64
 });
 choices!(Equipment { enabled: bool, meshes: Vec<EquipmentMesh>, props: Vec<Prop>, variants: Vec<Variant> });
 choices!(EquipmentMesh { target: String, action: String, sources: Vec<String>, include_lods: bool });
@@ -403,6 +419,33 @@ impl Customization {
                         number(v, 0., 2., label)?;
                     }
                 }
+                let ranges = row.ranges.as_deref().unwrap_or_default();
+                if ranges.len() > 8 {
+                    return Err(error("A hero color holds at most 8 color ranges."));
+                }
+                for range in ranges {
+                    for (v, low, high, label) in [
+                        (range.hue, 0., 360., "Range hue"),
+                        (range.hue_width, 0., 180., "Range hue width"),
+                        (range.softness, 0., 1., "Range softness"),
+                        (range.hue_shift, -180., 180., "Hue shift"),
+                        (range.saturation, 0., 2., "Range saturation"),
+                        (range.brightness, 0., 2., "Range brightness"),
+                    ] {
+                        if let Some(v) = v {
+                            number(v, low, high, label)?;
+                        }
+                    }
+                    for (pair, label) in [(range.saturation_range, "Saturation range"), (range.brightness_range, "Brightness range")] {
+                        if let Some([from, to]) = pair {
+                            number(from, 0., 1., label)?;
+                            number(to, 0., 1., label)?;
+                            if from > to {
+                                return Err(error(format!("{label} starts above its end.")));
+                            }
+                        }
+                    }
+                }
                 if let Some(hash) = row.original_sha256.as_deref().filter(|h| !h.is_empty()) {
                     if hash.len() != 64 || !hash.bytes().all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v)) {
                         return Err(error("Invalid original hero material fingerprint."));
@@ -625,6 +668,15 @@ mod tests {
         assert!(!check(serde_json::json!([{"target": target, "brightness": 2.5}])));
         assert!(!check(serde_json::json!([{"target": target, "original_sha256": "abc"}])));
         assert!(!check(serde_json::json!([{"target": "../outside.vmat_c"}])));
+        let range = |r: serde_json::Value| check(serde_json::json!([{"target": target, "ranges": [r]}]));
+        assert!(range(serde_json::json!({"hue": 26.0, "hue_width": 12.0, "saturation_range": [0.6, 1.0], "brightness_range": [0.2, 1.0], "softness": 0.25, "hue_shift": 180.0})));
+        assert!(range(serde_json::json!({"brightness": 0.0})), "unset values take their defaults");
+        assert!(!range(serde_json::json!({"hue": 361.0})));
+        assert!(!range(serde_json::json!({"hue_width": 200.0})));
+        assert!(!range(serde_json::json!({"hue_shift": -190.0})));
+        assert!(!range(serde_json::json!({"saturation_range": [0.8, 0.2]})), "a range must not end before it starts");
+        assert!(!range(serde_json::json!({"brightness_range": [0.0, 1.5]})));
+        assert!(!check(serde_json::json!([{"target": target, "ranges": vec![serde_json::json!({}); 9]}])));
         let mut choice: super::Customization = serde_json::from_value(serde_json::json!({"hero_materials": {"enabled": true, "materials": [{"target": target}]}})).unwrap();
         choice.clear_targets();
         assert_eq!(choice.hero_materials.unwrap().materials, Some(vec![]), "another hero's materials are not kept");
