@@ -15,6 +15,7 @@ import { decodePreview, type PreviewScene } from './preview/packet';
 import { ToolDiagnostics } from './setup/ToolDiagnostics';
 import { ClothAuthoringPanel } from './cloth/ClothAuthoringPanel';
 import { SetupPage } from './setup/SetupPage';
+import { SteamQrDialog } from './setup/SteamQrDialog';
 import { OnboardingPage } from './setup/OnboardingPage';
 import { PreparationPage } from './preparation/PreparationPage';
 import { WeaponsSection } from './preparation/WeaponsSection';
@@ -477,6 +478,6 @@ export function App() {
         {settings&&document&&<div hidden={page!=='onboarding'}><OnboardingPage startStep={guideStep} active={page==='onboarding'} project={document.project} settings={settings} busy={unavailable} dirty={settingsDirty} status={setupStatus} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={()=>void persistSettings()} testSetup={testSetup} verify={()=>void verifySetup()} detect={extra=>void detectSettings(extra)} check={()=>void checkSetup()} fail={fail} go={setPage} openProject={()=>void openProject()} chooseModel={()=>void chooseModel()} analyze={()=>{setPage('build');void inspectProject();}} finish={()=>{setGuideDone(true);setPage('project');}}/></div>}
         {settings&&document&&<div hidden={page!=='setup'}><button className="tertiary" disabled={unavailable} onClick={()=>setPage('settings')}>← Back to settings</button><SetupPage settings={settings} project={document.project} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={async next=>{await api.saveSettings(next);setSettings(next);setSavedSettings(next);setSetupStatus(null);setInspection(null);}} busy={unavailable} operate={run}/></div>}
       </main><footer className={`statusbar ${busy||backendBusy||finished?'statusbar-working':'statusbar-idle'}`}>{busy||backendBusy||finished?<div className={`statusbar-progress ${progress===null&&!finished?'indeterminate':''} ${finished??''}`} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={finished?100:progress===null?undefined:Math.round(progress*100)}><div className="statusbar-progress-fill" style={finished?{width:'100%'}:progress===null?undefined:{width:`${Math.max(2,progress*100)}%`}}/></div>:null}<span className="statusbar-text" aria-live="polite">{finished?(finished==='succeeded'?'Done':'Stopped with an error'):busy||backendBusy?`${progress===null?'':`${Math.round(progress*100)}% · `}${runningStep??busy??'Working…'}${remaining?` · ${remaining}`:''}`:desktop?'Ready':'Desktop backend unavailable'}</span><div className="row">{settingsDirty && <span className="muted">Settings unsaved</span>}{((busy&&cancellable)||(!busy&&backendBusy)) && <button onClick={() => void cancel()}>Cancel</button>}</div></footer>
-    </div>{toast && <div className="toast" role="status">{toast}</div>}
+    </div>{toast && <div className="toast" role="status">{toast}</div>}<SteamQrDialog/>
   </div>;
 }

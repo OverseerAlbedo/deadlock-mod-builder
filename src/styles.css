@@ -161,6 +161,12 @@ details > pre { max-height: 360px; overflow: auto; }
 .error-notice summary { color: #e5b9bd; font-size: 13px; }
 .toast { position: fixed; bottom: 58px; right: 24px; max-width: min(580px,80vw); border: 1px solid var(--border); background: var(--elevated); border-radius: 6px; padding: 12px 16px; font-size: 13px; box-shadow: 0 8px 24px #0005; z-index: 30; animation: toast-in 140ms ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+/* Steam QR sign-in: the code stays black on white with its quiet zone so phones can read it. */
+.qr-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #000a; padding: 16px; }
+.qr-dialog { max-width: 440px; border: 1px solid var(--border); background: var(--elevated); border-radius: 8px; padding: 20px 22px; box-shadow: 0 12px 32px #0008; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.qr-dialog h2 { font-size: 17px; color: var(--text); }
+.qr-dialog p { font-size: 13px; line-height: 1.6; color: var(--secondary); }
+.qr-dialog svg { max-width: 100%; height: auto; border-radius: 4px; }
 .empty-state { padding: 36px 24px; background: var(--surface-secondary); border: 1px solid var(--border); border-radius: 5px; color: var(--secondary); }
 .empty-state h2 { font-size: 16px; color: #e3e9f0; margin-bottom: 8px; }
 .empty-state p { max-width: 640px; font-size: 13px; line-height: 1.7; }
@@ -686,3 +692,20 @@ tr:hover td { background: var(--surface-secondary); }
 .color-field { grid-template-columns: minmax(0, 1fr) 36px 104px; }
 .color-field input[type=text] { font-size: 12px; padding: 4px 6px; letter-spacing: .3px; }
 .color-field input[type=text], .color-field input[type=color] { width: 100%; min-width: 0; }
+/* Manual toolset download guide (Model tool setup). */
+.manual-guide { display: grid; gap: 14px; }
+.manual-signin { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; }
+.manual-signin .field { flex: 1 1 240px; margin: 0; }
+.manual-steps { counter-reset: manual; list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.manual-steps > li { counter-increment: manual; position: relative; padding: 12px 14px 12px 50px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-secondary); font-size: 13px; line-height: 1.6; }
+.manual-steps > li::before { content: counter(manual); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
+.manual-steps h4 { font-size: 13.5px; margin: 1px 0 4px; color: var(--text); }
+.manual-steps p { margin: 4px 0; }
+.command-block { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; padding: 8px 8px 8px 12px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); }
+.command-block code { flex: 1; min-width: 0; font: 12px/1.6 "Cascadia Code", Consolas, monospace; white-space: pre-wrap; color: var(--text); }
+.command-block code span { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+.command-block button { flex-shrink: 0; min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.manual-part > span { display: block; margin-top: 10px; font-size: 12px; color: var(--secondary); }
+.manual-later { margin-top: 6px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 5px; color: var(--secondary); }
+.manual-later strong { color: var(--text); }
+.manual-problems { margin: 0; padding-left: 18px; display: grid; gap: 8px; line-height: 1.6; }

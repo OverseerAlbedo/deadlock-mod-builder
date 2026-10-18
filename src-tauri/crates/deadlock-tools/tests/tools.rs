@@ -6,7 +6,7 @@ use deadlock_project::Settings;
 use deadlock_tools::{acquisition as a, cloth_reader, compiler, toolchain};
 use sha1::{Digest, Sha1};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fs,
     path::{Path, PathBuf},
     sync::Mutex,
@@ -312,6 +312,10 @@ fn manifest(depot: &str, id: &str, items: &[(String, Vec<u8>, u32)]) -> String {
     text
 }
 fn plan_fixture(root: &Path) -> (a::Recipe, BTreeMap<String, Vec<(String, Vec<u8>, u32)>>) {
+    let items = fixture_items();
+    (fixture_recipe(root, items.iter()), items)
+}
+fn fixture_items() -> BTreeMap<String, Vec<(String, Vec<u8>, u32)>> {
     let mut items: BTreeMap<String, Vec<(String, Vec<u8>, u32)>> = BTreeMap::new();
     items.insert(
         "2347770".into(),
@@ -350,8 +354,16 @@ fn plan_fixture(root: &Path) -> (a::Recipe, BTreeMap<String, Vec<(String, Vec<u8
             ("content/core/default.tga".into(), b"default".to_vec(), 0),
         ],
     );
+    items
+}
+/// Writes the manifests of `items` into `root`; the recipe lists the depots in
+/// the order given.
+fn fixture_recipe<'a>(
+    root: &Path,
+    items: impl IntoIterator<Item = (&'a String, &'a Vec<(String, Vec<u8>, u32)>)>,
+) -> a::Recipe {
     let mut depots = vec![];
-    for (depot, rows) in &items {
+    for (depot, rows) in items {
         let id = format!("{depot}01");
         fs::write(
             root.join(format!("manifest_{depot}_{id}.txt")),
@@ -365,16 +377,13 @@ fn plan_fixture(root: &Path) -> (a::Recipe, BTreeMap<String, Vec<(String, Vec<u8
             extra: BTreeMap::new(),
         });
     }
-    (
-        a::Recipe {
-            app: "730".into(),
-            build: "fixture".into(),
-            queried_utc: "fixture".into(),
-            depots,
-            extra: BTreeMap::new(),
-        },
-        items,
-    )
+    a::Recipe {
+        app: "730".into(),
+        build: "fixture".into(),
+        queried_utc: "fixture".into(),
+        depots,
+        extra: BTreeMap::new(),
+    }
 }
 #[test]
 fn plan_preserves_tools_overrides_and_excludes_bulk_game() {
@@ -409,6 +418,205 @@ fn plan_preserves_tools_overrides_and_excludes_bulk_game() {
     );
     fs::write(tools.join("game/bin/win64/OLD.dll"), b"old").unwrap();
     assert!(a::validate_files(&plan, &tools, &cancel).is_err());
+}
+fn texts(spec: &CommandSpec) -> Vec<String> {
+    spec.args.iter().map(|s| s.to_string_lossy().into_owned()).collect()
+}
+/// With QR sign-in every DepotDownloader run needs its own scan, so all three
+/// depots download in one run when that writes exactly the planned files.
+#[test]
+fn every_depot_downloads_in_one_run_when_it_writes_exactly_the_plan() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut items = fixture_items();
+    // Outside the base filter, so the plan takes it from TOOLS; one run keeps
+    // it from TOOLS too, the last depot listed.
+    items.get_mut("2347770").unwrap().push((
+        "content/core/default.tga".into(),
+        b"base default".to_vec(),
+        0,
+    ));
+    let recipe = fixture_recipe(dir.path(), items.iter());
+    let cancel = CancellationToken::new();
+    let plan = a::plan(&recipe, dir.path(), &cancel).unwrap();
+    let lists = dir.path().join("filelists");
+    let toolset = dir.path().join("toolset");
+    let dd = dir.path().join("DepotDownloader.exe");
+    let commands = a::download_commands(
+        &dd, &recipe, &plan, dir.path(), &lists, &toolset, &a::Auth::Qr, &cancel,
+    )
+    .unwrap();
+    assert_eq!(commands.len(), 1);
+    let (step, command) = &commands[0];
+    assert_eq!(step, "Download depots 2347770, 2347771, 2347779");
+    let filelist = lists.join("all-depots.txt");
+    let mut expected: Vec<String> = [
+        "-app", "730", "-depot", "2347770", "2347771", "2347779", "-manifest", "234777001",
+        "234777101", "234777901", "-os", "windows", "-osarch", "64", "-filelist",
+    ]
+    .map(String::from)
+    .to_vec();
+    expected.push(filelist.to_string_lossy().into_owned());
+    expected.extend(["-dir".into(), toolset.to_string_lossy().into_owned()]);
+    expected.extend(["-validate", "-qr", "-loginid", "17843291"].map(String::from));
+    assert_eq!(texts(command), expected);
+    let names: Vec<String> = plan.files.iter().map(|f| f.path.clone()).collect();
+    assert_eq!(
+        fs::read_to_string(&filelist).unwrap(),
+        format!("{}\n", names.join("\n"))
+    );
+    // DepotDownloader 3.4: the filelist matches every depot ignoring case, and
+    // depots are written in order, so the last depot keeps a name.
+    let wanted: HashSet<String> = names.iter().map(|n| n.to_lowercase()).collect();
+    for depot in ["2347770", "2347771", "2347779"] {
+        for (name, data, _) in &items[depot] {
+            if wanted.contains(&name.to_lowercase()) {
+                safety::atomic_write(&toolset.join(name), data).unwrap();
+            }
+        }
+    }
+    assert!(a::validate_files(&plan, &toolset, &cancel).is_ok());
+    // The decision is made on the manifests the plan approved.
+    let changed = dir.path().join("manifest_2347771_234777101.txt");
+    let text = fs::read_to_string(&changed).unwrap();
+    fs::write(&changed, text + "\n").unwrap();
+    assert!(a::single_run_filelist(&plan, dir.path(), &cancel).is_err());
+}
+#[test]
+fn depots_download_one_by_one_when_one_run_would_differ_from_the_plan() {
+    let base_first = ["2347770", "2347771", "2347779"];
+    let tools_first = ["2347779", "2347770", "2347771"];
+    for (case, row, order) in [
+        // The filelist matches it ignoring case, but DepotDownloader keeps
+        // names by exact spelling, so the base file would be written too.
+        (
+            "other spelling",
+            ("content/core/Default.TGA", b"base".to_vec(), 0),
+            base_first,
+        ),
+        // Listed after TOOLS, the base depot would keep TOOLS' file.
+        (
+            "later depot",
+            ("content/core/default.tga", b"base".to_vec(), 0),
+            tools_first,
+        ),
+        // A folder under a planned file's name.
+        ("directory", ("content/core/default.tga", vec![], 0x40), base_first),
+        // .NET may match a dotless i to I.
+        (
+            "non-ASCII",
+            ("game/b\u{131}n/win64/modeldoc_utils.dll", b"base".to_vec(), 0),
+            base_first,
+        ),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut items = fixture_items();
+        items
+            .get_mut("2347770")
+            .unwrap()
+            .push((row.0.into(), row.1, row.2));
+        let recipe = fixture_recipe(
+            dir.path(),
+            order.iter().map(|d| items.get_key_value(*d).unwrap()),
+        );
+        let cancel = CancellationToken::new();
+        let toolset = dir.path().join("toolset");
+        let prepared = a::prepared_plan(&recipe, dir.path(), &toolset, &cancel).unwrap();
+        assert_eq!(
+            a::single_run_filelist(&prepared.plan, dir.path(), &cancel).unwrap(),
+            None,
+            "{case}"
+        );
+        let lists = a::write_plan_files(dir.path(), &prepared).unwrap();
+        let commands = a::download_commands(
+            &dir.path().join("DepotDownloader.exe"),
+            &recipe,
+            &prepared.plan,
+            dir.path(),
+            &lists,
+            &toolset,
+            &a::Auth::Qr,
+            &cancel,
+        )
+        .unwrap();
+        assert_eq!(commands.len(), 3, "{case}");
+        for ((step, command), depot) in commands.iter().zip(order) {
+            assert_eq!(step, &format!("Download depot {depot}"), "{case}");
+            let args = texts(command);
+            let at = args.iter().position(|a| a == "-depot").unwrap();
+            assert_eq!(args[at + 1..at + 3], [depot, "-manifest"], "{case}");
+            let list = lists.join(format!("{depot}.txt"));
+            assert!(args.contains(&list.to_string_lossy().into_owned()), "{case}");
+        }
+        assert!(!lists.join("all-depots.txt").exists(), "{case}");
+    }
+}
+#[test]
+fn downloads_without_a_filelist_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let recipe = a::recipe().unwrap();
+    let dd = dir.path().join("DepotDownloader.exe");
+    let list = dir.path().join("list.txt");
+    for content in [None, Some("")] {
+        if let Some(content) = content {
+            fs::write(&list, content).unwrap();
+        }
+        assert!(
+            a::depots_download_command(&dd, &recipe, &recipe.depots, &list, dir.path(), &a::Auth::Qr)
+                .is_err()
+        );
+        assert!(a::download_command(
+            &dd,
+            &recipe,
+            &recipe.depots[0],
+            &list,
+            dir.path(),
+            &a::Auth::Qr
+        )
+        .is_err());
+    }
+    fs::write(&list, "game/csgo/gameinfo.gi\n").unwrap();
+    assert!(a::depots_download_command(&dd, &recipe, &[], &list, dir.path(), &a::Auth::Qr).is_err());
+    // One depot: the command it always was.
+    let one = a::download_command(
+        &dd,
+        &recipe,
+        &recipe.depots[0],
+        &list,
+        dir.path(),
+        &a::Auth::Username("myuser".into()),
+    )
+    .unwrap();
+    let mut expected: Vec<String> = [
+        "-app", "730", "-depot", "2347770", "-manifest", "3469898947734168900", "-os", "windows",
+        "-osarch", "64", "-filelist",
+    ]
+    .map(String::from)
+    .to_vec();
+    expected.push(list.to_string_lossy().into_owned());
+    expected.extend(["-dir".into(), dir.path().to_string_lossy().into_owned()]);
+    expected.extend(
+        ["-validate", "-username", "myuser", "-remember-password", "-loginid", "17843291"]
+            .map(String::from),
+    );
+    assert_eq!(texts(&one), expected);
+}
+/// The pinned Steam manifests download in one run. Needs the manifests from
+/// Fetch manifests and plan: set DMB_TOOL_MANIFESTS to an acquisition folder's
+/// manifests folder and run with --ignored.
+#[test]
+#[ignore]
+fn pinned_manifests_download_in_one_run() {
+    let Some(manifests) = std::env::var_os("DMB_TOOL_MANIFESTS") else {
+        eprintln!("DMB_TOOL_MANIFESTS is not set; skipped");
+        return;
+    };
+    let manifests = Path::new(&manifests);
+    let cancel = CancellationToken::new();
+    let plan = a::plan(&a::recipe().unwrap(), manifests, &cancel).unwrap();
+    let names = a::single_run_filelist(&plan, manifests, &cancel)
+        .unwrap()
+        .expect("one run writes exactly the planned files");
+    assert_eq!(names.len(), plan.files.len());
 }
 #[test]
 fn malformed_manifest_paths_rows_links_and_duplicates_fail() {
@@ -493,6 +701,18 @@ fn manual_commands_quote_apostrophes_and_never_execute() {
     assert!(value.argv.values().all(|c| c.downloads.is_empty()));
     assert!(value.commands.contains("O''Neil"));
     assert!(deadlock_tools::manual_setup::powershell(&["bad\ncommand".into()]).is_err());
+    // The guide reads as steps for a person: what to run, where to click, what failures mean.
+    for part in ["YOU NEED", "Counter-Strike 2 in its library", "STEP 2. GET THE FILE LISTS", "Sign in with a QR code", "Export exact file plan", "are not here yet", "IF SOMETHING GOES WRONG"] {
+        assert!(value.guide.contains(part), "{part}");
+    }
+    // Flags, numbers and plain paths stay bare; the program and odd values are quoted.
+    let qr = &value.argv["qr"].metadata_command;
+    assert!(qr.starts_with("& 'C:/Tools/O''Neil/DepotDownloader.exe' -app 730 -depot 2347770"), "{qr}");
+    assert!(qr.contains("-dir C:/DMBTools/manifests -qr"), "{qr}");
+    assert_eq!(deadlock_tools::manual_setup::powershell(&["dd.exe".into(), "-dir".into(), r"C:\My Tools".into()]).unwrap(), r"& 'dd.exe' -dir 'C:\My Tools'");
+    if std::env::var_os("DMB_PRINT_GUIDE").is_some() {
+        println!("{}", value.guide);
+    }
 }
 #[test]
 fn manual_export_writes_exact_review_files_outside_inputs() {
@@ -523,11 +743,15 @@ fn manual_export_writes_exact_review_files_outside_inputs() {
     .unwrap();
     let export = result.export_dir.unwrap();
     assert!(export.join("expected-files.tsv").is_file());
-    assert_eq!(result.argv["qr"].downloads.len(), 3);
+    // The same download as the app's own: here one run for all three depots
+    // (one sign-in), filtered by the combined file list.
+    assert_eq!(result.argv["qr"].downloads.len(), 1);
     assert!(result.argv["qr"]
         .downloads
         .iter()
         .all(|a| a.iter().any(|v| v == "-filelist")));
+    assert!(export.join("filelists").join("all-depots.txt").is_file());
+    assert!(result.guide.contains("One command for depots"), "{}", result.guide);
     assert!(!options.toolroot.exists());
 }
 #[test]

@@ -176,6 +176,8 @@ impl Application {
                     ..Default::default()
                 };
                 let (runner, _logs) = self.create_runner_with_options(clock, cancel, options)?;
+                // The QR code goes on screen; DepotDownloader has no console here.
+                let _qr = matches!(auth, AcquireAuth::Qr {}).then(|| self.steam_qr_watcher(&runner));
                 Ok(acquisition::run_acquisition(
                     match action {
                         AcquireAction::Manifests => acquisition::Action::Manifests,
@@ -193,6 +195,51 @@ impl Application {
                 )?)
             },
         )
+        .map(|(value, _)| value)
+    }
+    /// Opens DepotDownloader in its own console window for a one-time Steam
+    /// sign-in with `username` and waits until it closes. Tool runs have no
+    /// console and no input, so DepotDownloader cannot ask them for a password;
+    /// after this it uses the sign-in it saved. The app never sees the password.
+    pub fn setup_steam_sign_in(&self, dd: Option<&Path>, username: &str) -> Result<()> {
+        self.operation("Sign in to Steam for DepotDownloader", |clock, cancel| {
+            self.step(clock, "Wait for the Steam sign-in window", || {
+                let username = username.trim();
+                if !steam_account_name(username) {
+                    return Err(AppError::validation(
+                        "Enter your Steam account name",
+                        "Use the name you sign in to Steam with (letters, digits and _), not your profile name.",
+                    ));
+                }
+                let dd = deadlock_tools::setup_checks::depotdownloader(dd.unwrap_or(Path::new("")))
+                    .map_err(|e| AppError::validation("Choose DepotDownloader.exe", e))?;
+                let folder = self
+                    .state_directory
+                    .join("operations")
+                    .join(clock.report().run_id)
+                    .join("steam-sign-in");
+                std::fs::create_dir_all(&folder)
+                    .map_err(|e| AppError::io("Could not create the sign-in folder", e))?;
+                let spec = acquisition::sign_in_command(&dd, &folder, username)?;
+                let code = console_window(&spec, &folder, cancel);
+                let _ = std::fs::remove_dir_all(&folder);
+                match code? {
+                    Some(0) => {
+                        // Logs leave out the account name, like command receipts.
+                        self.append_log("info", "DepotDownloader saved the Steam sign-in.")?;
+                        Ok(())
+                    }
+                    code => Err(AppError::new(
+                        "tool",
+                        "Steam sign-in did not finish",
+                        format!(
+                            "The DepotDownloader sign-in window closed before the sign-in was saved (exit code {}). Enter your Steam password and Steam Guard code in that window.",
+                            code.map_or("none".into(), |c| c.to_string())
+                        ),
+                    )),
+                }
+            })
+        })
         .map(|(value, _)| value)
     }
     pub fn setup_validate_existing(
@@ -232,6 +279,9 @@ impl Application {
                 // Saved settings use the ordinary resolved spelling (C:\..., not \\?\C:\...).
                 let root = asset_paths::resolve(toolroot)
                     .map_err(|e| AppError::validation("Setup path cannot be resolved", e))?;
+                // A folder just above or inside the toolset (the acquisition
+                // folder, the toolset's game folder) selects the toolset itself.
+                let root = deadlock_tools::setup_checks::toolset_root(&root).unwrap_or(root);
                 let game = root.join("game");
                 settings.cswin = path_text(&root)?;
                 settings.cswin_resourcecompiler = path_text(
@@ -247,6 +297,68 @@ impl Application {
         })
         .map(|(value, _)| value)
     }
+}
+
+/// A Steam account name (what you sign in with): letters, digits and _.
+fn steam_account_name(name: &str) -> bool {
+    (2..=64).contains(&name.len()) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+/// Runs `spec` in a new console window the user can type into (cmd's start
+/// gives it the window's own input and output) and waits for its exit code.
+/// `start /wait` alone leaves cmd's exit code at 0; the delayed `!errorlevel!`
+/// carries the program's.
+#[cfg(windows)]
+fn console_window(
+    spec: &deadlock_core::process::CommandSpec,
+    cwd: &Path,
+    cancel: &deadlock_core::CancellationToken,
+) -> Result<Option<i32>> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    // Every part is quoted; cmd would still expand % and ! and cannot quote ".
+    let quoted = |part: &std::ffi::OsStr| -> Result<String> {
+        match part.to_str() {
+            Some(text) if !text.chars().any(|c| matches!(c, '"' | '%' | '!') || c.is_control()) => Ok(format!("\"{text}\"")),
+            _ => Err(AppError::validation(
+                "This path cannot be passed to the sign-in window",
+                format!("Move DepotDownloader to a folder without \", % or ! in its path: {}", part.to_string_lossy()),
+            )),
+        }
+    };
+    let mut line = format!("/d /v:on /c start \"Steam sign-in (Deadlock Mod Builder)\" /wait {}", quoted(spec.program.as_os_str())?);
+    for arg in &spec.args {
+        line.push(' ');
+        line.push_str(&quoted(arg)?);
+    }
+    line.push_str(" & exit !errorlevel!");
+    let shell = std::env::var_os("ComSpec").unwrap_or_else(|| "cmd.exe".into());
+    let mut child = std::process::Command::new(shell)
+        .raw_arg(line)
+        .current_dir(cwd)
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| AppError::io("Could not open the Steam sign-in window", e))?;
+    loop {
+        if let Some(status) = child.try_wait().map_err(|e| AppError::io("Could not wait for the Steam sign-in window", e))? {
+            return Ok(status.code());
+        }
+        if let Err(error) = cancel.check() {
+            let _ = child.kill();
+            return Err(error.into());
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+}
+#[cfg(not(windows))]
+fn console_window(
+    _spec: &deadlock_core::process::CommandSpec,
+    _cwd: &Path,
+    _cancel: &deadlock_core::CancellationToken,
+) -> Result<Option<i32>> {
+    Err(AppError::validation("The Steam sign-in window needs Windows", "Sign in with DepotDownloader in a terminal: -username NAME -remember-password."))
 }
 
 #[cfg(feature = "desktop")]
@@ -314,6 +426,15 @@ pub mod commands {
         .await
     }
     #[tauri::command]
+    pub async fn setup_steam_sign_in(
+        state: AppState<'_>,
+        dd: Option<String>,
+        username: String,
+    ) -> Result<()> {
+        let app = state.inner().clone();
+        background(move || app.setup_steam_sign_in(dd.as_deref().map(Path::new), &username)).await
+    }
+    #[tauri::command]
     pub async fn setup_validate_existing(
         state: AppState<'_>,
         project: Project,
@@ -330,5 +451,29 @@ pub mod commands {
     ) -> Result<Settings> {
         let app = state.inner().clone();
         background(move || app.setup_use_toolset(settings, Path::new(&toolroot))).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn steam_account_names_are_letters_digits_and_underscores() {
+        assert!(steam_account_name("example_account"));
+        for wrong in ["", "a", "-qr", "two words", "name\"&calc", "50%"] {
+            assert!(!steam_account_name(wrong), "{wrong}");
+        }
+    }
+    /// Opens a console window for a moment; run with --ignored on Windows.
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn the_sign_in_window_reports_the_program_exit_code() {
+        let folder = tempfile::tempdir().unwrap();
+        let shell = deadlock_core::process::CommandSpec::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe").args(["-NoProfile", "-Command", "exit 5"]);
+        let cancel = deadlock_core::CancellationToken::new();
+        assert_eq!(console_window(&shell, folder.path(), &cancel).unwrap(), Some(5));
+        let bad = deadlock_core::process::CommandSpec::new(r"C:\100%\DepotDownloader.exe");
+        assert!(console_window(&bad, folder.path(), &cancel).is_err());
     }
 }

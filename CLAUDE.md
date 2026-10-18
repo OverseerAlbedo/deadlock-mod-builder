@@ -37,8 +37,9 @@ on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
 0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
-fixed), 0.13.0-beta.8 (automatic-movement fixes) and 0.13.0-beta.9 (tag `v0.13.0-beta.9`,
-October 17, 2026, MMD and Face details) followed, the latter being the latest; the
+fixed), 0.13.0-beta.8 (automatic-movement fixes), 0.13.0-beta.9 (MMD and Face details)
+and 0.13.0-beta.10 (tag `v0.13.0-beta.10`, October 18, 2026, model compiler setup
+fixes for issue #2) followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -46,7 +47,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.9 (October 17, 2026)
+## State as of 0.13.0-beta.10 (October 18, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -104,6 +105,13 @@ re-preparation, Face details (source alpha-0 layers hidden or shown at build),
 head and neck colliders, still hair buns, one-bone parts leaving their helper
 bones still, shorter long skirts (0.45/0.6 and panel-by-panel joining) and
 long sleeves as streamers. Checked in a match on October 17, 2026: Face details.
+
+Beta 10 = beta 9 plus the model compiler setup fixes from GitHub issue #2: the
+Steam QR code read back from DepotDownloader's hidden output and shown on
+screen, Download in one DepotDownloader run (one scan) when it reproduces the
+plan, Sign in to Steam… for username mode, Steam sign-in error help, wrong
+toolset folder messages and the manual download steps page. Checked on the PC
+on October 18, 2026: QR sign-in fetched the manifests with one scan.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
@@ -235,6 +243,22 @@ template check (`tests/cloth_bones.rs`).
   (`build.rs`), and `deadlock_pipeline::mod_update` scans and repairs installed
   VPKs in place (Build & install → Installed mods). Never bake attachment
   values into fixtures from game models.
+- DepotDownloader runs hidden (no console, stdin null), so it can never prompt.
+  QR sign-in: `deadlock_tools::steam_qr::read` reads the code back from its
+  output by layout only (the console code page's block bytes arrive as U+FFFD),
+  `SteamQrWatcher` (app.rs, QR mode of `setup_acquire` only) sends it as the
+  `steam-qr` event and `SteamQrDialog.tsx` shows it. Username mode needs a saved
+  sign-in from Sign in to Steam… (`setup_steam_sign_in`: a visible console via
+  `cmd /v:on /c start /wait … & exit !errorlevel!`; plain `start /wait` loses
+  the exit code).
+- Download all depots in one DepotDownloader run (one QR scan) only when
+  `acquisition::single_run_filelist` shows it writes exactly the planned files;
+  keep the per-depot fallback (`acquisition::download_commands`, used by the
+  app and the manual guide). Never add `-remember-password` to `Auth::Qr`; a
+  `-qr` run always starts a new QR session, so it is one scan per run.
+- The manual download guide exists twice and must say the same steps: plain
+  text in `manual_setup.rs guide` (instructions.txt) and the page
+  `src/setup/ManualGuide.tsx`.
 - Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
   `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
   playable yet, else In game); `hero_roster.json` `playable: false` is only the

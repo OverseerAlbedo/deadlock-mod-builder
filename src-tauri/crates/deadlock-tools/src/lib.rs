@@ -16,4 +16,6 @@ pub mod detection;
 
 pub mod setup_checks;
 
+pub mod steam_qr;
+
 pub mod validation;

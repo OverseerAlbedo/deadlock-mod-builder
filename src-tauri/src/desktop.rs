@@ -362,6 +362,10 @@ pub fn run() {
                 let _ = handle.emit("build-log", entry);
             }));
             let handle = host.handle().clone();
+            application.set_qr_sink(Arc::new(move |code| {
+                let _ = handle.emit("steam-qr", code);
+            }));
+            let handle = host.handle().clone();
             application.set_timing_sink(Arc::new(move |event| {
                 let _ = handle.emit("timing-event", event);
             }));
@@ -469,6 +473,7 @@ pub fn run() {
             crate::setup::commands::setup_manual_export,
             crate::setup::commands::setup_verify_files,
             crate::setup::commands::setup_acquire,
+            crate::setup::commands::setup_steam_sign_in,
             crate::setup::commands::setup_validate_existing,
             crate::setup::commands::setup_use_toolset,
             crate::catalogs::commands::discover_components,

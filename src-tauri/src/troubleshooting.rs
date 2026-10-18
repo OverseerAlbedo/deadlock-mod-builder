@@ -57,9 +57,28 @@ const RULES: &[Rule] = &[
         cause: "The selected model compiler is not the version the app needs (it cannot read ModelDoc 41).",
         steps: &["Open Settings → Set up model compiler….", "Download the pinned toolset, or click Verify existing acquisition for the one you have.", "Click Test original hero compatibility, then Use this toolset in settings.", "Build again."],
         action: Some(("Set up model compiler", "setup")) },
+    // DepotDownloader asked for a password nobody can type: tool runs have no
+    // console and no input. It then crashes in SteamKit's LogOn.
+    Rule { any: &["enter account password", "logon requires a username and password or access token", "did you forget to specify -remember-password"], all: &[],
+        cause: "DepotDownloader has no saved Steam sign-in for this account. The app runs it in the background without a console window, so it cannot ask for your password.",
+        steps: &["On Model tool setup, click Sign in to Steam… under Steam username.", "Type your Steam password and Steam Guard code in the DepotDownloader window that opens. The app never sees them; DepotDownloader saves the sign-in and the window closes by itself.", "Click Fetch manifests and plan again.", "Or choose Steam mobile QR sign-in and scan the code that appears on screen with the Steam app."],
+        action: Some(("Open Model tool setup", "setup")) },
+    Rule { any: &["sign-in window closed before the sign-in was saved"], all: &[],
+        cause: "DepotDownloader's sign-in window closed before Steam accepted the sign-in (for example after a wrong password or Steam Guard code).",
+        steps: &["Click Sign in to Steam… again.", "In the window that opens, type the password of the Steam account named in Steam username, then the Steam Guard code from your phone or email.", "Wait until the window closes by itself; the app then says Signed in."],
+        action: Some(("Open Model tool setup", "setup")) },
+    Rule { any: &["access token was rejected"], all: &[],
+        cause: "The Steam sign-in DepotDownloader saved has expired or was signed out.",
+        steps: &["On Model tool setup, click Sign in to Steam… and sign in again.", "Click Fetch manifests and plan again."],
+        action: Some(("Open Model tool setup", "setup")) },
+    // The QR code was not scanned before Steam gave up (or the sign-in was refused).
+    Rule { any: &["failed to authenticate with steam", "initializesteam failed"], all: &[],
+        cause: "Steam sign-in did not finish: the QR code was not scanned in time, or Steam refused the sign-in.",
+        steps: &["Click Fetch manifests and plan again. When the Steam QR code appears on screen, scan it with the Steam app on your phone (Steam Guard → scan a QR code). It renews every few seconds; scan the one shown.", "Your account needs Counter-Strike 2 in its library (it is free); installing it is not needed.", "If Steam reports too many attempts, wait 30 minutes and try again.", "Or choose a locally authenticated Steam account and click Sign in to Steam…."],
+        action: Some(("Open Model tool setup", "setup")) },
     Rule { any: &["logon", "login", "password", "steam guard", "rate limit", "ratelimit", "access token"], all: &["steam"],
         cause: "Steam sign-in did not finish inside DepotDownloader.",
-        steps: &["Use Steam mobile QR sign-in and approve it in the Steam app on your phone.", "Open Logs while it runs to see DepotDownloader's prompts.", "Your account needs Counter-Strike 2 in its library (it is free); installing it is not needed.", "If Steam reports too many attempts, wait 30 minutes and try again."],
+        steps: &["Use Steam mobile QR sign-in and scan the code that appears on screen with the Steam app on your phone.", "With a Steam username, click Sign in to Steam… first so DepotDownloader can save the sign-in.", "Your account needs Counter-Strike 2 in its library (it is free); installing it is not needed.", "If Steam reports too many attempts, wait 30 minutes and try again."],
         action: Some(("Open Logs", "logs")) },
     Rule { any: &["choose depotdownloader.exe", "depotdownloader.exe was not found", "is the downloaded zip. extract it first (right-click → extract all), then select the depotdownloader.exe", "select the depotdownloader.exe inside the extracted"], all: &[],
         cause: "The app could not find DepotDownloader.exe at the path you gave.",
@@ -67,7 +86,7 @@ const RULES: &[Rule] = &[
         action: Some(("Open model tool setup", "setup")) },
     Rule { any: &["depotdownloader"], all: &["failed"],
         cause: "DepotDownloader stopped with an error while talking to Steam or downloading.",
-        steps: &["Open Logs and read DepotDownloader's last lines; they say whether sign-in, the licence or the network failed.", "Use Steam mobile QR sign-in and approve it on your phone; the account needs Counter-Strike 2 in its library (free).", "Check your internet connection and free disk space, then click Fetch manifests and plan again. A download continues where it stopped."],
+        steps: &["Open Logs and read DepotDownloader's last lines; they say whether sign-in, the licence or the network failed.", "Use Steam mobile QR sign-in and scan the code that appears on screen; the account needs Counter-Strike 2 in its library (free).", "Check your internet connection and free disk space, then click Fetch manifests and plan again. A download continues where it stopped."],
         action: Some(("Open Logs", "logs")) },
     Rule { any: &["nothing has been downloaded into"], all: &[],
         cause: "Verify only checks a finished download, and this folder has none yet.",
@@ -224,6 +243,25 @@ mod tests {
         assert!(blender.steps.iter().any(|s| s.contains("Validate Blender")));
         assert!(help("cancelled", "Operation cancelled", "").is_none());
         assert!(help("busy", "Another operation is running", "Cancel it or wait for it to finish.").unwrap().cause.contains("still running"));
+        // Steam sign-in failures, from real DepotDownloader runs: no saved
+        // sign-in for a username (October 18, 2026) and a QR code nobody could
+        // scan (issue #2).
+        let password = help("tool", "External tool failed", concat!(
+            r"Tool C:\DeadlockModdingTools\DepotDownloader\DepotDownloader.exe failed (exit code -532462766).", "\n",
+            "stdout:\nEnter account password for \"example_account\": \r\nConnecting to Steam3... Done!\r\nLogging 'example_account' into Steam3...\n",
+            "stderr:\nUnhandled exception. System.ArgumentException: LogOn requires a username and password or access token to be set in 'details'.\r\n",
+            "   at SteamKit2.SteamUser.LogOn(LogOnDetails details)")).unwrap();
+        assert!(password.cause.contains("no saved Steam sign-in"), "{password:?}");
+        assert!(password.steps[0].contains("Sign in to Steam"));
+        assert_eq!(password.action.unwrap().page, "setup");
+        let qr = help("tool", "External tool failed", concat!(
+            r"Tool C:\Users\me\Desktop\1\DepotDownloader-windows-x64\DepotDownloader.exe failed (exit code 1).", "\n",
+            "stdout:\nConnecting to Steam3... Done!\r\nLogging in with QR code...\r\nError: InitializeSteam failed\r\n",
+            "stderr:\nFailed to authenticate with Steam: Exception of type 'SteamKit2.AsyncJobFailedException' was thrown.")).unwrap();
+        assert!(qr.cause.contains("QR code was not scanned"), "{qr:?}");
+        assert!(qr.steps[0].contains("appears on screen"));
+        let window = help("tool", "Steam sign-in did not finish", "The DepotDownloader sign-in window closed before the sign-in was saved (exit code 1). Enter your Steam password and Steam Guard code in that window.").unwrap();
+        assert!(window.cause.contains("wrong password"), "{window:?}");
         // Unknown tool failures still say where to look.
         assert_eq!(help("tool", "External tool failed", "Tool x.exe failed (exit code 9)").unwrap().action.unwrap().page, "logs");
     }

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -129,6 +129,18 @@ pub fn parse_manifest(
     manifest: &str,
     cancel: &CancellationToken,
 ) -> Result<Vec<ManifestFile>> {
+    Ok(manifest_rows(path, depot, manifest, cancel)?
+        .into_iter()
+        .filter(|r| !r.directory)
+        .collect())
+}
+/// Every row of a manifest listing, directories included.
+fn manifest_rows(
+    path: &Path,
+    depot: &str,
+    manifest: &str,
+    cancel: &CancellationToken,
+) -> Result<Vec<ManifestFile>> {
     let metadata = fs::metadata(path).map_err(|e| CoreError::io("Inspect pinned manifest", e))?;
     if metadata.len() > 256 * 1024 * 1024 {
         return Err(fail("Manifest listing exceeds supported size"));
@@ -214,7 +226,7 @@ pub fn parse_manifest(
             path.display()
         )));
     }
-    Ok(rows.into_iter().filter(|r| !r.directory).collect())
+    Ok(rows)
 }
 pub fn selected(depot: &str, path: &str) -> Result<bool> {
     if depot == TOOLS {
@@ -483,6 +495,17 @@ pub fn metadata_command(
     spec = spec.args(auth.args()?).args(["-loginid", "17843291"]);
     Ok(spec)
 }
+/// A one-time Steam sign-in for a username: run in a console window the user
+/// types into, DepotDownloader asks for the password and the Steam Guard code
+/// and, with -remember-password, keeps the sign-in, so the app's later runs
+/// (no console, no input) need no password. Fetches one pinned manifest into
+/// `destination`.
+pub fn sign_in_command(dd: &Path, destination: &Path, username: &str) -> Result<CommandSpec> {
+    let recipe = recipe()?;
+    let depot = recipe.depots.first().cloned().ok_or_else(|| fail("The pinned tool recipe has no depot."))?;
+    let pinned = Recipe { depots: vec![depot], ..recipe };
+    metadata_command(dd, &pinned, destination, &Auth::Username(username.into()))
+}
 pub fn download_command(
     dd: &Path,
     recipe: &Recipe,
@@ -491,6 +514,23 @@ pub fn download_command(
     destination: &Path,
     auth: &Auth,
 ) -> Result<CommandSpec> {
+    depots_download_command(dd, recipe, std::slice::from_ref(depot), filelist, destination, auth)
+}
+/// Downloads `depots` in one DepotDownloader run (one Steam sign-in, so one
+/// QR scan) into one folder, every depot filtered by the same filelist. Where
+/// depots share a file name, DepotDownloader keeps the last depot's file.
+pub fn depots_download_command(
+    dd: &Path,
+    recipe: &Recipe,
+    depots: &[Depot],
+    filelist: &Path,
+    destination: &Path,
+    auth: &Auth,
+) -> Result<CommandSpec> {
+    if depots.is_empty() {
+        return Err(fail("No depot to download."));
+    }
+    // DepotDownloader only warns about a filelist it cannot read and then downloads everything.
     if !filelist.is_file()
         || fs::metadata(filelist)
             .map_err(|e| CoreError::io("Inspect acquisition filelist", e))?
@@ -501,26 +541,129 @@ pub fn download_command(
             "Required filelist is missing/empty; refusing an unfiltered download.",
         ));
     }
+    let mut args = vec!["-app".into(), recipe.app.clone(), "-depot".into()];
+    args.extend(depots.iter().map(|d| d.depot.clone()));
+    args.push("-manifest".into());
+    args.extend(depots.iter().map(|d| d.manifest.clone()));
+    args.extend(["-os", "windows", "-osarch", "64", "-filelist"].map(str::to_owned));
     Ok(CommandSpec::new(dd)
-        .args([
-            "-app",
-            &recipe.app,
-            "-depot",
-            &depot.depot,
-            "-manifest",
-            &depot.manifest,
-            "-os",
-            "windows",
-            "-osarch",
-            "64",
-            "-filelist",
-        ])
+        .args(args)
         .arg(filelist)
         .arg("-dir")
         .arg(destination)
         .arg("-validate")
         .args(auth.args()?)
         .args(["-loginid", "17843291"]))
+}
+/// Whether .NET's OrdinalIgnoreCase (DepotDownloader's filelist match) may
+/// call `a` and `b` equal: as many UTF-16 units and the same ASCII characters
+/// ignoring case. Other characters follow .NET's own case tables, so any pair
+/// of them counts as a possible match.
+fn loosely_equal(a: &str, b: &str) -> bool {
+    a.encode_utf16().count() == b.encode_utf16().count()
+        && a.encode_utf16().zip(b.encode_utf16()).all(|(x, y)| {
+            x >= 0x80 || y >= 0x80 || (x as u8).eq_ignore_ascii_case(&(y as u8))
+        })
+}
+/// The filelist for downloading every depot of `plan` in one DepotDownloader
+/// run, or `None` when one run would not write exactly the planned files.
+///
+/// DepotDownloader 3.4 matches the filelist against every depot without regard
+/// to case and, for depots sharing a folder, keeps the last depot's file (in
+/// the order given, which is the plan's override order). So a file one
+/// depot's selection leaves out still comes from that depot when another
+/// depot selects the same name. Over the full manifests the plan approved,
+/// every name the filelist can match must be a planned file, spelled as
+/// planned and not a directory, and the last depot that has it must be the
+/// planned one with the planned bytes.
+pub fn single_run_filelist(
+    plan: &AcquisitionPlan,
+    manifests: &Path,
+    cancel: &CancellationToken,
+) -> Result<Option<Vec<String>>> {
+    let planned: HashMap<String, &ManifestFile> =
+        plan.files.iter().map(|f| (casefold(&f.path), f)).collect();
+    let mut by_length: HashMap<usize, Vec<&str>> = HashMap::new();
+    for file in &plan.files {
+        by_length
+            .entry(file.path.encode_utf16().count())
+            .or_default()
+            .push(&file.path);
+    }
+    let unusual = plan.files.iter().any(|f| !f.path.is_ascii());
+    let mut written: HashMap<String, (&str, ManifestFile)> = HashMap::new();
+    for selected in &plan.depots {
+        let depot = &selected.depot;
+        let name = format!("manifest_{}_{}.txt", depot.depot, depot.manifest);
+        let path = manifests.join(&name);
+        no_links(&path)?;
+        if plan.manifest_sha256.get(&name) != Some(&digest_with_cancel(&path, cancel)?) {
+            return Err(fail(format!(
+                "Manifest {name} changed after planning. Click Fetch manifests and plan again."
+            )));
+        }
+        for row in manifest_rows(&path, &depot.depot, &depot.manifest, cancel)? {
+            let key = casefold(&row.path);
+            // Names with other characters may match an entry casefold does not.
+            let unclear = (unusual || !row.path.is_ascii())
+                && by_length
+                    .get(&row.path.encode_utf16().count())
+                    .is_some_and(|names| {
+                        names.iter().any(|n| *n != row.path && loosely_equal(n, &row.path))
+                    });
+            match planned.get(&key) {
+                None if !unclear => {}
+                Some(file) if !unclear && file.path == row.path && !row.directory => {
+                    written.insert(key, (depot.depot.as_str(), row));
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+    let exact = written.len() == plan.files.len()
+        && plan.files.iter().all(|f| {
+            written.get(&casefold(&f.path)).is_some_and(|(depot, row)| {
+                f.depot.as_deref() == Some(*depot) && row.bytes == f.bytes && row.sha1 == f.sha1
+            })
+        });
+    Ok(exact.then(|| plan.files.iter().map(|f| f.path.clone()).collect()))
+}
+/// The DepotDownloader runs that download `plan` into `destination`, each
+/// with its step name: one run for every depot when that writes exactly the
+/// planned files (one Steam sign-in, so one QR scan instead of one per depot;
+/// its filelist is written to `lists`), else one run per depot with the
+/// depot's own filelist from `lists`.
+pub fn download_commands(
+    dd: &Path,
+    recipe: &Recipe,
+    plan: &AcquisitionPlan,
+    manifests: &Path,
+    lists: &Path,
+    destination: &Path,
+    auth: &Auth,
+    cancel: &CancellationToken,
+) -> Result<Vec<(String, CommandSpec)>> {
+    if let Some(names) = single_run_filelist(plan, manifests, cancel)? {
+        let filelist = lists.join("all-depots.txt");
+        no_links(&filelist)?;
+        safety::atomic_write(&filelist, format!("{}\n", names.join("\n")))?;
+        let depots: Vec<Depot> = plan.depots.iter().map(|d| d.depot.clone()).collect();
+        let ids: Vec<&str> = depots.iter().map(|d| d.depot.as_str()).collect();
+        return Ok(vec![(
+            format!("Download depots {}", ids.join(", ")),
+            depots_download_command(dd, recipe, &depots, &filelist, destination, auth)?,
+        )]);
+    }
+    plan.depots
+        .iter()
+        .map(|d| {
+            let filelist = lists.join(format!("{}.txt", d.depot.depot));
+            Ok((
+                format!("Download depot {}", d.depot.depot),
+                download_command(dd, recipe, &d.depot, &filelist, destination, auth)?,
+            ))
+        })
+        .collect()
 }
 pub fn owned(root: &Path, recipe: &Recipe, create: bool) -> Result<PathBuf> {
     let root = if root.is_absolute() {
@@ -637,8 +780,25 @@ pub fn run_acquisition(
         if matches!(action,Action::Download)&&approved_plan_digest!=Some(prepared.plan_digest.as_str()){return Err(fail("Download requires confirmation of this exact preflight plan. Fetch manifests, review the selection, then download."));}
         let lists=write_plan_files(&root,&prepared)?;
         if matches!(action,Action::Manifests){return Ok(AcquisitionResult{plan:prepared.plan,plan_digest:prepared.plan_digest,downloaded:false,receipt:None});}
-        if matches!(action,Action::Download){no_links(&toolroot)?;fs::create_dir_all(&toolroot).map_err(|e|CoreError::io("Create selected toolset directory",e))?;for depot in &prepared.plan.depots{cancel.check()?;timing.measure(format!("Download depot {}",depot.depot.depot),Some(span.id()),|_|runner.run(&download_command(dd.expect("validated"),&recipe,&depot.depot,&lists.join(format!("{}.txt",depot.depot.depot)),&toolroot,auth)?.current_dir(&root)))?;}}
+        if matches!(action,Action::Download){no_links(&toolroot)?;fs::create_dir_all(&toolroot).map_err(|e|CoreError::io("Create selected toolset directory",e))?;for (step,command) in download_commands(dd.expect("validated"),&recipe,&prepared.plan,&manifests,&lists,&toolroot,auth,cancel)?{cancel.check()?;timing.measure(step,Some(span.id()),|_|runner.run(&command.current_dir(&root)))?;}}
         let receipt=timing.measure("Verify selected tool files",Some(span.id()),|_|validate_files(&prepared.plan,&toolroot,cancel))?;safety::write_json(&receipt_path,&receipt)?;
         Ok(AcquisitionResult{plan:prepared.plan,plan_digest:prepared.plan_digest,downloaded:matches!(action,Action::Download),receipt:Some(receipt)})
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn filelist_names_match_like_dotnet_or_count_as_unclear() {
+        assert!(loosely_equal("game/bin/A.dll", "GAME/BIN/a.DLL"));
+        assert!(!loosely_equal("game/bin/a.dll", "game/bin/b.dll"));
+        assert!(!loosely_equal("game/bin/a.dll", "game/bin/a.dl"));
+        // Other characters follow .NET's case tables: a dotless i may be an I.
+        assert!(loosely_equal("game/b\u{131}n/a.dll", "game/BIN/a.dll"));
+        assert!(loosely_equal("game/\u{e4}.dll", "game/a.dll"));
+        // UTF-16 units, not bytes or characters.
+        assert!(!loosely_equal("game/\u{1F600}.dll", "game/a.dll"));
+        assert!(loosely_equal("game/\u{1F600}.dll", "game/ab.dll"));
+    }
 }

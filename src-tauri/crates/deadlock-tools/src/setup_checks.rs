@@ -273,6 +273,19 @@ pub fn toolset_root(path: &Path) -> Option<PathBuf> {
     let complete = |p: &Path| p.join(TOOLSET_COMPILER).is_file() && p.join(TOOLSET_GAME).join("gameinfo.gi").is_file();
     ancestors(path, 5).into_iter().chain(descendants(path, 1)).find(|p| complete(p))
 }
+/// What `path` is when it is not a model toolset, for the folders people
+/// choose by mistake: a Community SDK folder (any level of it) or Deadlock's
+/// own game files (downloaded from Deadlock's depot instead of the toolset).
+pub fn toolset_mistake(path: &Path) -> Option<&'static str> {
+    if csdk_root(path).is_some() {
+        return Some("This folder is part of the Community SDK (Reduced CSDK 12), which only compiles materials. The model compiler is a separate toolset from Counter-Strike 2's Workshop Tools: on Set up model compiler…, click Fetch manifests and plan, then Download; the app selects the toolset folder for you.");
+    }
+    let deadlock = |p: &Path| p.join("citadel").is_dir() && !p.join("csgo").is_dir();
+    if ancestors(path, 2).iter().chain(&[path.join("game")]).any(|p| deadlock(p)) {
+        return Some(r"This is Deadlock's game content (game\citadel), not the model toolset. The toolset comes from Counter-Strike 2's Workshop Tools (app 730); the app downloads only the files it needs with Fetch manifests and plan, then Download on Set up model compiler….");
+    }
+    None
+}
 
 /// The model compiler: the downloaded toolset. A model compile with the
 /// Community SDK's compiler stops with a ParticleFloatType_t schema mismatch.
@@ -290,7 +303,8 @@ fn model_compiler(settings: &Settings) -> Vec<FieldCheck> {
         return vec![check("cswin", State::Problem, "This is the Community SDK, not the model toolset. Choose the toolset folder you downloaded with Set up model compiler… (it contains game\\csgo).", None)];
     }
     let Some(root) = toolset_root(root_path) else {
-        return vec![check("cswin", State::Problem, format!(r"No model toolset here: game\bin\win64\resourcecompiler.exe or game\csgo\gameinfo.gi is missing. The downloaded toolset is the toolset folder inside your acquisition folder, for example {EXAMPLE_TOOLSET}."), None)];
+        let why = toolset_mistake(root_path).map(str::to_owned).unwrap_or_else(|| format!(r"No model toolset here: game\bin\win64\resourcecompiler.exe or game\csgo\gameinfo.gi is missing. The downloaded toolset is the toolset folder inside your acquisition folder, for example {EXAMPLE_TOOLSET}."));
+        return vec![check("cswin", State::Problem, why, None)];
     };
     if !same(&root, root_path) {
         return vec![check("cswin", State::Problem, format!("The toolset itself is {}.", text(&root)), Some(root))];
@@ -524,6 +538,21 @@ mod tests {
         // The CSDK chosen as the model toolset is named as such.
         let sdk_as_model = Settings { cswin: text(&sdk), model_backend: "auto".into(), ..Default::default() };
         assert!(field_checks(&sdk_as_model).iter().find(|c| c.field == "cswin").unwrap().message.contains("Community SDK"));
+        // So is a folder inside it (issue #2: Reduced_CSDK_12\game), and
+        // Deadlock's own game files downloaded instead of the toolset.
+        let message = |path: &Path| {
+            let s = Settings { cswin: text(path), model_backend: "auto".into(), ..Default::default() };
+            field_checks(&s).into_iter().find(|c| c.field == "cswin").unwrap().message
+        };
+        assert!(message(&sdk.join("game")).contains("part of the Community SDK"));
+        let deadlock = t.path().join("ModelToolset");
+        touch(&deadlock, "game/citadel/pak01_dir.vpk");
+        touch(&deadlock, "game/core/panorama/x.txt");
+        for picked in [deadlock.clone(), deadlock.join("game")] {
+            assert!(message(&picked).contains("Deadlock's game content"), "{}", picked.display());
+        }
+        assert_eq!(toolset_mistake(&toolset), None);
+        assert!(message(&t.path().join("empty")).contains("No model toolset here"));
     }
 
     #[test]

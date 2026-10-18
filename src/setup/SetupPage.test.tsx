@@ -47,6 +47,17 @@ describe('Real setup command wiring',()=>{
     expect(mocks.invoke).toHaveBeenCalledWith('setup_use_toolset',{settings,toolroot:defaults.options.toolroot});
     expect(await screen.findByText(/selected and saved/)).toBeInTheDocument();
   });
+  it('signs a username in once in DepotDownloader’s own window before fetching',async()=>{
+    mocks.invoke.mockImplementation(async name=>{if(name==='setup_defaults')return defaults;if(name==='setup_steam_sign_in')return null;throw new Error(name);});
+    render(<SetupPage settings={settings} project={project} updateSettings={vi.fn()} busy={false} operate={operate}/>);await screen.findByDisplayValue(defaults.automatic_root);
+    expect(screen.getByText(/QR code appears on screen/,{selector:'p'})).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Steam authentication'),{target:{value:'username'}});
+    const signIn=screen.getByRole('button',{name:'Sign in to Steam…'});expect(signIn).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Steam username'),{target:{value:' example_account '}});
+    fireEvent.click(signIn);
+    await screen.findByText(/saved the sign-in for example_account/);
+    expect(mocks.invoke).toHaveBeenCalledWith('setup_steam_sign_in',{dd:defaults.options.dd,username:'example_account'});
+  });
   it('explains DepotDownloader choices before anything runs',()=>{
     expect(depotDownloaderHint('C:\Downloads\DepotDownloader-windows-x64.zip')).toContain('Extract All');
     expect(depotDownloaderHint('')).toContain('extracted');

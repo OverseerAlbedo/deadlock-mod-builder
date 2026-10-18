@@ -120,6 +120,15 @@ pub struct SetupStatus {
 }
 pub type LogSink = Arc<dyn Fn(&LogEntry) + Send + Sync>;
 pub type TimingSink = Arc<dyn Fn(&deadlock_core::TimingEvent) + Send + Sync>;
+/// The Steam QR code DepotDownloader is waiting on, or none when its sign-in
+/// is over.
+pub type QrSink = Arc<dyn Fn(Option<&SteamQr>) + Send + Sync>;
+/// A Steam sign-in QR code for the UI: one string per row, "1" dark, "0" light,
+/// without the quiet zone.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SteamQr {
+    pub rows: Vec<String>,
+}
 
 struct LogBook {
     entries: Vec<LogEntry>,
@@ -135,6 +144,7 @@ pub struct Application {
     sink: Arc<Mutex<Option<LogSink>>>,
     tool_directories: Mutex<Vec<PathBuf>>,
     timing_sink: Mutex<Option<TimingSink>>,
+    qr_sink: Arc<Mutex<Option<QrSink>>>,
     active: Mutex<Option<CancellationToken>>,
     current_timings: Mutex<Option<TimingRecorder>>,
     last_timings: Mutex<Option<TimingReport>>,
@@ -199,6 +209,7 @@ impl Application {
             sink: Arc::new(Mutex::new(None)),
             tool_directories: Mutex::new(Vec::new()),
             timing_sink: Mutex::new(None),
+            qr_sink: Arc::new(Mutex::new(None)),
             active: Mutex::new(None),
             current_timings: Mutex::new(None),
             last_timings: Mutex::new(None),
@@ -210,6 +221,13 @@ impl Application {
     }
     pub fn set_timing_sink(&self, sink: TimingSink) {
         *lock(&self.timing_sink) = Some(sink);
+    }
+    pub fn set_qr_sink(&self, sink: QrSink) {
+        *lock(&self.qr_sink) = Some(sink);
+    }
+    /// Shows DepotDownloader's Steam QR codes from `runner` until dropped.
+    pub(crate) fn steam_qr_watcher(&self, runner: &deadlock_core::process::Runner) -> SteamQrWatcher {
+        SteamQrWatcher::start(runner, self.qr_sink.clone())
     }
     pub fn is_busy(&self) -> bool {
         lock(&self.active).is_some()
@@ -1036,6 +1054,85 @@ impl Drop for ToolLogObserver {
         }
     }
 }
+/// Reads DepotDownloader's output during a QR sign-in and sends the code to
+/// the UI as it appears, renews and ends. The app runs DepotDownloader without
+/// a console, so the code is otherwise only in Logs, where the block
+/// characters arrive as unreadable replacement characters.
+pub(crate) struct SteamQrWatcher {
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+impl SteamQrWatcher {
+    /// Output read per run before giving up on finding a code in it.
+    const SEARCH_BYTES: usize = 256 * 1024;
+    fn start(runner: &deadlock_core::process::Runner, sink: Arc<Mutex<Option<QrSink>>>) -> Self {
+        use deadlock_core::process::OutputStream;
+        use deadlock_tools::steam_qr::{self, SignIn};
+        let receiver = runner.subscribe(512);
+        let stop = Arc::new(AtomicBool::new(false));
+        let done = stop.clone();
+        let worker = thread::Builder::new()
+            .name("dmb-steam-qr".into())
+            .spawn(move || {
+                let mut output = std::collections::BTreeMap::<String, String>::new();
+                let mut finished = std::collections::BTreeSet::<String>::new();
+                let mut shown: Option<SteamQr> = None;
+                let mut show = |code: Option<SteamQr>| {
+                    if code != shown {
+                        if let Some(sink) = lock(&sink).clone() {
+                            sink(code.as_ref());
+                        }
+                        shown = code;
+                    }
+                };
+                let mut receive = |event: deadlock_core::process::LogEvent| {
+                    if finished.contains(&event.command_id) {
+                        return;
+                    }
+                    let over = match event.stream {
+                        // DepotDownloader reports a failed sign-in on stderr.
+                        OutputStream::Stderr => !event.preview.trim().is_empty(),
+                        OutputStream::Stdout => {
+                            let text = output.entry(event.command_id.clone()).or_default();
+                            text.push_str(&event.preview);
+                            match steam_qr::read(text) {
+                                SignIn::Code(rows) => {
+                                    show(Some(SteamQr {
+                                        rows: rows.iter().map(|row| row.iter().map(|d| if *d { '1' } else { '0' }).collect()).collect(),
+                                    }));
+                                    false
+                                }
+                                SignIn::Over => true,
+                                SignIn::Unknown => text.len() > Self::SEARCH_BYTES,
+                            }
+                        }
+                    };
+                    if over {
+                        output.remove(&event.command_id);
+                        finished.insert(event.command_id);
+                        show(None);
+                    }
+                };
+                while !done.load(Ordering::Acquire) {
+                    if let Ok(event) = receiver.recv_timeout(Duration::from_millis(25)) {
+                        receive(event);
+                    }
+                }
+                drop(receive);
+                show(None);
+            })
+            .ok();
+        Self { stop, worker }
+    }
+}
+impl Drop for SteamQrWatcher {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolLogFile {
     pub path: PathBuf,
@@ -1212,6 +1309,75 @@ mod log_tests {
             .is_file());
         assert!(app.log_text().unwrap().contains("deliberate fixture panic"));
         assert!(app.new_project().is_ok());
+    }
+    /// DepotDownloader's QR code reaches the UI from a real tool run: the
+    /// console code page's block bytes (0xDB in code page 437) read back as
+    /// replacement characters, the code is shown, then cleared when the
+    /// sign-in moves on or the operation ends (issue #2).
+    #[cfg(windows)]
+    #[test]
+    fn a_steam_qr_code_printed_by_a_tool_is_shown_and_cleared() {
+        let size = 21;
+        let mut rows = vec![vec![false; size]; size];
+        for (top, left) in [(0, 0), (0, size - 7), (size - 7, 0)] {
+            for r in 0..7 {
+                for c in 0..7 {
+                    rows[top + r][left + c] = r == 0 || r == 6 || c == 0 || c == 6 || ((2..=4).contains(&r) && (2..=4).contains(&c));
+                }
+            }
+        }
+        rows[10][13] = true;
+        let mut bytes = b"Connecting to Steam3... Done!\r\nLogging in with QR code...\r\nUse the Steam Mobile App to sign in with this QR code:\r\n".to_vec();
+        let blank = vec![b' '; (size + 8) * 2];
+        for _ in 0..4 {
+            bytes.extend(&blank);
+            bytes.extend(b"\r\n");
+        }
+        for row in &rows {
+            bytes.extend(b"        ");
+            for dark in row {
+                bytes.extend(if *dark { [0xDB, 0xDB] } else { [b' ', b' '] });
+            }
+            bytes.extend(b"        \r\n");
+        }
+        for _ in 0..4 {
+            bytes.extend(&blank);
+            bytes.extend(b"\r\n");
+        }
+        let folder = tempfile::tempdir().unwrap();
+        let waiting = folder.path().join("waiting.txt");
+        fs::write(&waiting, &bytes).unwrap();
+        let app = Application::new(folder.path().join("state")).unwrap();
+        let seen = Arc::new(Mutex::new(Vec::<Option<SteamQr>>::new()));
+        let record = seen.clone();
+        app.set_qr_sink(Arc::new(move |code| lock(&record).push(code.cloned())));
+        let expected = SteamQr { rows: rows.iter().map(|r| r.iter().map(|d| if *d { '1' } else { '0' }).collect()).collect() };
+        let cmd = std::env::var_os("ComSpec").unwrap_or_else(|| "cmd.exe".into());
+        for ends in ["operation", "output"] {
+            lock(&seen).clear();
+            app.operation("qr fixture", |clock, token| {
+                let (runner, _observer) = app.create_runner(clock, token)?;
+                let watcher = app.steam_qr_watcher(&runner);
+                let mut spec = deadlock_core::process::CommandSpec::new(&cmd).args(["/d", "/c", "type"]).arg(&waiting);
+                if ends == "output" {
+                    // Signed in a moment later.
+                    spec = spec.args(["&", "ping", "-n", "2", "127.0.0.1", ">nul", "&", "echo", "Done!"]);
+                }
+                runner.run(&spec)?;
+                std::thread::sleep(Duration::from_millis(200));
+                if ends == "output" {
+                    // Signed in: cleared by the tool's own output.
+                    assert_eq!(*lock(&seen), vec![Some(expected.clone()), None]);
+                } else {
+                    assert_eq!(*lock(&seen), vec![Some(expected.clone())]);
+                }
+                drop(watcher);
+                Ok(())
+            })
+            .unwrap();
+            // Every sign-in ends with the code cleared.
+            assert_eq!(lock(&seen).last(), Some(&None), "{ends}");
+        }
     }
     #[cfg(unix)]
     #[test]

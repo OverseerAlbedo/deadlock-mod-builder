@@ -18,6 +18,11 @@ pub struct Options {
 pub struct Commands {
     pub metadata: Vec<String>,
     pub downloads: Vec<Vec<String>>,
+    /// The same commands as PowerShell lines to paste.
+    #[serde(default)]
+    pub metadata_command: String,
+    #[serde(default)]
+    pub download_commands: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Preview {
@@ -30,17 +35,26 @@ pub struct Preview {
     pub export_dir: Option<PathBuf>,
     pub compatible: bool,
     pub downloaded: bool,
+    /// The pinned depots in full, and the selected files once a plan exists.
+    #[serde(default)]
+    pub whole_bytes: u64,
+    #[serde(default)]
+    pub selected_bytes: Option<u64>,
 }
 fn fail(message: impl Into<String>) -> CoreError {
     CoreError::Integrity(message.into())
 }
+/// A PowerShell line running `argv`. The program and any value PowerShell
+/// would read specially are single-quoted; flags, numbers and plain paths stay
+/// bare so the command is readable.
 pub fn powershell(argv: &[String]) -> Result<String> {
+    let plain = |v: &str| !v.is_empty() && v.chars().all(|c| c.is_ascii_alphanumeric() || "-_.:\\/".contains(c));
     let mut quoted = vec![];
-    for value in argv {
+    for (index, value) in argv.iter().enumerate() {
         if value.chars().any(|c| c < ' ') {
             return Err(fail("Commands cannot contain control characters."));
         }
-        quoted.push(format!("'{}'", value.replace('\'', "''")));
+        quoted.push(if index > 0 && plain(value) { value.clone() } else { format!("'{}'", value.replace('\'', "''")) });
     }
     Ok(format!("& {}", quoted.join(" ")))
 }
@@ -73,11 +87,15 @@ pub fn policy_text(recipe: &Recipe) -> Result<String> {
     lines.extend(["Each filelist contains literal selected paths, one per line; no regular expressions.","Run depots in the listed order. Later depots replace the same path from earlier depots.","Expected-files.tsv records the final effective size, SHA-1 and owning depot; the plan records all overrides."].map(str::to_owned));
     Ok(lines.join("\n"))
 }
+/// The commands for each sign-in. With an exported plan, the download is the
+/// same as the app's own: one run for all depots when that run writes exactly
+/// the planned files (`acquisition::download_commands`), else one per depot.
 pub fn command_sets(
     recipe: &Recipe,
     options: &Options,
     plan: Option<&AcquisitionPlan>,
     export_dir: Option<&Path>,
+    cancel: &CancellationToken,
 ) -> Result<BTreeMap<String, Commands>> {
     let mut result = BTreeMap::new();
     for (name, auth) in [
@@ -90,73 +108,195 @@ pub fn command_sets(
         if let Some(plan) = plan {
             let export = export_dir
                 .ok_or_else(|| fail("Export exact filelists before showing payload commands."))?;
-            for entry in &plan.depots {
-                let list = export
-                    .join("filelists")
-                    .join(format!("{}.txt", entry.depot.depot));
-                let command = acquisition::download_command(
-                    &options.dd,
-                    recipe,
-                    &entry.depot,
-                    &list,
-                    &options.toolroot,
-                    &auth,
-                )?;
+            for (_, command) in acquisition::download_commands(
+                &options.dd,
+                recipe,
+                plan,
+                &options.manifests,
+                &export.join("filelists"),
+                &options.toolroot,
+                &auth,
+                cancel,
+            )? {
                 downloads.push(argv(&command.program, &command.args));
             }
         }
+        let metadata = argv(&metadata.program, &metadata.args);
         result.insert(
             name.into(),
             Commands {
-                metadata: argv(&metadata.program, &metadata.args),
+                metadata_command: powershell(&metadata)?,
+                download_commands: downloads.iter().map(|d| powershell(d)).collect::<Result<_>>()?,
+                metadata,
                 downloads,
             },
         );
     }
     Ok(result)
 }
-pub fn commands_text(commands: &BTreeMap<String, Commands>) -> Result<String> {
-    let mut lines=vec!["POWERSHELL COMMANDS — choose ONE login mode per operation. Run commands individually, in order.".into()];
+/// How each sign-in works, in the words the guide and commands.txt use.
+fn sign_in(mode: &str) -> (&'static str, &'static str) {
+    if mode == "username" {
+        ("Sign in with your Steam username", "Replace YOUR_STEAM_USERNAME with the account name you sign in to Steam with. DepotDownloader asks for your password and Steam Guard code in the PowerShell window; type them there, never into a command. -remember-password keeps the sign-in, so later commands do not ask again.")
+    } else {
+        ("Sign in with a QR code", "DepotDownloader draws a QR code in the PowerShell window. Scan it with the Steam app on your phone (Steam Guard → Scan a QR code). Every command shows a new code.")
+    }
+}
+/// The depots a download command is for.
+fn depots_of(argv: &[String]) -> String {
+    let depots: Vec<&str> = argv.iter().skip_while(|a| *a != "-depot").skip(1).take_while(|a| !a.starts_with('-')).map(String::as_str).collect();
+    depots.join(", ")
+}
+/// The heading of one download command.
+fn download_label(index: usize, count: usize, argv: &[String]) -> String {
+    if count == 1 {
+        format!("One command for depots {}", depots_of(argv))
+    } else {
+        format!("Part {} of {count} (depot {})", index + 1, depots_of(argv))
+    }
+}
+/// Why the download commands only exist after Export exact file plan.
+fn downloads_later(whole_bytes: u64) -> String {
+    format!("The download commands are made in step 3, so they are not here yet. Each one needs a file list that picks only the files the model compiler needs (a few GB instead of all {} of the three depots), and the app makes those lists from the files you get in step 2.", size(whole_bytes))
+}
+fn whole_bytes(recipe: &Recipe) -> u64 {
+    recipe.depots.iter().map(|d| d.whole_depot_bytes).sum()
+}
+/// commands.txt: every command, grouped by sign-in.
+pub fn commands_text(commands: &BTreeMap<String, Commands>, recipe: &Recipe) -> Result<String> {
+    let mut lines = vec![
+        "COMMANDS FOR THE MODEL TOOLSET DOWNLOAD".into(),
+        "Paste one command at a time into PowerShell and press Enter. Wait until it finishes before the next one. Use the commands of one sign-in throughout.".into(),
+    ];
     for (mode, commands) in commands {
-        lines.push(format!("\n{} LOGIN", mode.to_uppercase()));
-        if mode == "username" {
-            lines.push("Replace YOUR_STEAM_USERNAME. Complete authentication in DepotDownloader; never enter a password into the builder.".into());
-        }
-        lines.push("Step1: Metadata only; no tool payload.".into());
-        lines.push(powershell(&commands.metadata)?);
+        let (title, how) = sign_in(mode);
+        lines.push(format!("{}\n{how}", title.to_uppercase()));
+        lines.push(format!("Get the file lists:\n{}", powershell(&commands.metadata)?));
         if commands.downloads.is_empty() {
-            lines.push("Payload commands unavailable until ALL pinned manifests are supplied and exact filelists exported.".into());
+            lines.push(format!("Download the tools:\n{}", downloads_later(whole_bytes(recipe))));
         }
+        let count = commands.downloads.len();
         for (index, args) in commands.downloads.iter().enumerate() {
-            lines.push(format!(
-                "Step2.{}: Tool payload; wait for completion.",
-                index + 1
-            ));
-            lines.push(powershell(args)?);
+            lines.push(format!("Download the tools. {}:\n{}", download_label(index, count, args), powershell(args)?));
         }
     }
     Ok(lines.join("\n\n") + "\n")
 }
+/// A size in the units File Explorer shows.
+fn size(bytes: u64) -> String {
+    match bytes {
+        b if b >= 1 << 30 => format!("{:.1} GB", b as f64 / (1u64 << 30) as f64),
+        b if b >= 1 << 20 => format!("{:.0} MB", b as f64 / (1u64 << 20) as f64),
+        b => format!("{} KB", b.div_ceil(1024)),
+    }
+}
+/// What each pinned depot contributes, in plain words.
+fn depot_text(depot: &acquisition::Depot) -> Result<String> {
+    let what = match depot.depot.as_str() {
+        "2347771" => "the same folders from Counter-Strike 2's second base depot.",
+        "2347770" => r"Counter-Strike 2 base files, only the folders the compiler needs (game\bin, game\core, game\csgo_core, game\csgo_imported, game\csgo\bin, cfg and scripts, the gameinfo*.gi files and the shaders_*.vpk files). No maps, game archives or addons.",
+        "2347779" => "Counter-Strike 2 Workshop Tools, complete.",
+        _ => return Err(fail("Unreviewed depot selection")),
+    };
+    Ok(format!("- Depot {} ({} in full): {what}", depot.depot, size(depot.whole_depot_bytes)))
+}
+/// The guide as plain text (instructions.txt). The app shows the same steps
+/// as a page (ManualGuide.tsx); keep the two in step.
 fn guide(
     recipe: &Recipe,
     options: &Options,
-    commands: &str,
+    commands: &BTreeMap<String, Commands>,
     plan: Option<&AcquisitionPlan>,
 ) -> Result<String> {
-    let pins = recipe
-        .depots
-        .iter()
-        .map(|d| format!("Depot {} / manifest {}", d.depot, d.manifest))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let sizes=plan.map(|p|format!("Selected installed bytes: {}. Unpacked transfer bytes (including overridden files): {}. Final files: {}.",p.installed_bytes,p.transfer_uncompressed_bytes,p.files.len())).unwrap_or_else(||"Selected installed/transfer sizes are unknown until every authorized pinned listing is supplied.".into());
-    Ok(format!("MANUAL MODEL TOOLSET SETUP\n\nAutomatic acquisition is optional. This guide displays commands; no downloader was launched.\n\nRequirements: your Deadlock installation and original archive; Source2Viewer CLI; Reduced CSDK12 for material compilation; official SteamRE DepotDownloader; your Steam entitlement to the pinned content/Workshop Tools.\nOfficial releases: https://github.com/SteamRE/DepotDownloader/releases\nNo Valve binaries are bundled by the builder.\n\nUse a dedicated toolset destination: {}\nManifest folder: {}\nDepotDownloader: {}\nKeep this separate from Deadlock, CSDK, Counter-Strike and other toolsets. Do not overlay older versions or mix individual DLLs.\n\nSteam app {} / build {} / snapshot {}\n{pins}\nNo command automatically selects a newer manifest.\n\n{}\n\n{sizes}\nCompressed network download size is unknown. Whole-depot compressed sizes are not selected-download estimates. Allow downloader cache and an additional complete validation copy plus model outputs.\n\n1. Obtain official DepotDownloader and extract it locally.\n2. Open PowerShell and choose ONE login mode below. QR mode uses -qr only. Username mode uses -username and -remember-password only. DepotDownloader owns its prompts and token cache; never place a password in commands, projects, settings or logs.\n3. Run the metadata command and finish Steam authentication.\n4. Read all pinned listings in the builder and export the exact plan/filelists. Review installed sizes and expected-files.tsv.\n5. Run each payload command to completion in the listed order. Never remove -filelist to work around an error. Resolve a failed depot operation before continuing.\n6. Verify every selected file and reject unplanned executables/libraries. Size and SHA-1 must match. The only exception is an expected zero-byte file with a forty-zero SHA-1: it must exist and be empty.\n7. Configure the model toolset root, game/bin/win64/resourcecompiler.exe and game/csgo. Model backend cswin; ModelDoc format auto. Keep material compiler/CSDK settings separate.\n8. Validate the original selected hero with the real Windows compiler. Integrity/static evidence alone does not establish ModelDoc41 or AG2 compatibility. Deep gameplay/UI AnimGraph2 and NmSkeleton checks, replacement builds and live-game tests remain separate. A test of one hero certifies only that original hero.\n\nValidation must use an independent complete copy of selected tool files, never hardlinks or a mixed DLL family. It must preserve the acquired installation and saved settings, retain diagnostics, and reverify source hashes. No downloader should run during validation. Non-Windows hosts cannot certify native compiler compatibility.\n\n{commands}\n\nTroubleshooting: missing tool/config means verify all depot operations. Class-registration/schema errors require a compatible complete binary family; changing DMX or relabeling ModelDoc headers cannot repair startup ABI mismatches. Unavailable pinned metadata requires checking your Steam entitlement; do not substitute arbitrary versions. Validation-copy disk shortage requires a larger workspace.\n\nTrust: this plan checks consistency against your locally supplied authorized manifest listings, not an independent Valve signature. Recipe pins, selection, overrides and strict hashes use the same Rust acquisition backend for automatic and manual paths.\n",options.toolroot.display(),options.manifests.display(),options.dd.display(),recipe.app,recipe.build,recipe.queried_utc,policy_text(recipe)?))
+    let indent = |text: &str| text.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n");
+    let mut fetch = vec![];
+    let mut download = vec![];
+    for (mode, commands) in commands {
+        let (title, how) = sign_in(mode);
+        fetch.push(format!("{title}. {how}\n{}", indent(&commands.metadata_command)));
+        if !commands.download_commands.is_empty() {
+            let count = commands.download_commands.len();
+            let parts = commands.downloads.iter().zip(&commands.download_commands).enumerate()
+                .map(|(i, (args, text))| format!("{}:\n{}", download_label(i, count, args), indent(text)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            download.push(format!("{title}:\n{parts}"));
+        }
+    }
+    let download = match plan {
+        Some(p) if !download.is_empty() => format!(
+            "{} ({} in total, {} files). If a command stops with an error, run it again; it continues where it stopped. Never remove -filelist: without it DepotDownloader downloads the whole depot.\n\n{}",
+            if commands.values().all(|c| c.downloads.len() == 1) { "Run the command for your sign-in and let it finish" } else { "Run these one after another and let each one finish" },
+            size(p.installed_bytes),
+            p.files.len(),
+            download.join("\n\n")
+        ),
+        _ => downloads_later(whole_bytes(recipe)),
+    };
+    let depots = recipe.depots.iter().map(depot_text).collect::<Result<Vec<_>>>()?.join("\n");
+    let snapshot = recipe.queried_utc.split('T').next().unwrap_or(&recipe.queried_utc);
+    Ok(format!(
+        r#"DOWNLOAD THE MODEL TOOLSET YOURSELF
+
+Use this if you would rather run DepotDownloader in PowerShell yourself, where you see its sign-in prompts. The app can also do all of it for you: Fetch manifests and plan, then Download, at the top of the Model tool setup page. Nothing has run yet.
+
+YOU NEED
+- DepotDownloader, extracted to a folder: https://github.com/SteamRE/DepotDownloader/releases
+- A Steam account with Counter-Strike 2 in its library. It is free and does not have to be installed.
+- New, empty folders, outside Deadlock, the Community SDK and any Counter-Strike installation:
+    DepotDownloader:  {dd}
+    File lists:       {manifests}
+    Toolset:          {toolroot}
+
+STEP 1. OPEN POWERSHELL
+Start menu → type PowerShell → Enter.
+
+STEP 2. GET THE FILE LISTS
+Paste the command for your sign-in and press Enter. It downloads only lists of file names (under 1 MB), not the tools.
+
+{fetch}
+
+STEP 3. MAKE YOUR DOWNLOAD PLAN
+In the app, under Or use files you already have, set:
+    Manifest listings folder:  the file lists folder above
+    Existing toolset folder:   the toolset folder above (it can still be empty)
+    Manual plan export folder: any empty folder
+Then click Export exact file plan.
+
+STEP 4. DOWNLOAD THE TOOLS
+{download}
+
+STEP 5. CHECK AND USE THE TOOLSET
+In the app, click Verify file integrity (every file's size and SHA-1 must match the plan), then Use this toolset in settings. Optional: Test original hero compatibility compiles your hero's original model once with the new toolset.
+
+WHAT GETS DOWNLOADED
+Counter-Strike 2 (Steam app {app}), build {build} from {snapshot}. The versions are pinned; no command picks a newer one.
+{depots}
+Files in later depots replace the same files from earlier ones. expected-files.tsv (in the export) lists every file with its size, SHA-1 and depot.
+
+IF SOMETHING GOES WRONG
+- "Failed to authenticate with Steam" or "InitializeSteam failed": the QR code was not scanned in time, or Steam refused the sign-in. Run the command again and scan the newest code. The account needs Counter-Strike 2 in its library.
+- "Access token was rejected": the saved sign-in expired. Run the step 2 command with your username again.
+- "Unable to locate manifest" or no access to a depot: check that this Steam account has Counter-Strike 2. Do not change the manifest numbers.
+- Verify file integrity finds missing files: a download command did not finish. Run it again, then verify again.
+- A schema mismatch or class registration error when compiling: the toolset mixes files from different versions. Download again into a new, empty toolset folder.
+
+ABOUT THE CHECKS
+The plan is checked against the file lists you fetched with your own Steam account, not against a Valve signature. The app's own download uses the same pinned versions, file selection and checks.
+"#,
+        fetch = fetch.join("\n\n"),
+        dd = options.dd.display(),
+        manifests = options.manifests.display(),
+        toolroot = options.toolroot.display(),
+        app = recipe.app,
+        build = recipe.build,
+    ))
 }
 pub fn preview(options: &Options, recipe: &Recipe) -> Result<Preview> {
-    let argv = command_sets(recipe, options, None, None)?;
-    let commands = commands_text(&argv)?;
+    let argv = command_sets(recipe, options, None, None, &CancellationToken::new())?;
+    let commands = commands_text(&argv, recipe)?;
     Ok(Preview {
-        guide: guide(recipe, options, &commands, None)?,
+        guide: guide(recipe, options, &argv, None)?,
         commands,
         argv,
         plan: serde_json::json!({"recipe":recipe,"policy":policy_text(recipe)?,"payload_plan_available":false}),
@@ -165,6 +305,8 @@ pub fn preview(options: &Options, recipe: &Recipe) -> Result<Preview> {
         export_dir: None,
         compatible: false,
         downloaded: false,
+        whole_bytes: whole_bytes(recipe),
+        selected_bytes: None,
     })
 }
 pub fn require_separate(output: &Path, inputs: &[&Path]) -> Result<()> {
@@ -213,9 +355,10 @@ pub fn export_plan(
             file.depot.as_deref().unwrap_or_default()
         ));
     }
-    let argv = command_sets(recipe, options, Some(&prepared.plan), Some(&destination))?;
-    let commands = commands_text(&argv)?;
-    let guide = guide(recipe, options, &commands, Some(&prepared.plan))?;
+    let argv = command_sets(recipe, options, Some(&prepared.plan), Some(&destination), cancel)?;
+    let commands = commands_text(&argv, recipe)?;
+    let guide = guide(recipe, options, &argv, Some(&prepared.plan))?;
+    let selected_bytes = Some(prepared.plan.installed_bytes);
     safety::atomic_write(&destination.join("expected-files.tsv"), &expected)?;
     safety::atomic_write(&destination.join("commands.txt"), &commands)?;
     safety::atomic_write(&destination.join("instructions.txt"), &guide)?;
@@ -229,5 +372,7 @@ pub fn export_plan(
         export_dir: Some(destination),
         compatible: false,
         downloaded: false,
+        whole_bytes: whole_bytes(recipe),
+        selected_bytes,
     })
 }

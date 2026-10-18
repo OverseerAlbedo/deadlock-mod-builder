@@ -15,8 +15,10 @@ export interface AcquisitionPlan {
 export interface IntegrityReceipt {steam_build:string;files_verified:number;bytes_verified:number;manifest_integrity_passed:boolean;native_compile_passed:boolean;absolute_minimum_proven:boolean}
 export interface AcquisitionResult {plan:AcquisitionPlan;plan_digest:string;downloaded:boolean;receipt:IntegrityReceipt|null}
 export interface ManualPreview {
-  guide:string;commands:string;argv:Record<string,{metadata:string[];downloads:string[][]}>;
+  guide:string;commands:string;argv:Record<string,{metadata:string[];downloads:string[][];metadata_command:string;download_commands:string[]}>;
   plan:unknown;plan_digest:string|null;expected_files:string;export_dir:string|null;compatible:boolean;downloaded:boolean;
+  /** The pinned depots in full, and the selected files once a plan was exported. */
+  whole_bytes:number;selected_bytes:number|null;
 }
 export interface NativeChecks {native_modeldoc41:boolean;original_compiled:boolean;gameplay_animgraph2:boolean;ui_animgraph2:boolean;nm_skeleton:boolean}
 export interface NodeEvidence {class:string;name:string;filename:string}

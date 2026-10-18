@@ -218,16 +218,25 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
         ));
     }
     if require_files {
+        // The folders people choose by mistake (a Community SDK folder,
+        // Deadlock's game files, the toolset's own game folder) are named.
+        let mistake = || match crate::setup_checks::toolset_root(&root) {
+            Some(found) if found != root => format!(" The toolset itself is {}; choose that folder.", found.display()),
+            _ => crate::setup_checks::toolset_mistake(&root).map(|m| format!(" {m}")).unwrap_or_default(),
+        };
         if !root.is_dir() || !compiler.is_file() {
             return Err(fail(format!(
-                "Model compiler is missing: {}. Open Settings → Set up model compiler…, download or verify the toolset, then click Use this toolset in settings and save.",
-                compiler.display()
+                "Model compiler is missing: {}.{} Open Settings → Set up model compiler…, download or verify the toolset, then click Use this toolset in settings and save.",
+                compiler.display(),
+                mistake()
             )));
         }
         if !game.is_dir() || !game.join("gameinfo.gi").is_file() {
+            let why = mistake();
             return Err(fail(format!(
-                "Model game configuration is missing: {}. The toolset is incomplete; run Verify existing acquisition in Set up model compiler… and download again if files are missing.",
-                game.join("gameinfo.gi").display()
+                "Model game configuration is missing: {}.{}",
+                game.join("gameinfo.gi").display(),
+                if why.is_empty() { " The toolset is incomplete; run Verify existing acquisition in Set up model compiler… and download again if files are missing.".into() } else { why }
             )));
         }
     }

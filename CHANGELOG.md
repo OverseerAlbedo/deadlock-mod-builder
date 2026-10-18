@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0-beta.10 — 2026-10-18
+
+- Fix (issue #2): with Steam mobile QR sign-in, the QR code now appears on screen as soon as Steam asks for it, renews when Steam renews it and closes when the sign-in is done. Before, the code was only in Logs, where nothing told you to look, and it was unreadable there (its block characters came out as replacement characters), so the sign-in timed out with "Failed to authenticate with Steam".
+- With Steam mobile QR sign-in, Download asks for one scan instead of three: the three tool depots now download in one DepotDownloader run, so the whole setup takes two scans (Fetch manifests and plan, then Download). One run is used only when it writes exactly the planned files; otherwise each depot downloads on its own, as before.
+- **Sign in to Steam…** for a locally authenticated Steam account (Set up model compiler…): opens DepotDownloader once in its own console window, where you type your password and Steam Guard code; DepotDownloader saves the sign-in and the app's downloads use it. The app never sees the password. Before, without a saved sign-in, DepotDownloader asked for a password nobody could type (the app runs it without a window) and crashed with "LogOn requires a username and password or access token".
+- Error help for Steam sign-in failures now says what happened and what to click: no saved sign-in for a username, a QR code not scanned in time, an expired saved sign-in. Before, every Steam error suggested opening Logs.
+- Choosing the wrong folder as the model toolset is explained: a folder inside the Community SDK (any level, such as Reduced_CSDK_12\game) and Deadlock's own game files (game\citadel, downloaded from Deadlock's depot) are named as such. Choosing the toolset's own game folder or the acquisition folder in Use this toolset selects the toolset itself.
+- The manual download guide (Or use files you already have → Show manual download steps) is now a page of five numbered steps: pick QR or username sign-in, copy each command with a Copy button (your account name can be filled in), and see why the download command only appears after Export exact file plan (it needs the file lists from the first command). Commands are written without needless quotes, the download is the same single run as the app's own when possible, and the plain-text version saved as instructions.txt has the same steps.
+
 ## 0.13.0-beta.9 — 2026-10-17
 
 - Fix: MMD models (imported with mmd_tools) got their sphere (shine) maps as their main texture, and parts whose sphere map is a .bmp got no texture at all, so skin, hair and clothes looked wrong. The base texture is now always used; toon ramps and sphere maps are never picked.
