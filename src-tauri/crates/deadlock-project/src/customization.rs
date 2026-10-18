@@ -102,6 +102,20 @@ choices!(AppearanceMaterial {
     saturation: f64,
     brightness: f64
 });
+// Hero colors: the hero's own compiled game materials recolored in place, for
+// projects without a replacement model. target is the compiled .vmat_c; color
+// replaces the tint, saturation and brightness are factors from 0 to 2 where 1
+// keeps the original.
+choices!(HeroMaterials { enabled: bool, materials: Vec<HeroMaterial> });
+choices!(HeroMaterial {
+    enabled: bool,
+    target: String,
+    color: [f64; 3],
+    saturation: f64,
+    brightness: f64,
+    allow_shared: bool,
+    original_sha256: String
+});
 choices!(Equipment { enabled: bool, meshes: Vec<EquipmentMesh>, props: Vec<Prop>, variants: Vec<Variant> });
 choices!(EquipmentMesh { target: String, action: String, sources: Vec<String>, include_lods: bool });
 choices!(Prop {
@@ -138,7 +152,8 @@ choices!(Customization {
     icons: Vec<ResourceReplacement>, animations: Vec<ResourceReplacement>,
     effects: Vec<ResourceReplacement>, audio: Vec<ResourceReplacement>,
     clothing: Clothing, physics: Physics, cloth_setup: ClothSetup, secondary_motion: SecondaryMotion,
-    appearance: Appearance, equipment: Equipment, face: Face, face_layers: FaceLayers
+    appearance: Appearance, equipment: Equipment, face: Face, face_layers: FaceLayers,
+    hero_materials: HeroMaterials
 });
 fn error(text: impl Into<String>) -> Error {
     Error::Validation(text.into())
@@ -360,6 +375,41 @@ impl Customization {
                 }
             }
         }
+        if let Some(colors) = &self.hero_materials {
+            let rows = colors.materials.as_deref().unwrap_or_default();
+            if rows.len() > 64 {
+                return Err(error("Hero colors support at most 64 materials."));
+            }
+            let mut seen = BTreeSet::new();
+            for row in rows {
+                let target = row.target.as_deref().unwrap_or_default();
+                clean(target, "hero material")?;
+                if !target.is_empty() {
+                    relative_asset(target)?;
+                    if !lower(target).ends_with(".vmat_c") {
+                        return Err(error("Hero colors change a compiled .vmat_c game material."));
+                    }
+                    if row.enabled.unwrap_or(true) && !seen.insert(lower(target)) {
+                        return Err(error(format!("Two enabled hero colors change the same material: {target}")));
+                    }
+                }
+                if let Some(rgb) = row.color {
+                    for x in rgb {
+                        number(x, 0., 1., "Tint")?;
+                    }
+                }
+                for (v, label) in [(row.saturation, "Saturation"), (row.brightness, "Brightness")] {
+                    if let Some(v) = v {
+                        number(v, 0., 2., label)?;
+                    }
+                }
+                if let Some(hash) = row.original_sha256.as_deref().filter(|h| !h.is_empty()) {
+                    if hash.len() != 64 || !hash.bytes().all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v)) {
+                        return Err(error("Invalid original hero material fingerprint."));
+                    }
+                }
+            }
+        }
         if let Some(equipment) = &self.equipment {
             let meshes = equipment.meshes.as_deref().unwrap_or_default();
             if meshes.len() > 256 {
@@ -513,6 +563,12 @@ impl Customization {
                 }
             }
         }
+        // Hero colors belong to one hero's materials and hold no user files.
+        if let Some(v) = &mut self.hero_materials {
+            if v.materials.is_some() {
+                v.materials = Some(Vec::new());
+            }
+        }
         if let Some(v) = &mut self.equipment {
             if let Some(rows) = &mut v.meshes {
                 for row in rows {
@@ -552,6 +608,26 @@ mod tests {
         }
         let unknown: super::Customization = serde_json::from_value(serde_json::json!({"secondary_motion": {"part_kinds": {"hip_L": "wing"}}})).unwrap();
         assert!(unknown.validate().is_err());
+    }
+    #[test]
+    fn hero_colors_change_compiled_materials_with_values_in_range() {
+        let check = |rows: serde_json::Value| {
+            let choice: super::Customization = serde_json::from_value(serde_json::json!({"hero_materials": {"enabled": true, "materials": rows}})).unwrap();
+            choice.validate().is_ok()
+        };
+        let target = "models/heroes_staging/haze/materials/hazev2.vmat_c";
+        assert!(check(serde_json::json!([{"target": target, "color": [0.0, 0.0, 0.0], "saturation": 0.5, "brightness": 2.0}])));
+        assert!(check(serde_json::json!([{"target": ""}])), "an empty row is saved; the build asks for a material");
+        assert!(!check(serde_json::json!([{"target": "models/heroes_staging/haze/materials/hazev2.vmat"}])), "a source .vmat is not a game file");
+        assert!(!check(serde_json::json!([{"target": target}, {"target": target.to_uppercase()}])));
+        assert!(check(serde_json::json!([{"target": target}, {"target": target, "enabled": false}])));
+        assert!(!check(serde_json::json!([{"target": target, "color": [1.5, 0.0, 0.0]}])));
+        assert!(!check(serde_json::json!([{"target": target, "brightness": 2.5}])));
+        assert!(!check(serde_json::json!([{"target": target, "original_sha256": "abc"}])));
+        assert!(!check(serde_json::json!([{"target": "../outside.vmat_c"}])));
+        let mut choice: super::Customization = serde_json::from_value(serde_json::json!({"hero_materials": {"enabled": true, "materials": [{"target": target}]}})).unwrap();
+        choice.clear_targets();
+        assert_eq!(choice.hero_materials.unwrap().materials, Some(vec![]), "another hero's materials are not kept");
     }
     #[test]
     fn fine_tuning_names_a_moving_part_type_and_stays_in_range() {

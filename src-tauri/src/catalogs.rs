@@ -71,6 +71,9 @@ impl Application {
                     if let Some(hash) = &row.original_sha256 {assets.insert(casefold(&row.target), (kind.into(), hash.clone()));}
                 }
             }
+            for row in &catalog.materials {
+                assets.insert(casefold(&row.target), ("materials".into(), row.original_sha256.clone()));
+            }
             let archive = deadlock_vpk::Vpk::open(&settings.pak)
                 .map_err(|e| AppError::validation("Could not open the character preview catalog", e))?;
             *self.extras_catalog.lock().unwrap_or_else(|e| e.into_inner()) = Some(PreviewCatalog {
@@ -181,6 +184,20 @@ impl Application {
             return Err(AppError::validation("This game asset changed. Reload character assets.", &target));
         }
         let cancel = CancellationToken::new();
+        if request.kind == "materials" {
+            // The game's base-color texture; the page shows the recolor over it.
+            let row = deadlock_components::materials::inspect(&target, &original)?;
+            let texture = row.color_texture.clone()
+                .ok_or_else(|| AppError::validation("This material has no base-color image to preview", &target))?;
+            let entry = archive.entries.get(&casefold(&texture))
+                .ok_or_else(|| AppError::validation("The material's base-color image is missing from the game", &texture))?;
+            if entry.length as usize + entry.preload.len() > deadlock_components::MAX_RESOURCE_BYTES {
+                return Err(AppError::validation("This image is too large to preview", &texture));
+            }
+            let raw = archive.read(&texture).map_err(|e| AppError::validation("Reload character assets", e))?;
+            let png = deadlock_components::icons::preview_color_texture(&raw, request.max_dimension.unwrap_or(512).clamp(32, 1024), &cancel)?;
+            return media("image/png", serde_json::json!({"texture":texture,"tint":row.tint,"albedo":row.albedo}), png);
+        }
         let source = request.source.as_deref().filter(|s| !s.is_empty()).map(Path::new);
         if let Some(path) = source {
             deadlock_vpk::check_unlinked_path(path, false).map_err(|e| AppError::validation("Unsupported replacement file", e))?;

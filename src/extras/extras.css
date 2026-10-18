@@ -1399,3 +1399,53 @@
     transition: none !important;
   }
 }
+/* Colors tab: the hero's own materials. Swatch and tint colors are the
+   material's data (inline styles), never theme accents. */
+.hero-color-swatch {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+.hero-color-media {
+  position: relative;
+}
+.hero-color-stage {
+  position: relative;
+  height: 215px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--elevated);
+}
+.hero-color-stage img,
+.hero-color-blank {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.hero-color-blank {
+  background: hsl(0 0% 82%);
+}
+.hero-color-tint {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.hero-color-media .extra-spinner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.hero-color-controls {
+  display: grid;
+  gap: 10px;
+}
+.hero-color-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}

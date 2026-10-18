@@ -716,6 +716,18 @@ pub fn inspect_image(path: &Path, cancel: &CancellationToken) -> Result<ImageInf
 /// Read-only previews also cover flat textures that cannot be safely replaced.
 /// This never relaxes the stricter compilation checks in `method`.
 pub fn preview_texture(raw: &[u8], max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
+    thumbnail(texture_image(raw, cancel)?, max_dimension, cancel)
+}
+/// A material's base-color texture, opaque: model materials keep other data
+/// in its alpha (Deadlock packs metalness there), which would hide the colors.
+pub fn preview_color_texture(raw: &[u8], max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
+    let mut image = texture_image(raw, cancel)?;
+    for pixel in image.pixels_mut() {
+        pixel[3] = 255;
+    }
+    thumbnail(image, max_dimension, cancel)
+}
+fn texture_image(raw: &[u8], cancel: &CancellationToken) -> Result<RgbaImage> {
     let meta = texture_metadata(raw)?;
     let (width, height) = (u32::from(meta.width), u32::from(meta.height));
     dimensions(width, height)?;
@@ -786,7 +798,7 @@ pub fn preview_texture(raw: &[u8], max_dimension: u32, cancel: &CancellationToke
         // Keep the original display rectangle, including non-power-of-two UI art.
         image::imageops::crop_imm(&out, 0, 0, u32::from(meta.display_width).min(width), u32::from(meta.display_height).min(height)).to_image()
     };
-    thumbnail(image, max_dimension, cancel)
+    Ok(image)
 }
 
 fn thumbnail(image: RgbaImage, max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {

@@ -1,11 +1,14 @@
 //! Independent component staging, native compilation and frozen/install revalidation.
 use crate::{
-    CancellationToken, Result, compiled, fail, icons, motion, read, read_file,
+    CancellationToken, Result, compiled, fail, icons, materials, motion, read, read_file,
     resources::{self, ResourceEntry, ResourceKind, ResourceReceipt},
     sha,
 };
 use deadlock_core::{TimingRecorder, process::ToolExecutor, safety, text::casefold};
-use deadlock_project::{ModelInputMode, Project, Settings, customization::ResourceReplacement};
+use deadlock_project::{
+    ModelInputMode, Project, Settings,
+    customization::{HeroMaterial, ResourceReplacement},
+};
 use deadlock_tools::{compiler, toolchain};
 use deadlock_vpk::{Hashes, Vpk, resource_references};
 use serde::{Deserialize, Serialize};
@@ -29,6 +32,9 @@ pub struct ComponentReceipt {
     pub animations: motion::AnimationReceipt,
     pub effects: ResourceReceipt,
     pub audio: ResourceReceipt,
+    /// Hero colors: the hero's own materials recolored in place.
+    #[serde(default)]
+    pub materials: materials::MaterialReceipt,
     pub files: Hashes,
     pub original_resources: Hashes,
     pub prepared_content: PathBuf,
@@ -43,6 +49,8 @@ pub struct ComponentInspection {
     pub animations: Vec<motion::AnimationEntry>,
     pub effects: Vec<ResourceEntry>,
     pub audio: Vec<ResourceEntry>,
+    #[serde(default)]
+    pub materials: Vec<materials::MaterialEntry>,
     pub clothing: Option<ClothingReadiness>,
     pub native_compile_required: bool,
     pub warnings: Vec<String>,
@@ -63,6 +71,8 @@ pub struct ComponentCatalog {
     pub animations: Vec<AnimationDiscovery>,
     pub effects: Vec<resources::CatalogRow>,
     pub audio: Vec<resources::CatalogRow>,
+    /// The hero's own materials for Hero colors.
+    pub materials: Vec<materials::MaterialRow>,
     pub variants: Vec<crate::variants::Variant>,
     pub animation_unavailable: Option<String>,
     pub warnings: Vec<String>,
@@ -81,6 +91,7 @@ struct Selection {
     animations: Vec<ResourceReplacement>,
     effects: Vec<ResourceReplacement>,
     audio: Vec<ResourceReplacement>,
+    materials: Vec<HeroMaterial>,
     clothing: Option<ClothingReadiness>,
 }
 impl Selection {
@@ -89,6 +100,7 @@ impl Selection {
             || !self.animations.is_empty()
             || !self.effects.is_empty()
             || !self.audio.is_empty()
+            || !self.materials.is_empty()
     }
     fn rows(&self) -> impl Iterator<Item = &ResourceReplacement> {
         self.icons
@@ -96,6 +108,13 @@ impl Selection {
             .chain(&self.animations)
             .chain(&self.effects)
             .chain(&self.audio)
+    }
+    /// Every packaged game path, casefolded.
+    fn targets(&self) -> BTreeSet<String> {
+        self.rows()
+            .map(|r| casefold(r.target.as_deref().unwrap_or_default()))
+            .chain(self.materials.iter().map(|m| casefold(m.target.as_deref().unwrap_or_default())))
+            .collect()
     }
 }
 pub fn clothing_readiness(mode: &str) -> Result<ClothingReadiness> {
@@ -124,6 +143,33 @@ fn selection(project: &Project) -> Result<Selection> {
                     .filter(|row| row.enabled.unwrap_or(true))
                     .cloned(),
             );
+        }
+        if let Some(colors) = value.hero_materials.as_ref().filter(|c| c.enabled.unwrap_or(true)) {
+            chosen.materials.extend(
+                colors
+                    .materials
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|row| row.enabled.unwrap_or(true))
+                    .cloned(),
+            );
+        }
+    }
+    if !chosen.materials.is_empty() {
+        // A separate mode: the game's own model keeps its meshes and only these
+        // compiled materials change. A replacement model has its own materials.
+        if value.model_enabled() {
+            return Err(fail(
+                "Hero colors change the game's own model. Turn off Include replacement model and textures in Extras → Build options, or recolor your replacement model in Appearance → Surface changes.",
+            ));
+        }
+        for row in &chosen.materials {
+            if row.target.as_deref().unwrap_or_default().trim().is_empty() {
+                return Err(fail(
+                    "Choose a material for each hero color, or remove the empty row.",
+                ));
+            }
         }
     }
     for row in chosen.rows() {
@@ -202,7 +248,7 @@ fn selection(project: &Project) -> Result<Selection> {
         if geometry || mesh || appearance {
             if !value.model_enabled() {
                 return Err(fail(
-                    "Include a replacement model to use Appearance, Equipment or a static facial expression.",
+                    "Include a replacement model to use Appearance, Equipment or a static facial expression. To recolor the hero's own model instead, use Extras → Colors.",
                 ));
             }
             if geometry {
@@ -212,7 +258,7 @@ fn selection(project: &Project) -> Result<Selection> {
     }
     if !value.model_enabled() && !chosen.any() {
         return Err(fail(
-            "Add an icon, animation, effect or audio replacement, or include a replacement model before building.",
+            "Add an icon, animation, effect or audio replacement or a hero color, or include a replacement model before building.",
         ));
     }
     Ok(chosen)
@@ -293,6 +339,7 @@ fn targets(receipt: &ComponentReceipt) -> Result<Vec<String>> {
         )
         .chain(receipt.effects.entries.iter().map(|e| e.target.clone()))
         .chain(receipt.audio.entries.iter().map(|e| e.target.clone()))
+        .chain(receipt.materials.entries.iter().map(|e| e.target.clone()))
         .collect();
     let mut seen = BTreeSet::new();
     for target in &targets {
@@ -333,6 +380,13 @@ fn original_hashes(receipt: &ComponentReceipt) -> Result<Hashes> {
                 .iter()
                 .map(|e| (&e.target, &e.original_sha256)),
         )
+        .chain(
+            receipt
+                .materials
+                .entries
+                .iter()
+                .map(|e| (&e.target, &e.original_sha256)),
+        )
     {
         if result.insert(target.clone(), hash.clone()).is_some() {
             return Err(fail("Duplicate character component target."));
@@ -353,6 +407,9 @@ fn verify_audio_choices(project: &Project, receipt: &ComponentReceipt) -> Result
             || row.audio_fit.as_deref().unwrap_or("exact") != entry.audio_fit.as_deref().unwrap_or("exact") {
             return Err(fail("Replacement sound volume or timing changed. Rebuild before installing."));
         }
+    }
+    if !materials::same_choices(&selected.materials, &receipt.materials) {
+        return Err(fail("Hero colors changed. Rebuild before installing."));
     }
     Ok(())
 }
@@ -452,6 +509,7 @@ fn verify_outputs(
     motion::verify_compiled(archive, &receipt.animations, game, cancel)?;
     resources::verify_compiled(archive, &receipt.effects, game, cancel)?;
     resources::verify_compiled(archive, &receipt.audio, game, cancel)?;
+    materials::verify_compiled(archive, &receipt.materials, game, cancel)?;
     targets
         .into_iter()
         .map(|p| {
@@ -529,6 +587,7 @@ pub fn verify_snapshot(
     }
     if receipt.effects.hero_path != receipt.hero_path
         || receipt.audio.hero_path != receipt.hero_path
+        || (!receipt.materials.entries.is_empty() && receipt.materials.hero_path != receipt.hero_path)
     {
         return Err(fail("Component hero identities disagree."));
     }
@@ -578,6 +637,7 @@ impl<'a> ComponentService<'a> {
                     animations: vec![],
                     effects: vec![],
                     audio: vec![],
+                    materials: vec![],
                     variants: vec![],
                     animation_unavailable: None,
                     warnings: icon_warnings,
@@ -643,6 +703,17 @@ impl<'a> ComponentService<'a> {
                                 .warnings
                                 .push(format!("{} discovery: {error}", kind.name()));
                         }
+                    }
+                }
+                match self.clock.measure("Discover hero materials", Some(span.id()), |_| {
+                    let result = materials::discover(&archive, &project.original_model, self.cancel);
+                    self.cancel.check()?;
+                    Ok(result)
+                })? {
+                    Ok(rows) => catalog.materials = rows,
+                    Err(error) => {
+                        self.cancel.check()?;
+                        catalog.warnings.push(format!("hero colors discovery: {error}"));
                     }
                 }
                 catalog.variants =
@@ -765,6 +836,24 @@ impl<'a> ComponentService<'a> {
                             self.cancel,
                         )
                     })?;
+                let materials = if selected.materials.is_empty() {
+                    materials::MaterialReceipt {
+                        schema: 1,
+                        policy: materials::RECOLOR_POLICY.into(),
+                        hero_path: project.original_model.clone(),
+                        entries: vec![],
+                    }
+                } else {
+                    self.clock.measure("Recolor hero materials", Some(span.id()), |_| {
+                        materials::stage(
+                            archive,
+                            &project.original_model,
+                            &selected.materials,
+                            game,
+                            self.cancel,
+                        )
+                    })?
+                };
                 Ok(ComponentReceipt {
                     schema: 1,
                     hero_path: project.original_model.clone(),
@@ -773,6 +862,7 @@ impl<'a> ComponentService<'a> {
                     animations,
                     effects,
                     audio,
+                    materials,
                     files: Hashes::new(),
                     original_resources: Hashes::new(),
                     prepared_content: content.into(),
@@ -783,7 +873,7 @@ impl<'a> ComponentService<'a> {
             })
     }
     pub fn inspect(&self, project: &Project) -> Result<ComponentInspection> {
-        self.clock.measure("Analyze character components",None,|span|{let selected=selection(project)?;let mut result=ComponentInspection{model_enabled:project.customization.model_enabled(),icons:vec![],animations:vec![],effects:vec![],audio:vec![],clothing:selected.clothing.clone(),native_compile_required:false,warnings:vec![],native_validated:false,in_game_validated:false};if selected.any(){let archive=self.archive(project)?;let(content,game)=self.folders(project,"customization-analysis")?;let receipt=self.stage(project,&archive,&selected,&content,&game,Some(span.id()))?;result.native_compile_required=!receipt.animations.compile_sources.is_empty()||receipt.icons.entries.iter().any(|e|e.method=="native_vtex");result.icons=receipt.icons.entries;result.animations=receipt.animations.replacements;result.effects=receipt.effects.entries;result.audio=receipt.audio.entries;if !result.animations.is_empty(){result.warnings.push("Animation replacement changes bone poses only. Original timing, events, root motion and skeleton remain required; test movement in game.".into());}if result.native_compile_required{result.warnings.push("Selected image or animation sources need the configured native compiler. Output contracts are checked before packaging.".into());}}
+        self.clock.measure("Analyze character components",None,|span|{let selected=selection(project)?;let mut result=ComponentInspection{model_enabled:project.customization.model_enabled(),icons:vec![],animations:vec![],effects:vec![],audio:vec![],materials:vec![],clothing:selected.clothing.clone(),native_compile_required:false,warnings:vec![],native_validated:false,in_game_validated:false};if selected.any(){let archive=self.archive(project)?;let(content,game)=self.folders(project,"customization-analysis")?;let receipt=self.stage(project,&archive,&selected,&content,&game,Some(span.id()))?;result.native_compile_required=!receipt.animations.compile_sources.is_empty()||receipt.icons.entries.iter().any(|e|e.method=="native_vtex");result.icons=receipt.icons.entries;result.animations=receipt.animations.replacements;result.effects=receipt.effects.entries;result.audio=receipt.audio.entries;result.materials=receipt.materials.entries;if result.materials.iter().any(|m|!m.used_by.is_empty()){result.warnings.push("A recolored hero material is also used by other game models; they change color too.".into());}if !result.animations.is_empty(){result.warnings.push("Animation replacement changes bone poses only. Original timing, events, root motion and skeleton remain required; test movement in game.".into());}if result.native_compile_required{result.warnings.push("Selected image or animation sources need the configured native compiler. Output contracts are checked before packaging.".into());}}
  safety::write_json(&self.root(project)?.join("customization-analysis.json"),&result)?;Ok(result)})
     }
     fn mount(
@@ -1021,6 +1111,6 @@ impl<'a> ComponentService<'a> {
         current_game: &Vpk,
     ) -> Result<()> {
         verify_audio_choices(project, receipt)?;
-        self.clock.measure("Validate installed character components",None,|_|{let selected=selection(project)?;let wanted:BTreeSet<_>=selected.rows().map(|r|casefold(r.target.as_deref().unwrap_or_default())).collect();if wanted!=receipt.files.keys().map(|p|casefold(p)).collect()||casefold(&compiled(&project.original_model)?)!=casefold(&compiled(&receipt.hero_path)?)||receipt.model_enabled!=project.customization.model_enabled(){return Err(fail("Character extras changed since this VPK was built. Rebuild before installing."));}if !receipt.model_enabled&&candidate.entries.keys().cloned().collect::<BTreeSet<_>>()!=wanted{return Err(fail("An asset-only VPK must contain exactly its reviewed character extras."));}let root=self.root(project)?.join(format!("install-customization-{}",uuid::Uuid::new_v4().simple()));deadlock_vpk::check_unlinked_path(&root,true).map_err(fail)?;fs::create_dir_all(&root).map_err(fail)?;let _owner=OwnedMounts{paths:vec![root.clone()],executor:None};for(path,hash)in &receipt.files{self.cancel.check()?;let raw=read(candidate,path)?;if sha(&raw)!=*hash{return Err(fail("Character component package hash differs from its build receipt."));}safety::atomic_write(&safety::inside(&root,path)?,raw)?;}verify_snapshot(current_game,receipt,&root,self.cancel)})
+        self.clock.measure("Validate installed character components",None,|_|{let selected=selection(project)?;let wanted=selected.targets();if wanted!=receipt.files.keys().map(|p|casefold(p)).collect()||casefold(&compiled(&project.original_model)?)!=casefold(&compiled(&receipt.hero_path)?)||receipt.model_enabled!=project.customization.model_enabled(){return Err(fail("Character extras changed since this VPK was built. Rebuild before installing."));}if !receipt.model_enabled&&candidate.entries.keys().cloned().collect::<BTreeSet<_>>()!=wanted{return Err(fail("An asset-only VPK must contain exactly its reviewed character extras."));}let root=self.root(project)?.join(format!("install-customization-{}",uuid::Uuid::new_v4().simple()));deadlock_vpk::check_unlinked_path(&root,true).map_err(fail)?;fs::create_dir_all(&root).map_err(fail)?;let _owner=OwnedMounts{paths:vec![root.clone()],executor:None};for(path,hash)in &receipt.files{self.cancel.check()?;let raw=read(candidate,path)?;if sha(&raw)!=*hash{return Err(fail("Character component package hash differs from its build receipt."));}safety::atomic_write(&safety::inside(&root,path)?,raw)?;}verify_snapshot(current_game,receipt,&root,self.cancel)})
     }
 }

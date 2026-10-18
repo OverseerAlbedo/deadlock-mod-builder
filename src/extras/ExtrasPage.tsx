@@ -7,6 +7,7 @@ import { basename } from "../api";
 import { ExtraIcon } from "./Icons";
 import { AssetPreview, AssetThumbnail } from "./AssetPreview";
 import { ExtraDropzone } from "./Dropzone";
+import { HeroColors } from "./HeroColors";
 import { clearExtraMediaCache } from "./media";
 import {
   assetItems,
@@ -46,6 +47,7 @@ export function ExtrasWorkspace({
   reviewBuild,
 }: ExtrasProps) {
   const [kind, setKind] = useState<ExtraKind>("icons"),
+    [colors, setColors] = useState(false),
     [selected, setSelected] = useState(""),
     [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all"),
@@ -61,18 +63,26 @@ export function ExtrasWorkspace({
   const rows = project.customization[kind] ?? [],
     items = assetItems(catalog?.[kind] ?? [], rows),
     spec = specs[kind];
-  const changed = extraKinds.reduce(
-    (sum, key) => sum + (project.customization[key] ?? []).length,
-    0,
-  );
+  const heroColors = project.customization.hero_materials?.materials ?? [];
+  const changed =
+    extraKinds.reduce(
+      (sum, key) => sum + (project.customization[key] ?? []).length,
+      0,
+    ) + heroColors.length;
   const active = Boolean(project.customization.enabled);
-  const enabled = extraKinds.reduce(
-    (sum, key) =>
-      sum +
-      (project.customization[key] ?? []).filter((r) => r.enabled !== false)
-        .length,
-    0,
-  );
+  const enabled =
+    extraKinds.reduce(
+      (sum, key) =>
+        sum +
+        (project.customization[key] ?? []).filter((r) => r.enabled !== false)
+          .length,
+      0,
+    ) +
+    (project.customization.hero_materials?.enabled === false
+      ? 0
+      : heroColors.filter((r) => r.enabled !== false).length);
+  const tabs = [...extraKinds, "colors"] as const;
+  const shownTab: (typeof tabs)[number] = colors ? "colors" : kind;
   const visible = items.filter(
     (item) =>
       `${assetLabel(item.entry)} ${item.entry.path} ${item.row?.source ?? ""}`
@@ -184,8 +194,9 @@ export function ExtrasWorkspace({
     setRevision((v) => v + 1);
     void discover?.();
   }
-  function tab(next: ExtraKind) {
-    setKind(next);
+  function tab(next: (typeof tabs)[number]) {
+    setColors(next === "colors");
+    if (next !== "colors") setKind(next);
     setSelected("");
     setQuery("");
     setPage(0);
@@ -193,7 +204,7 @@ export function ExtrasWorkspace({
   }
   function pauseAll() {
     const value = !enabled;
-    const changes = Object.fromEntries(
+    const changes: Record<string, unknown> = Object.fromEntries(
       extraKinds.map((key) => [
         key,
         (project.customization[key] ?? []).map((row) => ({
@@ -202,6 +213,12 @@ export function ExtrasWorkspace({
         })),
       ]),
     );
+    if (project.customization.hero_materials)
+      changes.hero_materials = {
+        ...project.customization.hero_materials,
+        enabled: true,
+        materials: heroColors.map((row) => ({ ...row, enabled: value })),
+      };
     update(changeCustomization(project, changes, value));
   }
   return (
@@ -282,14 +299,14 @@ export function ExtrasWorkspace({
         role="tablist"
         aria-label="Extras categories"
       >
-        {extraKinds.map((key, index) => (
+        {tabs.map((key, index) => (
           <button
             key={key}
             id={`extras-tab-${key}`}
             role="tab"
-            aria-selected={kind === key}
+            aria-selected={shownTab === key}
             aria-controls="extras-panel"
-            tabIndex={kind === key ? 0 : -1}
+            tabIndex={shownTab === key ? 0 : -1}
             onClick={() => tab(key)}
             onKeyDown={(event) => {
               const move =
@@ -304,24 +321,48 @@ export function ExtrasWorkspace({
                   event.key === "Home"
                     ? 0
                     : event.key === "End"
-                      ? extraKinds.length - 1
-                      : (index + move + extraKinds.length) % extraKinds.length;
-                tab(extraKinds[next]);
+                      ? tabs.length - 1
+                      : (index + move + tabs.length) % tabs.length;
+                tab(tabs[next]);
                 document
-                  .getElementById(`extras-tab-${extraKinds[next]}`)
+                  .getElementById(`extras-tab-${tabs[next]}`)
                   ?.focus();
               }
             }}
           >
-            <ExtraIcon name={specs[key].icon} />
-            {specs[key].title}
-            <span>{catalog?.[key].length ?? "—"}</span>
-            {(project.customization[key]?.length ?? 0) > 0 && (
-              <i title="Contains replacements" />
+            {key === "colors" ? (
+              <>
+                <ExtraIcon name="palette" />
+                Colors
+                <span>{catalog?.materials?.length ?? "—"}</span>
+                {heroColors.length > 0 && <i title="Contains color changes" />}
+              </>
+            ) : (
+              <>
+                <ExtraIcon name={specs[key].icon} />
+                {specs[key].title}
+                <span>{catalog?.[key].length ?? "—"}</span>
+                {(project.customization[key]?.length ?? 0) > 0 && (
+                  <i title="Contains replacements" />
+                )}
+              </>
             )}
           </button>
         ))}
       </div>
+      {colors ? (
+        <HeroColors
+          project={project}
+          update={update}
+          disabled={disabled}
+          catalog={catalog}
+          discovering={discovering}
+          canDiscover={canDiscover && Boolean(discover)}
+          reload={reload}
+          openSetup={openSetup}
+          revision={revision}
+        />
+      ) : (
       <div
         id="extras-panel"
         role="tabpanel"
@@ -622,6 +663,7 @@ export function ExtrasWorkspace({
           )}
         </aside>
       </div>
+      )}
       {catalog?.warnings.length ? (
         <details className="extras-discovery-notes">
           <summary>

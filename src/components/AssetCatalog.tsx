@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { AssetKind } from '../models';
 export interface CatalogEntry {path:string;target:string;label:string;supported:boolean;reason?:string;original_sha256?:string|null;shared?:boolean;association?:string;width?:number;height?:number;[key:string]:unknown}
-export interface ComponentCatalog {hero_path:string;icons:CatalogEntry[];animations:CatalogEntry[];effects:CatalogEntry[];audio:CatalogEntry[];variants:{path:string;target:string;label:string;hero:string;supported:boolean;requires_model_project:boolean}[];animation_unavailable:string|null;warnings:string[];includes_animations?:boolean}
+/** One of the hero's own game materials for Hero colors (Rust `materials::MaterialRow`). */
+export interface HeroMaterialEntry {path:string;target:string;label:string;shader:string;supported:boolean;reason:string;tint:[number,number,number]|null;albedo:[number,number,number]|null;tint_masked:boolean;color_texture:string|null;used_by:string[];shared:boolean;original_sha256:string}
+export interface ComponentCatalog {hero_path:string;icons:CatalogEntry[];animations:CatalogEntry[];effects:CatalogEntry[];audio:CatalogEntry[];materials?:HeroMaterialEntry[];variants:{path:string;target:string;label:string;hero:string;supported:boolean;requires_model_project:boolean}[];animation_unavailable:string|null;warnings:string[];includes_animations?:boolean}
 export function DestinationPicker({kind,catalog,current,disabled,choose,discover}:{kind:AssetKind;catalog:ComponentCatalog|null;current:string;disabled:boolean;choose:(entry:CatalogEntry)=>void;discover:()=>void}){
   const[expanded,setExpanded]=useState(false),[search,setSearch]=useState('');
   const entries=(catalog?.[kind]??[]).filter(entry=>`${entry.label} ${entry.path}`.toLowerCase().includes(search.toLowerCase()));

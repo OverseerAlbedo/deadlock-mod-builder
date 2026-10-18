@@ -4,6 +4,7 @@ pub mod audio;
 pub mod heroes;
 pub mod icons;
 pub mod icon_catalog;
+pub mod materials;
 pub mod vector_icons;
 pub mod motion;
 pub mod resources;

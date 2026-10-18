@@ -24,6 +24,14 @@ const paths: Record<string, ReactNode> = {
       <path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" />
     </>
   ),
+  palette: (
+    <>
+      <path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.5-2.2-.6-1.3.3-2.8 1.8-2.8H18a3 3 0 0 0 3-3c0-5.5-4-10-9-10Z" />
+      <circle cx="7.5" cy="11" r="1.2" />
+      <circle cx="10" cy="7" r="1.2" />
+      <circle cx="15" cy="7.5" r="1.2" />
+    </>
+  ),
   search: (
     <>
       <circle cx="10.5" cy="10.5" r="6.5" />

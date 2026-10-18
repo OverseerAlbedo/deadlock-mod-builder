@@ -8,7 +8,9 @@ export type ReviewDestination = 'project' | 'appearance' | 'physics' | 'motion' 
 export interface ReadinessRow { key: string; label: string; value: string; tone: StateTone; page?: ReviewDestination; action?: string; section?: string; status?: string }
 export interface ReviewIssue { text: string; page?: ReviewDestination; section?: string; action?: string }
 export const modelEnabled = (project: Project) => !project.customization.enabled || project.customization.model_enabled !== false;
-export const testedPhysicsEnabled = (project: Project) => Boolean(modelEnabled(project) && project.customization.enabled && project.customization.physics?.enabled);
+/** Enabled hero colors (Extras → Colors) that the next build includes. */
+export const heroColorCount = (project: Project): number => !project.customization.enabled || project.customization.hero_materials?.enabled === false ? 0 : (project.customization.hero_materials?.materials ?? []).filter(row => row.enabled !== false).length;
+export const testedPhysicsEnabled =(project: Project) => Boolean(modelEnabled(project) && project.customization.enabled && project.customization.physics?.enabled);
 
 /** The VPK slot scan (`api.vpkSlots`) as far as readiness needs it: refreshed at
  * every Analyze, so a slot another mod took is reported before the build. */
@@ -46,13 +48,14 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   const tested = testedPhysicsEnabled(project);
   const generated = Boolean(model&&project.customization.enabled&&project.customization.secondary_motion?.enabled);
   const animations = project.customization.enabled ? (project.customization.animations ?? []).filter(row => row.enabled !== false).length : 0;
+  const heroColors = heroColorCount(project);
   const skeleton = inspection?.source_identity;
   const deferredSkeleton = skeleton?.identity?.required && !skeleton.identity.passed && !skeleton.extension;
   const rows: ReadinessRow[] = [
     { key: 'character', label: 'Character', value: project.original_model ? heroLabel({ name: project.hero_name, path: project.original_model, likely_hero: true }) : 'Choose a character', tone: project.original_model ? 'ready' : 'attention', page: 'project' },
     { key: 'model', label: 'Replacement model', value: !model ? 'Original model kept · extras only' : project.dmx ? basename(project.dmx) : 'Add a model', tone: !model ? 'neutral' : project.dmx ? 'ready' : 'attention', page: 'appearance' },
     { key: 'skeleton', label: 'Compatibility', value: !model ? current ? 'Extra assets inspected · build validates outputs' : 'Analyze extra assets before building' : !inspection ? 'Analyze to check compatibility' : deferredSkeleton ? 'Compiled skeleton check required' : 'Source preflight complete', tone: !current || deferredSkeleton ? 'neutral' : 'ready', page: 'build', status: !current ? 'Not analyzed' : deferredSkeleton ? 'Build check required' : 'Ready' },
-    { key: 'materials', label: 'Materials', value: !model ? 'Original materials kept' : materialReview ? `${materialReview} need review` : `${Object.keys(materials).length} assignment${Object.keys(materials).length === 1 ? '' : 's'}${inspection ? ' checked' : ' saved'}`, tone: !model ? 'neutral' : materialReview ? 'attention' : inspection ? 'ready' : 'neutral', page: 'appearance' },
+    { key: 'materials', label: 'Materials', value: !model ? heroColors ? `${heroColors} hero color${heroColors === 1 ? '' : 's'} · game textures kept` : 'Original materials kept' : materialReview ? `${materialReview} need review` : `${Object.keys(materials).length} assignment${Object.keys(materials).length === 1 ? '' : 's'}${inspection ? ' checked' : ' saved'}`, tone: !model ? 'neutral' : materialReview ? 'attention' : inspection ? 'ready' : 'neutral', page: 'appearance' },
     { key: 'mapping', label: 'Model mapping', value: !model ? 'No model replacement' : inspection?.unresolved_meshes.length ? `${inspection.unresolved_meshes.length} unresolved` : `${Object.keys(inspection?.mappings ?? project.meshes).length} mapping${Object.keys(inspection?.mappings ?? project.meshes).length === 1 ? '' : 's'}${inspection ? ' checked' : ' saved'}`, tone: !model ? 'neutral' : inspection?.unresolved_meshes.length ? 'attention' : inspection ? 'ready' : 'neutral', page: 'build' },
     { key: 'processing', label: 'Mesh processing', value: !model ? 'No model processing' : inspection?.vertex_preflight.errors.length ? `${inspection.vertex_preflight.errors.length} processing issue${inspection.vertex_preflight.errors.length === 1 ? '' : 's'}` : project.auto_split ? 'Automatic splitting enabled' : 'Automatic splitting disabled', tone: inspection?.vertex_preflight.errors.length ? 'attention' : model && (project.auto_split || inspection) ? 'ready' : 'neutral', page: 'appearance' },
     { key: 'physics', label: 'Physics', value: !model ? 'Original physics kept' : generated ? `${project.customization.secondary_motion?.preset==='tangtang_r2'?'TangTang R2 tuned':'Automatic secondary motion'}${inspection?.secondary_motion?' · groups checked':''}` : tested ? physics?.source ? `Replacement cloth setup${inspection ? ' · reference checked' : ' selected'}` : 'Choose a tested reference' : 'Preserve original physics', tone: generated ? inspection?.secondary_motion?'ready':'neutral' : tested && !physics?.source ? 'attention' : tested && !inspection ? 'neutral' : 'ready', page: 'physics' },
@@ -68,7 +71,8 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   };
   rows.forEach(row => {
     [row.action, row.section] = actions[row.key];
-    if (!model && ['model', 'materials', 'mapping', 'processing'].includes(row.key)) row.status = 'Not applicable';
+    if (!model && row.key === 'materials' && heroColors) { row.page = 'extras'; row.action = 'Change'; row.section = undefined; }
+    else if (!model && ['model', 'materials', 'mapping', 'processing'].includes(row.key)) row.status = 'Not applicable';
   });
   return {
     rows, issues, ready, hasInputs, current, model: inspection,

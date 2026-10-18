@@ -203,6 +203,16 @@ export interface AppearanceMaterial {
   /** Experimental color editor: hue shift in degrees (-180–180); saturation and brightness factors (0–2, 1 keeps the original). */
   hue?: number; saturation?: number; brightness?: number; [key: string]: JsonValue | undefined;
 }
+/** Hero colors: one of the hero's own compiled game materials (target `.vmat_c`) recolored in place, without a replacement model. */
+export interface HeroMaterial {
+  enabled?: boolean; target?: string;
+  /** Replaces the game's tint (0–1 per channel). */
+  color?: [number,number,number];
+  /** Factors (0–2, 1 keeps the game's value) of the material's own albedo saturation and brightness. */
+  saturation?: number; brightness?: number;
+  /** Also recolor the other game models that use this material. */
+  allow_shared?: boolean; original_sha256?: string; [key: string]: JsonValue | undefined;
+}
 export interface EquipmentMesh {
   target?: string; action?: 'keep' | 'hide' | 'replace'; sources?: string[]; include_lods?: boolean;
   [key: string]: JsonValue | undefined;
@@ -218,5 +228,6 @@ export interface Customization {
   face?: { enabled?: boolean; mode?: string; weights?: Record<string,number>; [key: string]: unknown };
   /** Shown face layers; unset or false keeps a kind hidden. */
   face_layers?: { blush?: boolean; tears?: boolean; other?: boolean; [key: string]: unknown };
+  hero_materials?: { enabled?: boolean; materials?: HeroMaterial[]; [key: string]: unknown };
   [key: string]: unknown;
 }

@@ -931,6 +931,41 @@ gun on top of them. Flip, roll, scale and offset adjustments and a 3D preview
 Heroes without gun meshes but with weapon/muzzle bones use those bones for the
 fit (lower confidence; check the roll in the preview).
 
+## Hero colors (Extras → Colors)
+
+Not part of preparation: Colors recolors the hero's **own** compiled materials
+for a project without a replacement model (`Customization.hero_materials`,
+`deadlock-components materials.rs`). The list is the `.vmat` references of the
+hero's compiled model; each material's DATA block (KV3) is read for its shader
+and parameters, and every other `.vmdl_c` in the pak is scanned (its reference
+table only, about 4 s for the 6,419 models of October 2026) for other models that
+use it (`used_by`, recolored only with `allow_shared`).
+
+The build edits the compiled material in place, never a decompiled copy:
+DATA is decoded, existing `m_vectorParams` values change (the tint
+`g_vColorTint1` is replaced; `g_vAlbedoContrastSaturationBrightness1` y and z are
+multiplied by the saturation and brightness factors), DATA is encoded again
+(`deadlock_resource::binary::encode`, KV3 v1) and the resource is rebuilt with
+every other block byte exact (`container::rebuild`). Only `pbr.vfx` is accepted,
+and a parameter the material lacks is refused, never added. The package holds
+just the recolored `.vmat_c` files; their textures stay the game's. The receipt
+(`ComponentReceipt.materials`) records each original hash and its output, and
+snapshot and install checks recolor the current game material again and compare
+bytes.
+
+Why not decompile and recompile: Source 2 Viewer splits packed textures into PNGs
+whose names collide (Haze's `hazev2` got `haze_v2_color.png` from two different
+textures), its `.vmat` carries a nested `Compiled Textures` block, the material's
+inputs live in the game's `core` search path, and re-encoding BC7 textures loses
+quality. Roughness and metalness are baked into textures (`g_tNormalRoughness`,
+`g_tColor` alpha), opacity and emission need static combos (`F_TRANSLUCENT`,
+`F_SELF_ILLUM`) these materials lack, and a hue shift needs a new texture, so none
+of them is offered. A material whose tint mask (`g_tTintMaskRimLightMask`) is not a
+`materials/default/` texture tints only its masked areas; the page says so.
+Checked on October 18, 2026: all 770 hero `pbr.vfx` materials have
+`g_vColorTint1` and 679 have the albedo vector; every decodable game material
+re-encodes to equal values.
+
 ## Verifying changes
 
 ```powershell

@@ -4,7 +4,7 @@ export type ExtraKind = "icons" | "audio" | "effects";
 export interface ExtraPreviewRequest {
   hero_path: string;
   target: string;
-  kind: ExtraKind;
+  kind: ExtraKind | "materials";
   source?: string;
   fit?: string;
   audio_fit?: string;

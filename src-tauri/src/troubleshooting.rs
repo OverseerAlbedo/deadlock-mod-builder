@@ -47,6 +47,23 @@ const RULES: &[Rule] = &[
         cause: "Another task was still running when you clicked.",
         steps: &["Wait until the status bar at the bottom says Ready, then click again.", "If a step is shown as running and you do not need it, click Cancel in the status bar.", "If it keeps happening with nothing running, restart the app."],
         action: None },
+    // Hero colors (Extras → Colors) recolor the game's own materials.
+    Rule { any: &["hero colors change the game's own model"], all: &[],
+        cause: "Hero colors recolor the game's own model, so they cannot be combined with a replacement model.",
+        steps: &["Open Extras → Build options and turn off Include replacement model and textures.", "To recolor your replacement model instead, use Appearance & weapons → Surface changes.", "Build again."],
+        action: Some(("Open Extras", "extras")) },
+    Rule { any: &["recolor everywhere it is used"], all: &[],
+        cause: "Another game model uses the same material, so recoloring it changes that model too.",
+        steps: &["Open Extras → Colors and select the material named in the message.", "Turn on Recolor everywhere it is used if that is fine, or remove it and choose another material.", "Build again."],
+        action: Some(("Open Extras", "extras")) },
+    Rule { any: &["changed since you chose it", "is no longer one of this hero's materials", "is not one of this hero's materials"], all: &[],
+        cause: "The hero's materials in the game changed since you chose this color, usually after a game update.",
+        steps: &["Open Extras and click Reload assets.", "Open Colors, check the material and its color, then build again."],
+        action: Some(("Open Extras", "extras")) },
+    Rule { any: &["hero colors support pbr.vfx materials only", "has no tint setting", "has no saturation or brightness setting", "changes nothing. set a tint", "could not be read as a compiled material"], all: &[],
+        cause: "This hero material does not have the color setting you changed.",
+        steps: &["Open Extras → Colors and select the material named in the message.", "Use the controls it offers, or remove it and choose another material.", "Build again."],
+        action: Some(("Open Extras", "extras")) },
     Rule { any: &["particlefloattype_t", "schema mismatch"], all: &[],
         cause: "The character model was compiled with the Community SDK's compiler. That compiler only builds materials; hero models need the model toolset.",
         steps: MODEL_TOOLSET_STEPS, action: Some(("Set up model compiler", "setup")) },
@@ -264,5 +281,25 @@ mod tests {
         assert!(window.cause.contains("wrong password"), "{window:?}");
         // Unknown tool failures still say where to look.
         assert_eq!(help("tool", "External tool failed", "Tool x.exe failed (exit code 9)").unwrap().action.unwrap().page, "logs");
+    }
+    /// Hero colors refusals, as the build reports them.
+    #[test]
+    fn hero_color_refusals_point_to_extras() {
+        for (message, cause) in [
+            ("Hero colors change the game's own model. Turn off Include replacement model and textures in Extras → Build options, or recolor your replacement model in Appearance → Surface changes.", "cannot be combined"),
+            ("metal is also used by 1 other game model (crate.vmdl). Turn on Recolor everywhere it is used, or choose another material.", "changes that model too"),
+            ("The game material hazev2 changed since you chose it (a game update). Load character assets again, check the color, then build.", "game update"),
+            ("models/other/materials/x.vmat_c is not one of this hero's materials. Load character assets again and choose a material from the list.", "game update"),
+            ("odd uses the environment_blend.vfx shader. Hero colors support pbr.vfx materials only.", "does not have the color setting"),
+            ("plain has no saturation or brightness setting. Use Tint instead.", "does not have the color setting"),
+            ("x could not be read as a compiled material: Unsupported or malformed KV3: unconsumed KV3 values; refusing lossy conversion", "does not have the color setting"),
+        ] {
+            // Integrity errors reach the page as validation errors with the full text as details.
+            let found = help("validation", message, &format!("Integrity check failed: {message}")).unwrap();
+            assert!(found.cause.contains(cause), "{message}: {found:?}");
+            assert_eq!(found.action.unwrap().page, "extras", "{message}");
+        }
+        // The replacement-model refusal keeps its plain message.
+        assert!(help("validation", "Include a replacement model to use Appearance, Equipment or a static facial expression. To recolor the hero's own model instead, use Extras → Colors.", "").is_none());
     }
 }

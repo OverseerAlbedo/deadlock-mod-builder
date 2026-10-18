@@ -21,5 +21,5 @@ export interface OriginalValidation {compiled:boolean;compiled_model?:string;rep
 
 export interface BuildResult {prepared:string|null;compiled:boolean;vpk:string|null;installed:string|null;manifest:string|null}
 export interface BuildResponse {project:Project;result:BuildResult;path:string}
-export interface ComponentInspection {model_enabled:false;icons:unknown[];animations:unknown[];effects:unknown[];audio:unknown[];clothing:unknown|null;native_compile_required:boolean;warnings:string[];native_validated:false;in_game_validated:false}
+export interface ComponentInspection {model_enabled:false;icons:unknown[];animations:unknown[];effects:unknown[];audio:unknown[];/** Hero colors (recolored hero materials). */materials?:unknown[];clothing:unknown|null;native_compile_required:boolean;warnings:string[];native_validated:false;in_game_validated:false}
 export type ProjectInspection = InspectionReport | ComponentInspection;

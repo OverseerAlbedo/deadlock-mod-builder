@@ -274,6 +274,13 @@ template check (`tests/cloth_bones.rs`).
   current_game_models_pass_the_independent_reader` with `DMB_GAME_MODELS` set
   to extracted hero models. Builds that keep the hero's own cloth are the ones
   that feed it Valve-compiled data.
+- Hero colors (Extras → Colors, `Customization.hero_materials`,
+  `deadlock-components materials.rs`) edit the hero's own compiled `.vmat_c` in
+  place: only existing `m_vectorParams` values (`g_vColorTint1`, and y/z of
+  `g_vAlbedoContrastSaturationBrightness1`), `pbr.vfx` only, every non-DATA block
+  byte exact. Never add a parameter or decompile/recompile game materials. They
+  are refused with a replacement model (a separate mode); the asset-only package
+  check counts `.vmat_c` as extras only then (`build.rs component_path`).
 - Hero tags come from the installed game's definitions (`heroes.rs GameModels`:
   `m_bDisabled` → In development, `m_eHeroDevelopmentState` PreRelease → Not
   playable yet, else In game); `hero_roster.json` `playable: false` is only the

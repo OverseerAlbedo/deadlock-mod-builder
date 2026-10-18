@@ -547,6 +547,27 @@ fn validate_component_receipt(
                 }
             }
         }
+        if let Some(colors) = choices.hero_materials.as_ref().filter(|c| c.enabled.unwrap_or(true)) {
+            for row in colors
+                .materials
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .filter(|r| r.enabled.unwrap_or(true))
+            {
+                let target = row
+                    .target
+                    .as_deref()
+                    .filter(|t| !t.is_empty())
+                    .ok_or_else(|| {
+                        invalid("A hero color is missing its material. Rebuild first.")
+                    })?;
+                safety::relative_asset(target)?;
+                if !selected.insert(casefold(target)) {
+                    return Err(invalid("Selected component targets are duplicated."));
+                }
+            }
+        }
     }
     let package_files = files
         .keys()
@@ -562,6 +583,9 @@ fn validate_component_receipt(
             || path.ends_with(".vpcf_c")
             || path.ends_with(".vsnd_c")
             || (path.starts_with("panorama/images/") && path.ends_with(".vtex_c"))
+            // Hero colors exist only without a replacement model, whose own
+            // compiled materials are never extras.
+            || (!choices.model_enabled() && path.ends_with(".vmat_c"))
     };
     let packaged_components = package_files
         .iter()
