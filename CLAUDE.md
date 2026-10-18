@@ -37,9 +37,10 @@ on October 15, 2026 with its history purged of third-party data; the previous
 repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 `OverseerAlbedo/deadlock-mod-builder-archive` (private). 0.13.0-beta.4 (October 15, 2026) was the first release of the new repository and
 0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
-fixed), 0.13.0-beta.8 (automatic-movement fixes), 0.13.0-beta.9 (MMD and Face details)
-and 0.13.0-beta.10 (tag `v0.13.0-beta.10`, October 18, 2026, model compiler setup
-fixes for issue #2) followed, the latter being the latest; the
+fixed), 0.13.0-beta.8 (automatic-movement fixes), 0.13.0-beta.9 (MMD and Face details),
+0.13.0-beta.10 (model compiler setup fixes for issue #2) and 0.13.0-beta.11 (tag
+`v0.13.0-beta.11`, October 18, 2026, Hero colors and the issue #3 fixes) followed,
+the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -47,7 +48,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.10 (October 18, 2026)
+## State as of 0.13.0-beta.11 (October 18, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -112,6 +113,15 @@ screen, Download in one DepotDownloader run (one scan) when it reproduces the
 plan, Sign in to Steam… for username mode, Steam sign-in error help, wrong
 toolset folder messages and the manual download steps page. Checked on the PC
 on October 18, 2026: QR sign-in fetched the manifests with one scan.
+
+Beta 11 = beta 10 plus Hero colors (Extras → Colors: the hero's own compiled
+materials recolored in place without a replacement model, and color ranges
+that recolor part of a material's base-color texture), Extras in Simple mode,
+and the GitHub issue #3 fixes: cloth reader 1.0.2 on ValveResourceFormat
+20.1.7467 for the KV3 types 26/27 in Valve's models since October 16, 2026,
+and the kept-bone bind repair for Preserve builds with kept moving-part bones.
+Checked on the PC on October 18, 2026: Silver Preserve build installed, Violet
+built with automatic motion and with kept bones in Preserve mode.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file

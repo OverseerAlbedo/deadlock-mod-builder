@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0-beta.11 — 2026-10-18
 
 - Extras (and the More customization section) now shows in Simple mode too; only Motion and Step timings stay Expert-only.
 - Fix (issue #3): builds that keep the hero's own cloth (moving parts off, or nothing for automatic movement to replace) stopped at "Validate compiled runtime motion" with "Unknown KVType for variable 'datatype': 26 (0x1A)". Since the game's October 16, 2026 update, Valve's models store two new KV3 value types (26 and 27, unsigned 32-bit zero and one) that the bundled full-precision cloth reader did not know. The reader (1.0.2) now uses ValveResourceFormat 20.1.7467, which reads them; its output for models without the new types is byte for byte the same as before. Reported on Silver; Haze, Violet and every other hero were affected the same way.

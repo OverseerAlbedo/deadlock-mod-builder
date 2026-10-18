@@ -1,23 +1,27 @@
-# Deadlock Mod Builder 0.13.0-beta.10
+# Deadlock Mod Builder 0.13.0-beta.11
 
-Fixes for **Set up model compiler…**, the page that downloads the model compiler with DepotDownloader and your Steam account (reported in issue #2). Everything from the earlier betas is still in; see `CHANGELOG.md`.
+**Hero colors** and fixes for builds that keep the hero's own cloth (reported in issue #3). Everything from the earlier betas is still in; see `CHANGELOG.md`.
 
-## What changed
+## New
 
-- **The Steam QR code appears on screen.** With Steam mobile QR sign-in, the code pops up as soon as Steam asks for it, renews with Steam's code and closes when you are signed in. Before, it was only in Logs, where nothing told you to look and the code was unreadable, so the sign-in timed out with "Failed to authenticate with Steam".
-- **Fewer scans:** Download now asks for one QR scan instead of three, so the whole setup takes two (Fetch manifests and plan, then Download).
-- **Sign in to Steam…** for a locally authenticated Steam account: opens DepotDownloader once in its own window, where you type your password and Steam Guard code. DepotDownloader keeps the sign-in and the app's downloads use it; the app never sees your password. Before, the download crashed with "LogOn requires a username and password or access token".
-- **Clearer errors:** Steam sign-in failures say what happened and what to click, and choosing the wrong folder as the model toolset is explained (a Community SDK folder such as Reduced_CSDK_12\game, or Deadlock's own game files). Choosing the toolset's game folder or the acquisition folder selects the toolset itself.
-- **Manual download steps** (Or use files you already have → Show manual download steps): five numbered steps with a Copy button for each command, a QR or username switch, and an explanation of why the download command only appears after Export exact file plan.
+- **Colors** (Extras → Colors): recolor a hero's own clothes and body without a replacement model, for example Haze's clothes black. Pick a material and change its tint, saturation or brightness; the mod contains only the changed materials.
+- **Color ranges:** recolor only part of a material with a real hue shift, for example the clothes but not the skin. Click a color on the preview, narrow the selection (the white selection view shows what is picked), then set the hue shift. A material can hold up to 8 ranges.
+- **Extras in Simple mode:** Extras, with Colors, now shows in Simple mode too. Motion and Step timings stay in Expert mode.
+
+## Fixed
+
+- **Builds that keep the hero's own cloth** (Preserve original physics, or moving parts off) stopped with "Unknown KVType for variable 'datatype': 26 (0x1A)" since the game's October 16 update. The bundled cloth reader now reads the new game data. Every hero was affected, not only Silver.
+- **Preserve original physics with kept hair bones** stopped with "Bind transform outside original-physics transfer budget" or "Compiled skeleton bind transform changed" on a hair or tail bone. The compiler stores those bones slightly rounded; the build now takes the compiler's exact values for them, as automatic movement already did. No check was loosened.
 
 ## Good to know
 
-- The model compiler download is about 4 GB, not the whole Counter-Strike 2 game. Your Steam account needs Counter-Strike 2 in its library (it is free and does not have to be installed).
+- Recolored materials that other models also use (marked Shared) change on those models too; you confirm that per material.
+- Hue shifts only move colored pixels. Black, white or grey parts cannot become a color with a range; use the tint for white or grey parts.
 
 ## Checked
 
-- Checked on October 18, 2026: QR sign-in with the on-screen code fetched the manifests with one scan.
-- Not yet checked with a real Steam account: Download with one scan, and Sign in to Steam….
+- Checked on the PC on October 18, 2026: Silver with Preserve original physics built and installed; Violet built with automatic movement and with kept hair bones in Preserve mode.
+- Not yet checked in a match: Colors, color ranges and Preserve builds with kept hair bones.
 
 ## After updating the app
 
