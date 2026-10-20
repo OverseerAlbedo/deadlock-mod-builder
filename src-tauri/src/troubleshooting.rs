@@ -186,6 +186,11 @@ const RULES: &[Rule] = &[
         cause: "A moving-part bone came out of the compiler in a different place than prepared.",
         steps: &["Prepare the model again (Convert, then Use prepared model) and build.", "If it happens again, turn off the moving part named in the message on Physics & preview and build."],
         action: Some(("Open Physics & preview", "physics")) },
+    // Replacement cloth setup with the game's own model as the tested setup (issue #4).
+    Rule { any: &["is the hero's own game cloth"], all: &[],
+        cause: "The tested cloth reference is the hero's own game model (or carries its cloth). Replacement cloth setup needs a hair and cloth setup compiled and tested for your replacement model; the game's own models fail its checks.",
+        steps: &["Open Physics & preview and choose Preserve original physics to keep the hero's own hair and cloth.", "Or choose Automatic secondary motion to make your model's own hair and clothes move.", "Analyze project again, then build."],
+        action: Some(("Open Physics & preview", "physics")) },
     Rule { any: &["cloth proxy face", "fabric fold constraint", "native secondary fitting is incomplete", "cloth validation"], all: &[],
         cause: "The motion setup for one or more moving parts could not be built.",
         steps: &["Open Physics & preview and find the parts named in the message.", "Set their part type to Rigid (or switch them off), then Analyze again.", "Build again. Other moving parts keep their motion."],
@@ -292,6 +297,14 @@ mod tests {
         assert!(qr.steps[0].contains("appears on screen"));
         let window = help("tool", "Steam sign-in did not finish", "The DepotDownloader sign-in window closed before the sign-in was saved (exit code 1). Enter your Steam password and Steam Guard code in that window.").unwrap();
         assert!(window.cause.contains("wrong password"), "{window:?}");
+        // Issue #4: Silver's own werewolf.vmdl_c chosen as the tested cloth setup.
+        let own = help("validation", concat!(
+            "Cloth validation: The tested cloth reference is the hero's own game cloth, not a setup made for your replacement model. ",
+            "To keep the hero's own hair and cloth, choose Preserve original physics. Check that failed: Compiled mesh inverse bind differs ",
+            "from model skeleton: finger_ring_0_R (linear residual 0.000026627; translation residual 0.034709 mm; limits 0.0001 and 0.025 mm)"), "").unwrap();
+        assert!(own.cause.contains("hero's own game model"), "{own:?}");
+        assert!(own.steps[0].contains("Preserve original physics"));
+        assert_eq!(own.action.unwrap().page, "physics");
         // Unknown tool failures still say where to look.
         assert_eq!(help("tool", "External tool failed", "Tool x.exe failed (exit code 9)").unwrap().action.unwrap().page, "logs");
     }

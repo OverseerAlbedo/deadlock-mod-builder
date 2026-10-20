@@ -473,8 +473,8 @@ pub fn setup_with(
     // Leg colliders so skirts and tails stop at the legs (automatic motion only;
     // the TangTang presets keep their accepted setup unchanged).
     let body_colliders = if effective == "automatic" {
-        let moving = crate::body_colliders::moving_points(&Dmx::parse(proxy.clone())?)?;
-        crate::body_colliders::leg_colliders(d, &moving, cancel)?
+        let clear = crate::body_colliders::Clearance::of(&Dmx::parse(proxy.clone())?)?;
+        crate::body_colliders::leg_colliders(d, &clear, cancel)?
     } else {
         vec![]
     };

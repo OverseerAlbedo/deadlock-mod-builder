@@ -44,7 +44,7 @@ fn main() {
     // Which moving nodes shrink each leg collider: its radius with no cloth
     // nearby, and the closest moving nodes (named by their nearest bone).
     let cancel = CancellationToken::new();
-    let free = deadlock_cloth_authoring::body_colliders::leg_colliders(&d, &[], &cancel).unwrap();
+    let free = deadlock_cloth_authoring::body_colliders::leg_colliders(&d, &Default::default(), &cancel).unwrap();
     let proxy = Dmx::parse(setup.proxy.clone()).unwrap();
     let moving = deadlock_cloth_authoring::body_colliders::moving_points(&proxy).unwrap();
     let skeleton = surface::binds(&d).unwrap().skeleton;

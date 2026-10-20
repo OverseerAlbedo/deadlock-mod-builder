@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fix (issue #4): automatic movement stopped on some models with "Generated secondary solver failed native capacity or rest-constraint validation (rest constraints Failed: static-anchor rod maxima and capsule exclusion cannot both be satisfied at declared rest pose)". A collider the app makes for the body (head, neck, legs or hips) could grow over the fixed points behind a moving part's root, deeper than the short rod to that part's cloth reaches: the roots of a chibi's hair inside its large head (reported on Silver), or janeVen's boot flaps on her shins. Colliders now also leave every fixed point within reach of its cloth. On the test projects only janeVen's colliders change (shins 4.6 to 2.1 in, head 4.9 to 4.0 in); every other collider keeps its size. When this check fails, the error now names the collider and how deep the fixed point sits.
+- Fix (issue #4, second error): Replacement cloth setup with the game's own model as the tested reference (Silver's `werewolf.vmdl_c`) stopped with "Compiled mesh inverse bind differs from model skeleton: finger_ring_0_R (… translation residual 0.034709 mm …)". That number belongs to Valve's own compiled model, not to the replacement, and every game model checked fails as a tested setup (nine heroes, among them Silver, Violet, Shiv, Lady Geist and Haze). The error now says the reference is the hero's own game cloth and points to Preserve original physics, with matching help. The checks are unchanged.
+
 ## 0.13.0-beta.11 — 2026-10-18
 
 - Extras (and the More customization section) now shows in Simple mode too; only Motion and Step timings stay Expert-only.

@@ -133,6 +133,38 @@ pub fn inspect_tested(
     reference: &[u8],
     source: Option<&SourceBinding>,
 ) -> Result<TestedSelection> {
+    inspect(original, reference, source).map_err(|error| {
+        if !hero_own_cloth(original, reference) {
+            return error;
+        }
+        let check = match error {
+            Error::Invalid(message) => message,
+            other => other.to_string(),
+        };
+        invalid(format!("{HERO_OWN_CLOTH} Check that failed: {check}"))
+    })
+}
+/// Said when a reference that fails qualification carries the replaced hero's
+/// own game cloth: usually the game's own model file, chosen as the tested
+/// setup (issue #4, Silver's `werewolf.vmdl_c`). All nine game hero models
+/// checked fail the checks above (inverse binds, vertex maps, tapered
+/// capsules); only the explanation is added, nothing that passes changes.
+const HERO_OWN_CLOTH: &str = "The tested cloth reference is the hero's own game cloth, not a setup made for your replacement model. To keep the hero's own hair and cloth, choose Preserve original physics.";
+fn hero_own_cloth(original: &[u8], reference: &[u8]) -> bool {
+    let solver = |raw: &[u8]| -> Option<Value> {
+        let layout = container::layout(raw).ok()?;
+        let physics = decode_unique(raw, &layout.blocks, "PHYS").ok()?;
+        let fe = physics.root.get("m_pFeModel")?.clone();
+        (!matches!(fe.kind, deadlock_resource::Kind::Null)).then_some(fe)
+    };
+    original == reference
+        || matches!((solver(original), solver(reference)), (Some(a), Some(b)) if a.canonical_eq(&b))
+}
+fn inspect(
+    original: &[u8],
+    reference: &[u8],
+    source: Option<&SourceBinding>,
+) -> Result<TestedSelection> {
     let qualification = qualify_tested(reference)?;
     let target = target(original, reference, source)?;
     if !target.extra_names.is_empty() && source.is_none() {
@@ -323,4 +355,25 @@ pub fn apply_tested(
         independent_reader_validation_required: true,
     };
     Ok((output, receipt))
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn fixture(name: &str) -> Vec<u8> {
+        std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name)).unwrap()
+    }
+    #[test]
+    fn a_failing_reference_with_the_hero_own_cloth_says_so() {
+        // Issue #4: the game's own werewolf.vmdl_c chosen as the tested setup.
+        let (original, reference) = (fixture("tested-original.vmdl_c"), fixture("tested-reference.vmdl_c"));
+        assert!(hero_own_cloth(&original, &original));
+        assert!(!hero_own_cloth(&original, &reference));
+        // A real tested setup that fails keeps its own message.
+        let other = inspect_tested(&original, &reference, None).unwrap_err().to_string();
+        assert!(!other.contains(HERO_OWN_CLOTH), "{other}");
+        match inspect_tested(&original, &original, None) {
+            Err(error) => assert!(error.to_string().contains(HERO_OWN_CLOTH), "{error}"),
+            Ok(_) => panic!("the fixture's own cloth qualified as a tested setup"),
+        }
+    }
 }

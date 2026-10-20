@@ -189,7 +189,13 @@ template check (`tests/cloth_bones.rs`).
 - Leg, hip, neck and head colliders (`body_colliders.rs`) are automatic-motion only, measured
   at Analyze into `Setup.body_colliders` and written by
   `proxy_source::author_direct_proxy`; they must never start with a moving
-  proxy node inside them (radius reduced by `CLEARANCE`).
+  proxy node inside them (radius reduced by `CLEARANCE`), nor hold a fixed node
+  (cloth disabled) deeper than its nearest cloth node is from it, less
+  `CLEARANCE` (`body_colliders::Clearance`, issue #4). Compiled rods from a
+  fixed node keep their rest length as maximum, and `constraints::audit`
+  refuses a deeper fixed node. Goal-1 root rings are not counted as moving
+  nodes: counting them shrinks match-checked colliders (SiViolet's neck 2.22
+  to 1.67 in), so that needs an in-game look first.
 - Rigid parts are not simulated (`Setup.still_roots`, automatic only): no proxy
   points, and every solver bone set comes from `Setup::simulated_groups`, never
   `setup.groups` (the compiled check rejects weighted bones without cloth
@@ -276,6 +282,14 @@ template check (`tests/cloth_bones.rs`).
   rounds their DATA locals down long chains. Never widen the transfer
   budgets instead. `tests/kept_bones.rs` (`DMB_KEPT_BONES`) and
   `examples/bone_drift.rs` in deadlock-cloth-authoring measure it.
+- A tested cloth reference (Replacement cloth setup) must be a compiled setup
+  made for the replacement. All nine of Valve's own hero models checked on
+  October 19, 2026 fail: werewolf, artist, shiv, ghost, viper, bebop and synth
+  the inverse-bind audit (werewolf and artist in both multiplication orders,
+  148 and 68 bone rows, and their vertex maps the rest-constraint audit),
+  haze its tapered capsules, magician its PHYS. When a failing reference carries the hero's own game
+  cloth, `tested.rs inspect_tested` says so (`HERO_OWN_CLOTH`, issue #4);
+  never loosen the inverse-bind audit for them.
 - The full-precision cloth reader (`tools/cloth-reader`, bundled in
   `resources/native/cloth-reader`) is a second, independent KV3 parser
   (ValveResourceFormat). When Valve adds KV3 types, the Rust decoder

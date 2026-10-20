@@ -251,6 +251,15 @@ fn qualify_locked(
         }
         if constraints.status != cloth::Status::Passed {
             causes.push(format!("rest constraints {:?}: {}", constraints.status, constraints.reason.as_deref().unwrap_or("no reason given")));
+            // Which collider, and how deep, so a report needs no log (issue #4).
+            let e = &constraints.evidence;
+            if let Some(worst) = e.worst_examples.first().or(e.uncertain_examples.first()) {
+                causes.push(format!(
+                    "worst: the {} collider holds a fixed node {:.1} mm inside, beyond its {:.1} mm rod; conflicts per collider: {}",
+                    worst.capsule_control, worst.anchor_penetration_mm, worst.rod_maximum_length_mm,
+                    e.by_capsule.iter().map(|(name, n)| format!("{name} {n}")).collect::<Vec<_>>().join(", ")
+                ));
+            }
         }
         return Err(invalid(format!(
             "Generated secondary solver failed native capacity or rest-constraint validation ({}).",

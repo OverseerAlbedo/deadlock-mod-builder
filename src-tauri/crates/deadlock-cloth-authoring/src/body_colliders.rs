@@ -18,6 +18,14 @@
 //! begins a little below the hip joint (a skirt's waistband sits at the hip),
 //! and every radius is reduced until each moving proxy node clears it at rest;
 //! a collider that would become thinner than [`MIN_RADIUS`] is left out.
+//!
+//! Nor does it hold a fixed node deeper than the cloth around it can reach
+//! (issue #4: a chibi's head capsule over the roots of its hair, janeVen's shin
+//! capsules over her boot flaps). A rod from a fixed node to a cloth node
+//! compiles with its rest length as its maximum, so when a fixed node sits
+//! deeper inside a capsule than that length, the rod's cloth end has no place
+//! outside it, and the compiled check refuses the model ("static-anchor rod
+//! maxima and capsule exclusion cannot both be satisfied"). See [`Clearance`].
 use crate::{proxy_source::ColliderProposal, surface, Result};
 use deadlock_skeleton::transforms::BindState;
 use deadlock_core::CancellationToken;
@@ -74,9 +82,9 @@ fn quantile95(mut samples: Vec<f64>) -> f64 {
 }
 
 /// Leg colliders for the character in `d` (the prepared model, on the hero
-/// skeleton), clear of every point in `moving` (the moving proxy nodes at rest,
-/// in model space). Legs the skeleton or the mesh does not have are skipped.
-pub fn leg_colliders(d: &Dmx, moving: &[V], cancel: &CancellationToken) -> Result<Vec<ColliderProposal>> {
+/// skeleton), within the limits of `clear` (the automatic proxy at rest, in
+/// model space). Legs the skeleton or the mesh does not have are skipped.
+pub fn leg_colliders(d: &Dmx, clear: &Clearance, cancel: &CancellationToken) -> Result<Vec<ColliderProposal>> {
     let bind = surface::binds(d)?;
     let skeleton = &bind.skeleton;
     let state = transforms::bind_state(skeleton)?;
@@ -118,18 +126,14 @@ pub fn leg_colliders(d: &Dmx, moving: &[V], cancel: &CancellationToken) -> Resul
         if samples.len() < 12 {
             continue;
         }
-        let mut radius = quantile95(samples);
-        for point in moving {
-            let (distance, _) = segment_distance(*point, a, bottom);
-            radius = radius.min(distance - CLEARANCE);
-        }
+        let radius = clear.limit(quantile95(samples), a, bottom);
         if !radius.is_finite() || radius < MIN_RADIUS {
             continue;
         }
         out.push(proposal(&state, index, bone, tip, [a, bottom], radius));
     }
-    out.extend(hip_colliders(d, &state, &palette, &meshes, moving, cancel)?);
-    out.extend(head_collider(d, &state, &palette, &meshes, moving, cancel)?);
+    out.extend(hip_colliders(d, &state, &palette, &meshes, clear, cancel)?);
+    out.extend(head_collider(d, &state, &palette, &meshes, clear, cancel)?);
     Ok(out)
 }
 
@@ -147,7 +151,7 @@ fn head_collider(
     state: &BindState,
     palette: &[Option<usize>],
     meshes: &std::collections::BTreeMap<String, surface::MeshData>,
-    moving: &[V],
+    clear: &Clearance,
     cancel: &CancellationToken,
 ) -> Result<Option<ColliderProposal>> {
     let skeleton = &surface::binds(d)?.skeleton;
@@ -203,10 +207,7 @@ fn head_collider(
             let ends = [-1., 1.].map(|s| -> V { std::array::from_fn(|k| centre[k] + up[k] * s * HEAD_HALF_LENGTH) });
             let mut distances: Vec<f64> = points.iter().step_by(step).map(|p| segment_distance(*p, ends[0], ends[1]).0).collect();
             distances.sort_by(f64::total_cmp);
-            let mut radius = distances[distances.len() / 2];
-            for point in moving {
-                radius = radius.min(segment_distance(*point, ends[0], ends[1]).0 - CLEARANCE);
-            }
+            let radius = clear.limit(distances[distances.len() / 2], ends[0], ends[1]);
             if radius.is_finite() && radius >= MIN_RADIUS && best.as_ref().is_none_or(|(r, _)| radius > r + 1e-9) {
                 best = Some((radius, ends));
             }
@@ -244,7 +245,7 @@ fn hip_colliders(
     state: &BindState,
     palette: &[Option<usize>],
     meshes: &std::collections::BTreeMap<String, surface::MeshData>,
-    moving: &[V],
+    clear: &Clearance,
     cancel: &CancellationToken,
 ) -> Result<Vec<ColliderProposal>> {
     let skeleton = &surface::binds(d)?.skeleton;
@@ -314,10 +315,7 @@ fn hip_colliders(
         for step in 0..=16 {
             let set_back = half_depth * step as f64 / 16.;
             let ends = [hip_l, hip_r].map(|p| -> V { std::array::from_fn(|k| p[k] - up[k] * thigh * level + back[k] * set_back) });
-            let mut radius = half_depth;
-            for point in moving {
-                radius = radius.min(segment_distance(*point, ends[0], ends[1]).0 - CLEARANCE);
-            }
+            let radius = clear.limit(half_depth, ends[0], ends[1]);
             let reach = set_back + radius;
             if radius.is_finite() && radius >= MIN_RADIUS && best.as_ref().is_none_or(|(r, _, _)| reach > r + 1e-9) {
                 best = Some((reach, ends, radius));
@@ -333,25 +331,69 @@ fn hip_colliders(
 /// The moving nodes of an automatic proxy at rest: points whose goal strength
 /// is below 1 (fixed points follow their bone and never collide).
 pub fn moving_points(proxy: &Dmx) -> Result<Vec<V>> {
-    let vertex = proxy
-        .elements
-        .iter()
-        .find(|e| e.kind == "DmeVertexData" && e.get("cloth_enable$0").is_some())
-        .ok_or_else(|| crate::invalid("Automatic proxy needs one cloth state."))?;
-    let positions = surface::floats(proxy, vertex, "position$0", 42, 3)?;
-    let goals = surface::floats(proxy, vertex, "cloth_goal_strength$0", 35, 1)?;
-    let enabled = surface::floats(proxy, vertex, "cloth_enable$0", 35, 1)?;
-    Ok(positions
-        .chunks_exact(3)
-        .enumerate()
-        .filter(|(i, _)| goals.get(*i).is_some_and(|g| *g < 0.999) && enabled.get(*i).is_none_or(|e| *e > 0.))
-        .map(|(_, p)| [p[0], p[1], p[2]])
-        .collect())
+    Ok(Clearance::of(proxy)?.moving)
+}
+
+/// What a collider must leave room for, from the automatic proxy at rest (in
+/// model space): every moving node clears it by [`CLEARANCE`], and no fixed node
+/// (cloth disabled) sits deeper inside it than its nearest cloth node is from
+/// it, less [`CLEARANCE`]. The nearest cloth node (root rings included: a goal
+/// of 1 is not a lock) is never farther than the end of any rod from that
+/// fixed node, so every such rod keeps a way out of the capsule at rest.
+#[derive(Debug, Clone, Default)]
+pub struct Clearance {
+    pub moving: Vec<V>,
+    /// Fixed nodes and the distance to their nearest node with cloth enabled.
+    pub anchors: Vec<(V, f64)>,
+}
+impl Clearance {
+    pub fn of(proxy: &Dmx) -> Result<Self> {
+        let vertex = proxy
+            .elements
+            .iter()
+            .find(|e| e.kind == "DmeVertexData" && e.get("cloth_enable$0").is_some())
+            .ok_or_else(|| crate::invalid("Automatic proxy needs one cloth state."))?;
+        let positions = surface::floats(proxy, vertex, "position$0", 42, 3)?;
+        let goals = surface::floats(proxy, vertex, "cloth_goal_strength$0", 35, 1)?;
+        let enabled = surface::floats(proxy, vertex, "cloth_enable$0", 35, 1)?;
+        let points: Vec<V> = positions.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect();
+        let cloth = |i: usize| enabled.get(i).is_none_or(|e| *e > 0.);
+        let moving = (0..points.len())
+            .filter(|&i| goals.get(i).is_some_and(|g| *g < 0.999) && cloth(i))
+            .map(|i| points[i])
+            .collect();
+        let anchors = (0..points.len())
+            .filter(|&i| !cloth(i))
+            .filter_map(|i| {
+                let reach = (0..points.len()).filter(|&j| cloth(j)).map(|j| norm(sub(points[j], points[i]))).fold(f64::INFINITY, f64::min);
+                reach.is_finite().then_some((points[i], reach))
+            })
+            .collect();
+        Ok(Self { moving, anchors })
+    }
+    /// `radius`, reduced as far as the capsule from `a` to `b` needs.
+    pub fn limit(&self, radius: f64, a: V, b: V) -> f64 {
+        let moving = self.moving.iter().map(|p| segment_distance(*p, a, b).0 - CLEARANCE);
+        let anchors = self.anchors.iter().map(|(p, reach)| segment_distance(*p, a, b).0 + reach - CLEARANCE);
+        moving.chain(anchors).fold(radius, f64::min)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_fixed_node_never_sits_deeper_than_its_nearest_cloth_reaches() {
+        // Issue #4: a hair's fixed ring deep in the head capsule, one short rod
+        // from its root ring. The moving node alone allows 5.75 in; the fixed
+        // node 1 in from the axis, its nearest cloth node 1 in away, allows
+        // 1 + 1 - 0.25, which leaves it 0.75 in inside: less than its rod.
+        let (a, b) = ([0., 0., 0.], [0., 0., -10.]);
+        let clear = Clearance { moving: vec![[6., 0., -5.]], anchors: vec![([1., 0., -5.], 1.)] };
+        assert_eq!(clear.limit(5., a, b), 1.75);
+        assert_eq!(Clearance { anchors: vec![], ..clear.clone() }.limit(5., a, b), 5.);
+        assert_eq!(Clearance::default().limit(5., a, b), 5.);
+    }
     #[test]
     fn segment_distance_clamps_to_the_ends() {
         let (a, b) = ([0., 0., 0.], [0., 0., -10.]);

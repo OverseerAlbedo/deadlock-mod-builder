@@ -1,6 +1,6 @@
 use deadlock_cloth_authoring::{
     parts::{self, Kind},
-    secondary, surface,
+    body_colliders, secondary, surface,
 };
 use deadlock_core::CancellationToken;
 use deadlock_dmx::Dmx;
@@ -419,4 +419,32 @@ fn the_heros_own_vertex_set_names_are_carried_as_empty_sets() {
     assert_eq!(stream(&Dmx::parse(plain.proxy).unwrap(), "cloth_goal_strength$0"), stream(&proxy, "cloth_goal_strength$0"));
     // A name the proxy cannot carry is refused rather than written.
     assert!(secondary::setup_with(&p, &d, Some(&source), &["bad name".into()], &CancellationToken::new()).is_err());
+}
+#[test]
+fn every_fixed_node_limits_the_colliders() {
+    // Issue #4: each fixed node (cloth disabled) is an anchor with the distance
+    // to its nearest cloth node, root rings included (a goal of 1 still moves).
+    let d = Dmx::parse(fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap()).unwrap();
+    let source = binding(&d, b"test authority");
+    let p = project(vec!["garment_root".into()]);
+    let setup = secondary::setup(&p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+    let proxy = Dmx::parse(setup.proxy.clone()).unwrap();
+    let enable = stream(&proxy, "cloth_enable$0");
+    let goal = stream(&proxy, "cloth_goal_strength$0");
+    assert!(enable.iter().zip(&goal).any(|(e, g)| *e > 0. && *g >= 0.999), "the fixture has a goal-1 root ring");
+    let clear = body_colliders::Clearance::of(&proxy).unwrap();
+    assert_eq!(clear.anchors.len(), enable.iter().filter(|e| **e == 0.).count());
+    assert!(!clear.anchors.is_empty());
+    let position = stream(&proxy, "position$0");
+    let cloth: Vec<[f64; 3]> = position.chunks_exact(3).zip(&enable).filter(|(_, e)| **e > 0.).map(|(p, _)| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
+    for (anchor, reach) in &clear.anchors {
+        let nearest = cloth.iter().map(|q| (0..3).map(|k| (q[k] - anchor[k]).powi(2)).sum::<f64>().sqrt()).fold(f64::INFINITY, f64::min);
+        assert!(*reach > 0. && (reach - nearest).abs() < 1e-9);
+    }
+    for c in &setup.body_colliders {
+        for (anchor, reach) in &clear.anchors {
+            let (axis, _) = body_colliders::segment_distance(*anchor, c.endpoints_world[0], c.endpoints_world[1]);
+            assert!(c.radius_world - axis < *reach, "{} holds a fixed node beyond its reach", c.bone);
+        }
+    }
 }
