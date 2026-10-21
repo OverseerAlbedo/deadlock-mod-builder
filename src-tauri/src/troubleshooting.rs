@@ -170,9 +170,17 @@ const RULES: &[Rule] = &[
         cause: "This VPK slot already holds a file from this project.",
         steps: &["On Build & install, confirm that the old file may be replaced, or choose another free slot.", "Close Deadlock first if it is running."],
         action: Some(("Open Build & install", "build")) },
-    Rule { any: &["prepared secondary group is missing", "no preserved secondary rig", "has no moving-part bones"], all: &[],
-        cause: "Moving parts are switched on, but the prepared model was made without their bones.",
-        steps: &["Open Model preparation and turn on Keep existing physics bones (Moving parts).", "Click Convert, then Use prepared model.", "Run Analyze again, then build."],
+    // Automatic motion without kept rig bones (issue #5: the old message here
+    // never matched this rule, so it came with no help).
+    Rule { any: &["prepared secondary group is missing", "has no moving-part bones", "keep existing physics bones is off"], all: &[],
+        cause: "Automatic secondary motion moves the bones your model's rig already has for hair, cloth and tails, and the model in use has none of them kept.",
+        steps: &["Open Model preparation → Hair, cloth and other moving parts and turn on Keep existing physics bones.", "Click Convert, then Use prepared model.", "Run Analyze again, then build.", "If no moving parts are listed there, your model's clothes have no bones of their own and cannot move; Preserve original physics keeps only the hero's own hair and cloth."],
+        action: Some(("Open Model preparation", "prepare")) },
+    // A game update changed the hero's model after preparation (October 20, 2026:
+    // Silver, Violet and Haze among others).
+    Rule { any: &["skeleton reference belongs to different original model"], all: &[],
+        cause: "The game updated this hero's model after your character was prepared, so the prepared model no longer matches the hero.",
+        steps: &["Open Model preparation and click Convert, then Use prepared model. Your choices are kept.", "Run Analyze again, then build."],
         action: Some(("Open Model preparation", "prepare")) },
     Rule { any: &["model fitting changed", "convert the original source"], all: &[],
         cause: "Preparation settings changed after the model was converted.",
@@ -256,7 +264,12 @@ mod tests {
             (r"Copy staged archive: There is not enough space on the disk. (os error 112)", "settings"),
             (r"Confirm replacement of the existing output before building: C:\w\output\pak18_dir.vpk", "build"),
             ("Prepared secondary group is missing: Bone_Breast_L_00. Prepare with Keep existing physics bones.", "prepare"),
+            // Issue #5: secondary.rs PRESERVE_OFF and NO_MOVING_PART_BONES.
+            ("Automatic secondary motion moves the hair, cloth and tail bones kept from your model's rig, but Keep existing physics bones is off. In Model preparation, turn it on, click Convert, then Use prepared model, and Analyze again.", "prepare"),
+            ("The model in use has no moving-part bones kept from your rig, so automatic secondary motion has nothing to move. If you turned on Keep existing physics bones after converting, click Convert and then Use prepared model in Model preparation, and Analyze again. Clothes weighted only to body bones have no bones of their own to move.", "prepare"),
             ("Model fitting changed. Convert the original source and choose Use prepared model", "prepare"),
+            // janeVen after the October 20, 2026 game update.
+            ("Skeleton reference belongs to different original model", "prepare"),
             ("Extended skeleton missing original identities", "prepare"),
             ("Cloth validation: Native secondary fitting is incomplete: dmb_secondary_HB_0_0", "physics"),
             ("Native float32 precision collapses or reverses a cloth proxy face", "physics"),

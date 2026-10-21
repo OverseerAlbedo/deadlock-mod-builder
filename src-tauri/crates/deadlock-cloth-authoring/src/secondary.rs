@@ -243,6 +243,12 @@ pub fn hero_vertex_sets(compiled: &[u8]) -> Vec<String> {
     names.truncate(64);
     names
 }
+/// Automatic motion is on but Keep existing physics bones is off.
+pub const PRESERVE_OFF: &str = "Automatic secondary motion moves the hair, cloth and tail bones kept from your model's rig, but Keep existing physics bones is off. In Model preparation, turn it on, click Convert, then Use prepared model, and Analyze again.";
+/// The model in use carries no kept rig bones in the meshes chosen for the
+/// build. (Kept bones only in meshes left out of the build are reported by
+/// Analyze as a Mesh mapping review instead.)
+pub const NO_MOVING_PART_BONES: &str = "The model in use has no moving-part bones kept from your rig, so automatic secondary motion has nothing to move. If you turned on Keep existing physics bones after converting, click Convert and then Use prepared model in Model preparation, and Analyze again. Clothes weighted only to body bones have no bones of their own to move.";
 pub fn setup(
     p: &Project,
     d: &Dmx,
@@ -273,7 +279,13 @@ pub fn setup_with(
     {
         return Err(invalid("Choose one replacement physics mode."));
     }
-    let source=source.ok_or_else(||invalid("The selected replacement meshes do not contain a preserved secondary rig. In Mesh mapping, include the prepared meshes with moving parts, then Analyze again. If the converted model has no physics bones, enable Keep existing physics bones and convert it again."))?;
+    // The plainest cause first (issue #5): with Keep existing physics bones
+    // off, the model has no rig bones to move, whatever the meshes.
+    let opts = &p.preparation_options.values;
+    if opts.get("preserve_physics_bones").and_then(|v| v.as_bool()) != Some(true) {
+        return Err(invalid(PRESERVE_OFF));
+    }
+    let source = source.ok_or_else(|| invalid(NO_MOVING_PART_BONES))?;
     let sha = hash(d.bytes());
     if sha != source.source_sha256 {
         return Err(invalid("Secondary source changed after analysis."));
@@ -281,10 +293,6 @@ pub fn setup_with(
     let cfg = p.customization.secondary_motion.as_ref().unwrap();
     let preset = cfg.preset.as_deref().unwrap_or("automatic");
     let tang = matches!(preset, "tangtang_r2" | "tangtang_reference");
-    let opts = &p.preparation_options.values;
-    if opts.get("preserve_physics_bones").and_then(|v| v.as_bool()) != Some(true) {
-        return Err(invalid("Automatic secondary motion uses the physics groups reviewed in model preparation. Enable Keep existing physics bones and convert first."));
-    }
     let reviewed: Vec<String> =
         serde_json::from_value(opts.get("physics_roots").cloned().unwrap_or_default())?;
     let roots = if tang {

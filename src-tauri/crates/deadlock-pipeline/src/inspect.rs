@@ -116,6 +116,10 @@ pub struct InspectionReport {
     /// open (then from a plan that is not build authority).
     #[serde(default, skip_serializing_if="Vec::is_empty")]
     pub motion_preview_nodes: Vec<deadlock_cloth_authoring::secondary::PreviewNode>,
+    /// Replacement meshes left out of the build that carry the moving-part
+    /// bones kept from the rig: automatic motion waits for Mesh mapping.
+    #[serde(default, skip_serializing_if="Vec::is_empty")]
+    pub secondary_meshes_left_out: Vec<String>,
     #[serde(skip)] pub generated_contract: Option<crate::secondary_motion::NativeContract>,
     pub project: String,
     pub hero_root: String,
@@ -411,8 +415,21 @@ impl<'a> ModelPipeline<'a> {
             // meshes. A first inspection must reach mesh review before it can
             // decide whether those meshes use the preserved secondary rig.
             // Do not substitute the whole-template audit as build authority.
+            // Kept rig bones weighted only in replacement meshes the build
+            // leaves out (issue #5): Analyze finishes so Mesh mapping shows,
+            // naming those meshes, and Build waits for that review.
+            let secondary_meshes_left_out: Vec<String> = if deadlock_cloth_authoring::secondary::active(p)
+                && binding.is_none() && unresolved_meshes.is_empty()
+                && p.preparation_options.values.get("preserve_physics_bones").and_then(|v| v.as_bool()) == Some(true)
+            {
+                let extra: BTreeSet<String> = source_identity.identity.identity_difference.as_ref().map(|v| v.extra.iter().cloned().collect()).unwrap_or_default();
+                let mut left_out: Vec<String> = source_identity::weighted_extras(&dmx, &extra, &name_set).map_err(map_error)?
+                    .into_iter().map(|w| w.mesh).filter(|m| !selected.contains(m)).collect();
+                left_out.dedup();
+                left_out
+            } else { vec![] };
             let secondary_waiting_for_mesh_mapping = deadlock_cloth_authoring::secondary::active(p)
-                && binding.is_none() && !unresolved_meshes.is_empty();
+                && binding.is_none() && (!unresolved_meshes.is_empty() || !secondary_meshes_left_out.is_empty());
             if deadlock_cloth_authoring::secondary::active(p) && deadlock_preparation::service::moving_parts_changed(p) {
                 return Err(invalid(deadlock_preparation::service::MOVING_PARTS_CHANGED));
             }
@@ -448,7 +465,9 @@ impl<'a> ModelPipeline<'a> {
             if automatic_split.is_none(){self.clock.skip_step("Split oversized meshes",Some(parent.id()),if p.auto_split{"No selected mesh requires subdivision"}else{"Automatic subdivision is disabled"})?;}
             let mut warnings=vertex_preflight.warnings.clone();
             warnings.extend(target_warning);
-            if secondary_waiting_for_mesh_mapping {
+            if !secondary_meshes_left_out.is_empty() {
+                warnings.push(format!("Automatic motion: the moving-part bones kept from your rig are only in meshes that are not part of the build: {}. Tick them in Mesh mapping, then Analyze again.", secondary_meshes_left_out.join(", ")));
+            } else if secondary_waiting_for_mesh_mapping {
                 warnings.push("Complete Mesh mapping, then Analyze again to check automatic motion. Your saved physics-bone choices are retained; the selected replacement meshes must include the moving parts.".into());
             }
             if let Some(e)=&source_identity.extension{warnings.push(format!("Custom skeleton: {} weighted or ancestor bones require source and compiled binding checks; motion needs an in-game check.",e.required_extra_names.len()));}
@@ -463,12 +482,12 @@ impl<'a> ModelPipeline<'a> {
             if model.lod_groups>1{warnings.push(lod_warning(p.lod_strategy).into());}
             if !model.ag2.is_empty(){warnings.push("AG2 uses the selected native model toolset. Original graph identifiers are verified after compilation; CSDK compiles materials.".into());}
             if p.animation_policy==AnimationPolicy::DisableLegacy{warnings.push("Legacy animation nodes will be disabled only in the compiler copy; check sequences in game.".into());}
-            let needs_review=!unresolved_meshes.is_empty()||materials.values().any(|c|c.mode.as_deref()==Some("generate")&&(!c.confirmed.unwrap_or(false)||c.ambiguous.as_ref().is_some_and(|v|!v.is_empty())))||p.lod_strategy==LodStrategy::Choose||((model.lod_groups>1||geometry.source_triangles>500000)&&!p.review_lods)||(!unskinned_meshes.is_empty()&&!summary.bones.is_empty()&&!p.allow_unskinned);
+            let needs_review=!unresolved_meshes.is_empty()||!secondary_meshes_left_out.is_empty()||materials.values().any(|c|c.mode.as_deref()==Some("generate")&&(!c.confirmed.unwrap_or(false)||c.ambiguous.as_ref().is_some_and(|v|!v.is_empty())))||p.lod_strategy==LodStrategy::Choose||((model.lod_groups>1||geometry.source_triangles>500000)&&!p.review_lods)||(!unskinned_meshes.is_empty()&&!summary.bones.is_empty()&&!p.allow_unskinned);
             let input_hashes=self.fingerprint_inputs(p,&materials)?;
             for(path,sha)in &initial_inputs{if input_hashes.get(path)!=Some(sha){return Err(invalid(format!("Source input changed during analysis: {}",path.display())));}}
             if input_hashes.get(Path::new(&p.dmx))!=Some(&source_sha256){return Err(invalid("Replacement DMX changed during analysis."));}
             let effective_hashes=inventory(&effective,self.cancel)?;
-            let report=InspectionReport{secondary_motion,motion_preview_nodes,generated_contract:None,project:p.name.clone(),hero_root:p.hero_root(),model,dmx:summary,geometry,source_materials,source_bones,source_identity,vertex_preflight,automatic_split,source_mappings,project_mappings,path_rebases,effective_sources:effective,mappings,unresolved_meshes,materials,warnings,unskinned_meshes,original,needs_review,source_sha256,project_sha256:project_hash(p)?,input_hashes,effective_hashes};
+            let report=InspectionReport{secondary_motion,motion_preview_nodes,secondary_meshes_left_out,generated_contract:None,project:p.name.clone(),hero_root:p.hero_root(),model,dmx:summary,geometry,source_materials,source_bones,source_identity,vertex_preflight,automatic_split,source_mappings,project_mappings,path_rebases,effective_sources:effective,mappings,unresolved_meshes,materials,warnings,unskinned_meshes,original,needs_review,source_sha256,project_sha256:project_hash(p)?,input_hashes,effective_hashes};
             self.cancel.check()?;safety::write_json(&root.join("inspection.json"),&report)?;
             for warning in &report.warnings{(self.log)(warning);}
             (self.log)(&format!("Replacement DMX parsed: {} meshes, {} materials, {} bones",names.len(),report.dmx.materials.len(),report.dmx.bones.len()));Ok(report)

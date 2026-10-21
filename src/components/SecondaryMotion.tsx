@@ -155,6 +155,12 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
   const hairMotion=checked?.hair_motion;
   const longSkirt=checked?.long_skirt;
   const waitingForMapping=fresh&&report&&'dmx' in report&&!checked&&report.unresolved_meshes.length>0;
+  // Kept moving-part bones only in meshes left out of the build (issue #5).
+  const leftOut=fresh&&report&&'dmx' in report&&!checked?report.secondary_meshes_left_out??[]:[];
+  const waiting=leftOut.length?`add ${leftOut.join(', ')} in Build & install → Mesh mapping, then Analyze again`:waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check';
+  // The preparation showed its detected groups and there were none: nothing in the rig can move.
+  const offered=project.preparation_options.physics_offered;
+  const nothingDetected=Array.isArray(offered)&&offered.length===0;
   const tangOptions:[string,string][]=[["tangtang_reference","TangTang — reference hair and cloth"],["tangtang_r2","TangTang R2 — accepted Haze conversion"]];
   // A build without the private TangTang data lists only Automatic; a project saved with a preset still shows its choice so the note below can explain it.
   const presetOptions:[string,string][]=[["automatic","Automatic — match movement to each part"],...(tangtangPresets?tangOptions:tangOptions.filter(([key])=>key===cfg.preset).map(([key,text]):[string,string]=>[key,`${text} (not included in this build)`]))];
@@ -164,7 +170,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
     {tang&&!tangtangPresets&&<p className="hint">This copy of the app was built without the TangTang presets. Choose Automatic; Analyze stops with that message otherwise.</p>}
     <p className="hint">{reference?'Accepted back streamers: flexible along their length, with anti-twist, damping and travel limits. Hair, ears, white cloth and tail keep their accepted tuning. Analyze fits the preset to compatible TangTang conversions, including Preserve source proportions.':tang?'Uses the exact R2 setup: accepted hair and tail, stiffer top ears, more movement in the back strips. Analyze fits the preset to compatible TangTang conversions.':'Build creates and compiles motion for the physics groups kept during model preparation. Body joints are excluded. Hair, streamers, tails, ears, long skirts, cloth and optional breast motion receive separate defaults. Halos, hats and hairpins stay rigid. Hair, tail and streamer chains receive automatic twist protection.'}</p>
     </div>}
-    {roots.length===0?<p role="status">No prepared physics groups are saved. Use Model preparation → Keep existing physics bones, convert, then use the prepared model.</p>:<p><StateLabel tone={checked?'ready':'neutral'}>{checked?`${checked.groups.length} groups checked · native fitting checked during Build`:`${tang?roots.length:selected.length} groups selected · ${waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check'}`}</StateLabel></p>}
+    {roots.length===0?<p role="status">{nothingDetected?'No moving parts were found in your model’s rig. Automatic secondary motion moves the hair, cloth and tail bones a model already has; clothes weighted only to body bones cannot move.':'No prepared physics groups are saved. Use Model preparation → Keep existing physics bones, convert, then use the prepared model.'}</p>:<p><StateLabel tone={checked?'ready':'neutral'}>{checked?`${checked.groups.length} groups checked · native fitting checked during Build`:`${tang?roots.length:selected.length} groups selected · ${waiting}`}</StateLabel></p>}
     {!tang&&<BreastMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
     {!tang&&<ButtMotion project={project} update={update} preparation={preparation} openPreparation={openPreparation} disabled={disabled} report={fresh?report:null}/>}
     {!tang&&<CharmMotion project={project} update={update} disabled={disabled} report={fresh?report:null}/>}

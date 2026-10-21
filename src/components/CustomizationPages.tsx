@@ -37,7 +37,7 @@ export function PhysicsPage({project,update,disabled,fail,summary,children,repor
     {preview}
     <Section title="Physics mode" className="physics-mode-section">
       <fieldset className="mode-options"><legend className="sr-only">Physics mode</legend>
-        <label className={`mode-option ${!wanted&&!generated?'selected':''}`}><input type="radio" name="physics-mode" checked={!wanted&&!generated} disabled={disabled} onChange={preserve}/><span><strong>Preserve original physics <small>Default</small></strong><span>Keep the original character’s supported hair and cloth movement.</span></span></label>
+        <label className={`mode-option ${!wanted&&!generated?'selected':''}`}><input type="radio" name="physics-mode" checked={!wanted&&!generated} disabled={disabled} onChange={preserve}/><span><strong>Preserve original physics <small>Default</small></strong><span>Keep the hero’s own hair and cloth movement. Your model’s own hair and clothes stay still in this mode.</span></span></label>
         <label className={`mode-option ${wanted?'selected':''}`}><input type="radio" name="physics-mode" checked={wanted} disabled={disabled} onChange={()=>physicsUpdate({enabled:true})}/><span><strong>Replacement cloth setup</strong><span>Use a tested hair and cloth setup made for your replacement model.</span></span></label>
         <label className={`mode-option ${generated?'selected':''}`}><input type="radio" name="physics-mode" checked={generated} disabled={disabled} onChange={()=>secondaryUpdate({enabled:true})}/><span><strong>Automatic secondary motion</strong><span>Generate movement for the replacement’s preserved hair, ears, tail and clothing bones.</span></span></label>
       </fieldset>

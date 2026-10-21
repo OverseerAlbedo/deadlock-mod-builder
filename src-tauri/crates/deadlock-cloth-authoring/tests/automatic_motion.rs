@@ -448,3 +448,19 @@ fn every_fixed_node_limits_the_colliders() {
         }
     }
 }
+#[test]
+fn automatic_motion_without_kept_rig_bones_says_which_step_is_missing() {
+    // Issue #5: Keep existing physics bones off is said first, and a model
+    // without kept bones gets its own message. troubleshooting.rs matches
+    // "keep existing physics bones is off" and "has no moving-part bones".
+    let d = Dmx::parse(fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap()).unwrap();
+    let mut off = project(vec!["garment_root".into()]);
+    off.preparation_options.values.insert("preserve_physics_bones".into(), false.into());
+    let error = secondary::setup(&off, &d, None, &CancellationToken::new()).unwrap_err().to_string();
+    assert!(error.contains(secondary::PRESERVE_OFF), "{error}");
+    assert!(secondary::PRESERVE_OFF.to_lowercase().contains("keep existing physics bones is off"));
+    let on = project(vec!["garment_root".into()]);
+    let error = secondary::setup(&on, &d, None, &CancellationToken::new()).unwrap_err().to_string();
+    assert!(error.contains(secondary::NO_MOVING_PART_BONES), "{error}");
+    assert!(secondary::NO_MOVING_PART_BONES.contains("has no moving-part bones"));
+}

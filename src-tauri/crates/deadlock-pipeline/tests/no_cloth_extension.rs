@@ -252,9 +252,17 @@ fn automatic_motion_cannot_use_whole_source_authority_when_only_body_meshes_are_
         assert!(report.secondary_motion.is_none());
     });
     f.project.meshes.insert("cape".into(), MeshMapping::One("@keep".into()));
-    let error = f.inspection_error();
-    assert!(error.contains("selected replacement meshes"), "{error}");
-    assert!(error.contains("Mesh mapping"), "{error}");
+    // Issue #5: with every node mapped, kept bones only in a mesh left out of
+    // the build are a Mesh mapping review naming that mesh (Analyze no longer
+    // fails, so Mesh mapping stays reachable), never rig authority.
+    f.inspect(|pipeline, project, report| {
+        assert!(report.needs_review);
+        assert_eq!(report.secondary_meshes_left_out, ["Tangtang_mesh"]);
+        assert!(report.source_binding().is_none());
+        assert!(report.secondary_motion.is_none());
+        assert!(report.warnings.iter().any(|w| w.contains("Tangtang_mesh") && w.contains("Mesh mapping")), "{:?}", report.warnings);
+        assert!(pipeline.prepare(project, &report, true).unwrap_err().to_string().contains("Review mesh mappings"));
+    });
     // Completing mapping still runs the existing group and ancestry checks.
     f.project.meshes.insert("body".into(), MeshMapping::One("Tangtang_mesh".into()));
     f.project.preparation_options.values.insert("physics_roots".into(), serde_json::json!(["missing_group"]));
