@@ -80,7 +80,10 @@ recreated repository. No other user-facing change.
 
 Beta 5 = beta 4 plus Violet: Violet (hero_artist, `models/heroes_wip/artist/artist.vmdl`) was
 released in the game on October 16, 2026 (game build 6790) and is playable in
-the app; Nurse Harrow follows on October 20. Hero playability now comes from the
+the app; Nurse Harrow (hero_nurse, `models/heroes_wip/nurse/nurse.vmdl`) followed
+on October 20, 2026 (her roster fallback flag removed; checked through a compile on
+her: a bag hangs 27 in below the floor in her bind pose, which floor alignment
+ignores because it uses the feet). Hero playability now comes from the
 game's `m_eHeroDevelopmentState` (`GameTarget::PreRelease`); the roster's
 `playable: false` is only the fallback without game data.
 
@@ -163,7 +166,13 @@ template check (`tests/cloth_bones.rs`).
   butt roots are dropped (not stale) when it is `false`.
 - User-facing error help lives in `src-tauri/src/troubleshooting.rs` (rules matched on
   message and details, attached to every `AppError` as `help`); add a test with the
-  real message when adding a rule. Settings path checks and fixes are
+  real message when adding a rule, and when rewording a message check that its
+  rule still matches (issue #5: the automatic-motion rig error had no help
+  because its rule looked for other words; `secondary::PRESERVE_OFF` and
+  `NO_MOVING_PART_BONES` are now tested for the rule's phrases). Automatic
+  motion with kept bones only in meshes left out of the build is a Mesh mapping
+  review (`InspectionReport.secondary_meshes_left_out`, `needs_review`), not
+  an Analyze error, so Mesh mapping stays reachable. Settings path checks and fixes are
   `deadlock-tools/src/setup_checks.rs` (`field_checks`, `apply_fixes`); Detect tools
   runs `apply_fixes`. Auto model backend never falls back to the Community SDK.
 - Simple/Expert mode is UI-only (`localStorage` `dmb.uiMode`, default Simple). Page
@@ -179,6 +188,12 @@ template check (`tests/cloth_bones.rs`).
   accent, a tinted grey or a green in CSS: accents use `--accent*`, tinted shades
   are `hsl(calc(var(--hue) ± n) s% l%)`, success stays `--ok*` / `--good*` (not
   themed), errors stay red. Keep text at 4.5:1 in every theme.
+- The fit policy names Blender reports (`retarget.py` `POLICY`, `PROPORTIONS_POLICY`,
+  `FOLLOWING_POLICY`) must equal the Rust ones `fitting::check_policy` accepts
+  (`service::REST_POLICY`, `fitting::PROPORTIONS_POLICY`, `following::POLICY`);
+  `tests/following.rs retarget_reports_the_fit_policies_rust_accepts` checks it.
+  Bump both together. A "-v1"/"-v2" mismatch broke Match hero proportions with
+  body-following bones until October 20, 2026.
 - Keep source proportions has a separate path for heroes with extreme proportions
   (`retarget.py hero_extremes`, `scripts/test_hero_proportions.py`); ordinary heroes
   must keep the old numbers exactly (scale 1, floor alignment).
@@ -300,6 +315,22 @@ template check (`tests/cloth_bones.rs`).
   haze its tapered capsules, magician its PHYS. When a failing reference carries the hero's own game
   cloth, `tested.rs inspect_tested` says so (`HERO_OWN_CLOTH`, issue #4);
   never loosen the inverse-bind audit for them.
+- Near-pole moving-part bones (`deadlock-skeleton euler_pole.rs`, run in
+  `service.rs` right after `secondary_bones::export_skeleton`). The compiler
+  stores bone rotations through Euler angles; a bone whose local x axis is
+  close to its parent's z axis (MatrixAngles `xy` small) comes out rotated by
+  about 4e-5°/xy, in DATA and AGRP alike, past the 1e-4 budget below `xy`
+  ≈ 0.004 (SiViolet's Si.blend on Nurse Harrow: three bones under `spine_3` at
+  0.00116, 0.031–0.041°; the same bones on Violet at 0.006 pass). A float32
+  round trip does not predict the compiled value, so it is not qualified
+  after compiling: preparation snaps added bones with `xy` below `SNAP_BELOW`
+  (0.0055) exactly onto the pole (the singular branch keeps the rotation
+  exactly; `rotation_import` qualifies that branch), by the smallest swing,
+  keeping the twist. The branch turns with it (children's locals untouched):
+  compensating the children made the compiler's compact fits of the tassel
+  streamer under it disagree with their rest by 1.7e-4. Tilting away from the
+  pole failed the same way. The receipt's `algorithm_audits.euler_pole` lists
+  the snapped bones. Never widen the budget instead, and never move hero bones.
 - The full-precision cloth reader (`tools/cloth-reader`, bundled in
   `resources/native/cloth-reader`) is a second, independent KV3 parser
   (ValveResourceFormat). When Valve adds KV3 types, the Rust decoder

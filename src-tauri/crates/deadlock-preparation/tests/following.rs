@@ -132,3 +132,19 @@ fn presets_bind_to_rig_geometry_and_never_restore_approval() {
     assert_eq!(restored.values["follow_motion_reviewed"], false);
     assert!(!restored.values.contains_key("install"));
 }
+/// The fit policies the Blender retarget reports are the ones Rust accepts
+/// (`fitting::check_policy`). Match hero proportions with body-following
+/// mappings reported "-v1" against Rust's "-v2" and never converted (found
+/// preparing a character on Nurse Harrow, October 20, 2026).
+#[test]
+fn retarget_reports_the_fit_policies_rust_accepts() {
+    let script = include_str!("../resources/blender/retarget.py");
+    for (constant, policy) in [
+        ("POLICY", deadlock_preparation::service::REST_POLICY),
+        ("PROPORTIONS_POLICY", deadlock_preparation::fitting::PROPORTIONS_POLICY),
+        ("FOLLOWING_POLICY", following::POLICY),
+    ] {
+        assert!(script.contains(&format!("\n{constant} = '{policy}'")), "retarget.py {constant} is not {policy}");
+    }
+    assert!(!script.contains("ancestor-offset-preservation-v1"));
+}

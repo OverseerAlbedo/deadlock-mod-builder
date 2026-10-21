@@ -11,6 +11,10 @@ from arm_helpers import detect as arm_matches, POLICY as ARM_POLICY
 
 POLICY = 'anatomical-rest-alignment-v1'
 PROPORTIONS_POLICY = 'source-proportions-v1'
+# Body-following bones keep their anchor's rest transform without subtracting
+# their own bind offset; must equal following.rs POLICY (Rust refused "-v1",
+# so Match hero proportions with body-following mappings never converted).
+FOLLOWING_POLICY = 'ancestor-offset-preservation-v2'
 ARM_FIT_POLICY = 'joint-centered-arm-fit-v1'
 FINGER_CURL_POLICY = 'hero-finger-rest-curl-v1'
 FINGER = re.compile(r'^finger_(thumb|index|middle|ring|pinky)_(\d+)_([LR])$')
@@ -463,7 +467,7 @@ def rest_maps(source, target, mapping, source_roles, target_roles, source_parent
         matrix[:3, 3] = np.asarray(target[geometry_dest])[:3, 3] - rotation @ np.asarray(source[geometry_anchor])[:3, 3]
         result[name] = matrix
         if anchor != name: inherited.append({'bone': name, 'target': dest, 'rotation_from_role': role})
-    audit = {'policy': 'ancestor-offset-preservation-v1' if follow_anchors else POLICY,
+    audit = {'policy': FOLLOWING_POLICY if follow_anchors else POLICY,
              'arm_deformation_policy': ARM_POLICY, 'arm_deformation': matched,
              'parallel_leg_policy': LEG_CHAINS_POLICY, 'parallel_leg_joints': parallel,
              'following_anchors': dict(follow_anchors), 'foreign_bone_axes_used_for_geometry': False,

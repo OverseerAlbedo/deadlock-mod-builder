@@ -9,6 +9,7 @@ use std::{
 pub mod aliases;
 pub mod bindings;
 pub mod dmx_bind;
+pub mod euler_pole;
 pub mod export;
 pub mod extensions;
 pub mod skinning;

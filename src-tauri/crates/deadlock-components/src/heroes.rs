@@ -319,10 +319,10 @@ mod availability_tests {
         // A model a playable hero loads stays active (disabled definitions sharing it are left out).
         assert_eq!(game.target("models/heroes_staging/chrono/chrono.vmdl").unwrap(), Some(GameTarget::Active { heroes: vec!["hero_chrono".into()] }));
         assert_eq!(game.target("models/heroes_staging/wrecker/wrecker.vmdl").unwrap(), Some(GameTarget::Disabled { heroes: vec!["hero_wrecker".into()] }));
-        // The roster's fallback flag: Nurse Harrow until her release on October 20, 2026
-        // (Violet was released on October 16). With game data the pre-release state decides.
+        // The roster's fallback flag: no hero since Nurse Harrow's release on October 20, 2026
+        // (Violet's on October 16). With game data the pre-release state decides.
         let roster = roster().unwrap();
         let unplayable: Vec<&str> = roster.iter().filter(|h| !h.playable).map(|h| h.name.as_str()).collect();
-        assert_eq!(unplayable, ["Nurse Harrow"]);
+        assert!(unplayable.is_empty(), "{unplayable:?}");
     }
 }

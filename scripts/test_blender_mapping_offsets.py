@@ -55,7 +55,7 @@ for key in ['positions','normals','uvs','weights','faces']:
     else:assert a==b,key
 delta=float(np.max(np.abs(np.asarray(baseline['meshes'][0]['positions'])-np.asarray(direct['meshes'][0]['positions']))))
 assert delta>.05
-assert following['rest_alignment']['policy']=='ancestor-offset-preservation-v1'
+assert following['rest_alignment']['policy']=='ancestor-offset-preservation-v2'  # following.rs POLICY
 cases.append({'case':'helper-offset-keeps-baseline-geometry-and-weights','passed':True,'legacy_direct_displacement':delta})
 
 bones=humanoid();source={b['name']:np.asarray(b['matrix']) for b in bones};parents={b['name']:b['parent'] for b in bones};roles={n:n for n in source}

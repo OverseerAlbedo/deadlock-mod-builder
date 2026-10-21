@@ -766,8 +766,15 @@ impl PreparationService {
             report.algorithm_audits.insert("preserved_physics_bones".into(), expected);
         }
         if correction { options = original_options; }
-        let exported_skeleton = secondary_bones::export_skeleton(&analysis.target_skeleton, &analysis.target,
+        let mut exported_skeleton = secondary_bones::export_skeleton(&analysis.target_skeleton, &analysis.target,
             &report.target, &analysis.analysis.bones, preservation.as_ref())?;
+        // Kept moving-part bones clear of the compiler's near-pole Euler
+        // conversion (under 1°; their children and the mesh stay in place).
+        let hero: std::collections::BTreeSet<String> = analysis.target_skeleton.names.iter().cloned().collect();
+        let tilts = deadlock_skeleton::euler_pole::clear(&mut exported_skeleton, &hero).map_err(|e| invalid(e.to_string()))?;
+        if !tilts.is_empty() {
+            report.algorithm_audits.insert("euler_pole".into(), serde_json::json!({"policy": deadlock_skeleton::euler_pole::POLICY, "tilted": tilts}));
+        }
         let dmx = destination.join("prepared.dmx");
         let exported = self.step("Export and validate prepared DMX", || {
             export::export_dmx(
