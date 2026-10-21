@@ -39,8 +39,9 @@ repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
 fixed), 0.13.0-beta.8 (automatic-movement fixes), 0.13.0-beta.9 (MMD and Face details),
 0.13.0-beta.10 (model compiler setup fixes for issue #2), 0.13.0-beta.11 (Hero
-colors and the issue #3 fixes) and 0.13.0-beta.12 (tag `v0.13.0-beta.12`,
-October 20, 2026, the issue #4 fixes) followed, the latter being the latest; the
+colors and the issue #3 fixes), 0.13.0-beta.12 (the issue #4 fixes) and
+0.13.0-beta.13 (tag `v0.13.0-beta.13`, October 20, 2026, Nurse Harrow and the
+issue #5 fixes) followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -48,7 +49,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.12 (October 20, 2026)
+## State as of 0.13.0-beta.13 (October 20, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -135,6 +136,16 @@ chosen as the tested cloth reference. Checked on the PC on October 20, 2026:
 collider sizes of 12 test projects (11 unchanged) and nine stock hero models
 refused with the new message. janeVen needs preparing again after the game
 update before it can be built.
+
+Beta 13 = beta 12 plus Nurse Harrow (released October 20, 2026; roster flag
+removed), the GitHub issue #5 fixes (automatic-motion rig errors that name the
+missing step, kept bones only in meshes left out of the build as a Mesh mapping
+review, Physics page explanations), the Match hero proportions fit policy fix
+(Blender's "-v1" against Rust's "-v2"), near-pole bone snapping at preparation
+(`euler_pole.rs`) and help for a hero model changed by a game update. Checked on
+the PC on October 20, 2026: SiViolet's character built on Harrow with Preserve
+original physics (both fitting modes), automatic motion, and Preserve with kept
+bones; the issue #5 left-out case on a copy of SiViolet.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file
