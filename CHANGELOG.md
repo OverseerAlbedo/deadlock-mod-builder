@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0-beta.14 — 2026-10-25
 
 - Model preparation → Fit & review → **Feet on the floor**, for feet that sink into the floor (or float): the fit lines up your model's ankles with the hero's, so feet taller than the hero's (heels, thick soles) reached 1.3–5.6 in below the floor on most test projects. Choose **Line up the ankles** (the default, the fit as before), **Shorten or lengthen the legs** (below the hips; the model's knees and ankles then move off the hero's, up when the legs get shorter) or **Move the whole character up or down** so the soles touch the floor. Prepare model says how far the soles were from the floor and what was changed; changing the choice needs a new conversion. Projects keep their fit until another choice is made. The converted model's 3D view now draws its grid at the game's floor instead of the model's lowest point (a gun hanging below the feet made the character look like it floated).
 - Fix: a gun from its own file (Weapon tab) whose mirrored halves are named for the hands (ArmBolt_0_L and ArmBolt_0_R, Louvre_L and Louvre_R…) was taken for a pair of guns and split down the middle: a one-gun hero got only the right half (227 of 488 parts on a railgun) and the left half went to a left gun. A gun file is a pair only when the two sides lie apart; parts that overlap, or are joined by a part without a hand between them (the receiver), stay one gun. The Artzy Tyrannical dual file is still two guns. Prepare again to use it.

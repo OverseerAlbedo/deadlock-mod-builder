@@ -39,9 +39,10 @@ repository with the old pull requests and the pre-releases alpha.52 to beta.3 is
 0.13.0-beta.5 (Violet), 0.13.0-beta.6 (installed-mods repair), 0.13.0-beta.7 (its Update button
 fixed), 0.13.0-beta.8 (automatic-movement fixes), 0.13.0-beta.9 (MMD and Face details),
 0.13.0-beta.10 (model compiler setup fixes for issue #2), 0.13.0-beta.11 (Hero
-colors and the issue #3 fixes), 0.13.0-beta.12 (the issue #4 fixes) and
-0.13.0-beta.13 (tag `v0.13.0-beta.13`, October 20, 2026, Nurse Harrow and the
-issue #5 fixes) followed, the latter being the latest; the
+colors and the issue #3 fixes), 0.13.0-beta.12 (the issue #4 fixes),
+0.13.0-beta.13 (Nurse Harrow and the issue #5 fixes) and 0.13.0-beta.14 (tag
+`v0.13.0-beta.14`, October 25, 2026, Feet on the floor and the arcaneVin round)
+followed, the latter being the latest; the
 repository is public since October 16, 2026. The
 repository allows squash and rebase merges only (no merge commits). Releases follow `docs/RELEASING.md`: bump all version
 files together, update `CHANGELOG.md` and `docs/RELEASE_NOTES.md`, push, then run
@@ -49,7 +50,7 @@ the manual **Release** workflow (`.github/workflows/release.yml`), which tests,
 builds the installer, tags the commit and publishes the pre-release. The push
 workflow (`.github/workflows/windows.yml`) only builds and tests; it never publishes.
 
-## State as of 0.13.0-beta.13 (October 20, 2026)
+## State as of 0.13.0-beta.14 (October 25, 2026)
 
 Beta 1 = alpha 52 (storage, breast motion, rigid accessories, color editor, Rem
 target) plus: the five-step flow with automatic preparation, guns from a
@@ -146,6 +147,16 @@ review, Physics page explanations), the Match hero proportions fit policy fix
 the PC on October 20, 2026: SiViolet's character built on Harrow with Preserve
 original physics (both fitting modes), automatic motion, and Preserve with kept
 bones; the issue #5 left-out case on a copy of SiViolet.
+
+Beta 14 = beta 13 plus the arcaneVin round (an MMD-style rig on Vindicta with a
+separate railgun file): mirrored gun halves kept as one gun, flat or repeated
+polygon corners accepted, compiler-merged kept-bone names made distinct,
+breast-carried capes, braids as hair, long strips as streamers, hanging long
+hair, arm colliders and arm strips, VPK slot rescans and own-output replace,
+gun pitch and yaw, and Model fitting → Feet on the floor (ankles default,
+legs, lift; the converted view's grid at z=0). Checked in a match on October
+24–25, 2026: braid, cloak and capes move (a little arm clipping accepted),
+legs hardly noticeable. Not yet checked in game: lift, gun pitch and yaw.
 
 Test projects on the user's PC (`%USERPROFILE%\OneDrive\Documents\DML_Projects`):
 "YvvoneHaze" (Yvonne11.blend on Haze with the Artzy Tyrannical dual gun file

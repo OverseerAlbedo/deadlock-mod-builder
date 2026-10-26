@@ -1,24 +1,29 @@
-# Deadlock Mod Builder 0.13.0-beta.13
+# Deadlock Mod Builder 0.13.0-beta.14
 
-**Nurse Harrow**, clearer automatic-movement errors (issue #5), and two preparation fixes. Everything from the earlier betas is still in; see `CHANGELOG.md`.
+**Feet on the floor**, better automatic movement for long capes, braids and arm cloth, gun tilt and aim, and VPK slot fixes. Everything from the earlier betas is still in; see `CHANGELOG.md`.
 
 ## New
 
-- **Nurse Harrow** was released in the game on October 20 and is tagged In game. Checked on the PC with a character prepared and built on her in every physics mode: Preserve original physics, automatic movement, and Preserve with the rig's physics bones kept.
+- **Feet on the floor** (Model preparation → Fit & review). The fit lines up your model's ankles with the hero's, so feet taller than the hero's (heels, thick soles) sank into the floor, by 1.3–5.6 in on most test characters. Choose **Line up the ankles** (the default, the fit as before), **Shorten or lengthen the legs** (below the hips; the knees and ankles then sit a little off the hero's) or **Move the whole character up or down** (the body and hands then sit off the hero's joints). Prepare model says how far the soles were from the floor. The converted model's 3D view now draws its grid at the game's floor, so a gun hanging below the feet no longer makes the character look like it floats.
+- **Gun tilt and aim** (Model preparation → Gun): pitch (muzzle up or down) and yaw (left or right) around the grip besides roll, with 5° buttons and exact fields under Advanced, for each hand.
+- **Arm colliders** for automatic movement: cloth hanging from the shoulders stops at the arms instead of passing through them, and capes hanging from an arm follow it the way Valve's own arm cloth does.
+- **Long capes and cloak panels** inside a cloth part now swing like streamers (twist protection, fold limits and tethers) instead of hanging stiff, **braids** move as hair, and **hair reaching past the knees** hangs under gravity. Other characters' moving parts are unchanged.
 
 ## Fixed
 
-- **Automatic secondary motion** stopped Analyze with "The selected replacement meshes do not contain a preserved secondary rig" for several different reasons, and its help never appeared. The error now says which step is missing: Keep existing physics bones is off, the model in use was converted without its moving-part bones (convert again and click Use prepared model), or the moving parts are in meshes left out of the build. In the last case Analyze now finishes and names those meshes, so you can add them in Build & install → Mesh mapping (it was not shown while Analyze failed).
-- The Physics page says when your model's rig has no moving parts at all: automatic movement moves the hair, cloth and tail bones a model already has, and clothes weighted only to body bones cannot move. **Preserve original physics** now says that it keeps the hero's own hair and cloth; your model's own hair and clothes stay still in that mode.
-- **Match hero proportions** (the default Model fitting) stopped after Blender with "Prepared geometry does not match the selected Model fitting option" for most rigs. Fixed; Preserve source proportions was not affected.
-- **Automatic movement** could stop with "Bind transform outside original-physics transfer budget" on a moving part that points almost exactly along its parent bone's axis (found with a character on Nurse Harrow). Model preparation now lines such bones up exactly, by a fraction of a degree, so they compile without error. Convert and click Use prepared model once for characters prepared earlier.
-- After a game update changes a hero's model, Analyze stops with "Skeleton reference belongs to different original model". It now comes with help: Convert and click Use prepared model again. Today's update changed Silver, Violet and Haze, among others.
+- A gun from its own file whose left and right halves are named for the hands was split into two guns (one-gun heroes got only half). It stays one gun now.
+- Analyze stopped with "Preview cannot triangulate a self-intersecting polygon" or "Preview cannot triangulate this DMX polygon" on guns with flat folded faces or faces whose corners sit at one spot. Those faces are accepted now; faces that really cross themselves still get help.
+- Build stopped with "Missing or ambiguous generated bone" when moving-part bones had names that differ only in non-English characters (for example 侧裙, 前裙, 后裙). They get distinct names now; such models need Convert and Use prepared model once (Analyze says so).
+- Capes hanging from a breast bone (MMD-style rigs) moved as breasts. They move as the cape now.
+- **VPK slots**: a slot stayed "in use" after you deleted that VPK while the app was open, and Build was blocked by "Confirm replacement of the existing output" when rebuilding into the same slot. Find free slot reads the addons folder again, the Build page refreshes every few seconds, your own installed build is recognized, and Build replaces its own earlier output (kept as a backup).
+- Adding a gun file whose parts have modifiers could stop with a UnicodeDecodeError.
+- "Invalid compiled mesh remapping table" (issue #6) now says which mesh and bone are affected. Mesh mapping shows **Add it to …** for unused meshes even while a suggestion is waiting.
 
 ## Checked
 
-- Checked on the PC on October 20, 2026: the issue #5 cases on a copy of a real project, Nurse Harrow builds in every physics mode, and both Model fitting modes.
-- Not yet checked in a match: Nurse Harrow mods, automatic movement on her, and Match hero proportions.
+- Checked in a match on October 24–25, 2026 with an MMD-style character on Vindicta: the braid, back cloak and shoulder capes move (a little clipping on the arm remains), and Shorten or lengthen the legs is hardly noticeable.
+- Not yet checked in a match: Move the whole character up or down, and gun tilt and aim.
 
 ## After updating the app
 
-- Projects prepared before today's game update need Convert and Use prepared model once (the error says so). Projects, settings and themes are kept.
+- Characters prepared earlier keep their fit. To use Feet on the floor, choose it and click Prepare model again. Projects, settings and themes are kept.
