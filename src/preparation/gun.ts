@@ -55,24 +55,28 @@ export function leftMode(choice:WeaponChoice):LeftMode{
 }
 
 /** Fit adjustments of one hand (the left hand's are under choice.left). */
-export type Adjustments={flip:boolean;roll:number;scale:number;offset:Vec3};
+export type Adjustments={flip:boolean;roll:number;pitch:number;yaw:number;scale:number;offset:Vec3};
 export function adjustments(choice:WeaponChoice,hand:Hand):Adjustments{
   const source:WeaponChoice|WeaponHand=hand==='left'?choice.left??{}:choice;
-  return {flip:source.flip??false,roll:source.roll??0,scale:source.scale??1,offset:(source.offset??[0,0,0]) as Vec3};
+  return {flip:source.flip??false,roll:source.roll??0,pitch:source.pitch??0,yaw:source.yaw??0,scale:source.scale??1,offset:(source.offset??[0,0,0]) as Vec3};
 }
 
 /** One click of a beginner control. */
-export type Nudge={kind:'flip'}|{kind:'turn';degrees:number}|{kind:'size';factor:number}|{kind:'move';axis:0|1|2;inches:number}|{kind:'reset'};
+/** turn: around the barrel (roll); tilt: muzzle up (pitch); aim: muzzle to the right (yaw). */
+export type Nudge={kind:'flip'}|{kind:'turn'|'tilt'|'aim';degrees:number}|{kind:'size';factor:number}|{kind:'move';axis:0|1|2;inches:number}|{kind:'reset'};
 
 const round=(value:number,step:number)=>Math.round(value/step)*step;
-/** Roll stays within (-180, 180]; size between 10% and 1000%; moves within ±50 inches. */
+const wrap=(degrees:number)=>{let d=degrees;while(d>180)d-=360;while(d<=-180)d+=360;return d;};
+/** Roll, pitch and yaw stay within (-180, 180]; size between 10% and 1000%; moves within ±50 inches. */
 export function nudge(current:Adjustments,change:Nudge):Adjustments{
   switch(change.kind){
     case 'flip':return {...current,flip:!current.flip};
-    case 'turn':{let roll=current.roll+change.degrees;while(roll>180)roll-=360;while(roll<=-180)roll+=360;return {...current,roll};}
+    case 'turn':return {...current,roll:wrap(current.roll+change.degrees)};
+    case 'tilt':return {...current,pitch:wrap(current.pitch+change.degrees)};
+    case 'aim':return {...current,yaw:wrap(current.yaw+change.degrees)};
     case 'size':return {...current,scale:Math.min(10,Math.max(.1,round(current.scale*change.factor,.01)))};
     case 'move':{const offset=[...current.offset] as Vec3;offset[change.axis]=Math.min(50,Math.max(-50,round(offset[change.axis]+change.inches,.05)));return {...current,offset};}
-    case 'reset':return {flip:false,roll:0,scale:1,offset:[0,0,0]};
+    case 'reset':return {flip:false,roll:0,pitch:0,yaw:0,scale:1,offset:[0,0,0]};
   }
 }
 
@@ -81,8 +85,8 @@ export function withAdjustments(choice:WeaponChoice,hand:Hand,values:Adjustments
   return hand==='left'?{...choice,left:{...choice.left,...values}}:{...choice,...values};
 }
 
-/** Whether any hand has been moved, turned, flipped or resized. */
-export const adjusted=(choice:WeaponChoice)=>(['right','left'] as Hand[]).some(hand=>{const a=adjustments(choice,hand);return a.flip||a.roll!==0||a.scale!==1||a.offset.some(v=>v!==0);});
+/** Whether any hand has been moved, turned, tilted, flipped or resized. */
+export const adjusted=(choice:WeaponChoice)=>(['right','left'] as Hand[]).some(hand=>{const a=adjustments(choice,hand);return a.flip||a.roll!==0||a.pitch!==0||a.yaw!==0||a.scale!==1||a.offset.some(v=>v!==0);});
 
 /** The hands that get your gun: both for a dual-wield hero (unless the left keeps the hero's gun). */
 export function fittedHands(kind:HeroGun,choice:WeaponChoice):Hand[]{

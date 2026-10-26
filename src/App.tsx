@@ -129,6 +129,8 @@ export function App() {
   const setGuideDone = (value: boolean) => { setGuideDoneState(value); try { localStorage.setItem(GUIDE_DONE, value ? '1' : '0'); } catch { /* storage unavailable */ } };
   // The VPK slot scan, refreshed at every Analyze and from Build & install.
   const [slots, setSlots] = useState<VpkSlots|null>(null);
+  /** Only the latest slot scan may set `slots` (scans run in parallel and can finish out of order). */
+  const slotScan = useRef(0);
   // The look (Settings → Appearance): colors by data-theme on <html>, the sidebar mark, the window icon.
   const theme = settings?.theme || 'original';
   const customThemes = settings?.custom_themes ?? [];
@@ -385,7 +387,9 @@ export function App() {
   async function discoverComponents(extrasOnly=false){if(!document)return;const requested=document.project;await run('Character asset discovery did not complete',async()=>{const next=await (extrasOnly?api.discoverExtras(requested):api.discoverComponents(requested));if(documentRef.current?.project.id===requested.id&&documentRef.current.project.original_model===requested.original_model)setCatalog(next);notify('Character assets loaded.');},true);}
   async function saveOutfit(){if(!document)return;await run('Outfit could not be saved',async()=>{const path=await save({title:'Save outfit preset',defaultPath:`${document.project.name}.outfit.json`,filters:[{name:'Outfit preset',extensions:['json']}]});if(path){await api.outfitSave(document.project,path,document.project.name);notify('Outfit preset saved.');}});}
   async function loadOutfit(){if(!document)return;await run('Outfit could not be loaded',async()=>{const path=await open({title:'Load outfit preset',multiple:false,filters:[{name:'Outfit preset',extensions:['json']}]});if(typeof path==='string'){updateProject(await api.outfitLoad(document.project,path));setSummary(null);setPreview(null);notify('Outfit preset loaded. Review its choices.');}});}
-  async function chooseFreeSlot(){if(!document)return;await run('Could not choose a free VPK slot',async()=>{const value=await api.chooseFreeSlot(document.project);updateProject({...document.project,vpk_number:value.slot});notify(`Selected available slot: ${value.filename}`);});}
+  // The slot status (which Build checks) is read again for the chosen slot: choosing the slot it already had (pak09
+  // deleted from the addons folder, Find free slot picks 9 again) changes nothing else that would rescan.
+  async function chooseFreeSlot(){if(!document)return;await run('Could not choose a free VPK slot',async()=>{const value=await api.chooseFreeSlot(document.project);const project={...document.project,vpk_number:value.slot};updateProject(project);await scanSlots(project);notify(`Selected available slot: ${value.filename}`);});}
   async function buildProject(overwriteOutput:boolean,overwriteInstall:boolean){if(!document||active.current)return;
     // Common causes of failed builds, before a long build starts; the user may build anyway.
     let warnings:string[]=[];try{warnings=(await api.prebuildWarnings())??[];}catch{warnings=[];}
@@ -395,7 +399,7 @@ export function App() {
       setInspection(prev=>prev&&prev.project===analyzed?{...prev,project:JSON.stringify(value.project)}:prev);forgetAutosaves(value.project.id);setBuildResult(value.result);if(value.result.compiled||value.result.vpk)saveBuildRecord(value.project);notify(value.result.installed?'Verified VPK installed.':value.result.vpk?'Verified VPK published.':value.result.compiled?'Compilation completed; no VPK was requested.':'Source preparation completed; no compilation was requested.');},true);}
   async function installProject(selected:string|null,overwrite:boolean){if(!document)return;await run('Installation did not complete',async()=>{const path=selected??await open({title:'Select VPK to validate and install',multiple:false,filters:[{name:'VPK archive',extensions:['vpk']}]});if(typeof path!=='string')return;setInstalled(null);setInstalled(await api.installProject(document.project,path,overwrite));notify('VPK validated and installed.');},true);}
   /** The game's addons folder and the output folder, read again (Analyze, Build & install). */
-  async function scanSlots(){if(!document)return;try{setSlots(await api.vpkSlots(document.project));}catch{setSlots(null);}}
+  async function scanSlots(project=documentRef.current?.project){if(!project)return;const scan=++slotScan.current;try{const value=await api.vpkSlots(project);if(scan===slotScan.current)setSlots(value);}catch{if(scan===slotScan.current)setSlots(null);}}
   async function inspectProject(){if(!document)return;await run('Project analysis did not complete',async()=>{
     setInspection(null);const value=await api.inspectProject(document.project);updateProject(value.project);setInspection({report:value.report,project:JSON.stringify(value.project)});if('dmx' in value.report)setSummary({...value.report.dmx,path:value.project.dmx});await scanSlots();notify('needs_review' in value.report&&value.report.needs_review?'Review the analysis before building.':'Project analysis complete.');
   },true);}

@@ -1,4 +1,6 @@
-//! Filename-only addon slot discovery. Scanning never creates folders or opens VPKs.
+//! Filename-based addon slot discovery. Scanning never creates folders; it opens
+//! a VPK only to compare the start of the configured slot's addons file with
+//! this project's output of the same name (its own installed build).
 use crate::app::{AppError, Application, Result};
 use deadlock_core::CancellationToken;
 use deadlock_project::Project;
@@ -10,6 +12,10 @@ pub struct VpkSlots {
     pub configured_slot: u32,
     /// Another VPK of that number is in the game's addons folder now.
     pub configured_slot_occupied: bool,
+    /// The VPK of that number in the addons folder is this project's own
+    /// installed build (same size and start as its output), not another mod.
+    #[serde(default)]
+    pub configured_slot_own_install: bool,
     pub available_slot: Option<u32>,
     /// Slots used in the game's addons folder (scanned at every call).
     pub occupied_slots: Vec<u32>,
@@ -80,6 +86,23 @@ fn slots_in(folder: &PathBuf, cancel: &CancellationToken) -> Result<BTreeSet<u32
     Ok(slots)
 }
 
+/// Whether two VPK files have the same size and the same first 64 KiB (the
+/// header and the file tree, which holds a checksum of every file). Read only
+/// when both exist; any read error means "not the same".
+fn same_vpk(a: &std::path::Path, b: &std::path::Path) -> bool {
+    use std::io::Read;
+    let (Ok(ma), Ok(mb)) = (fs::metadata(a), fs::metadata(b)) else { return false };
+    if !ma.is_file() || !mb.is_file() || ma.len() != mb.len() {
+        return false;
+    }
+    let start = |path: &std::path::Path| -> Option<Vec<u8>> {
+        let mut bytes = Vec::with_capacity(65536);
+        fs::File::open(path).ok()?.take(65536).read_to_end(&mut bytes).ok()?;
+        Some(bytes)
+    };
+    matches!((start(a), start(b)), (Some(x), Some(y)) if x == y)
+}
+
 /// `folders` occupy slots (the game's addons); `output` is this project's own
 /// output folder, reported separately.
 fn scan(folders: Vec<PathBuf>, output: Option<PathBuf>, preferred: u32, cancel: &CancellationToken) -> Result<VpkSlots> {
@@ -87,6 +110,8 @@ fn scan(folders: Vec<PathBuf>, output: Option<PathBuf>, preferred: u32, cancel: 
     let mut seen = BTreeSet::new();
     let mut scanned = Vec::new();
     let mut previous = BTreeSet::new();
+    let output_folder = output.clone();
+    let folders_scanned = folders.clone();
     if let Some(folder) = output {
         cancel.check()?;
         previous = slots_in(&folder, cancel)?;
@@ -109,6 +134,17 @@ fn scan(folders: Vec<PathBuf>, output: Option<PathBuf>, preferred: u32, cancel: 
         scanned.push(text.to_owned());
         occupied.extend(slots_in(&folder, cancel)?);
     }
+    // This project's own installed build is not another mod: the addons copy
+    // has the size and the start (header and file tree, with every file's
+    // checksum) of the project's output of that number.
+    let own_install = occupied.contains(&preferred)
+        && output_folder.as_ref().is_some_and(|output| {
+            let name = format!("pak{preferred:02}_dir.vpk");
+            folders_scanned.iter().any(|addons| same_vpk(&addons.join(&name), &output.join(&name)))
+        });
+    if own_install {
+        occupied.remove(&preferred);
+    }
     // pak01 remains reserved by the native app; this helper never chooses it.
     let available_slot = if (2..=99).contains(&preferred) && !occupied.contains(&preferred) {
         Some(preferred)
@@ -118,6 +154,7 @@ fn scan(folders: Vec<PathBuf>, output: Option<PathBuf>, preferred: u32, cancel: 
     Ok(VpkSlots {
         configured_slot: preferred,
         configured_slot_occupied: occupied.contains(&preferred),
+        configured_slot_own_install: own_install,
         available_slot,
         occupied_slots: occupied.into_iter().collect(),
         previous_outputs: previous.into_iter().collect(),

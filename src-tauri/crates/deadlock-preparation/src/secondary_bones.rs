@@ -4,6 +4,7 @@ use crate::{algorithms::Bone, invalid, Result};
 use deadlock_project::PreparationOptions;
 use deadlock_skeleton::{extensions, transforms::{self, PreparedBone}, Skeleton};
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub const PREFIX: &str = "dmb_secondary_";
@@ -434,15 +435,38 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
         }
     }
     let mut exported = BTreeMap::new();
+    let names = exported_names(&groups.iter().flat_map(|g| g.source_bones.iter().cloned()).collect::<Vec<_>>());
     for group in &groups {
         if !target.iter().any(|b| b.name == group.target_anchor) { return Err(invalid("Choose a valid target attachment for source physics bones.")); }
         for name in &group.source_bones {
-            let output = format!("{PREFIX}{name}");
+            let output = names[name].clone();
             if output.len() > 63 || output.chars().any(char::is_control) || target.iter().any(|b| b.name == output) { return Err(invalid(format!("A preserved physics bone has a conflicting or unsupported name: {name}"))); }
             if exported.insert(name.clone(),output).is_some() || exported.len() > 512 { return Err(invalid("Selected physics branches overlap or exceed 512 bones.")); }
         }
     }
+    let compiled = target.iter().map(|b| &b.name).chain(exported.values());
+    if let Some((first, second)) = deadlock_skeleton::aliases::compiled_name_collision(compiled) {
+        return Err(invalid(deadlock_skeleton::aliases::compiled_name_error(&first, &second)));
+    }
     Ok(Some(PreservationPlan { policy: POLICY.into(), groups, exported_bones: exported, new_physics: false, in_game_motion_tested: false }))
+}
+/// The prepared names of kept moving-part bones: PREFIX and the source name.
+/// The model compiler writes every byte other than ASCII letters, digits and _
+/// as _, so names that differ only there would become one bone (arcaneVin's
+/// skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0, two Chinese characters each).
+/// Those take `distinct_name`; every other name is unchanged.
+/// Keep in sync with secondary_bones.py exported_names.
+pub fn exported_names(names: &[String]) -> BTreeMap<String, String> {
+    let spelled = |n: &str| deadlock_skeleton::aliases::compiler_spelling(&format!("{PREFIX}{n}"));
+    let mut counts = BTreeMap::<String, usize>::new();
+    for name in names { *counts.entry(spelled(name)).or_default() += 1; }
+    names.iter().map(|n| (n.clone(), if counts[&spelled(n)] > 1 { distinct_name(n) } else { format!("{PREFIX}{n}") })).collect()
+}
+/// A kept bone whose plain name the compiler would merge with another's keeps
+/// its name and gets the first six hex digits of its name's SHA-256 (UTF-8).
+pub fn distinct_name(name: &str) -> String {
+    let digest = sha2::Sha256::digest(name.as_bytes());
+    format!("{PREFIX}{name}_{:02x}{:02x}{:02x}", digest[0], digest[1], digest[2])
 }
 /// Previous direct/following choices stay saved for an off/on toggle.
 pub fn body_options(options: &PreparationOptions, plan: Option<&PreservationPlan>) -> PreparationOptions {

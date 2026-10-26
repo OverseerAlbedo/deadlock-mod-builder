@@ -486,6 +486,18 @@ def dual_gun_file():
     mesh_object('Plane', [box((0, 0, -.3), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
 
 
+def mirrored_gun_file():
+    """One gun whose mirrored halves are tagged like a pair (_L and _R): side
+    panels and bolts on either side of an untagged receiver, which is all that
+    joins them, and an untagged grip. Barrel along +X, over a floor."""
+    mesh_object('Receiver', [box((0, 0, .03), (1, 0, 0), .3, .04, .06) + ({},)], material('Frame_mat'))
+    mesh_object('Grip', [box((-.08, 0, -.04), (0, 0, 1), .1, .03, .03) + ({},)], material('Frame_mat'))
+    for tag, y in (('L', .025), ('R', -.025)):
+        mesh_object('SidePanel_' + tag, [box((0, y, .03), (1, 0, 0), .2, .01, .04) + ({},)], material('Slide_mat'))
+        mesh_object('Bolt_0_' + tag, [box((.05, y * 1.3, .03), (1, 0, 0), .01, .006) + ({},)], material('Slide_mat'))
+    mesh_object('Plane', [box((0, 0, -.1), (1, 0, 0), 2, 2, .002) + ({},)], material('Ground'))
+
+
 def export(path):
     path = str(path)
     if path.endswith('.fbx'):

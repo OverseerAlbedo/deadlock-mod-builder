@@ -176,6 +176,25 @@ const RULES: &[Rule] = &[
         cause: "Automatic secondary motion moves the bones your model's rig already has for hair, cloth and tails, and the model in use has none of them kept.",
         steps: &["Open Model preparation → Hair, cloth and other moving parts and turn on Keep existing physics bones.", "Click Convert, then Use prepared model.", "Run Analyze again, then build.", "If no moving parts are listed there, your model's clothes have no bones of their own and cannot move; Preserve original physics keeps only the hero's own hair and cloth."],
         action: Some(("Open Model preparation", "prepare")) },
+    // The compiled model's per-mesh bone list does not fit its skeleton (issue #6;
+    // the message names the mesh and the value).
+    Rule { any: &["invalid compiled mesh remapping table"], all: &[],
+        cause: "The model compiler wrote a mesh whose bone list does not fit the compiled skeleton, so the build cannot check how that mesh moves. The message names the mesh.",
+        steps: &["Open Build & install → Analysis details and fix any note about meshes without skin weights or meshes no render node uses (Mesh mapping).", "Prepare the model again (Model preparation → Convert, then Use prepared model), then Analyze and build.", "If it still happens, send the Copy for support text and the saved log (Logs → Save log)."],
+        action: Some(("Open Build & install", "build")) },
+    // A face of the prepared model crosses itself (deadlock-preview triangulate.rs);
+    // flat folded faces are no longer refused.
+    Rule { any: &["cannot triangulate"], all: &[],
+        cause: "A face of your model crosses over itself (a bow-tie shaped face), so its surface cannot be split into triangles for automatic movement.",
+        steps: &["In Blender, select the character's (or gun's) meshes, enter Edit Mode, select all, and use Mesh → Clean Up → Degenerate Dissolve, then Face → Triangulate Faces for anything still twisted.", "Save the file, then Convert and Use prepared model in Model preparation.", "Run Analyze again."],
+        action: Some(("Open Model preparation", "prepare")) },
+    // Two kept bones the model compiler writes with one name (arcaneVin's skirt
+    // panels 侧裙/前裙/后裙): found at Analyze, or after compiling a model
+    // prepared before the app gave such bones distinct names.
+    Rule { any: &["would get the same name in the compiled model", "missing or ambiguous generated bone"], all: &[],
+        cause: "Two of your model's moving-part bones get the same name when the model compiler writes them: it turns every character other than A–Z, 0–9 and _ into _, so names such as 侧裙_0_0 and 前裙_0_0 become one. The model was prepared before the app gave such bones distinct names.",
+        steps: &["Open Model preparation and click Convert, then Use prepared model. The app now gives these bones distinct names; your moving-part choices stay.", "Run Analyze again, then build."],
+        action: Some(("Open Model preparation", "prepare")) },
     // A game update changed the hero's model after preparation (October 20, 2026:
     // Silver, Violet and Haze among others).
     Rule { any: &["skeleton reference belongs to different original model"], all: &[],
@@ -268,6 +287,14 @@ mod tests {
             ("Automatic secondary motion moves the hair, cloth and tail bones kept from your model's rig, but Keep existing physics bones is off. In Model preparation, turn it on, click Convert, then Use prepared model, and Analyze again.", "prepare"),
             ("The model in use has no moving-part bones kept from your rig, so automatic secondary motion has nothing to move. If you turned on Keep existing physics bones after converting, click Convert and then Use prepared model in Model preparation, and Analyze again. Clothes weighted only to body bones have no bones of their own to move.", "prepare"),
             ("Model fitting changed. Convert the original source and choose Use prepared model", "prepare"),
+            // Issue #6, with the detail the audit now gives.
+            ("Invalid compiled mesh remapping table: mesh 1 (Face) refers to bone 5 but the compiled skeleton has 3 bones (2 such entries in 1 meshes)", "build"),
+            // Analyze on a model with a crossing face (arcaneVin's gun before folded faces were accepted).
+            ("Integrity check failed: Preview cannot triangulate a self-intersecting polygon", "prepare"),
+            ("Integrity check failed: Preview cannot triangulate this DMX polygon; check for self-intersections", "prepare"),
+            // arcaneVin's skirt panels, after compiling and (with the new check) at Analyze.
+            ("Cloth validation: Missing or ambiguous generated bone: dmb_secondary_侧裙_0_0", "prepare"),
+            ("Bones dmb_secondary_侧裙_0_0 and dmb_secondary_前裙_0_0 would get the same name in the compiled model (dmb_secondary________0_0): the model compiler writes every character other than A–Z, 0–9 and _ as _. Prepare the model again (Model preparation → Convert, then Use prepared model) so the app gives them distinct names, or rename one of them in Blender.", "prepare"),
             // janeVen after the October 20, 2026 game update.
             ("Skeleton reference belongs to different original model", "prepare"),
             ("Extended skeleton missing original identities", "prepare"),

@@ -150,6 +150,33 @@ fn butt_parameters(size: f64, choice: Option<&str>) -> Result<Maps> {
 /// per-node pull is about four times stiffer than a 5-bone one (Yvonne's
 /// accepted long ponytails have 5). Shorter strands keep their tuning exactly.
 pub(crate) const DENSE_CHAIN_NODES: usize = 6;
+/// Pose pull of a strip hanging from an arm, below its root and at its hem
+/// (`arm_strip`).
+pub(crate) const ARM_STRIP_GOAL: [f64; 2] = [0.45, 0.06];
+/// Drag of a strip hanging from an arm: Valve's arm cloth has none.
+pub(crate) const ARM_STRIP_DRAG: f64 = 0.03;
+/// A strip hanging from an arm lies on it (arcaneVin's shoulder capes
+/// R_capeC/D, 0.2–1 in from the body). As a free streamer it lagged behind the
+/// arm and the arm passed through it; held to a travel limit it stood still.
+/// Valve's own arm cloth tracks the arm instead (Wraith's sleeves: attraction
+/// 0.51, 0.13, 0.016, 0.008 down the sleeve, no damping; Violet's front tassel
+/// 0.22 to 0.008): a firm pose pull just below the shoulder that fades toward
+/// the hem, and little drag, so the arm cannot outrun the cloth while the hem
+/// still swings. The arm colliders do the rest.
+fn arm_strip(settings: &mut Maps, t: f64, choice: Option<&str>) {
+    let [root, hem] = ARM_STRIP_GOAL;
+    let mut goal = hem + (root - hem) * (1. - t).powi(2);
+    match choice.unwrap_or("automatic") {
+        "stiff" => goal = (goal + 0.25).min(1.),
+        "soft" => goal = (goal * 0.7).max(0.01),
+        _ => {}
+    }
+    settings[0] = goal;
+    settings[1] = ARM_STRIP_DRAG;
+}
+/// Torso lengths (head to pelvis) from which a hair strand hangs under gravity
+/// (past the knees; full gravity half a torso further).
+pub(crate) const HANGING_HAIR: f64 = 2.5;
 /// Pose-pull multiplier for a strand with `nodes` weighted bones.
 pub(crate) fn dense_chain_multiplier(nodes: usize) -> f64 {
     if nodes > DENSE_CHAIN_NODES { DENSE_CHAIN_NODES as f64 / nodes as f64 } else { 1. }
@@ -417,6 +444,42 @@ pub(crate) fn append(
             .fold(0f64, f64::max)
             .max(pitch);
         let mut frames = BTreeMap::new();
+        // Long strips inside a cloth part move like streamers below the joints
+        // they share with other strips (parts::Strip): each such bone, helpers
+        // included, with its distance along the strip, the strip's length and
+        // its weighted joints.
+        let mut strip_bones = BTreeMap::<&str, (f64, f64, usize)>::new();
+        if part.kind == Kind::Cloth && skirt.is_none() {
+            for strip in &part.strips {
+                let mut along = vec![0.];
+                for w in strip.path.windows(2) {
+                    along.push(along[along.len() - 1] + norm(sub(pos(&w[1]), pos(&w[0]))));
+                }
+                let total = along[along.len() - 1];
+                for k in strip.branch.max(1)..strip.path.len() {
+                    let previous = &strip.path[k - 1];
+                    let mut at = lookup[strip.path[k].as_str()];
+                    while at != lookup[previous.as_str()] && sk.parents[at] >= 0 {
+                        let bone = sk.names[at].as_str();
+                        strip_bones.entry(bone).or_insert((along[k - 1] + norm(sub(pos(bone), pos(previous))), total, strip.path.len()));
+                        at = sk.parents[at] as usize;
+                    }
+                }
+            }
+        }
+        // Hair reaching past the knees hangs: gravity and drag grow from none at
+        // HANGING_HAIR torso lengths to a streamer's half a torso further, and
+        // its travel lets it reach that hang. arcaneVin's braid (3.1 torso
+        // lengths) floated out sideways with neither; shorter long hair (2.45 and
+        // less on the test projects) keeps hair's accepted no-gravity motion.
+        let hang = hair_length.as_ref().filter(|a| a.scale_reference == "head_to_pelvis").map_or(0., |a| {
+            let torsos = a.strand_length_inches / (2. * a.short_hair_limit_inches);
+            ((torsos - HANGING_HAIR) / 0.5).clamp(0., 1.)
+        });
+        let up = match (sk.indices().get("head"), sk.indices().get("pelvis")) {
+            (Some(&h), Some(&v)) => unit(sub(pos(&sk.names[h]), pos(&sk.names[v]))).unwrap_or([0., 0., 1.]),
+            _ => [0., 0., 1.],
+        };
         for name in simulated_bones(group, lookup, sk) {
             let i = lookup[name.as_str()];
             let p = pos(name);
@@ -434,6 +497,16 @@ pub(crate) fn append(
                 choice,
             )?;
             if !root {
+                if let Some(&(along, total, joints)) = strip_bones.get(name.as_str()) {
+                    let t = (along / total).clamp(0., 1.);
+                    settings = parameters(Kind::Streamer, t, false, total, radius, choice)?;
+                    if choice.is_none_or(|c| c == "automatic") {
+                        settings[1] *= streamer_drag_multiplier(joints);
+                    }
+                    if crate::secondary::arm_anchor(&group.anchor) {
+                        arm_strip(&mut settings, t, choice);
+                    }
+                }
                 if let Some(adjustment) = &hair_length {
                     settings[0] *= adjustment.goal_strength_multiplier;
                 }
@@ -455,6 +528,16 @@ pub(crate) fn append(
                 // Zero stretchiness retains firm boundaries without adding
                 // goal attraction, gravity, damping, or bend stiffness.
                 settings[6] = 1.;
+            }
+            if hang > 0. && !root {
+                settings[3] = settings[3].max(hang);
+                settings[1] = settings[1].max(0.18 * hang);
+                if settings[4] > 0. {
+                    let start = pos(&part.weighted_chain[0]);
+                    let along = t * hair_length.as_ref().map_or(0., |a| a.strand_length_inches);
+                    let hanging = std::array::from_fn(|r| start[r] - up[r] * along);
+                    settings[4] = settings[4].max(norm(sub(p, hanging)) * hang);
+                }
             }
             if let Some(skirt) = skirt {
                 settings[4] = skirt.travel_radius_by_bone[name];

@@ -36,7 +36,9 @@ export function addToMainNode(report: InspectionReport, saved: Mappings, meshes:
   for (const node of report.model.meshes) {
     if (node.name !== main.name && !(node.lower_lod && lodBase(node.name) === main.name)) continue;
     if (special(effective[node.name])) continue;
-    const list = [...new Set([...mappedTargets(effective[node.name]), ...meshes])];
+    // A detail level without a choice yet follows the main node, as the suggestion does.
+    const current = effective[node.name] ?? effective[main.name];
+    const list = [...new Set([...mappedTargets(current), ...meshes])];
     const value = asMapping(list);
     if (value !== undefined) next[node.name] = value;
   }
@@ -95,7 +97,8 @@ export function MeshMapping({ report, meshes, busy, update, strategy = 'choose' 
       <p><strong>Suggested mapping</strong> for {suggested.length} render node{suggested.length === 1 ? '' : 's'} without a choice: {suggested.slice(0, 6).map(name => `${name} → ${shown(name)}`).join('; ')}{suggested.length > 6 ? ' …' : ''}.</p>
       <button disabled={busy} onClick={() => update({ ...meshes, ...suggestion })}>Apply suggested mapping</button>
     </div>}
-    {suggested.length === 0 && unused.length > 0 && <div className="callout warning mesh-unused" role="status">
+    {/* Shown even while a suggestion is pending, so an unused mesh always has its button (issue #6). */}
+    {unused.length > 0 && <div className="callout warning mesh-unused" role="status">
       <p><strong>Not used by any render node, so missing in game:</strong> {unused.join(', ')}</p>
       {main && <button disabled={busy} onClick={() => update(addToMainNode(report, meshes, unused).meshes)}>Add {unused.length === 1 ? 'it' : 'them'} to {main} and its lower-detail levels</button>}
     </div>}

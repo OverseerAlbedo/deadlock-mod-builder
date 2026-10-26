@@ -5,6 +5,8 @@ use deadlock_project::PreparationOptions;
 pub const MATCH_TARGET: &str = "match_target";
 pub const PRESERVE_PROPORTIONS: &str = "preserve_proportions";
 pub const PROPORTIONS_POLICY: &str = "source-proportions-v1";
+/// Feet on the floor choices; must equal `retarget.py FLOOR_MODES`.
+pub const FLOOR_MODES: [&str; 3] = ["ankles", "legs", "lift"];
 
 pub fn arm_skinning(options: &PreparationOptions) -> Result<&str> {
     match options.values.get("arm_skinning") {
@@ -32,9 +34,22 @@ pub fn finger_curl(options: &PreparationOptions) -> Result<bool> {
     }
 }
 
+/// Model fitting -> Feet on the floor (`retarget.py FLOOR_MODES`): "ankles"
+/// keeps the fit lining up the ankles (the default and every older project).
+pub fn floor(options: &PreparationOptions) -> Result<&str> {
+    match options.values.get("fit_floor") {
+        None => Ok(FLOOR_MODES[0]),
+        Some(value) => value
+            .as_str()
+            .and_then(|mode| FLOOR_MODES.iter().copied().find(|known| *known == mode))
+            .ok_or_else(|| invalid("Model fitting: choose a supported Feet on the floor option.")),
+    }
+}
+
 pub fn mode(options: &PreparationOptions) -> Result<&str> {
     arm_joints(options)?;
     finger_curl(options)?;
+    floor(options)?;
     arm_skinning(options)?;
     match options.values.get("fit_mode") {
         None => Ok(MATCH_TARGET),
@@ -58,7 +73,7 @@ pub fn check_policy(options: &PreparationOptions, policy: &str) -> Result<()> {
 }
 
 pub fn check_unchanged(previous: &PreparationOptions, current: &PreparationOptions) -> Result<()> {
-    if mode(previous)? != mode(current)? || arm_skinning(previous)? != arm_skinning(current)? || (mode(current)? == PRESERVE_PROPORTIONS && arm_joints(previous)? != arm_joints(current)?) {
+    if mode(previous)? != mode(current)? || arm_skinning(previous)? != arm_skinning(current)? || floor(previous)? != floor(current)? || (mode(current)? == PRESERVE_PROPORTIONS && arm_joints(previous)? != arm_joints(current)?) {
         return Err(invalid("Model fitting changed. Convert the original source and choose Use prepared model before building or re-exporting corrections."));
     }
     Ok(())

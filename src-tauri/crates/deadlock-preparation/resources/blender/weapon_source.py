@@ -11,7 +11,8 @@ temporary character scene, after the character itself was isolated:
 * every object is renamed ``gun_file_<name>`` so it is offered as the gun and
   never collides with a character object;
 * a file with a pair of guns (parts tagged [L]/[R], .L/.R or named left and
-  right, or weighted to such bones) gives a left and a right gun;
+  right, or weighted to such bones) gives a left and a right gun; one gun
+  whose mirrored halves are tagged that way (Bolt_L, Bolt_R) stays one gun;
 * with a character rig, the gun is put in the right hand (the left gun of a
   pair in the left hand): its grip (the handle below the barrel, measured like
   weapon.rs does) is moved onto the hand unless the gun already sits there,
@@ -152,16 +153,36 @@ def _dominant_group(obj):
     return max(totals, key=totals.get) if totals else None
 
 
+def halves(left, right, loose):
+    """Whether the parts named for each hand are the mirrored halves of one gun
+    (Bolt_L and Bolt_R on either side of its body) rather than two guns: the
+    middle of each side lies within the other side, or a part without a hand
+    lies between the two sides and touches both (the body of the gun). The two
+    guns of a pair lie apart."""
+    box = lambda parts: iso.bounds(np.concatenate([iso.world_points(m) for m in parts]))
+    inside = lambda point, other: iso._overlaps(np.array([point, point]), other, 0.)
+    left, right = box(connected(left, ())[0]), box(connected(right, ())[0])
+    if inside(left.mean(axis=0), right) and inside(right.mean(axis=0), left):
+        return True
+    both = np.array([np.minimum(left[0], right[0]), np.maximum(left[1], right[1])])
+    margin = float((both[1] - both[0]).max()) * .02
+    return any(inside(part.mean(axis=0), both) and iso._overlaps(part, left, margin)
+               and iso._overlaps(part, right, margin) for part in (box([m]) for m in loose))
+
+
 def pair(gun, sides, keep):
     """One gun, or a right and a left gun when the parts name their hands.
 
     Returns [[side, parts], ...]: [[None, parts]] for one gun, otherwise the
     right gun then the left gun. Each gun is its largest part and what touches
-    it (see connected); parts without a hand join the gun they touch."""
+    it (see connected); parts without a hand join the gun they touch. Parts
+    named for both hands that are the mirrored halves of one gun stay one gun
+    (see halves)."""
     size = lambda parts: sum(len(m.data.vertices) for m in parts)
     left = [m for m in gun if sides.get(m) == 'left']
     right = [m for m in gun if sides.get(m) == 'right']
-    if not left or not right or min(size(left), size(right)) < .2 * max(size(left), size(right)):
+    if (not left or not right or min(size(left), size(right)) < .2 * max(size(left), size(right))
+            or halves(left, right, [m for m in gun if sides.get(m) is None])):
         kept, _ = connected(gun, keep)
         return [[None, kept]]
     guns = [['right', connected(right, keep)[0]], ['left', connected(left, keep)[0]]]

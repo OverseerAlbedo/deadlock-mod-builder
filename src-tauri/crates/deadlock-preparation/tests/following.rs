@@ -148,3 +148,30 @@ fn retarget_reports_the_fit_policies_rust_accepts() {
     }
     assert!(!script.contains("ancestor-offset-preservation-v1"));
 }
+/// Feet on the floor: the choices Rust accepts are the ones Blender applies,
+/// and an unset choice (every older project) keeps the ankle alignment.
+#[test]
+fn feet_on_the_floor_choices_match_the_retarget() {
+    use deadlock_preparation::fitting;
+    let script = include_str!("../resources/blender/retarget.py");
+    let modes = fitting::FLOOR_MODES.iter().map(|m| format!("'{m}'")).collect::<Vec<_>>().join(", ");
+    assert!(script.contains(&format!("\nFLOOR_MODES = ({modes})")), "retarget.py FLOOR_MODES is not ({modes})");
+    let mut options = deadlock_project::PreparationOptions::default();
+    assert_eq!(fitting::floor(&options).unwrap(), "ankles");
+    for mode in fitting::FLOOR_MODES {
+        options.values.insert("fit_floor".into(), mode.into());
+        assert_eq!(fitting::floor(&options).unwrap(), mode);
+        assert!(fitting::mode(&options).is_ok());
+    }
+    let mut previous = deadlock_project::PreparationOptions::default();
+    options.values.insert("fit_floor".into(), "ankles".into());
+    fitting::check_unchanged(&previous, &options).unwrap();
+    options.values.insert("fit_floor".into(), "lift".into());
+    assert!(fitting::check_unchanged(&previous, &options).unwrap_err().to_string().contains("Model fitting changed"));
+    previous.values.insert("fit_floor".into(), "lift".into());
+    fitting::check_unchanged(&previous, &options).unwrap();
+    for wrong in [serde_json::json!("feet"), serde_json::json!("floor"), serde_json::json!(true), serde_json::json!(null)] {
+        options.values.insert("fit_floor".into(), wrong);
+        assert!(fitting::mode(&options).unwrap_err().to_string().contains("Feet on the floor"));
+    }
+}

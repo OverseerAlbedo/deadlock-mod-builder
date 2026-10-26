@@ -63,6 +63,15 @@ assert [g['root'] for g in left['groups']]==[r for r in data['expected_roots'] i
 assert selection({**options,'physics_roots':charms},bones,weighted,roles,roles,target,{**plan,'action':'remove'}) is None
 print('gun charm rules: ok')
 
+# Kept bones the model compiler would write with one name (arcaneVin's 侧裙/前裙/后裙
+# skirt panels) get distinct names; the same names as tests/secondary_bones.rs.
+from secondary_bones import exported_names
+assert exported_names(['侧裙_0_0','前裙_0_0','后裙_0_0','胸上2.L','胸上2.R','hair_01','a.b','a_b'])=={
+    '侧裙_0_0':'dmb_secondary_侧裙_0_0_5e8d83','前裙_0_0':'dmb_secondary_前裙_0_0_38467a','后裙_0_0':'dmb_secondary_后裙_0_0_c7b6ee',
+    '胸上2.L':'dmb_secondary_胸上2.L','胸上2.R':'dmb_secondary_胸上2.R','hair_01':'dmb_secondary_hair_01',
+    'a.b':'dmb_secondary_a.b_2e7336','a_b':'dmb_secondary_a_b_648fa9'}
+print('compiled bone names: ok')
+
 # Adding breast bones to a rig without them (breast_bones.py): a synthetic torso
 # with two breasts gets a mirrored pair with weights confined to the breasts and
 # every vertex's total weight unchanged; the same torso without breasts gets none.

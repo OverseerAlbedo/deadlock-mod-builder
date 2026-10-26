@@ -70,8 +70,17 @@ pub fn polygon(
         .powi(2)
         .max(1e-30);
     let epsilon = scale * 1e-12;
-    if area.abs() < epsilon {
-        if maxcross <= epsilon {
+    // Positions are f32: far from the origin, corners on one line (a quad
+    // folded onto its own edge, A B C B) are straight only to a few units in
+    // the last place, so a flat polygon is judged at that precision.
+    let reach = p.iter().map(|v| dot(*v, *v).sqrt()).fold(0f64, f64::max);
+    let far = corners
+        .iter()
+        .flat_map(|&c| positions[position_indices[c as usize]])
+        .fold(0f64, |m, x| m.max(f64::from(x).abs()));
+    let flat = epsilon.max(16. * reach * far * f64::from(f32::EPSILON));
+    if area.abs() < flat {
+        if maxcross <= flat {
             return Ok(fan(corners));
         }
         return Err(fail(
@@ -81,13 +90,18 @@ pub fn polygon(
     let sign = if area > 0. { 1. } else { -1. };
     let mut pending: Vec<usize> = (0..corners.len()).collect();
     let mut result = Vec::new();
+    // Repeated corners (a quad that is really a triangle) are equal only to
+    // f32 precision when they come from a fit: arcaneVin's railgun had three
+    // such quads one step apart after moving the gun 1 in (exactly equal
+    // before), and no ear can be cut next to them.
+    let same = 4. * far * f64::from(f32::EPSILON);
     for i in (0..pending.len()).rev() {
         if pending.len() <= 3 {
             break;
         }
         let a = pending[(i + pending.len() - 1) % pending.len()];
         let b = pending[i];
-        if p[a] == p[b] {
+        if sub(p[a], p[b]).iter().all(|d| d.abs() <= same) {
             let c = pending[(i + 1) % pending.len()];
             result.push([corners[a], corners[b], corners[c]]);
             pending.remove(i);
@@ -226,6 +240,39 @@ mod tests {
         .unwrap();
         assert_eq!(out.len(), 2);
         assert!(warnings[0].contains("preview-only"));
+    }
+    #[test]
+    fn a_quad_folded_onto_its_edge_far_from_the_origin_is_flat() {
+        // A railgun's glow strips: corners A B C B on one line, 60 in from
+        // the origin, straight only to f32 precision (a gun file on Vindicta).
+        let at = |t: f64| [10.718888 + t * 0.034787, -14.206436 + t * 0.033321, 53.401466 - t * 0.051033].map(|v| v as f32);
+        let p = [at(0.), at(0.5624), at(1.), at(0.5624)];
+        let token = CancellationToken::default();
+        assert_eq!(polygon(&[0, 1, 2, 3], &p, &[0, 1, 2, 3], &token).unwrap().len(), 2);
+        // The same strip seen from the corner next to the fold.
+        assert_eq!(polygon(&[1, 2, 3, 0], &p, &[0, 1, 2, 3], &token).unwrap().len(), 2);
+        // A real crossing that far out is still refused.
+        let q = [[60., 60., 0.], [60.1, 60.1, 0.], [60., 60.1, 0.], [60.1, 60., 0.]];
+        assert!(polygon(&[0, 1, 2, 3], &q, &[0, 1, 2, 3], &token).is_err());
+    }
+    #[test]
+    fn a_quad_with_a_corner_repeated_to_f32_precision_is_a_triangle() {
+        // arcaneVin's railgun after moving the gun 1 in: corners 3 and 4 are
+        // one float step apart (exactly equal at the old offset).
+        let p = [
+            [14.141365, -9.347721, 49.586754],
+            [14.219288, -9.307929, 49.768654],
+            [14.098699, -9.262045, 49.69828],
+            [14.098699, -9.262046, 49.69828],
+        ];
+        let token = CancellationToken::default();
+        for order in [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]] {
+            let t = polygon(&order, &p, &[0, 1, 2, 3], &token).unwrap();
+            assert_eq!(t.len(), 2, "{order:?}");
+        }
+        // Corners a visible distance apart still make a real (crossing) quad.
+        let q = [[0., 0., 50.], [1., 1., 50.], [0., 1., 50.], [1., 0., 50.]];
+        assert!(polygon(&[0, 1, 2, 3], &q, &[0, 1, 2, 3], &token).is_err());
     }
     #[test]
     fn malformed_faces_rejected() {

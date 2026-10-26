@@ -402,6 +402,12 @@ pub struct Choice {
     /// Degrees around the barrel.
     #[serde(default)]
     pub roll: f64,
+    /// Degrees the muzzle tilts up (pitch) and turns to the gun's right (yaw),
+    /// around the grip.
+    #[serde(default)]
+    pub pitch: f64,
+    #[serde(default)]
+    pub yaw: f64,
     #[serde(default = "one")]
     pub scale: f64,
     /// Inches along the fitted gun's forward, up and right directions.
@@ -429,6 +435,8 @@ impl Default for Choice {
             fit: "match".into(),
             flip: false,
             roll: 0.,
+            pitch: 0.,
+            yaw: 0.,
             scale: 1.,
             offset: [0.; 3],
             skin: "auto".into(),
@@ -446,6 +454,8 @@ impl Choice {
             objects: self.left.objects.clone(),
             flip: self.left.flip,
             roll: self.left.roll,
+            pitch: self.left.pitch,
+            yaw: self.left.yaw,
             scale: self.left.scale,
             offset: self.left.offset,
             bone: self.left.bone.clone(),
@@ -468,6 +478,10 @@ pub struct Hand {
     pub flip: bool,
     #[serde(default)]
     pub roll: f64,
+    #[serde(default)]
+    pub pitch: f64,
+    #[serde(default)]
+    pub yaw: f64,
     #[serde(default = "one")]
     pub scale: f64,
     #[serde(default)]
@@ -477,7 +491,7 @@ pub struct Hand {
 }
 impl Default for Hand {
     fn default() -> Self {
-        Self { objects: vec![], keep: false, flip: false, roll: 0., scale: 1., offset: [0.; 3], bone: String::new() }
+        Self { objects: vec![], keep: false, flip: false, roll: 0., pitch: 0., yaw: 0., scale: 1., offset: [0.; 3], bone: String::new() }
     }
 }
 
@@ -1037,9 +1051,9 @@ pub fn choice(options: &deadlock_project::PreparationOptions) -> Result<Choice> 
             if !["", "match", "keep_size"].contains(&choice.fit.as_str()) || !["", "auto", "rigid"].contains(&choice.skin.as_str()) {
                 return Err(invalid("Choose a supported weapon fit option."));
             }
-            let hands = [(choice.scale, choice.roll, choice.offset), (choice.left.scale, choice.left.roll, choice.left.offset)];
-            if hands.iter().any(|(scale, roll, offset)| !(scale.is_finite() && *scale > 0.05 && *scale < 20.) || !roll.is_finite() || offset.iter().any(|v| !v.is_finite() || v.abs() > 500.)) {
-                return Err(invalid("Weapon scale, roll and offset must be finite and within range."));
+            let hands = [(choice.scale, [choice.roll, choice.pitch, choice.yaw], choice.offset), (choice.left.scale, [choice.left.roll, choice.left.pitch, choice.left.yaw], choice.left.offset)];
+            if hands.iter().any(|(scale, turns, offset)| !(scale.is_finite() && *scale > 0.05 && *scale < 20.) || turns.iter().any(|v| !v.is_finite()) || offset.iter().any(|v| !v.is_finite() || v.abs() > 500.)) {
+                return Err(invalid("Weapon scale, roll, pitch, yaw and offset must be finite and within range."));
             }
             Ok(choice)
         }
@@ -1087,6 +1101,17 @@ pub fn fit(
     }
     if choice.roll != 0. {
         source_frame.up = rotate(source_frame.up, source_frame.forward, -choice.roll);
+    }
+    // Pitch and yaw turn the gun around its grip like roll: the measured frame
+    // turns the other way, so the fitted gun's muzzle tilts up for a positive
+    // pitch and turns to its right for a positive yaw.
+    if choice.pitch != 0. {
+        let axis = right(&source_frame);
+        source_frame.forward = rotate(source_frame.forward, axis, -choice.pitch);
+        source_frame.up = rotate(source_frame.up, axis, -choice.pitch);
+    }
+    if choice.yaw != 0. {
+        source_frame.forward = rotate(source_frame.forward, source_frame.up, choice.yaw);
     }
     let fs = frame_matrix(&source_frame);
     let ft = frame_matrix(&target_frame);
@@ -1970,6 +1995,37 @@ mod tests {
         let ahead = |p: Vec3| dot(sub(apply(p), flipped.target.grip), flipped.target.forward);
         let front = candidate.sample.iter().map(|p| ahead(*p)).fold(f64::MIN, f64::max);
         assert!(ahead(flipped.source.muzzle) > front * 0.9, "{} vs {front}", ahead(flipped.source.muzzle));
+    }
+    #[test]
+    fn pitch_tilts_the_muzzle_up_and_yaw_turns_it_right_around_the_grip() {
+        let mut candidate = gun("Blaster", None, [0., 0., 0.]);
+        candidate.sample = blaster([1., 0., 0.], [0., 0., 1.]);
+        candidate.hints = Hints { front: Some([0.13, 0., 0.]), rear: Some([-0.12, 0., 0.]), grip: None };
+        let points = pistol([0., 0., 0.], [0., 0., 1.], [1., 0., 0.], 40.);
+        let reference = Reference {
+            policy: POLICY.into(), source: "meshes".into(), weights: vec![vec![("weapon".into(), 1.)]; points.len()], points, ..Default::default()
+        };
+        let target: Vec<Bone> = serde_json::from_value(serde_json::json!([{"name":"weapon","parent":null,"position":[0,0,0]}])).unwrap();
+        // The barrel (rear part to front part) in the hero's gun frame, and where the grip lands.
+        let barrel = |choice: &Choice| {
+            let f = fit(&candidate, &reference, choice, &[], &BTreeMap::new(), &target, None).unwrap();
+            let m = f.matrix;
+            let apply = |p: Vec3| [0, 1, 2].map(|i| m[i][0] * p[0] + m[i][1] * p[1] + m[i][2] * p[2] + m[i][3]);
+            let d = sub(apply([0.13, 0., 0.]), apply([-0.12, 0., 0.]));
+            let d = mul(d, 1. / norm(d));
+            ([dot(d, f.target.forward), dot(d, f.target.up), dot(d, right(&f.target))], apply(f.source.grip), f.target.grip)
+        };
+        let ((straight, _, _), (tilted, tilted_grip, grip), (turned, turned_grip, _)) =
+            (barrel(&Choice::default()), barrel(&Choice { pitch: 20., ..Choice::default() }), barrel(&Choice { yaw: 20., ..Choice::default() }));
+        let s20 = 20f64.to_radians().sin();
+        assert!(straight[0] > 0.999, "{straight:?}");
+        assert!((tilted[1] - s20).abs() < 1e-6 && tilted[2].abs() < 1e-6, "{tilted:?}");
+        assert!((turned[2] - s20).abs() < 1e-6 && turned[1].abs() < 1e-6, "{turned:?}");
+        // The gun turns around its grip: the grip stays in the hand.
+        assert!(norm(sub(tilted_grip, grip)) < 1e-9 && norm(sub(turned_grip, grip)) < 1e-9);
+        // The left hand's own pitch and yaw reach its fit.
+        let left = Choice { left: Hand { pitch: 20., yaw: -10., ..Hand::default() }, ..Choice::default() }.for_left();
+        assert_eq!((left.pitch, left.yaw), (20., -10.));
     }
     #[test]
     fn measures_barrel_up_and_grip_without_hints() {

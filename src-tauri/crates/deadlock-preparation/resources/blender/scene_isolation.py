@@ -442,13 +442,16 @@ def apply_modifiers(bpy, obj, receipt, defer_shape_keys):
                 removed.append(modifier.name)
                 obj.modifiers.remove(modifier)
                 continue
+            # Read the name first: an applied modifier is freed, and reading it
+            # afterwards returns garbage (UnicodeDecodeError on a gun file's modifier).
+            name = modifier.name
             try:
                 _apply_modifier(bpy, obj, modifier)
-                applied.append(modifier.name)
+                applied.append(name)
             except RuntimeError:
-                removed.append(modifier.name)
-                if modifier.name in obj.modifiers:
-                    obj.modifiers.remove(obj.modifiers[modifier.name])
+                removed.append(name)
+                if name in obj.modifiers:
+                    obj.modifiers.remove(obj.modifiers[name])
     finally:
         for m, state in states:
             if m.name in obj.modifiers:

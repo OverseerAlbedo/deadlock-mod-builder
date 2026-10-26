@@ -19,11 +19,18 @@ pub struct Chain {
     /// at each joint. False retains the accepted streamer transform exactly.
     #[serde(default)]
     pub per_joint_reference: bool,
+    /// A long strip inside a cloth part: without a well-conditioned reference
+    /// it keeps its own ring orientation (listed in `Proof::skipped`) instead
+    /// of stopping the build.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional: bool,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Proof {
     pub policy: String,
     pub chains: Vec<ChainProof>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skipped: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChainProof {
@@ -75,6 +82,7 @@ pub fn apply(fe: &Value, skeleton: &Skeleton, chains: &[Chain]) -> Result<Patch>
         proof: Proof {
             policy: POLICY.into(),
             chains: vec![],
+            skipped: vec![],
         },
         bases: BTreeMap::new(),
     };
@@ -143,6 +151,7 @@ pub fn apply(fe: &Value, skeleton: &Skeleton, chains: &[Chain]) -> Result<Patch>
     let mut occupied = BTreeSet::new();
     let mut bases = field(fe, "m_NodeBases")?.array()?.to_vec();
     for chain in chains {
+        let attempt = (|| -> Result<(Vec<(usize, usize, Value)>, ChainProof)> {
         if chain.bones.len() < 2 || chain.bones.len() > 512 {
             return Err(invalid(
                 "Strand needs a connected chain of at least two weighted joints.",
@@ -165,7 +174,7 @@ pub fn apply(fe: &Value, skeleton: &Skeleton, chains: &[Chain]) -> Result<Patch>
             .collect::<Result<Vec<_>>>()?;
         let mut previous = anchor;
         for (name, &node) in chain.bones.iter().zip(&nodes) {
-            if node < driven || !occupied.insert(node) {
+            if node < driven || occupied.contains(&node) {
                 return Err(invalid(
                     "Strand chains overlap or include non-fitted controls.",
                 ));
@@ -258,6 +267,7 @@ pub fn apply(fe: &Value, skeleton: &Skeleton, chains: &[Chain]) -> Result<Patch>
         };
         let shared = best(None)?;
         let mut references = vec![];
+        let mut updates = vec![];
         let mut minimum_pole: f64 = 90.;
         for (j, &node) in nodes.iter().enumerate() {
             // Prefer one reference for the whole strand to avoid differential
@@ -303,27 +313,47 @@ pub fn apply(fe: &Value, skeleton: &Skeleton, chains: &[Chain]) -> Result<Patch>
                     "Strand lacks a unique native compact orientation fit.",
                 ));
             }
-            let row = &mut bases[rows[0]];
+            let mut row = bases[rows[0]].clone();
             for (key, index) in ["nNodeX0", "nNodeX1", "nNodeY0", "nNodeY1"]
                 .into_iter()
                 .zip([reference[0], reference[1], pair[0], pair[1]])
             {
-                *field_mut(row, key)? = integer(index);
+                *field_mut(&mut row, key)? = integer(index);
             }
-            *field_mut(row, "qAdjust")? = Value::new(Kind::Array(
+            *field_mut(&mut row, "qAdjust")? = Value::new(Kind::Array(
                 q.into_iter()
                     .map(|n| Value::new(Kind::F32(n as f32)))
                     .collect(),
             ));
-            result.bases.insert(node, row.clone());
+            updates.push((rows[0], node, row));
         }
-        result.proof.chains.push(ChainProof {
+        Ok((updates, ChainProof {
             anchor: chain.anchor.clone(),
             bones: chain.bones.clone(),
             reference: shared.1,
             minimum_pole_angle_degrees: minimum_pole,
             joint_references: references,
-        });
+        }))
+        })();
+        match attempt {
+            Ok((updates, proof)) => {
+                for (_, node, _) in &updates {
+                    if !occupied.insert(*node) {
+                        return Err(invalid("Strand chains overlap or include non-fitted controls."));
+                    }
+                }
+                for (row, node, value) in updates {
+                    bases[row] = value.clone();
+                    result.bases.insert(node, value);
+                }
+                result.proof.chains.push(proof);
+            }
+            Err(error) if chain.optional => result
+                .proof
+                .skipped
+                .push(format!("{}: {error}", chain.bones.first().map_or("", String::as_str))),
+            Err(error) => return Err(error),
+        }
     }
     *field_mut(&mut result.fe, "m_NodeBases")? = Value::new(Kind::Array(bases));
     Ok(result)

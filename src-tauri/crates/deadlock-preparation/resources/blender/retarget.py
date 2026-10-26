@@ -21,6 +21,57 @@ FINGER = re.compile(r'^finger_(thumb|index|middle|ring|pinky)_(\d+)_([LR])$')
 # A finger turned further than this is mapped to the wrong hero finger.
 FINGER_MAX_DEGREES = 100.
 FIT_MODES = {'match_target', 'preserve_proportions'}
+FLOOR_POLICY = 'feet-on-floor-v1'
+# Model fitting -> Feet on the floor. 'ankles' (the default) keeps the fit's
+# ankle alignment; the others correct it so the soles stand on the floor.
+FLOOR_MODES = ('ankles', 'legs', 'lift')
+# Below this many inches between the soles and the floor nothing is corrected.
+FLOOR_TOLERANCE = 0.05
+
+
+def floor_corrections(mode, sole, hip, floor=0.):
+    """The correction that stands the fitted soles (`sole`, the height of the
+    lowest foot points) on the hero's floor (the heroes' own soles are at height
+    0 in their bind pose: Haze -0.27 in, Vindicta 0.30, Lash -0.09). The fit
+    lines up the ankles, so a character whose feet are taller than the hero's
+    (heels, platform soles) sinks in and one with shorter feet floats.
+
+    Returns (every_bone, leg_bones, scale): 4x4 matrices applied on the left of
+    each bone's rest map (leg bones include the feet) and the vertical scale
+    used (1 for none or a lift).
+      'ankles': nothing (the fit as before).
+      'legs':   everything below the hips scales vertically about `hip`, so the
+                hips, body and arms stay on the hero's joints; the legs get
+                shorter (or longer), so the mesh's knees and ankles move off
+                the hero's joints (up for shorter legs; arcaneVin: the ankle
+                4.5 in above the hero's) and the feet turn about a point
+                inside the heel.
+      'lift':   the whole character moves up (or down); the body and arms leave
+                the hero's joints by that much.
+    (Scaling only the feet about the ankles was tried and dropped after testing
+    on October 25, 2026.) A scale outside 0.2–3 (a hip at the floor) corrects
+    nothing."""
+    none = np.eye(4)
+    delta = floor - sole
+    if mode == 'ankles' or not np.isfinite(delta) or abs(delta) < FLOOR_TOLERANCE:
+        return none, none, 1.
+    if mode == 'lift':
+        lift = np.eye(4)
+        lift[2, 3] = delta
+        return lift, none, 1.
+    if mode == 'legs':
+        if not np.isfinite(hip) or hip - sole <= 1e-3:
+            return none, none, 1.
+        scale = (hip - floor) / (hip - sole)
+        if not 0.2 <= scale <= 3.:
+            return none, none, 1.
+        m = np.eye(4)
+        m[2, 2] = scale
+        m[2, 3] = hip * (1. - scale)
+        return none, m, scale
+    raise ValueError('Choose a supported Feet on the floor option.')
+
+
 NEXT = {'pelvis': 'spine', 'spine': 'chest', 'chest': 'neck', 'neck': 'head',
         **{a+'_'+s: b+'_'+s for s in ('L', 'R') for a, b in
            (('upperarm', 'forearm'), ('forearm', 'hand'), ('thigh', 'shin'), ('shin', 'foot'))}}

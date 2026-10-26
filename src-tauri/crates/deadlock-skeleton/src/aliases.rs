@@ -300,10 +300,26 @@ pub fn repair_aliases(
     repair_aliases_with_source(original, compiled, allow_extensions, None)
 }
 
+/// Two bones that the compiler would write with the same name (`compiler_spelling`),
+/// as (first, second) in the given order: the compiled model would have one name
+/// for both (arcaneVin's skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0).
+pub fn compiled_name_collision<'a>(names: impl IntoIterator<Item = &'a String>) -> Option<(String, String)> {
+    let mut seen = BTreeMap::<String, &String>::new();
+    for name in names {
+        if let Some(first) = seen.insert(compiler_spelling(name), name) {
+            return Some((first.clone(), name.clone()));
+        }
+    }
+    None
+}
+/// The error for a `compiled_name_collision`.
+pub fn compiled_name_error(first: &str, second: &str) -> String {
+    format!("Bones {first} and {second} would get the same name in the compiled model ({}): the model compiler writes every character other than A–Z, 0–9 and _ as _. Prepare the model again (Model preparation → Convert, then Use prepared model) so the app gives them distinct names, or rename one of them in Blender.", compiler_spelling(second))
+}
 /// Valve's compiler replaces each unsupported UTF-8 byte with an underscore.
 /// This spelling alone never grants authority: the complete source palette must
 /// be collision-free, and canonical parents/locals/scales are checked below.
-fn compiler_spelling(name: &str) -> String {
+pub fn compiler_spelling(name: &str) -> String {
     name.bytes()
         .map(|b| {
             if b.is_ascii_alphanumeric() || b == b'_' {

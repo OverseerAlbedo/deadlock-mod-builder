@@ -60,6 +60,70 @@ pub struct Part {
     pub shape_radii_inches: [f64; 3],
     pub roll_locked: bool,
     pub review_recommended: bool,
+    /// Long hanging strips inside a cloth part, moving like streamers (`strips`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub strips: Vec<Strip>,
+}
+/// A long hanging strip inside a cloth part: the weighted joints from the part's
+/// root to a tip, root first. `branch` is where it leaves the joints it shares
+/// with other strips (0 when the part does not fork before it).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Strip {
+    pub path: Vec<String>,
+    pub branch: usize,
+}
+/// Torso lengths (head to pelvis) a strip reaches at least: arcaneVin's shoulder
+/// capes R_capeC/D (0.67) count, skirt panels of 10–12 in (0.4) do not.
+const STRIP_REACH: f64 = 0.6;
+/// Long hanging strips inside a cloth part (arcaneVin's cloak panels L/R_capeB and
+/// ribbonC, its shoulder capes R_capeC/D, the capes hanging from its breast
+/// bones), which move like streamers, as SiViolet's floor-length sleeves do: each
+/// path of weighted joints from the part's root to a tip whose stretch below its
+/// last fork has at least three weighted joints, that reaches STRIP_REACH torso
+/// lengths, and whose own mesh (below the fork) is at least twice as long as
+/// wide and flat (thickness at most 0.4 of its width).
+/// The root must be weighted: streamer tethers hang from the fixed point next to it.
+fn strips(sk: &Skeleton, group: &Group, position: &dyn Fn(&str) -> [f64; 3], shape: &dyn Fn(&[String]) -> [f64; 3], torso: f64) -> Vec<Strip> {
+    let lookup = sk.indices();
+    let used = group.weighted_bones.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    if !used.contains(group.root.as_str()) || torso <= 1e-4 {
+        return vec![];
+    }
+    let mut children = BTreeMap::<&str, Vec<&str>>::new();
+    for name in group.bones.iter().map(String::as_str).filter(|n| used.contains(n) && *n != group.root) {
+        let mut at = sk.parents[lookup[name]];
+        while at >= 0 && !used.contains(sk.names[at as usize].as_str()) {
+            at = sk.parents[at as usize];
+        }
+        if at < 0 {
+            return vec![];
+        }
+        children.entry(sk.names[at as usize].as_str()).or_default().push(name);
+    }
+    let mut found = vec![];
+    let mut pending = vec![vec![group.root.as_str()]];
+    while let Some(path) = pending.pop() {
+        let last = *path.last().unwrap();
+        match children.get(last) {
+            Some(next) => pending.extend(next.iter().rev().map(|&c| [path.clone(), vec![c]].concat())),
+            None => {
+                let branch = (0..path.len() - 1).rev().find(|&i| children.get(path[i]).is_some_and(|c| c.len() > 1)).map_or(0, |i| i + 1);
+                let reach: f64 = path.windows(2).map(|w| norm(sub(position(w[1]), position(w[0])))).sum();
+                // Its own mesh, alone or with the joint it hangs from: arcaneVin's
+                // left cloak panel is a strip only with its fork joint (ribbonC
+                // leaves there), the strap below its box only without it.
+                let strip_like = |bones: &[&str]| {
+                    let r = shape(&bones.iter().map(|n| n.to_string()).collect::<Vec<_>>());
+                    r[1] > 1e-5 && r[0] / r[1] >= 2. && r[2] / r[1] <= 0.4
+                };
+                let strip_like = strip_like(&path[branch..]) || (branch > 0 && strip_like(&path[branch - 1..]));
+                if path.len() - branch >= 3 && reach >= STRIP_REACH * torso && strip_like {
+                    found.push(Strip { path: path.iter().map(|n| n.to_string()).collect(), branch });
+                }
+            }
+        }
+    }
+    found
 }
 /// Ordered weighted joints, allowing unweighted intermediate helpers but never
 /// a second weighted branch or a disconnected selection.
@@ -82,6 +146,48 @@ pub fn chain(sk: &Skeleton, group: &Group) -> Vec<String> {
             order.clear();
             break;
         }
+    }
+    order
+}
+/// Weighted joints a small piece hanging off a strand may have (a braid's tie
+/// or ornament) for `trunk` to still find one strand.
+const SIDE_PIECE_BONES: usize = 2;
+/// A strand's main chain when small pieces hang off it: arcaneVin's braid
+/// `plait__jnt1` carries `L/R_plaitA` and `L/R_plaitB` (one weighted bone each)
+/// along its 29 bones. At each fork the chain continues into the branch with
+/// the most weighted joints; every other branch must be a piece of at most
+/// SIDE_PIECE_BONES and smaller than the continuation. Empty when the group is
+/// not one strand (a cape with long panels). Only for hair and tails: their
+/// side pieces still get their own simulated points, a streamer's would not.
+fn trunk(sk: &Skeleton, group: &Group) -> Vec<String> {
+    let lookup = sk.indices();
+    let used = group.weighted_bones.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let mut children = BTreeMap::<&str, Vec<&str>>::new();
+    let mut tops = vec![];
+    for name in group.bones.iter().map(String::as_str).filter(|n| used.contains(n)) {
+        let mut at = sk.parents[lookup[name]];
+        while at >= 0 && !used.contains(sk.names[at as usize].as_str()) {
+            at = sk.parents[at as usize];
+        }
+        if at >= 0 {
+            children.entry(sk.names[at as usize].as_str()).or_default().push(name);
+        } else {
+            tops.push(name);
+        }
+    }
+    fn size(at: &str, children: &BTreeMap<&str, Vec<&str>>) -> usize {
+        1 + children.get(at).into_iter().flatten().map(|c| size(c, children)).sum::<usize>()
+    }
+    let [mut at] = tops[..] else { return vec![] };
+    let mut order = vec![at.to_string()];
+    while let Some(next) = children.get(at) {
+        let mut ranked = next.iter().map(|&c| (c, size(c, &children))).collect::<Vec<_>>();
+        ranked.sort_by(|a, b| b.1.cmp(&a.1));
+        if ranked.len() > 1 && (ranked[1].1 > SIDE_PIECE_BONES || ranked[1].1 >= ranked[0].1) {
+            return vec![];
+        }
+        at = ranked[0].0;
+        order.push(at.to_string());
     }
     order
 }
@@ -148,7 +254,7 @@ fn semantic(name: &str) -> Option<Kind> {
         Some(Kind::Charm)
     }
     // Hair takes precedence over 'tail' (ponytail) and flat mesh evidence.
-    else if has(&["hair", "ponytail", "braid", "bang", "髪", "发", "髮"]) {
+    else if has(&["hair", "ponytail", "braid", "plait", "bang", "髪", "发", "髮", "辫", "辮", "三つ編"]) {
         Some(Kind::Hair)
     } else if has(&["tail", "尻尾", "しっぽ", "尾"]) {
         Some(Kind::Tail)
@@ -252,6 +358,29 @@ fn group_semantic(group: &Group) -> (Option<Kind>, bool) {
     }
     (None, false)
 }
+/// How far (torso lengths, head to pelvis) the weighted bones of a breast- or
+/// butt-named group may reach from its root and still be a breast or butt.
+/// Small pieces on a breast (YvvoneHaze's, about 0.2) swing as its charms;
+/// a cape or garment hanging from it reaches much farther (arcaneVin's MMD
+/// 胸上2.R carries a cape to the knees, about 2; TangTang's clothes about 1.3).
+const BODY_PART_REACH: f64 = 0.5;
+/// The part type of what hangs from a breast or butt bone that carries a
+/// longer part: the type its other bones are named for when they agree, Cloth
+/// when they name several (a cape and ribbons), none when they are unnamed
+/// (the mesh decides then).
+fn hanging_hint(group: &Group) -> Option<Kind> {
+    let mut kinds: Vec<Kind> = vec![];
+    for kind in group.bones.iter().skip(1).filter_map(|n| semantic(n)) {
+        if !matches!(kind, Kind::Breast | Kind::Butt) && !kinds.contains(&kind) {
+            kinds.push(kind);
+        }
+    }
+    match kinds.as_slice() {
+        [] => None,
+        [kind] => Some(*kind),
+        _ => Some(Kind::Cloth),
+    }
+}
 /// Why a part got its type, for the mirror rule below.
 #[derive(Debug, Clone)]
 struct Basis {
@@ -315,6 +444,7 @@ fn harmonize_mirrors(mut decided: Vec<(Part, Basis)>) -> Vec<Part> {
         let twin = b.root.clone();
         let part = &mut decided[i].0;
         part.kind = Kind::Streamer;
+        part.strips.clear();
         part.roll_locked = true;
         part.review_recommended = false;
         part.reason = format!("Same type as its mirror twin {twin}: a thin, elongated chain whose mesh also touches a moving group the other side does not have");
@@ -334,6 +464,7 @@ pub fn analyze(
     let position = |n: &str| std::array::from_fn(|r| state.world[lookup[n]][r][3]);
     let meshes = surface::mesh_data(d)?;
     let mut points = vec![vec![]; groups.len()];
+    let mut bone_points = BTreeMap::<String, Vec<[f64; 3]>>::new();
     let mut shared = BTreeMap::<(usize, usize), usize>::new();
     let owner = groups
         .iter()
@@ -368,6 +499,10 @@ pub fn analyze(
                     dominant[i] = Some(g);
                 }
             }
+            // The bone with the most weight on the vertex, for each strip's own shape.
+            if let Some((&j, _)) = js.iter().zip(ws).filter(|&(&j, _)| palette.get(j).is_some_and(|g| g.is_some())).max_by(|a, b| a.1.total_cmp(b.1)) {
+                bone_points.entry(d.elements[bind.palette[j]].name.clone()).or_default().push(p);
+            }
         }
         for face in surface::triangles(d, mesh, cancel, None)? {
             let owners = face
@@ -392,11 +527,21 @@ pub fn analyze(
         ));
     }
     let sizes:Vec<(usize,f64)>=groups.iter().map(|g|{let chain=chain(sk,g);(chain.len(),chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>())}).collect();
+    let torso=if lookup.contains_key("head")&&lookup.contains_key("pelvis"){norm(sub(position("head"),position("pelvis")))}else{0.};
     let decided=groups.iter().enumerate().map(|(i,g)|{
-        let chain=chain(sk,g);let length=chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>();
         let shape=radii(&points[i]);let slender=shape[1]>1e-5 && shape[0]/shape[1]>=3.;let flat=shape[1]>1e-5&&shape[2]/shape[1]<=0.35;
         let joined_panel=shared.iter().any(|(&(a,b),&n)|n>=3&&(a==i||b==i));
         let (hint, descendant_hint)=group_semantic(g);let explicit=overrides.get(&g.source_root).map(|s|Kind::parse(s)).transpose()?;
+        // A breast or butt bone that carries a longer part (a cape, a garment)
+        // moves as that part: the whole group is one simulation.
+        let reach=g.weighted_bones.iter().map(|n|norm(sub(position(n),position(&g.root)))).fold(0.,f64::max);
+        let carried=matches!(hint,Some(Kind::Breast|Kind::Butt))&&torso>1e-4&&reach>BODY_PART_REACH*torso;
+        let carrier=if hint==Some(Kind::Butt){"butt"}else{"breast"};
+        let (hint,descendant_hint)=if carried{(hanging_hint(g),false)}else{(hint,descendant_hint)};
+        // Hair and tails with small pieces hanging off them (a braid's ties) are still one strand.
+        let strand_hint=explicit.map_or(matches!(hint,Some(Kind::Hair|Kind::Tail))||(hint.is_none()&&g.anchor.eq_ignore_ascii_case("head")),|k|matches!(k,Kind::Hair|Kind::Tail));
+        let chain=match chain(sk,g) {strict if strict.is_empty()&&strand_hint=>trunk(sk,g),strict=>strict};
+        let length=chain.windows(2).map(|w|norm(sub(position(&w[1]),position(&w[0])))).sum::<f64>();
         let supported=chain.len()>=2&&length>1e-4;
         // A chain that ends where it starts is a band or ring, never a strand.
         let looped=chain.len()>=4&&length>1e-4&&norm(sub(position(&chain[chain.len()-1]),position(&chain[0])))<0.3*length;
@@ -428,6 +573,9 @@ pub fn analyze(
         // Hair buns stay still (SiViolet: the right bun flung around).
         let (kind,mut reason,mut review)=if explicit.is_none()&&kind==Kind::Hair&&hair_bun(&g.source_root,g.weighted_bones.len(),shape)
             {(Kind::Rigid,"Hair bun (one round piece of hair, or a bun name); stays still".into(),false)} else {(kind,reason,review)};
+        if carried&&explicit.is_none(){
+            reason=format!("A longer part hangs from this {carrier} bone (reaching {reach:.0} in); it moves with that part, not as a {carrier}");
+        }
         if kind==Kind::Streamer&&!supported{return Err(invalid(format!("{} cannot use streamer motion: it needs one chain of at least two weighted bones. Choose Cloth for a branching part.",g.source_root)));}
         let strand=matches!(kind,Kind::Hair|Kind::Tail);
         if strand&&!supported {
@@ -435,7 +583,15 @@ pub fn analyze(
             reason.push_str(if kind==Kind::Hair {"; shared hair movement and twist protection need one non-collapsed chain of at least two weighted bones"} else {"; twist protection needs one non-collapsed chain of at least two weighted bones"});
         }
         let basis=Basis{explicit:explicit.is_some(),by_join:reason==JOINED_PANEL,own_streamer:supported&&slender&&flat,bones:chain.len(),length};
-        Ok((Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review},basis))
+        // Panels whose mesh joins their neighbors stay one sheet (paimonRem's PF_0_*).
+        let strips=if explicit.is_none()&&kind==Kind::Cloth&&reason!=JOINED_PANEL {
+            let shape=|bones:&[String]|radii(&bones.iter().flat_map(|b|bone_points.get(b).into_iter().flatten().copied()).collect::<Vec<_>>());
+            strips(sk,g,&position,&shape,torso)
+        } else {vec![]};
+        if !strips.is_empty() {
+            reason.push_str(&format!("; {} long hanging strip{} move{} like streamers",strips.len(),if strips.len()==1 {""} else {"s"},if strips.len()==1 {"s"} else {""}));
+        }
+        Ok((Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review,strips},basis))
     }).collect::<Result<Vec<_>>>()?;
     Ok(harmonize_mirrors(decided))
 }
@@ -444,10 +600,76 @@ pub fn analyze(
 mod tests {
     use super::*;
     fn part(root: &str, kind: Kind) -> Part {
-        Part { root: root.into(), kind, reason: String::new(), weighted_chain: vec![], chain_length_inches: 56.2, shape_radii_inches: [0.; 3], roll_locked: kind == Kind::Streamer, review_recommended: false }
+        Part { root: root.into(), kind, reason: String::new(), weighted_chain: vec![], chain_length_inches: 56.2, shape_radii_inches: [0.; 3], roll_locked: kind == Kind::Streamer, review_recommended: false, strips: vec![] }
     }
     fn basis(explicit: bool, by_join: bool, own_streamer: bool, bones: usize, length: f64) -> Basis {
         Basis { explicit, by_join, own_streamer, bones, length }
+    }
+    fn group(bones: &[&str]) -> Group {
+        let names: Vec<String> = bones.iter().map(|n| format!("dmb_secondary_{n}")).collect();
+        Group { source_root: bones[0].into(), root: names[0].clone(), anchor: "spine_3".into(), weighted_bones: names.clone(), bones: names }
+    }
+    /// A skeleton of (name, parent) rows and the group of every bone but the first.
+    fn rig(rows: &[(&str, i32)], weighted: &[&str]) -> (Skeleton, Group) {
+        let n = rows.len();
+        let sk = Skeleton { names: rows.iter().map(|r| r.0.into()).collect(), parents: rows.iter().map(|r| r.1).collect(),
+            positions: vec![[0.; 3]; n], rotations: vec![[0., 0., 0., 1.]; n], scales: vec![1.; n], flags: vec![0; n] };
+        let bones: Vec<String> = rows[1..].iter().map(|r| r.0.into()).collect();
+        (sk, Group { source_root: bones[0].clone(), root: bones[0].clone(), anchor: rows[0].0.into(), bones, weighted_bones: weighted.iter().map(|w| w.to_string()).collect() })
+    }
+    #[test]
+    fn a_strand_with_small_side_pieces_keeps_its_main_chain() {
+        // arcaneVin's braid: ties hang off joints 2 and 4; joint 3 is an unweighted helper.
+        let (sk, braid) = rig(&[("head", -1), ("plait1", 0), ("plait2", 1), ("tie_L", 2), ("tie_R", 2), ("plait3", 2), ("plait4", 5), ("bead", 6), ("plait5", 6), ("plait6", 8)],
+            &["plait1", "plait2", "tie_L", "tie_R", "plait4", "bead", "plait5", "plait6"]);
+        assert!(chain(&sk, &braid).is_empty());
+        assert_eq!(trunk(&sk, &braid), ["plait1", "plait2", "plait4", "plait5", "plait6"]);
+        // A cape splitting into two long panels is not one strand.
+        let (sk, cape) = rig(&[("spine", -1), ("cape1", 0), ("left1", 1), ("left2", 2), ("left3", 3), ("right1", 1), ("right2", 5), ("right3", 6)],
+            &["cape1", "left1", "left2", "left3", "right1", "right2", "right3"]);
+        assert!(trunk(&sk, &cape).is_empty());
+        // Nor is a tip that splits in two equal ends.
+        let (sk, fork) = rig(&[("head", -1), ("a", 0), ("b", 1), ("c", 1)], &["a", "b", "c"]);
+        assert!(trunk(&sk, &fork).is_empty());
+        assert!(semantic("plait__jnt1") == Some(Kind::Hair) && semantic("三つ編み_L") == Some(Kind::Hair) && semantic("辫子_01") == Some(Kind::Hair));
+    }
+    #[test]
+    fn long_panels_inside_a_cloth_part_are_strips() {
+        // arcaneVin's back cloak: a short center strip, a small flap, two long
+        // panels to the knees, and a short tab that is not a strip.
+        let rows = [("spine", -1), ("cape1", 0), ("flap", 1), ("cape2", 1), ("left1", 3), ("left2", 4), ("left3", 5), ("right1", 3), ("right2", 7), ("right3", 8), ("tab1", 1), ("tab2", 10), ("tab3", 11)];
+        let weighted: Vec<&str> = rows[1..].iter().map(|r| r.0).collect();
+        let (sk, cape) = rig(&rows, &weighted);
+        let at = |n: &str| -> [f64; 3] {
+            match n {
+                "spine" | "cape1" => [0., 0., 70.], "flap" => [0., 3., 66.], "cape2" => [0., 0., 64.],
+                "left1" => [-1., 4., 54.], "left2" => [-2., 5., 44.], "left3" => [-3., 6., 34.],
+                "right1" => [-1., -4., 54.], "right2" => [-2., -5., 44.], "right3" => [-3., -6., 34.],
+                "tab1" => [0., 0., 68.], "tab2" => [0., 0., 66.], _ => [0., 0., 64.],
+            }
+        };
+        let strip_shape = |_: &[String]| [10., 4., 1.];
+        let strips_found = strips(&sk, &cape, &at, &strip_shape, 27.);
+        let tips: Vec<&str> = strips_found.iter().map(|s| s.path.last().unwrap().as_str()).collect();
+        assert_eq!(tips, ["left3", "right3"]);
+        assert_eq!(strips_found[0].path, ["cape1", "cape2", "left1", "left2", "left3"]);
+        assert_eq!(strips_found[0].branch, 2);
+        // A tube or a block is not a strip, and an unweighted root has none.
+        assert!(strips(&sk, &cape, &at, &|_: &[String]| [10., 6., 5.], 27.).is_empty());
+        let (sk, loose) = rig(&rows, &weighted[1..]);
+        assert!(strips(&sk, &loose, &at, &strip_shape, 27.).is_empty());
+    }
+    #[test]
+    fn a_breast_bone_carrying_a_longer_part_takes_that_part_s_type() {
+        // arcaneVin (MMD): a cape hangs from each 胸上2; the left one also
+        // carries ribbons, a phone and a clip.
+        assert_eq!(hanging_hint(&group(&["胸上2.R", "R_capeA__jnt1", "R_capeA__jnt5", "胸先.R"])), Some(Kind::Cloth));
+        assert_eq!(hanging_hint(&group(&["胸上2.L", "L_capeA__jnt1", "ribbonE_01_jnt", "phone_jnt", "clipA_jnt", "ribbonJ_01_jnt", "胸先.L"])), Some(Kind::Cloth));
+        // TangTang: front clothes flaps with spikes at their ends.
+        assert_eq!(hanging_hint(&group(&["胸上2.L", "clothes_base_L_a_01_jnt", "spike_base_L_a_01_jnt"])), Some(Kind::Cloth));
+        assert_eq!(hanging_hint(&group(&["胸上2.L", "ribbon_L_01", "ribbon_L_02"])), Some(Kind::Streamer));
+        // Unnamed pieces leave it to the mesh; the breast's own tip never counts.
+        assert_eq!(hanging_hint(&group(&["胸上2.L", "Bone_012", "胸先.L"])), None);
     }
     #[test]
     fn hair_buns_are_round_one_bone_pieces_or_bun_names() {

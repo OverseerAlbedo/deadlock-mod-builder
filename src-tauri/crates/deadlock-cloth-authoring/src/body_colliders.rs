@@ -1,4 +1,5 @@
-//! Leg colliders for automatic motion: one capsule along each thigh and shin of
+//! Body colliders for automatic motion (legs, arms, neck, hips and head; the
+//! arms since October 24, 2026). Leg colliders: one capsule along each thigh and shin of
 //! the hero skeleton, so long skirts, tails and coat tails stop at the legs
 //! instead of passing through the body (SiViolet's skirt when walking
 //! backwards). Valve's heroes protect their own cloth the same way
@@ -39,6 +40,18 @@ pub const LEGS: [(&str, &str, f64); 4] = [
     ("leg_lower_L", "ankle_L", 0.0),
     ("leg_upper_R", "leg_lower_R", 0.2),
     ("leg_lower_R", "ankle_R", 0.0),
+];
+/// Upper arm and forearm of each arm, measured like the legs, so cloth hanging
+/// from the shoulder stops at the arm instead of passing through it
+/// (arcaneVin's R_capeC/D once they moved like streamers). Valve's Vindicta,
+/// Violet, Haze, Lash, Werewolf and Wraith protect their own cloth with arm
+/// capsules too. The upper arm starts a little below the shoulder joint,
+/// where straps and capes are attached.
+pub const ARMS: [(&str, &str, f64); 4] = [
+    ("arm_upper_L", "arm_lower_L", 0.2),
+    ("arm_lower_L", "hand_L", 0.0),
+    ("arm_upper_R", "arm_lower_R", 0.2),
+    ("arm_lower_R", "hand_R", 0.0),
 ];
 /// The neck: (bone, tip bone, start), measured like the legs, so long hair
 /// stops at the neck when the hero turns.
@@ -92,7 +105,7 @@ pub fn leg_colliders(d: &Dmx, clear: &Clearance, cancel: &CancellationToken) -> 
     let palette: Vec<Option<usize>> = bind.palette.iter().map(|&e| lookup.get(d.elements[e].name.as_str()).copied()).collect();
     let meshes = surface::mesh_data(d)?;
     let mut out = vec![];
-    for (bone, tip, start) in LEGS.into_iter().chain([NECK]) {
+    for (bone, tip, start) in LEGS.into_iter().chain([NECK]).chain(ARMS) {
         let (Some(&index), Some(&tip_index)) = (lookup.get(bone), lookup.get(tip)) else { continue };
         let joint = |i: usize| -> V { std::array::from_fn(|row| state.world[i][row][3]) };
         let (top, bottom) = (joint(index), joint(tip_index));

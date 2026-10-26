@@ -1,4 +1,5 @@
 """Preserve reviewed physics-bound branches as ordinary bones, without simulation."""
+import hashlib
 import math
 import re
 import numpy as np
@@ -8,6 +9,30 @@ POLICY = 'preserve-source-physics-bones-v1'
 BINDING_POLICY = 'verified-rigid-body-bone-binding-v1'
 PREFIX = 'dmb_secondary_'
 MAX_BONES = 512
+
+
+def compiler_spelling(name):
+    """The name as the model compiler writes it: every UTF-8 byte other than
+    ASCII letters, digits and _ becomes _ (deadlock_skeleton aliases.rs)."""
+    return ''.join(chr(b) if chr(b).isascii() and (chr(b).isalnum() or b == 95) else '_' for b in name.encode('utf-8'))
+
+
+def distinct_name(name):
+    """A kept bone whose plain name the compiler would merge with another's keeps
+    its name and gets the first six hex digits of its name's SHA-256 (UTF-8)."""
+    return PREFIX + name + '_' + hashlib.sha256(name.encode('utf-8')).hexdigest()[:6]
+
+
+def exported_names(names):
+    """The prepared names of kept moving-part bones: PREFIX and the source name,
+    or distinct_name when the compiler would write two of them the same way
+    (arcaneVin's skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0). Keep in sync with
+    secondary_bones.rs exported_names."""
+    counts = {}
+    for name in names:
+        spelled = compiler_spelling(PREFIX + name)
+        counts[spelled] = counts.get(spelled, 0) + 1
+    return {n: distinct_name(n) if counts[compiler_spelling(PREFIX + n)] > 1 else PREFIX + n for n in names}
 
 
 # Keep in sync with secondary_bones.rs (HINTS) and src/preparation/secondary-bones.ts.
@@ -482,10 +507,18 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
     target_names = {b['name'] for b in target}
     if any(g['target_anchor'] not in target_names for g in groups):
         raise ValueError('Choose a valid target attachment for source physics bones.')
-    exported = {n: PREFIX + n for n in names}
+    exported = exported_names(names)
     for name, output in exported.items():
         if output in target_names or len(output.encode('utf-8')) > 63 or any(ord(c) < 32 or 127 <= ord(c) <= 159 for c in output):
             raise ValueError('A preserved physics bone has a conflicting or unsupported name: ' + name)
+    seen = {}
+    for output in [b['name'] for b in target] + [exported[n] for n in sorted(exported)]:
+        first = seen.setdefault(compiler_spelling(output), output)
+        if first != output:
+            raise ValueError('Bones ' + first + ' and ' + output + ' would get the same name in the compiled model ('
+                             + compiler_spelling(output) + '): the model compiler writes every character other than '
+                             'A–Z, 0–9 and _ as _. Prepare the model again (Model preparation → Convert, then Use '
+                             'prepared model) so the app gives them distinct names, or rename one of them in Blender.')
     return {'policy': POLICY, 'groups': groups, 'exported_bones': exported,
             'new_physics': False, 'in_game_motion_tested': False}
 

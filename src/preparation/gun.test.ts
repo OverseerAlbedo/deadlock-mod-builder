@@ -21,8 +21,13 @@ describe('Gun helpers',()=>{
     expect(gunName(gun({objects:['Pistol','Mag']}))).toBe('Pistol and 1 more part (in your character file)');
   });
   it('turns, resizes and moves within range, per hand',()=>{
-    const start={flip:false,roll:0,scale:1,offset:[0,0,0] as [number,number,number]};
+    const start={flip:false,roll:0,pitch:0,yaw:0,scale:1,offset:[0,0,0] as [number,number,number]};
     expect(nudge({...start,roll:180},{kind:'turn',degrees:90}).roll).toBe(-90);
+    // Pitch (muzzle up) and yaw (muzzle right) turn like roll and reset with it.
+    expect(nudge(start,{kind:'tilt',degrees:5}).pitch).toBe(5);
+    expect(nudge({...start,yaw:-178},{kind:'aim',degrees:-5}).yaw).toBe(177);
+    expect(nudge({...start,pitch:10,yaw:-5},{kind:'reset'})).toEqual(start);
+    expect(adjusted({objects:['R'],pitch:5})).toBe(true);
     expect(nudge({...start,scale:9.5},{kind:'size',factor:1.1}).scale).toBe(10);
     expect(nudge(start,{kind:'move',axis:2,inches:-.25}).offset).toEqual([0,0,-.25]);
     expect(nudge({...start,flip:true,roll:45},{kind:'reset'})).toEqual(start);

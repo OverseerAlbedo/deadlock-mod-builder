@@ -340,3 +340,19 @@ fn a_real_layout_keeps_breasts_on_the_chest_and_butts_on_the_hips() {
     assert_eq!(secondary::breast_bones(&source, &weighted, &roles), vec!["B2_L".to_string(), "B2_R".to_string()]);
     assert_eq!(secondary::butt_bones(&source, &weighted, &roles), ["U1_L", "U1_R", "U2_L", "U2_R"].map(String::from).to_vec());
 }
+/// arcaneVin's skirt panels 侧裙/前裙/后裙 (two Chinese characters each) would
+/// compile to one name; they keep their names with a suffix, every other name is
+/// unchanged. The same names are checked in scripts/test_blender_moving_parts.py.
+#[test]
+fn kept_bones_the_compiler_would_merge_get_distinct_names() {
+    let names: Vec<String> = ["侧裙_0_0", "前裙_0_0", "后裙_0_0", "胸上2.L", "胸上2.R", "hair_01", "a.b", "a_b"].iter().map(|n| n.to_string()).collect();
+    let out = secondary::exported_names(&names);
+    let expected = [("侧裙_0_0", "dmb_secondary_侧裙_0_0_5e8d83"), ("前裙_0_0", "dmb_secondary_前裙_0_0_38467a"), ("后裙_0_0", "dmb_secondary_后裙_0_0_c7b6ee"),
+        ("胸上2.L", "dmb_secondary_胸上2.L"), ("胸上2.R", "dmb_secondary_胸上2.R"), ("hair_01", "dmb_secondary_hair_01"),
+        ("a.b", "dmb_secondary_a.b_2e7336"), ("a_b", "dmb_secondary_a_b_648fa9")];
+    for (name, output) in expected { assert_eq!(out[name], output, "{name}"); }
+    assert!(deadlock_skeleton::aliases::compiled_name_collision(out.values()).is_none());
+    let merged = ["dmb_secondary_侧裙_0_0".to_string(), "dmb_secondary_前裙_0_0".to_string()];
+    let (first, second) = deadlock_skeleton::aliases::compiled_name_collision(&merged).unwrap();
+    assert!(deadlock_skeleton::aliases::compiled_name_error(&first, &second).contains("Prepare the model again"));
+}

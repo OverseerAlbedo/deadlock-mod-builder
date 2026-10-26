@@ -40,6 +40,17 @@ describe('Mesh mapping', () => {
     expect(current().ghost).toBe('Body');
   });
 
+  it('offers the fix for an unused mesh while a suggestion is still pending (issue #6)', () => {
+    // Custom detail levels: two lower-detail rows have no choice yet, so a suggestion is
+    // pending; Face (the moving parts' mesh) is used by no render node.
+    const partial = { ghost: 'Body', ghost_armglow: '@disable', gun: '@disable', gun_lod1: '@disable' };
+    render(<Harness start={partial} strategy="custom" />);
+    expect(screen.getByRole('button', { name: 'Apply suggested mapping' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Add it to ghost and its lower-detail levels' }));
+    // The rows without a choice follow the main node.
+    expect(current()).toMatchObject({ ghost: ['Body', 'Face'], ghost_lod1: ['Body', 'Face'], ghost_lod2: ['Body', 'Face'] });
+  });
+
   it('labels analysis suggestions and makes a changed suggestion explicit', () => {
     const suggested = { ...report, project_mappings: { ghost: ['Body', 'Face'], ghost_armglow: '@disable' } } as unknown as InspectionReport;
     function Suggested() { const [meshes, setMeshes] = useState<Record<string, string | string[]>>({}); return <><MeshMapping report={suggested} meshes={meshes} busy={false} update={setMeshes} /><output data-testid="meshes">{JSON.stringify(meshes)}</output></>; }

@@ -91,6 +91,44 @@ proportions*), vertices are moved into the hero's rest pose, weights are mapped
 to hero bones, and the result is exported with `deadlock-skeleton`'s exact-bind
 DMX exporter, which validates binds and skinning before the hand-off.
 
+**Feet on the floor** (Fit & review, `fit_floor`; `retarget.py
+floor_corrections`, `worker.py floor_fit`). Both fits line up the character's
+ankles with the hero's, and the heroes' own soles stand at height 0 in their
+bind pose (Haze −0.27 in, Vindicta 0.30, Lash −0.09). Feet taller than the
+hero's (heels, thick soles) therefore reach below the floor: 1.3–5.6 in on most
+test projects. After the fit, `floor_fit` measures the soles (the 1st
+percentile height of the vertices weighted at least half to the feet, under the
+fitted rest maps) and applies the chosen correction to every rest map and to
+the anchors kept moving-part bones hang from, so they stay with their mesh
+(on a scaled leg or foot they stay rigid and follow their attachment point,
+`rigid_attachment_map`, so their bones stay orthonormal):
+
+- `ankles` (the default, and every project saved before): nothing changes; the
+  receipt notes how far the feet reach below or above the floor (from 0.5 in).
+- `legs`: everything below the hips scales vertically about the hips, so the
+  hips, body and arms stay on the hero's joints, but the mesh's knees and
+  ankles move off the hero's (arcaneVin: legs at 90%, the mesh ankle 4.5 in
+  above the hero's ankle joint, so the foot turns about a point inside the
+  heel). In game this was hardly noticeable.
+- `lift`: the whole character moves up or down; nothing is stretched, but the
+  body, arms and hands leave the hero's joints (and the gun) by that much
+  (arcaneVin: 5.4 in up, soles at −0.07 in).
+
+A fourth choice, scaling only the feet about the ankles, was tried and dropped
+after testing on October 25, 2026. Within 0.05 in nothing is corrected, and a
+scale outside 0.2–3 (hips at the floor) leaves the fit alone with a note. The
+converted-model view (Model preparation → 3D view → Result) draws its grid at
+the game's floor (height 0), not at the model's lowest point: a gun hanging
+below the feet made a lifted character look like it floated.
+`rest_alignment.floor` in the receipt (`feet-on-floor-v1`) records the sole,
+hip and ankle heights, the scale and the lift. Corrections (re-exported
+prepared models) keep their bind and skip this step. The choices are Rust
+`fitting::FLOOR_MODES` and must equal `retarget.py FLOOR_MODES`
+(`tests/following.rs feet_on_the_floor_choices_match_the_retarget`); changing
+the choice needs a new conversion (`fitting::check_unchanged`).
+`scripts/test_blender_feet_on_floor.py` prepares a procedural body with each
+choice (floating and sinking feet).
+
 Mesh data crosses the Blender boundary through `mesh_export.py` (bulk
 `foreach_get`/`foreach_set` readers, one cached pass over the vertex groups per
 object, vectorized blend matrices and normals); the per-element loops it
@@ -168,6 +206,20 @@ joint. Hair, skirts and tails detected as moving parts are still kept as
 independent bones when **Moving parts** is enabled. Everything stays editable
 in **Bone mapping**, and the review confirmation covers the loss of
 independent motion.
+
+Kept bones are named `dmb_secondary_` and their source name
+(`secondary_bones.rs exported_names`, the same in `secondary_bones.py`). The
+model compiler writes every byte other than ASCII letters, digits and `_` as
+`_`, so source names that differ only in such characters would compile to one
+bone: arcaneVin's skirt panels `侧裙_0_0`, `前裙_0_0` and `后裙_0_0` (two Chinese
+characters each, 160 bones in 60 such sets) stopped the build after compiling
+with "Missing or ambiguous generated bone". Those bones keep their name and get
+the first six hex digits of its SHA-256 (`distinct_name`, for example
+`dmb_secondary_后裙_0_0_c7b6ee`); every other name is unchanged, so models
+prepared before keep theirs. Preparation refuses a plan that would still
+collide, and Analyze stops early on a model prepared before this
+(`aliases::compiled_name_collision` in `source_identity::preflight` and
+`extensions::extension_identity`) with help to convert again.
 
 Mapped finger segments are bent to the hero's resting direction
 (`retarget.py finger_curl`, option `fit_finger_curl`, on by default; **Bend
@@ -404,6 +456,26 @@ nodes beside the proxy (`proxy_source::author_direct_proxy`), as the cloth
 authoring flow did for the Vindicta reference; the compiled cloth gets matching
 `m_TaperedCapsuleRigids` (`examples/fe_capsules.rs`). Skirts, coat tails and
 tails then stop at the legs instead of passing through the body.
+
+**Arm colliders** (`ARMS`) are measured the same way along each upper arm
+(`arm_upper_*` to `arm_lower_*`, from 20% below the shoulder, where straps and
+capes are attached) and forearm (`arm_lower_*` to `hand_*`), so cloth hanging
+from the shoulder stops at the arm: arcaneVin's capes `R_capeC/D` hang 3–4.5 in
+from the upper arm's axis and passed through the arm once they swung like
+streamers. Valve's own Vindicta, Violet, Haze, Lash, Werewolf and Wraith carry
+arm capsules for their cloth. A character with wide sleeves gets forearm
+capsules the size of the sleeve (Ghist and Yvonne about 5–6 in), which is the
+surface cloth should not pass. Colliders act on the proxy nodes, a joint line
+with three points per joint, not on the visible panel around it: arcaneVin's
+shoulder capes lie 0.2–1 in from the body along their whole length, so as free
+streamers they lagged behind the arm and it passed through them; a travel
+limit from their fabric's gap to the body made them stand still instead.
+Strips anchored on an arm (`secondary.rs arm_anchor`) therefore track the arm
+like Valve's own arm cloth (`secondary_auto::arm_strip`): a pose pull fading
+from `ARM_STRIP_GOAL` (0.45 below the root, 0.06 at the hem; compiled 0.11
+to 0.004, between Wraith's sleeves 0.13→0.008 and Violet's front tassel
+0.13→0.008) with `ARM_STRIP_DRAG` (0.03, compiled 0.9; Valve's is 0), and
+their streamer travel.
 
 Up to two **hip capsules** on the pelvis (`hip_colliders`, at `HIP_LEVELS`: hip
 joint height and 0.15 thigh lengths lower) run from hip joint to hip joint
@@ -642,7 +714,17 @@ as accessories with gravity and unbounded travel they sagged and flapped through
 the body. Without rings the native fit leaves those bones unfitted and Build stops.
 Settings: goal 0.45, drag 0.1, no gravity, no tether,
 travel about 45% of the breast radius (0.4–1.5 in), and never more than 30% of
-the distance to the other breast. Stiffer is goal 0.62 and
+the distance to the other breast. A breast (or butt) name types only a
+breast-sized group: when its weighted bones reach more than half a torso
+(head to pelvis) from the root, a longer part hangs from the bone and the
+group moves as that part (`parts.rs BODY_PART_REACH`, `hanging_hint`: the type
+its other bones are named for, Cloth when they name several, the mesh when
+they are unnamed). arcaneVin's MMD `胸上2.L/R` carry capes to the knees (and on
+the left a phone and ribbons) and TangTang's carry the front clothes flaps;
+typed Breast, the right cape moved as a 54.7 in breast and the left side had
+no chain at all. The Physics tab's Breast motion switch leaves such groups
+out (after a current Analyze) and says why; choosing Breast for them under
+Adjust moving parts still works. Stiffer is goal 0.62 and
 travel ×0.7; More movement is goal 0.3 and travel ×1.35. The first tuning (goal
 0.8, drag 0.5, travel 0.3 in) barely moved in game. Amounts need an in-game check.
 
@@ -655,6 +737,42 @@ conversion's saved groups stay valid), on sets Breast, and one amount control
 sets both sides. That needs no conversion. Breast groups there are found by name,
 by `physics_kinds` or by the last Analyze, so breast bones from a rig's own
 physics (MMD-style `胸上2.L/R`) count even when the preparation option is off.
+
+**Long strips inside cloth.** A part's type applies to its whole group, so a
+cloak whose long panels branch off one center strip (arcaneVin's `M_cape__jnt1`:
+`L/R_capeB` to the knees, `ribbonC`, the strap below the box `beltA`) or a cape
+hanging from a breast bone stayed stiff cloth. Cloth parts (not joined panels,
+not chosen by you) now find their long hanging strips (`parts.rs strips`,
+`Part.strips`): each path of weighted joints from the weighted root to a tip,
+with three or more weighted joints below its last fork, at least
+`STRIP_REACH` (0.6) torso lengths long, and a mesh below the fork (alone or with
+its fork joint) at least twice as long as wide and at most 0.4 as thick as
+wide. Their bones below the fork take streamer values (`secondary_auto`,
+`strip_bones`); the shared joints keep cloth values. Each strip, root first, is
+added to `Setup.strand_bends` (fold limits and tethers from the root's fixed
+point) and gets an optional `roll_lock::Chain` (the first strip of a part takes
+the shared joints; chains never overlap): one without a well-conditioned
+reference keeps its own ring orientation and is listed in the roll-lock proof's
+`skipped` instead of stopping the build. Only arcaneVin has strips among the
+test projects (8: both cloak panels, the ribbon, the strap, `R_capeC/D` off the
+right shoulder and the two capes on the breast bones).
+
+**Hanging long hair.** Hair has no gravity and no drag, which suits hair to
+the waist, but arcaneVin's 85 in braid (3.1 torso lengths) floated out
+sideways along its swept-back rest pose. From `HANGING_HAIR` (2.5) torso lengths
+gravity and drag grow to a streamer's at 3, and the travel limit lets each bone
+reach its straight hang below the strand's root (still capped by the body).
+The longest other hair on the test projects reaches 2.45 torso lengths.
+
+**Braids with ties.** A hair or tail strand (by name, or unnamed on the head)
+with small pieces hanging off it keeps its main chain (`parts.rs trunk`): at each
+fork the chain follows the branch with the most weighted joints, and every
+other branch may have at most `SIDE_PIECE_BONES` (2) weighted joints. The pieces
+keep their own simulated points; only streamers need every bone in the chain,
+so they keep the strict `chain`. arcaneVin's braid `plait__jnt1` (29 bones, ties
+`L/R_plaitA` and `L/R_plaitB`) had no chain and no hair word, so it became a
+stiff accessory without twist protection; "plait", 辫/辮 and 三つ編 are hair
+words now.
 
 **Long hair and tails.** Unnamed strands on the head get the Hair part type (names
 in other scripts are often stripped to underscores, so a 19-bone strand called
@@ -836,7 +954,12 @@ itself.
   `_R` first, then the words left/right, l/r, 左/右; `weapon_source.side_of`, the
   same rules as `weapon.rs side_of`) or from the gun rig bone they are weighted to,
   before the parts are frozen. Each gun is its largest part and what touches it;
-  parts without a hand join the gun they touch. The right gun goes to the right
+  parts without a hand join the gun they touch. Parts tagged for both hands are
+  still one gun when they are its mirrored halves (`weapon_source.halves`): the
+  middle of each side lies within the other side, or a part without a hand lies
+  between the sides and touches both (ArmBolt_L and ArmBolt_R around one
+  receiver). A real pair posed overlapping in the file is taken for one gun;
+  set one side aside in **Scene objects** to split it. The right gun goes to the right
   hand and the left gun to the left hand (the request carries `hand` and
   `left_hand`); receipt rows and candidates carry `side`, and the summary lists
   `guns`.
@@ -925,8 +1048,11 @@ original gun's length (or kept at the character's scale), and moved so the
 grips coincide. The original gun's skin weights are copied by proximity, so the
 new gun follows the same weapon bones (recoil, slide, magazine). Muzzle
 attachments and hit detection stay on the original bones; the fit keeps your
-gun on top of them. Flip, roll, scale and offset adjustments and a 3D preview
-(original gun in grey, yours in amber) are in the Weapon tab.
+gun on top of them. Flip, roll, pitch, yaw, scale and offset adjustments and a 3D preview
+(original gun in grey, yours in amber) are in the Weapon tab. Roll turns the
+gun around its barrel; pitch tilts the muzzle up and yaw turns it to the gun's
+right, both around the grip (`weapon::fit` turns the measured frame the other
+way before matching it to the hero's gun, as for roll).
 
 Heroes without gun meshes but with weapon/muzzle bones use those bones for the
 fit (lower confidence; check the roll in the preview).

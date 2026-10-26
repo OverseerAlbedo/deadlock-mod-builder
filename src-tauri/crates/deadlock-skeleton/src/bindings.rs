@@ -42,6 +42,47 @@ pub struct MeshAudit {
     pub vertex_blendindices_decoded: bool,
     pub live_ag2_deformation_validated: bool,
 }
+/// What is wrong with a compiled model's per-mesh bone remapping table, naming
+/// the mesh and the value (issue #6: "Invalid compiled mesh remapping table"
+/// alone gave a report nothing to go on).
+fn remapping_problem(starts: &[i64], table: &[i64], bones: usize, ctrl: &Value) -> Option<String> {
+    let names: BTreeMap<usize, String> = ctrl
+        .get("embedded_meshes")
+        .and_then(|v| v.array().ok())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|item| {
+            let index = ordinal(item, "m_nMeshIndex", "mesh_index").ok()?;
+            let name = item.get("m_Name").or_else(|| item.get("name")).and_then(|v| v.string().ok())?;
+            Some((index, name.to_string()))
+        })
+        .collect();
+    let mesh = |k: usize| names.get(&k).map_or_else(|| format!("mesh {k}"), |n| format!("mesh {k} ({n})"));
+    if starts.is_empty() {
+        return Some("it has no mesh slices".into());
+    }
+    if starts[0] != 0 {
+        return Some(format!("the first mesh slice starts at {} instead of 0", starts[0]));
+    }
+    for (k, &start) in starts.iter().enumerate() {
+        if start < 0 || start as usize > table.len() {
+            return Some(format!("{} starts at {start}, outside the table's {} entries", mesh(k), table.len()));
+        }
+        if k > 0 && starts[k - 1] > start {
+            return Some(format!("{} starts at {start}, before {} at {}", mesh(k), mesh(k - 1), starts[k - 1]));
+        }
+    }
+    let bad: Vec<usize> = (0..table.len()).filter(|&i| table[i] < 0 || table[i] as usize >= bones).collect();
+    let &first = bad.first()?;
+    let owner = starts.iter().rposition(|&s| s as usize <= first).unwrap_or(0);
+    Some(format!(
+        "{} refers to bone {} but the compiled skeleton has {bones} bones ({} such entries in {} meshes)",
+        mesh(owner),
+        table[first],
+        bad.len(),
+        bad.iter().map(|&i| starts.iter().rposition(|&s| s as usize <= i).unwrap_or(0)).collect::<BTreeSet<_>>().len()
+    ))
+}
 pub fn audit_meshes(
     data: &Value,
     ctrl: &Value,
@@ -53,15 +94,8 @@ pub fn audit_meshes(
     let identity = skeleton_identity(&skeleton, reference)?;
     let starts = ints(field(data, "m_remappingTableStarts")?)?;
     let table = ints(field(data, "m_remappingTable")?)?;
-    if starts.is_empty()
-        || starts[0] != 0
-        || starts.windows(2).any(|v| v[0] > v[1])
-        || starts.iter().any(|&i| i < 0 || i as usize > table.len())
-        || table
-            .iter()
-            .any(|&i| i < 0 || i as usize >= skeleton.names.len())
-    {
-        return Err(invalid("Invalid compiled mesh remapping table"));
+    if let Some(problem) = remapping_problem(&starts, &table, skeleton.names.len(), ctrl) {
+        return Err(invalid(format!("Invalid compiled mesh remapping table: {problem}")));
     }
     let ordinals: Vec<_> = blocks
         .iter()
@@ -602,4 +636,33 @@ fn audit_bindings_source_policy(
         vertex_blendindices_decoded: false,
         live_ag2_deformation_validated: false,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use deadlock_resource::Kind;
+    fn ctrl() -> Value {
+        let mesh = |index: i64, name: &str| {
+            Value::new(Kind::Object(vec![
+                ("m_nMeshIndex".into(), Value::new(Kind::I64(index))),
+                ("m_Name".into(), Value::new(Kind::String(name.into()))),
+            ]))
+        };
+        Value::new(Kind::Object(vec![("embedded_meshes".into(), Value::new(Kind::Array(vec![mesh(0, "Body"), mesh(1, "Face")])))]))
+    }
+    #[test]
+    fn a_bad_remapping_table_names_the_mesh_and_the_value() {
+        // Issue #6: the message alone gave a report nothing to go on.
+        assert_eq!(remapping_problem(&[0, 2], &[0, 1, 2], 3, &ctrl()), None);
+        assert_eq!(
+            remapping_problem(&[0, 2], &[0, 1, 5, 7], 3, &ctrl()).unwrap(),
+            "mesh 1 (Face) refers to bone 5 but the compiled skeleton has 3 bones (2 such entries in 1 meshes)"
+        );
+        assert!(remapping_problem(&[0, 2], &[-1, 1, 2], 3, &ctrl()).unwrap().starts_with("mesh 0 (Body) refers to bone -1"));
+        assert_eq!(remapping_problem(&[1, 2], &[0, 1, 2], 3, &ctrl()).unwrap(), "the first mesh slice starts at 1 instead of 0");
+        assert_eq!(remapping_problem(&[0, 4], &[0, 1, 2], 3, &ctrl()).unwrap(), "mesh 1 (Face) starts at 4, outside the table's 3 entries");
+        assert_eq!(remapping_problem(&[0, 2, 1], &[0, 1, 2], 3, &ctrl()).unwrap(), "mesh 2 starts at 1, before mesh 1 (Face) at 2");
+        assert_eq!(remapping_problem(&[], &[], 3, &ctrl()).unwrap(), "it has no mesh slices");
+    }
 }

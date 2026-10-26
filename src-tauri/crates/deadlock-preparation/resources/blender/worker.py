@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from algorithms import identify, estimate_landmarks, normalize_weights, deformation_checks, component_count
-from retarget import rest_maps, anatomical_frames, rigid_attachment_map, NEXT, FIT_MODES
+from retarget import rest_maps, anatomical_frames, rigid_attachment_map, NEXT, FIT_MODES, FLOOR_MODES, FLOOR_POLICY, FLOOR_TOLERANCE, floor_corrections
 from exact_bind import rigid_display_matrix, store_bind_metadata, load_correction_bind, METADATA_KEY
 from blend_source import snapshot_blend
 from clothing import validate_garment_binding
@@ -431,6 +431,80 @@ def import_props(job, meshes):
     return exported,materials,warnings
 
 
+def floor_fit(fit_floor,maps,anchors,meshes,rows_by_mesh,source,parents,source_roles,unit_scale):
+    """Model fitting -> Feet on the floor: measure where the fitted soles stand
+    (the 1st percentile height of the vertices mostly weighted to the feet,
+    under the rest maps as fitted) and apply retarget.floor_corrections to every
+    rest map and to the anchors the kept moving-part bones hang from, so they
+    stay with their mesh. Returns the receipt."""
+    children={}
+    for name,parent in parents.items():
+        if parent:children.setdefault(parent,[]).append(name)
+    def subtree(roots):
+        found=set();pending=[r for r in roots if r]
+        while pending:
+            name=pending.pop()
+            if name not in found:
+                found.add(name);pending.extend(children.get(name,[]))
+        return found
+    feet=subtree(source_roles.get('foot_'+s) for s in 'LR')
+    legs=subtree(source_roles.get('thigh_'+s) for s in 'LR')
+    audit={'policy':FLOOR_POLICY,'mode':fit_floor,'floor_inches':0.,'measured':False}
+    if not feet or not legs:return audit
+    heights=[]
+    for obj in meshes:
+        vindex,names,ws=mx.flat_rows(rows_by_mesh[obj.name])
+        known=np.fromiter((n in maps for n in names),dtype=bool,count=len(names))
+        vindex,ws=vindex[known],ws[known];names=[n for n,k in zip(names,known) if k]
+        if not len(names):continue
+        count=len(obj.data.vertices)
+        total=np.bincount(vindex,weights=ws,minlength=count)
+        on_feet=np.bincount(vindex,weights=ws*np.fromiter((n in feet for n in names),dtype=float,count=len(names)),minlength=count)
+        if not (on_feet>=0.5*np.maximum(total,1e-12)).any():continue
+        points=np.c_[world_points(obj)*unit_scale,np.ones(count)]
+        rows=np.array([np.asarray(maps[n],dtype=float)[2] for n in names])
+        share=ws/np.maximum(total[vindex],1e-12)
+        z=np.bincount(vindex,weights=share*np.einsum('ij,ij->i',rows,points[vindex]),minlength=count)
+        heights.extend(z[(total>0)&(on_feet>=0.5*total)].tolist())
+    if len(heights)<4:return audit
+    sole=float(np.percentile(heights,1))
+    def joint(role):
+        # Fitted height of the joint (an unweighted joint has no rest map: NaN).
+        z=[(np.asarray(maps[source_roles[role+'_'+s]],dtype=float)@np.r_[np.asarray(source[source_roles[role+'_'+s]])[:3,3],1.])[2]
+           for s in 'LR' if source_roles.get(role+'_'+s) in maps]
+        return float(np.mean(z)) if z else float('nan')
+    hip,ankle=joint('thigh'),joint('foot')
+    inches=lambda v:round(v,3) if np.isfinite(v) else None
+    every,leg,scale=floor_corrections(fit_floor,sole,hip)
+    applied=not (np.array_equal(every,np.eye(4)) and np.array_equal(leg,np.eye(4)))
+    def corrected(name,matrix):
+        m=np.asarray(matrix,dtype=float)
+        if name in legs:m=leg@m
+        return every@m
+    if applied:  # 'ankles' (and anything within tolerance) leaves every map untouched
+        for table in (maps,anchors):
+            for name in list(table):
+                table[name]=corrected(name,table[name])
+    audit.update(measured=True,sole_inches=round(sole,3),hip_inches=inches(hip),ankle_inches=inches(ankle),
+                 applied=bool(applied),vertical_scale=round(float(scale),4),lift_inches=round(float(every[2,3]),3))
+    return audit
+
+def floor_note(audit):
+    """The warning for the Feet on the floor receipt, or None."""
+    if not audit.get('measured'):return None
+    sole=audit['sole_inches'];depth=abs(sole)
+    where=f'{depth:.1f} in below the floor' if sole<0 else f'{depth:.1f} in above the floor'
+    if audit['mode']=='ankles':
+        if depth<0.5:return None
+        return (f'The feet reach {where} (the hero\'s own soles stand at height 0): the fit lines up the ankles and these feet are '
+                f'{"taller" if sole<0 else "shorter"} than the hero\'s. Model fitting -> Feet on the floor can stand them on the floor.')
+    if not audit.get('applied'):
+        if depth<FLOOR_TOLERANCE:return None
+        return f'Feet on the floor: the feet reach {where}, but they could not be corrected this way (the hips are too close to the floor).'
+    done={'legs':f'the legs were {"shortened" if audit["vertical_scale"]<1 else "lengthened"} to {audit["vertical_scale"]*100:.0f}% below the hips',
+          'lift':f'the whole character was moved {"up" if audit["lift_inches"]>0 else "down"} {abs(audit["lift_inches"]):.1f} in (the body and arms leave the hero\'s joints by that much)'}[audit['mode']]
+    return f'Feet on the floor: the feet reached {where}; {done}. Check the walk and the ankles in game.'
+
 def texture_notes(uv_first,shared):
     """Notes for UV maps put first and gun materials joined before export."""
     notes=[]
@@ -459,6 +533,7 @@ def prepare(job,meshes,rigs):
     fit_mode=options.get('fit_mode','match_target')
     fit_arm_joints=options.get('fit_arm_joints',True)
     fit_finger_curl=options.get('fit_finger_curl',True)
+    fit_floor=options.get('fit_floor','ankles')
     arm_skinning=options.get('arm_skinning','source')
     if not isinstance(arm_skinning,str) or arm_skinning not in ARM_SKIN_MODES:
         raise ValueError('Choose a supported Arm skinning option before conversion.')
@@ -468,6 +543,8 @@ def prepare(job,meshes,rigs):
         raise ValueError('Bend fingers like the hero must be enabled or disabled.')
     if not isinstance(fit_mode,str) or fit_mode not in FIT_MODES:
         raise ValueError('Choose a supported Model fitting option before conversion.')
+    if not isinstance(fit_floor,str) or fit_floor not in FLOOR_MODES:
+        raise ValueError('Choose a supported Feet on the floor option in Model fitting before conversion.')
     if mode=='rigged_humanoid' and not rigs:raise ValueError('No armature: switch to Unrigged Humanoid.')
     if mode=='unrigged_humanoid' and rigs:raise ValueError('Armature found: switch to Rigged Humanoid.')
     if not options.get('reviewed'):raise ValueError('Confirm bone mapping/landmarks and orientation before preparation.')
@@ -550,6 +627,9 @@ def prepare(job,meshes,rigs):
     maps, alignment_audit = rest_maps(source, target_matrices,
                                       {n: d for n, d in mapping.items() if n in weighted_names}, source_roles, target_roles,
                                       parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl)
+    # Corrections keep their exact prepared bind (no floor step).
+    if not job.get('correction',False):
+        alignment_audit['floor']=floor_fit(fit_floor,maps,anchor_transforms,meshes,rows_by_mesh,source,parents,source_roles,unit_scale)
     if kept:
         group_transforms = {}
 
@@ -559,12 +639,15 @@ def prepare(job,meshes,rigs):
             transform = np.asarray(hand['matrix'], dtype=float).copy()
             transform[:3, :3] /= unit_scale
             return transform
+        # Feet on the floor squashed or stretched a leg: kept parts on it stay
+        # rigid (orthonormal bones) and follow their attachment point.
+        floor_scaled = (alignment_audit.get('floor') or {}).get('vertical_scale', 1.) != 1.
         for group in kept['groups']:
             if group['root'] in gun_groups:
                 transform = gun_transform(gun_groups[group['root']])
             else:
                 transform = anchor_transforms[group['source_anchor']]
-                if fit_mode == 'preserve_proportions' and fit_arm_joints:
+                if (fit_mode == 'preserve_proportions' and fit_arm_joints) or floor_scaled:
                     transform = rigid_attachment_map(transform, np.asarray(source[group['root']])[:3,3])
             group_transforms[group['root']] = transform
             for name in group['source_bones']:
@@ -583,6 +666,8 @@ def prepare(job,meshes,rigs):
     if ignored:warnings.append(non_skin_notice(ignored))
     if following:warnings.append(f'{len(following)} source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.')
     if kept:warnings.append(f"Kept {len(kept['exported_bones'])} existing physics bones in {len(kept['groups'])} groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.")
+    floor=floor_note(alignment_audit.get('floor') or {})
+    if floor:warnings.append(floor)
     warnings+=texture_notes(uv_first,shared)
     hero_fit=alignment_audit.get('hero_fit') or {}
     if hero_fit.get('extremes'):

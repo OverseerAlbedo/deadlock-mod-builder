@@ -78,7 +78,7 @@ describe('Generated secondary motion',()=>{
  it('names the meshes left out of the build that carry the moving parts (issue #5)',()=>{
    const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true,secondary_motion:{enabled:true}}};
    render(<PhysicsPage project={project} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null} fresh report={{...inspected,needs_review:true,unresolved_meshes:[],secondary_meshes_left_out:['skirt','hair_mesh'],secondary_motion:null}}/>);
-   expect(screen.getByText('2 groups selected · add skirt, hair_mesh in Build & install → Mesh mapping, then Analyze again')).toBeVisible();
+   expect(screen.getByText('2 groups selected · add skirt, hair_mesh to the main body node in Build & install → Mesh mapping, then Analyze again')).toBeVisible();
  });
  it('says when the rig has no moving parts at all (issue #5)',()=>{
    const project={...original,preparation_options:{physics_offered:[]},customization:{enabled:true,secondary_motion:{enabled:true}}};
@@ -110,6 +110,15 @@ describe('Breast motion on the Physics tab',()=>{
    fireEvent.click(screen.getByLabelText('Breast motion'));
    expect(update).toHaveBeenLastCalledWith({part_kinds:{'胸上2.L':'breast','胸上2.R':'breast'}});
    expect(preparation).toHaveBeenCalledWith({breast_motion:true});
+ });
+ it('leaves breast bones that carry a cape to their part type (arcaneVin)',()=>{
+   const parts=['胸上2.L','胸上2.R'].map(root=>({root,kind:'cloth',reason:'A longer part hangs from this breast bone (reaching 53 in); it moves with that part, not as a breast',weighted_chain:[],chain_length_inches:54.7,shape_radii_inches:[1,1,1],roll_locked:false,review_recommended:false}));
+   const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'s',proxy_sha256:'p',proxy_positions:4,groups:[],parts}};
+   const project={...base,preparation_options:{...base.preparation_options,breast_motion:true}} as unknown as Project;
+   render(<SecondaryMotion project={project} update={vi.fn()} preparation={vi.fn()} disabled={false} report={report} fresh/>);
+   expect(screen.queryByLabelText('Breast motion')).not.toBeInTheDocument();
+   expect(screen.getByText(/胸上2.L, 胸上2.R carry a longer part \(a cape or garment\) and move with it/)).toBeVisible();
+   expect(screen.queryByText(/no breast bones that can move yet/)).not.toBeInTheDocument();
  });
  it('asks Model preparation for breast bones when the prepared model has none',()=>{
    const project={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['hair']}} as unknown as Project;

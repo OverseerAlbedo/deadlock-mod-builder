@@ -20,6 +20,7 @@ fn inputs() -> Option<(Value, Skeleton, Vec<Chain>, serde_json::Value)> {
         .map(|side| Chain {
             anchor: "spine_3".into(),
             per_joint_reference: false,
+            optional: false,
             bones: (1..=7)
                 .map(|n| format!("dmb_secondary_spring_base_{side}_a_{n:02}_jnt"))
                 .collect(),

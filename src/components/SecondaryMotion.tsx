@@ -44,8 +44,17 @@ type Movement='automatic'|'balanced'|'stiff'|'soft';
 export function breastGroups(project:Project,report:ProjectInspection|null):string[]{
   const kinds=(project.preparation_options.physics_kinds??{}) as Record<string,unknown>;
   const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
-  return preparedMotionRoots(project).filter(root=>namedBreast(root)||kinds[root]==='breast'||analyzed.some(p=>p.root===root&&p.kind==='breast'));
+  return preparedMotionRoots(project).filter(root=>(namedBreast(root)||kinds[root]==='breast'||analyzed.some(p=>p.root===root&&p.kind==='breast'))&&!movesAsOther(analyzed,root,'breast'));
 }
+/** Analyze typed this breast- or butt-named group as another part: a longer part (a cape, a garment) hangs from the bone
+ * and the group moves as that part (arcaneVin's 胸上2.L/R). Its switch would set Breast or Rigid and override that. */
+const movesAsOther=(parts:{root:string;kind:string}[],root:string,kind:string)=>parts.some(p=>p.root===root&&p.kind!==kind&&p.kind!=='rigid');
+/** Breast- or butt-named groups that move as the longer part hanging from them (see movesAsOther). */
+function carryingGroups(project:Project,report:ProjectInspection|null,named:(root:string)=>boolean,kind:string):string[]{
+  const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
+  return preparedMotionRoots(project).filter(root=>named(root)&&movesAsOther(analyzed,root,kind));
+}
+const carryingNote=(roots:string[],part:string)=><div className="breast-motion-control"><p className="hint">{part} motion: {roots.join(', ')} carry a longer part (a cape or garment) and move with it, so they do not bounce as {part.toLowerCase()}s. To make them bounce instead, choose {part} as their part type under Adjust moving parts.</p></div>;
 /** One place to turn breast motion on or off and set its amount. It applies at
  * the next Analyze and Build when the prepared model already has breast bones;
  * otherwise it says what Model preparation needs to do. */
@@ -54,6 +63,8 @@ export function BreastMotion({project,update,preparation,openPreparation,disable
   const breasts=breastGroups(project,report),kinds={...cfg.part_kinds};
   const on=breasts.length>0&&breasts.every(root=>kinds[root]!=='rigid'&&selected.includes(root));
   const wanted=project.preparation_options.breast_motion===true;
+  const carrying=carryingGroups(project,report,namedBreast,'breast');
+  if(!breasts.length&&carrying.length)return carryingNote(carrying,'Breast');
   const amount=(cfg.profiles?.[breasts[0]]??'automatic') as Movement;
   function toggle(enabled:boolean){
     if(!breasts.length){preparation?.({breast_motion:enabled});return;}
@@ -74,7 +85,7 @@ export function BreastMotion({project,update,preparation,openPreparation,disable
 export function buttGroups(project:Project,report:ProjectInspection|null):string[]{
   const kinds=(project.preparation_options.physics_kinds??{}) as Record<string,unknown>;
   const analyzed=report&&'dmx' in report?report.secondary_motion?.parts??[]:[];
-  return preparedMotionRoots(project).filter(root=>namedButt(root)||kinds[root]==='butt'||analyzed.some(p=>p.root===root&&p.kind==='butt'));
+  return preparedMotionRoots(project).filter(root=>(namedButt(root)||kinds[root]==='butt'||analyzed.some(p=>p.root===root&&p.kind==='butt'))&&!movesAsOther(analyzed,root,'butt'));
 }
 /** Butt motion, separate from breast motion and off by default: its own switch and amount (a smaller, stiffer bounce).
  * With butt bones in the prepared model it applies at the next Analyze and Build; otherwise Model preparation must keep
@@ -83,6 +94,8 @@ export function ButtMotion({project,update,preparation,openPreparation,disabled,
   const cfg=project.customization.secondary_motion??{},roots=preparedMotionRoots(project),selected=cfg.roots??roots;
   const butts=buttGroups(project,report),kinds={...cfg.part_kinds};
   const wanted=project.preparation_options.butt_motion===true;
+  const carrying=carryingGroups(project,report,namedButt,'butt');
+  if(!butts.length&&carrying.length)return carryingNote(carrying,'Butt');
   if(!butts.length&&!wanted)return null;
   const on=butts.length>0&&butts.every(root=>kinds[root]!=='rigid'&&selected.includes(root));
   const amount=(cfg.profiles?.[butts[0]]??'automatic') as Movement;
@@ -157,7 +170,7 @@ export function SecondaryMotion({project,update,disabled,report,fresh,preparatio
   const waitingForMapping=fresh&&report&&'dmx' in report&&!checked&&report.unresolved_meshes.length>0;
   // Kept moving-part bones only in meshes left out of the build (issue #5).
   const leftOut=fresh&&report&&'dmx' in report&&!checked?report.secondary_meshes_left_out??[]:[];
-  const waiting=leftOut.length?`add ${leftOut.join(', ')} in Build & install → Mesh mapping, then Analyze again`:waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check';
+  const waiting=leftOut.length?`add ${leftOut.join(', ')} to the main body node in Build & install → Mesh mapping, then Analyze again`:waitingForMapping?'complete Mesh mapping, then Analyze again':'analyze to check';
   // The preparation showed its detected groups and there were none: nothing in the rig can move.
   const offered=project.preparation_options.physics_offered;
   const nothingDetected=Array.isArray(offered)&&offered.length===0;

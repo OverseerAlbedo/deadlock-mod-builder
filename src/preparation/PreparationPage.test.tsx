@@ -79,6 +79,16 @@ describe('Native preparation review boundary',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
     expect(native.preparationConvert.mock.calls.at(-1)![2].arm_skinning).toBe('source');
   });
+  it('lines up the ankles by default and sends a chosen Feet on the floor fit',async()=>{
+    render(<Harness/>);await check();openPanel('Fit & review');
+    expect(screen.getByLabelText('Feet on the floor')).toHaveValue('ankles');
+    expect(screen.getAllByRole('option').filter(o=>o.closest('select')===screen.getByLabelText('Feet on the floor')).map(o=>(o as HTMLOptionElement).value)).toEqual(['ankles','legs','lift']);
+    fireEvent.change(screen.getByLabelText('Feet on the floor'),{target:{value:'lift'}});
+    fireEvent.click(screen.getByText('About feet on the floor',{selector:'summary'}));
+    expect(screen.getByText(/Moves the whole model up or down so the soles touch the floor/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
+    expect(native.preparationConvert.mock.calls.at(-1)![2].fit_floor).toBe('lift');
+  });
   it('follows all pelvis suggestions across pages and filters, then follows the other suggested joints',async()=>{
     const hips=analysis.suggestions.source!.roles.pelvis!,pelvis=analysis.suggestions.target.roles.pelvis!;
     const skull=analysis.suggestions.source!.roles.head!,head=analysis.suggestions.target.roles.head!;

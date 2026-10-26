@@ -627,11 +627,18 @@ pub fn preflight(
     sha: Option<&str>,
 ) -> Result<Preflight> {
     let mut identity = inspect_identity(d, original);
-    let extra = identity
+    let extra: BTreeSet<String> = identity
         .identity_difference
         .as_ref()
         .map(|v| v.extra.iter().cloned().collect())
         .unwrap_or_default();
+    // Custom bones the compiler would merge into one name stop Analyze here,
+    // before a compile that cannot be checked (models prepared before the app
+    // gave such bones distinct names).
+    let palette = original.runtime_motion.skeleton.as_ref().map(|s| s.names.clone()).unwrap_or_default();
+    if let Some((first, second)) = crate::aliases::compiled_name_collision(palette.iter().chain(&extra)) {
+        return Err(invalid(crate::aliases::compiled_name_error(&first, &second)));
+    }
     let weighted = if identity.required {
         weighted_extras(d, &extra, selected)?
     } else {

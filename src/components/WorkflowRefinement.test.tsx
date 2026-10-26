@@ -84,7 +84,6 @@ describe('Refined controls preserve the real project operations', () => {
     }
     expect(callbacks.update).toHaveBeenCalledTimes(4);
     fireEvent.click(screen.getByText('Replace existing output'));
-    fireEvent.click(screen.getByLabelText('Replace an existing output VPK for this project and slot'));
     fireEvent.click(screen.getByLabelText('Replace an existing installed VPK at the selected slot'));
     fireEvent.click(screen.getByRole('button', { name: 'Build mod' })); expect(callbacks.build).toHaveBeenCalledWith(true, true);
     fireEvent.click(screen.getByText('Developer / compiler tools', { selector: 'summary > span' }));

@@ -19,6 +19,10 @@ pub const TANG_PROXY: &str = "1eebba6483d63387a060fd35331e90868397a835356a3ab8a7
 pub const TANG_REFERENCE_PROXY: &str =
     "8ef0c2fc7e3ae155d0fa8709a5d452953ff5ea2c494418cfb93963176316ce07";
 const PREFIX: &str = "dmb_secondary_";
+/// A body attachment on an arm (upper arm, forearm or hand) of the hero skeleton.
+pub(crate) fn arm_anchor(anchor: &str) -> bool {
+    ["arm_upper_", "arm_lower_", "hand_"].iter().any(|p| anchor.starts_with(p))
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Group {
     pub source_root: String,
@@ -187,7 +191,11 @@ pub fn reviewed_groups(d: &Dmx, roots: &[String], source: &SourceBinding) -> Res
     let mut occupied = BTreeSet::new();
     let mut groups = vec![];
     for source_root in roots {
-        let name = format!("{PREFIX}{source_root}");
+        // A root the compiler would have merged with another bone carries a suffix
+        // (deadlock_preparation::secondary_bones::exported_names).
+        let plain = format!("{PREFIX}{source_root}");
+        let distinct = deadlock_preparation::secondary_bones::distinct_name(source_root);
+        let name = if lookup.contains_key(plain.as_str()) { plain } else { distinct };
         let &root=lookup.get(name.as_str()).ok_or_else(||invalid(format!("The prepared model has no moving-part bones for {source_root}. If you changed moving parts or breast motion, convert again in Model preparation and click Use prepared model; otherwise enable Keep existing physics bones and convert.")))?;
         let parent = sk.parents[root];
         if parent < 0 || allowed.contains(&sk.names[parent as usize]) {
@@ -411,11 +419,30 @@ pub fn setup_with(
     let still:BTreeSet<String>=still_roots.iter().cloned().collect();
     let hero_vertex_sets:Vec<String>=if effective=="automatic" {hero_sets.to_vec()} else {vec![]};
     // Streamers get bend limits between every second joint after compile.
+    // Long strips inside cloth parts (parts::Strip) get the same, each from the
+    // part's root, so their tethers hang from its fixed point.
+    let strip_parts=||parts.iter().zip(&groups).filter(|(p,_)|effective=="automatic" && p.kind==crate::parts::Kind::Cloth && !still.contains(&p.root));
     let strand_bends:Vec<Vec<String>>=if effective=="automatic" {
         parts.iter().filter(|p|p.kind==crate::parts::Kind::Streamer && p.weighted_chain.len()>=3 && !still.contains(&p.root))
-            .map(|p|p.weighted_chain.clone()).collect()
+            .map(|p|p.weighted_chain.clone())
+            .chain(strip_parts().flat_map(|(p,_)|p.strips.iter().map(|s|s.path.clone())))
+            .collect()
     } else {vec![]};
-    let roll_lock_chains=parts.iter().zip(&groups).filter(|(p,_)|p.roll_locked && !still.contains(&p.root)).map(|(p,g)|deadlock_cloth::generated::roll_lock::Chain{anchor:g.anchor.clone(),bones:p.weighted_chain.clone(),per_joint_reference:matches!(p.kind,crate::parts::Kind::Hair|crate::parts::Kind::Tail)}).collect();
+    let mut roll_lock_chains:Vec<deadlock_cloth::generated::roll_lock::Chain>=parts.iter().zip(&groups).filter(|(p,_)|p.roll_locked && !still.contains(&p.root)).map(|(p,g)|deadlock_cloth::generated::roll_lock::Chain{anchor:g.anchor.clone(),bones:p.weighted_chain.clone(),per_joint_reference:matches!(p.kind,crate::parts::Kind::Hair|crate::parts::Kind::Tail),optional:false}).collect();
+    // Twist protection per strip: chains may not share joints, so the first
+    // strip of a part takes the joints it shares with the others. Bones the
+    // upper-garment rule restrains keep their own orientation fit, which that
+    // restraint needs (arcaneVin's beltA__jnt1 at the cloak's root).
+    let restrained:BTreeSet<String>=attachments.iter().flat_map(|a|a.plan.bones.iter().map(|b|b.bone.clone())).collect();
+    for (part,group) in strip_parts() {
+        let mut claimed=restrained.clone();
+        for strip in &part.strips {
+            let bones:Vec<String>=strip.path.iter().filter(|b|claimed.insert(b.to_string())).cloned().collect();
+            if bones.len()>=2 {
+                roll_lock_chains.push(deadlock_cloth::generated::roll_lock::Chain{anchor:group.anchor.clone(),bones,per_joint_reference:false,optional:true});
+            }
+        }
+    }
     let mut preset_fit = None;
     let mut preview_nodes = vec![];
     let (proxy, positions, dynamic) = match effective {

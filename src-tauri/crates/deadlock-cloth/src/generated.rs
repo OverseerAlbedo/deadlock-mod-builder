@@ -361,7 +361,7 @@ fn planned_roll_lock(native: &[u8], source: &SourceBinding, chains: &[roll_lock:
             return Err(invalid("Strand selection includes a body bone or unweighted joint."));
         }
     }
-    let chains=chains.iter().map(|c|roll_lock::Chain{anchor:c.anchor.clone(),bones:c.bones.iter().map(|n|aliases.get(n).unwrap_or(n).clone()).collect(),per_joint_reference:c.per_joint_reference}).collect::<Vec<_>>();
+    let chains=chains.iter().map(|c|roll_lock::Chain{anchor:c.anchor.clone(),bones:c.bones.iter().map(|n|aliases.get(n).unwrap_or(n).clone()).collect(),per_joint_reference:c.per_joint_reference,optional:c.optional}).collect::<Vec<_>>();
     roll_lock::apply(field(&decoded.physics.root,"m_pFeModel")?,&actual,&chains)
 }
 fn planned_sheet(fe: &Value, plan: &sheet_stability::Plan, weighted: &BTreeSet<String>, aliases: &BTreeMap<String,String>) -> Result<(Value,sheet_stability::Proof)> {

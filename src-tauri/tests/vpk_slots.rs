@@ -125,3 +125,26 @@ fn no_game_configuration_does_not_claim_global_availability() {
     assert!(!app.is_busy());
 }
 
+
+#[test]
+fn this_project_s_own_installed_build_is_not_another_mod() {
+    let temp = tempfile::tempdir().unwrap();
+    let (app, mut project, addons, output) = configured(&temp);
+    fs::create_dir_all(&addons).unwrap();
+    fs::create_dir_all(&output).unwrap();
+    project.vpk_number = 9;
+    fs::write(output.join("pak09_dir.vpk"), b"this project's build").unwrap();
+    // Installed: the same file in the addons folder.
+    fs::write(addons.join("pak09_dir.vpk"), b"this project's build").unwrap();
+    let slots = app.get_vpk_slots(project.clone()).unwrap();
+    assert!(slots.configured_slot_own_install && !slots.configured_slot_occupied, "{slots:?}");
+    assert_eq!(slots.available_slot, Some(9));
+    // Another mod of the same size in that slot is still another mod.
+    fs::write(addons.join("pak09_dir.vpk"), b"another mod's archive").unwrap();
+    let slots = app.get_vpk_slots(project.clone()).unwrap();
+    assert!(!slots.configured_slot_own_install && slots.configured_slot_occupied, "{slots:?}");
+    // Deleted: free at once.
+    fs::remove_file(addons.join("pak09_dir.vpk")).unwrap();
+    let slots = app.get_vpk_slots(project).unwrap();
+    assert!(!slots.configured_slot_own_install && !slots.configured_slot_occupied, "{slots:?}");
+}

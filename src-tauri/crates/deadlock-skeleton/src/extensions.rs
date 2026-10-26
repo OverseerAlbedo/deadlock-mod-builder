@@ -66,6 +66,9 @@ pub fn extension_identity(actual: &Skeleton, original: &Skeleton) -> Result<Exte
             "An extension requires an unchanged original subset plus additional source bones",
         ));
     }
+    if let Some((first, second)) = crate::aliases::compiled_name_collision(&actual.names) {
+        return Err(invalid(crate::aliases::compiled_name_error(&first, &second)));
+    }
     let projected = project_skeleton(actual, &original.names)?;
     let identity = check_transfer(&projected, original)?;
     let scale = audit_scale_preservation(&projected, original, false)?;

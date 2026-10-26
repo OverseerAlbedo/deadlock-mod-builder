@@ -19,3 +19,17 @@ describe('Both guns', () => {
     expect(moved.left?.offset?.[1]).toBeCloseTo(0.25);
   });
 });
+
+describe('Pitch, yaw and fine roll', () => {
+  it('tilts the muzzle up, aims it right and rolls in 5° steps', () => {
+    const set = vi.fn();
+    const choice: WeaponChoice = {enabled: true, action: 'replace', objects: ['R']};
+    render(<AdjustControls choice={choice} hand="right" set={set} busy={false}/>);
+    fireEvent.click(screen.getByRole('button', {name: 'Tilt up 5°'}));
+    expect((set.mock.lastCall![0] as WeaponChoice).pitch).toBe(5);
+    fireEvent.click(screen.getByRole('button', {name: 'Aim right 5°'}));
+    expect((set.mock.lastCall![0] as WeaponChoice).yaw).toBe(5);
+    fireEvent.click(screen.getByRole('button', {name: 'Roll ⟲ 5°'}));
+    expect((set.mock.lastCall![0] as WeaponChoice).roll).toBe(-5);
+  });
+});

@@ -36,6 +36,13 @@ fn main() {
             part.chain_length_inches,
             part.reason
         );
+        for strip in &part.strips {
+            let short = |n: &String| n.trim_start_matches("dmb_secondary_").to_string();
+            println!("  STRIP {} joints, own from {}: {} -> {}", strip.path.len(), short(&strip.path[strip.branch]), short(&strip.path[0]), short(strip.path.last().unwrap()));
+        }
+    }
+    for adjustment in setup.hair_motion.iter().flat_map(|h| &h.length_adjusted_groups) {
+        println!("LONG HAIR {} {:.1} in (short-hair limit {:.1} in)", adjustment.root, adjustment.strand_length_inches, adjustment.short_hair_limit_inches);
     }
     for c in &setup.body_colliders {
         let length = (0..3).map(|k| (c.endpoints_world[1][k] - c.endpoints_world[0][k]).powi(2)).sum::<f64>().sqrt();

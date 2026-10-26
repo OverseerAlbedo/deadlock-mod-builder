@@ -401,6 +401,18 @@ try:
 finally:
     os.environ.pop('DMB_PROBE_PHYSICS', None)
 
+# One gun whose mirrored halves are tagged _L and _R is still one gun: all of
+# it goes to the right hand, nothing is left out as a left gun.
+mirrored_blend = build('mirrored_gun_file', F.mirrored_gun_file)
+report, prepared, validated = run_case('mirrored_gun_file', build('mirrored_gun_character', lambda: F.humanoid('mixamo')),
+                                       action='replace', gun_file=mirrored_blend)
+parts = ['gun_file_' + name for name in ('Bolt_0_L', 'Bolt_0_R', 'Grip', 'Receiver', 'SidePanel_L', 'SidePanel_R')]
+assert 'guns' not in report['weapon_file'] and report['weapon_file']['objects'] == parts, report['weapon_file']
+rows = {r['name']: r for r in report['scene']['objects'] if r['name'] in parts}
+assert all(rows[p]['status'] == 'bound' and rows[p]['bone'] == 'mixamorig:RightHand' for p in parts), rows
+assert sorted(m['name'] for m in prepared['meshes'] if m['name'].startswith('weapon_')) == ['weapon_gun'], prepared['meshes']
+results.append({'case': 'mirrored_gun_file', 'validated': validated})
+
 source = build('unrigged_statue', F.unrigged_character)
 report = inspect(source, OUT / 'unrigged_statue' / 'inspect')
 assert report['status'] == 'ok' and report['suggested_mode'] == 'unrigged_humanoid', report.get('error')

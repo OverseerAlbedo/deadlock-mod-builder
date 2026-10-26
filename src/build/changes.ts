@@ -12,7 +12,7 @@ const TOP: Record<string, string> = {
   animation_policy: 'Animation settings', ag2_mode: 'Animation settings',
 };
 const PREPARATION: Record<string, string> = {
-  fit_mode: 'Model fitting', fit_arm_joints: 'Model fitting', fit_finger_curl: 'Finger bend', arm_skinning: 'Arm skinning',
+  fit_mode: 'Model fitting', fit_arm_joints: 'Model fitting', fit_finger_curl: 'Finger bend', fit_floor: 'Feet on the floor', arm_skinning: 'Arm skinning',
   weapon: 'Gun choice', weapon_source: 'Gun file', physics_roots: 'Moving parts kept', physics_kinds: 'Moving part types',
   breast_motion: 'Breast bones', butt_motion: 'Butt bones', mapping: 'Bone mapping', mapping_anchors: 'Bone mapping',
   source_roles: 'Joint matches', target_roles: 'Joint matches', scene: 'Scene objects', shape_key_mode: 'Shape keys',

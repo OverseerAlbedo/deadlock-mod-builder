@@ -80,6 +80,7 @@ pub fn capture(analysis: &Analysis, options: &PreparationOptions) -> Result<Pres
         "fit_mode",
         "fit_arm_joints",
         "fit_finger_curl",
+        "fit_floor",
         "arm_skinning",
     ] {
         if let Some(value) = options.values.get(name) {
@@ -111,6 +112,7 @@ pub fn restore(preset: Preset, fingerprint: &str) -> Result<PreparationOptions> 
         "fit_mode",
         "fit_arm_joints",
         "fit_finger_curl",
+        "fit_floor",
         "arm_skinning",
     ] {
         if let Some(value) = preset.options.values.get(name) {

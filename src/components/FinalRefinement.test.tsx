@@ -29,7 +29,7 @@ describe('Compact workflow and honest build decisions',()=>{
     expect(screen.getByText('Mesh mapping',{selector:'summary > span'}).closest('details')).toHaveAttribute('open');
     view.rerender(<BuildPage {...buildProps} build={build}/>);
     expect(screen.getByRole('button',{name:'Build mod'})).toBeEnabled();
-    fireEvent.click(screen.getByRole('button',{name:'Build mod'}));expect(build).toHaveBeenCalledWith(false,false);
+    fireEvent.click(screen.getByRole('button',{name:'Build mod'}));expect(build).toHaveBeenCalledWith(true,false);
     view.rerender(<BuildPage {...buildProps} build={build} fresh={false}/>);
     expect(screen.getByRole('button',{name:'Build mod'})).toBeDisabled();
   });

@@ -167,6 +167,14 @@ template check (`tests/cloth_bones.rs`).
   `src/preparation/secondary-bones.ts`. They share
   `deadlock-preparation/tests/fixtures/hanging-chains.json`; extend that fixture
   and all three tests when the rules change.
+- Kept moving-part bone names (`dmb_secondary_` + source name) exist twice and
+  must stay identical: Rust `secondary_bones::exported_names` / `distinct_name`
+  and Python `secondary_bones.exported_names` (same test names in
+  `tests/secondary_bones.rs` and `scripts/test_blender_moving_parts.py`). Only
+  names the compiler would merge (every byte outside A–Z, 0–9, _ becomes _;
+  arcaneVin's 侧裙/前裙/后裙) get the SHA-256 suffix; never change any other
+  name (prepared models keep theirs). Cloth authoring finds such roots with
+  `distinct_name`; `aliases::compiled_name_collision` stops Analyze early.
 - Part kinds (hair, tail, streamer, cloth, breast, butt, charm, rigid) are classified
   separately in `deadlock-cloth-authoring/src/parts.rs` (`semantic`, `analyze`). Its
   names reuse `named_butt`, `named_breast` and `rigid_named` from `secondary_bones.rs`.
@@ -205,6 +213,14 @@ template check (`tests/cloth_bones.rs`).
   `tests/following.rs retarget_reports_the_fit_policies_rust_accepts` checks it.
   Bump both together. A "-v1"/"-v2" mismatch broke Match hero proportions with
   body-following bones until October 20, 2026.
+- Feet on the floor (`fit_floor`: ankles, legs, lift; "feet", flattening the
+  feet, was dropped after testing on October 25, 2026) is applied after
+  the fit by `worker.py floor_fit` (`retarget.py floor_corrections`) to every
+  rest map and to the kept-bone anchors (kept parts on a scaled leg go through
+  `rigid_attachment_map`, never a squashed bone). `ankles` is the default for unset
+  options and must leave every map untouched (`scripts/test_blender_feet_on_floor.py`
+  compares positions exactly). Rust `fitting::FLOOR_MODES` must equal
+  `retarget.py FLOOR_MODES` (`tests/following.rs`); corrections skip the step.
 - Keep source proportions has a separate path for heroes with extreme proportions
   (`retarget.py hero_extremes`, `scripts/test_hero_proportions.py`); ordinary heroes
   must keep the old numbers exactly (scale 1, floor alignment).
@@ -222,7 +238,7 @@ template check (`tests/cloth_bones.rs`).
   `cloth_gravity` stream by `GAME_GRAVITY` (360, Valve's compiled unit; the
   compiler copies proxy streams raw). Never scale gravity anywhere else.
   Check compiled values with `deadlock-resource/examples/fe_stats.rs`.
-- Leg, hip, neck and head colliders (`body_colliders.rs`) are automatic-motion only, measured
+- Leg, arm (`ARMS`, since October 24, 2026), hip, neck and head colliders (`body_colliders.rs`) are automatic-motion only, measured
   at Analyze into `Setup.body_colliders` and written by
   `proxy_source::author_direct_proxy`; they must never start with a moving
   proxy node inside them (radius reduced by `CLEARANCE`), nor hold a fixed node
@@ -260,6 +276,17 @@ template check (`tests/cloth_bones.rs`).
   `sheet_stability::Plan.strands`, `STRAND_BEND_DEGREES`); anything added to the
   sheet plan must also be in the early-return checks of `generated.rs`
   (`apply_locked_qualified`, `validate_locked_qualified`) and `planned_sheet`.
+- Long strips inside cloth parts (`parts.rs strips`, `Part.strips`; arcaneVin's
+  cloak panels) reuse `Setup.strand_bends` and add `roll_lock::Chain { optional:
+  true }` per strip (never overlapping; the first strip takes the shared joints).
+  Optional chains without a reference are skipped (`Proof.skipped`), never a
+  build error. Strips need a weighted group root (tethers hang from its fixed
+  point); long skirts and mirror-made streamers clear them. Hair gravity starts
+  at `HANGING_HAIR` torso lengths only; shorter hair keeps gravity 0. Strips
+  anchored on an arm track it (`secondary_auto::arm_strip`, `ARM_STRIP_GOAL`,
+  `ARM_STRIP_DRAG`, matched to Valve's arm cloth: compiled 0.5, 0.11 … 0.004);
+  a travel cap made them static. The compiler maps goal to attraction
+  nonlinearly, so read compiled values with `fe_parts` after any change.
 - Source rig springs (`source_springs.py`, `physics_springs`) change build values
   only when `use_source_springs` is on; keep it off by default.
 - Gun planning is `weapon::plan_choice` / `suggest_choice` / `preview_choice`

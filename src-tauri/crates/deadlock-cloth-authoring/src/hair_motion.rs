@@ -157,7 +157,7 @@ mod tests {
         let part = Part {
             root: "hair".into(), kind: Kind::Hair, reason: String::new(),
             weighted_chain: sk.names[2..].to_vec(), chain_length_inches: length,
-            shape_radii_inches: [1.; 3], roll_locked: true, review_recommended: false,
+            shape_radii_inches: [1.; 3], roll_locked: true, review_recommended: false, strips: vec![],
         };
         (sk, group, part)
     }

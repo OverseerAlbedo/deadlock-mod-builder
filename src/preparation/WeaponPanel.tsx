@@ -63,13 +63,14 @@ function GunSummary({kind,hero,project,analysis,choice,gunFile}:{kind:HeroGun;he
   </div>;
 }
 
-/** Beginner controls for one hand: flip, turn, size and small moves. */
+/** Beginner controls for one hand: flip, turn, tilt, aim, size and small moves. */
 /** The beginner controls for one hand, or for both guns at once (each moves in its own hand's frame). */
 export function AdjustControls({choice,hand,set,busy}:{choice:WeaponChoice;hand:Hand|'both';set:(next:WeaponChoice)=>void;busy:boolean}){
   const apply=(change:Nudge)=>set((hand==='both'?['right','left'] as Hand[]:[hand]).reduce((next,h)=>withAdjustments(next,h,nudge(adjustments(next,h),change)),choice));
   const button=(label:string,change:Nudge,title?:string)=><button type="button" className="prep-secondary" disabled={busy} title={title} onClick={()=>apply(change)}>{label}</button>;
   return <div className="prep-gun-adjust" role="group" aria-label={hand==='both'?'Adjust both guns':`Adjust the ${hand}-hand gun`}>
     <div className="prep-gun-adjust-row">{button('Flip direction',{kind:'flip'},'Point the barrel the other way')}{button('Turn ⟲ 90°',{kind:'turn',degrees:-90},'Roll around the barrel')}{button('Turn ⟳ 90°',{kind:'turn',degrees:90},'Roll around the barrel')}{button('Smaller',{kind:'size',factor:1/1.1})}{button('Bigger',{kind:'size',factor:1.1})}</div>
+    <div className="prep-gun-adjust-row">{button('Tilt up 5°',{kind:'tilt',degrees:5},'Pitch: raise the muzzle around the grip')}{button('Tilt down 5°',{kind:'tilt',degrees:-5},'Pitch: lower the muzzle around the grip')}{button('Aim left 5°',{kind:'aim',degrees:-5},'Yaw: turn the muzzle left around the grip')}{button('Aim right 5°',{kind:'aim',degrees:5},'Yaw: turn the muzzle right around the grip')}{button('Roll ⟲ 5°',{kind:'turn',degrees:-5},'Roll around the barrel')}{button('Roll ⟳ 5°',{kind:'turn',degrees:5},'Roll around the barrel')}</div>
     <div className="prep-gun-adjust-row">{button('◀ Back',{kind:'move',axis:0,inches:-.25})}{button('Forward ▶',{kind:'move',axis:0,inches:.25})}{button('▲ Up',{kind:'move',axis:1,inches:.25})}{button('▼ Down',{kind:'move',axis:1,inches:-.25})}{button('Left',{kind:'move',axis:2,inches:-.25})}{button('Right',{kind:'move',axis:2,inches:.25})}{button('Reset',{kind:'reset'},hand==='both'?'Undo all adjustments of both guns':'Undo all adjustments of this hand')}</div>
   </div>;
 }
@@ -82,6 +83,8 @@ function ExactNumbers({choice,hand,set,busy}:{choice:WeaponChoice;hand:Hand;set:
     <Check label={`${prefix}Flip barrel direction`} value={current.flip} disabled={busy} onChange={flip=>put({flip})}/>
     <div className="override-grid">
       <NumberField label={`${prefix}Roll around barrel (degrees)`} value={current.roll} min={-180} max={180} step={15} disabled={busy} update={roll=>put({roll})}/>
+      <NumberField label={`${prefix}Pitch, muzzle up (degrees)`} value={current.pitch} min={-180} max={180} step={1} disabled={busy} update={pitch=>put({pitch})}/>
+      <NumberField label={`${prefix}Yaw, muzzle right (degrees)`} value={current.yaw} min={-180} max={180} step={1} disabled={busy} update={yaw=>put({yaw})}/>
       <NumberField label={`${prefix}Scale multiplier`} value={current.scale} min={.1} max={10} step={.05} disabled={busy} update={scale=>put({scale})}/>
     </div>
     <div className="vector-fields">{(['Forward','Up','Right'] as const).map((axis,index)=><NumberField key={axis} label={`${prefix}Move ${axis.toLowerCase()} (inches)`} value={current.offset[index]} min={-50} max={50} step={.25} disabled={busy} update={value=>{const offset=[...current.offset] as Vec3;offset[index]=value;put({offset});}}/>)}</div>

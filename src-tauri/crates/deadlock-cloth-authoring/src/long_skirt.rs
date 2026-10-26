@@ -261,6 +261,7 @@ pub(crate) fn analyze(
         parts[g].reason = "Waist-height weighted fabric extends down the legs; source mesh verifies neighboring skirt panels".into();
         parts[g].review_recommended = false;
         parts[g].roll_locked = false;
+        parts[g].strips.clear();
         planned.push(SkirtGroup { root: group.source_root.clone(), weighted_height_inches: top-bottom,
             torso_length_inches: torso, supporting_positions: samples[g].len(), travel_radius_by_bone: travel, coordinates, widths });
     }

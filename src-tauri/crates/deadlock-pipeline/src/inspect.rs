@@ -466,7 +466,7 @@ impl<'a> ModelPipeline<'a> {
             let mut warnings=vertex_preflight.warnings.clone();
             warnings.extend(target_warning);
             if !secondary_meshes_left_out.is_empty() {
-                warnings.push(format!("Automatic motion: the moving-part bones kept from your rig are only in meshes that are not part of the build: {}. Tick them in Mesh mapping, then Analyze again.", secondary_meshes_left_out.join(", ")));
+                warnings.push(format!("Automatic motion: the moving-part bones kept from your rig are only in meshes that are not part of the build: {}. In Build & install → Mesh mapping, tick them for the main body node (or click Add it to … under Not used by any render node), then Analyze again.", secondary_meshes_left_out.join(", ")));
             } else if secondary_waiting_for_mesh_mapping {
                 warnings.push("Complete Mesh mapping, then Analyze again to check automatic motion. Your saved physics-bone choices are retained; the selected replacement meshes must include the moving parts.".into());
             }
