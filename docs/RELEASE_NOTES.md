@@ -1,6 +1,6 @@
-# Deadlock Mod Builder 0.13.0-beta.15
+# Deadlock Mod Builder 0.13.0
 
-**Reduced CSDK 13 by default**, a simpler setup, **Notifications** in the sidebar, Blender 5.3, Source 2 Viewer 21.1 and a fix for long file names. Everything from the earlier betas is still in; see `CHANGELOG.md`.
+**Reduced CSDK 13 by default**, a simpler setup, **Notifications** in the sidebar, Blender 5.3, Source 2 Viewer 21.1 and a fix for long file names. This is the first release without the beta label; everything from the betas is in. See `CHANGELOG.md`.
 
 ## New
 

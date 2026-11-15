@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.13.0-beta.15 — 2026-11-15
+## 0.13.0 — 2026-11-15
 
 - **Reduced CSDK 13** is supported and is now the default. It compiles the materials and the hero model, so no separate model compiler is needed. With the model compiler backend on auto, a chosen Reduced CSDK 13 compiles the models; a downloaded model toolset is used only without it. Setups that explicitly use a toolset keep it and get a one-button switch in Settings.
 - Simpler setup: four things to install (Deadlock, Blender, Source 2 Viewer CLI and Reduced CSDK 13). The Blender path is in the main list of Settings, the download list shows only these four, and the model toolset page moved to Settings → Advanced configuration → Downloaded model toolset (older setups).
