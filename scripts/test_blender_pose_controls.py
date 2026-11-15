@@ -38,6 +38,11 @@ for case in ['pose-drivers','object-driver','object-constraint','data-driver','b
     except ValueError as e:
         assert case!='pose-drivers',str(e)
         cases.append({'case':case,'rejected':str(e),'passed':True});continue
+    if case=='object-driver':
+        # Object-level drivers are baked into the rest pose, not rejected.
+        baked=info['rest_rig_controls']['baked_object_controls']
+        assert 'object driver location' in baked,baked
+        cases.append({'case':case,'baked':baked,'passed':True});continue
     assert case=='pose-drivers'
     assert info['rest_rig_controls']['pose_drivers']==2
     mapping=suggest_mapping(info['bones'],humanoid());assert not mapping['source']['errors']

@@ -106,11 +106,17 @@ pub fn sdk_game(settings: &Settings) -> Result<PathBuf> {
     }
     let root = resolve_path(Path::new(&settings.csdk))?;
     let compiler = resolve_path(Path::new(&settings.resourcecompiler))?;
+    // The SDK's own compiler for its layout (bin_cs2 in Reduced CSDK 12, bin
+    // in Reduced CSDK 13); bin when the folder is no complete SDK yet.
+    let expected = root.join(
+        crate::setup_checks::sdk_layout(&root)
+            .map_or(crate::setup_checks::CURRENT_CSDK_COMPILER, |l| l.compiler()),
+    );
     if settings.resourcecompiler.is_empty() || !compiler.is_file() {
-        return Err(fail(format!("Select the material compiler in Settings → Resource compiler: {}.", root.join("game/bin_cs2/win64/resourcecompiler.exe").display())));
+        return Err(fail(format!("Select the material compiler in Settings → Resource compiler: {}.", expected.display())));
     }
     if !compiler.starts_with(&root) {
-        return Err(fail(format!("Settings → Resource compiler points outside the Community SDK ({}). Use the SDK's own compiler, {}. The model toolset's compiler belongs only under Advanced configuration.", compiler.display(), root.join("game/bin_cs2/win64/resourcecompiler.exe").display())));
+        return Err(fail(format!("Settings → Resource compiler points outside the Community SDK ({}). Use the SDK's own compiler, {}. The model toolset's compiler belongs only under Advanced configuration.", compiler.display(), expected.display())));
     }
     if !settings.deadlock.is_empty()
         && root.starts_with(resolve_path(Path::new(&settings.deadlock))?)
@@ -125,13 +131,22 @@ pub fn sdk_game(settings: &Settings) -> Result<PathBuf> {
         let nested = crate::setup_checks::csdk_root(&root).filter(|r| *r != root);
         return Err(fail(match nested {
             Some(inner) => format!("Settings → Community SDK points to the folder around the SDK. Choose {} instead (the SDK was extracted inside a folder of the same name).", inner.display()),
-            None => format!("The Community SDK is incomplete: {} is missing. Extract the whole Reduced CSDK 12 ZIP into a new, empty folder such as C:\\CSDK12 and select that folder in Settings → Community SDK.", configuration.display()),
+            None => format!("The Community SDK is incomplete: {} is missing. Extract the whole Reduced CSDK 13 ZIP into a new, empty folder such as C:\\CSDK13 and select that folder in Settings → Community SDK.", configuration.display()),
         }));
     }
     deadlock_vpk::check_unlinked_path(&configuration, false).map_err(|e| fail(e.to_string()))?;
     Ok(game)
 }
-pub const MODEL_TOOLSET_NOT_SET: &str = "The model compiler is not set up. Open Settings → Set up model compiler…, get the files, then click Use this toolset in settings and save. The Community SDK compiles materials only.";
+pub const MODEL_TOOLSET_NOT_SET: &str = "The model compiler is not set up. Choose Reduced CSDK 13 as the Community SDK in Settings: it compiles the hero model too, so nothing else needs installing.";
+/// Whether the Community SDK in Settings has the current layout (Reduced
+/// CSDK 13 and later), whose compiler also builds hero models.
+pub fn sdk_compiles_models(settings: &Settings) -> bool {
+    !settings.csdk.is_empty()
+        && resolve_path(Path::new(&settings.csdk)).is_ok_and(|root| {
+            crate::setup_checks::sdk_layout(&root)
+                .is_some_and(crate::setup_checks::SdkLayout::compiles_models)
+        })
+}
 fn suffixes(backend: &str) -> &'static [&'static str] {
     if backend == "csdk" {
         &[
@@ -147,13 +162,19 @@ fn suffixes(backend: &str) -> &'static [&'static str] {
 }
 pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> {
     let backend = match settings.model_backend.as_str() {
-        // Auto never falls back to the Community SDK: its compiler stops hero
-        // model compiles with a ParticleFloatType_t schema mismatch.
+        // Auto: a Community SDK of the current layout (Reduced CSDK 13) when
+        // one is chosen, even with the toolset fields filled; else the
+        // downloaded model toolset when one is set. Never Reduced CSDK 12:
+        // its compiler stops hero model compiles with a ParticleFloatType_t
+        // schema mismatch. An explicit cswin backend keeps the toolset.
         "auto" => {
-            if settings.cswin.is_empty() {
+            if sdk_compiles_models(settings) {
+                "csdk"
+            } else if !settings.cswin.is_empty() {
+                "cswin"
+            } else {
                 return Err(fail(MODEL_TOOLSET_NOT_SET));
             }
-            "cswin"
         }
         "cswin" => "cswin",
         "csdk" => "csdk",
@@ -172,7 +193,11 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
         return Err(fail(MODEL_TOOLSET_NOT_SET));
     }
     let root = resolve_path(Path::new(root_text))?;
-    let compiler = if !settings.cswin_resourcecompiler.is_empty() {
+    // Model compiler executable and Model game folder belong to the downloaded
+    // toolset; the csdk backend always uses the SDK's own compiler and
+    // game\citadel, even when those fields are still filled.
+    let toolset_fields = backend != "csdk";
+    let compiler = if toolset_fields && !settings.cswin_resourcecompiler.is_empty() {
         resolve_path(Path::new(&settings.cswin_resourcecompiler))?
     } else {
         let options = suffixes(backend);
@@ -183,7 +208,7 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
                 .unwrap_or(&options[0]),
         )
     };
-    let game = if !settings.model_game.is_empty() {
+    let game = if toolset_fields && !settings.model_game.is_empty() {
         resolve_path(Path::new(&settings.model_game))?
     } else {
         root.join(if backend == "csdk" {
@@ -226,7 +251,7 @@ pub fn select(settings: &Settings, require_files: bool) -> Result<ModelToolset> 
         };
         if !root.is_dir() || !compiler.is_file() {
             return Err(fail(format!(
-                "Model compiler is missing: {}.{} Open Settings → Set up model compiler…, download or verify the toolset, then click Use this toolset in settings and save.",
+                "Model compiler is missing: {}.{} Open Settings → Advanced configuration → Downloaded model toolset → Set up model compiler…, download or verify the toolset, then click Use this toolset in settings and save.",
                 compiler.display(),
                 mistake()
             )));
@@ -384,7 +409,7 @@ pub fn audit_with_cancel(
 ) -> Result<serde_json::Value> {
     let selected = select(settings, false);
     let mut report = serde_json::json!({"full_cs2_required_by_builder":false,"native_ag2_test":"not run by this audit","candidates":candidates(settings,&[])?,"optional_cs2":settings.optional_cs2,
-        "limitations":["Presence of an EXE, DLL or bin_cs2 folder does not prove ModelDoc format/AG2 support.","Only a native compile and deep output checks establish compatibility for the selected source; live-game behavior is a separate test."]});
+        "limitations":["Presence of an EXE, DLL, bin or bin_cs2 folder does not prove ModelDoc format/AG2 support.","Only a native compile and deep output checks establish compatibility for the selected source; live-game behavior is a separate test."]});
     match selected {
         Ok(tool) => {
             let required = [tool.compiler.clone(), tool.game.join("gameinfo.gi")];

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Project, Settings, SetupStatus, SetupTest } from '../models';
+import type { FieldCheck, Project, Settings, SetupStatus, SetupTest } from '../models';
 import { basename } from '../api';
 import { PageTitle, Section } from '../components/Primitives';
 import { PathValue } from '../components/Paths';
@@ -22,6 +22,10 @@ type Props = {
   startStep?: number;
   /** Done on the last step: the guide leaves the sidebar (Settings reopens it). */
   finish?: () => void;
+  /** Expert shows the compiler backend and format choices in the embedded Settings. */
+  expert?: boolean;
+  /** The live field checks of the draft settings, when the app runs them (the embedded Settings then does not). */
+  fields?: FieldCheck[] | null;
 };
 /** Step labels (the test harness and screen readers use "N. Label"). */
 const steps: [string, string][] = [
@@ -61,15 +65,15 @@ export function OnboardingPage(props: Props) {
         <p className="prep-section-intro">Do these in order. Every path field below checks itself as you go: green is right, red says what is wrong and offers the right path when it can find it.</p>
         <ol className="setup-list setup-order">
           <li><strong>Deadlock</strong> installed through Steam.</li>
+          <li><strong>Blender 5.2 LTS</strong> installed with its installer.</li>
           <li><strong>Source 2 Viewer CLI</strong>: download <code>cli-windows-x64.zip</code>, right-click → Extract All, for example to <code>C:\Tools\Source2Viewer</code>.</li>
-          <li><strong>Reduced CSDK 12</strong>: extract the whole ZIP to a short folder such as <code>C:\CSDK12</code>. The right folder directly contains <code>game</code> and <code>content</code>.</li>
+          <li><strong>Reduced CSDK 13</strong>: extract the whole ZIP to a short folder outside OneDrive, such as <code>C:\CSDK13</code>. The right folder directly contains <code>game</code> and <code>content</code> (the ZIP puts it inside a second <code>Reduced_CSDK_13</code> folder; Detect tools finds it).</li>
           <li>Click <strong>Detect tools</strong>. It fills in what it finds and corrects common mix-ups.</li>
-          <li><strong>Model compiler</strong>: click <strong>Set up model compiler…</strong>, download the toolset with DepotDownloader and your Steam account. The app selects and saves it when the download is verified.</li>
-          <li>Click <strong>Save and check tools</strong>. Setup is finished when nothing is red.</li>
+          <li>Click <strong>Save and check tools</strong>, then <strong>Test my setup</strong>. Setup is finished when nothing is red.</li>
         </ol>
-        <p className="hint">The material compiler (in the Community SDK) builds textures and materials; the model compiler (the downloaded toolset) builds the character. They are different programs and go in different fields. Blender is only needed to prepare Blender, FBX or glTF models.</p>
+        <p className="hint">Reduced CSDK 13 compiles the textures, materials and the character. Older guides also list CSWIN64, Reduced CSDK 12, DepotDownloader or Counter-Strike 2 tools: none of them is needed with Reduced CSDK 13.</p>
       </Section>
-      <div className="prep-card setup-embedded-settings"><SettingsPage embedded verify={props.verify} testSetup={props.testSetup} go={page => go(page as Parameters<typeof go>[0])} modelSetup={() => go('setup')} settings={settings} update={props.updateSettings} persist={props.saveSettings} busy={busy} dirty={props.dirty} fail={props.fail} detect={props.detect} status={props.status} check={props.check} /></div>
+      <div className="prep-card setup-embedded-settings"><SettingsPage embedded expert={props.expert ?? true} verify={props.verify} testSetup={props.testSetup} go={page => go(page as Parameters<typeof go>[0])} modelSetup={() => go('setup')} settings={settings} update={props.updateSettings} persist={props.saveSettings} busy={busy} dirty={props.dirty} fail={props.fail} detect={props.detect} status={props.status} check={props.check} fields={props.fields} /></div>
       <section className={`prep-card setup-next ${readiness.ready ? 'setup-ready' : ''}`} aria-label="Finish app setup">
         <div role="status" className="setup-next-status"><span className="prep-status-icon"><PrepIcon name={readiness.ready ? 'check' : 'review'} size={22}/></span><div><h2>{readiness.title}</h2><p>{readiness.description}</p>{props.status && readiness.missing.length > 0 && <p className="hint">Still needed: {readiness.missing.join(', ')}.</p>}</div></div>
         <div className="row"><button className="prep-primary" disabled={busy || props.dirty} onClick={() => setStep(2)}>Continue to first project<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy || props.dirty} onClick={() => go('project')}>Done for now</button></div>

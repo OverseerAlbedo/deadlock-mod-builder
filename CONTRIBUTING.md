@@ -10,6 +10,6 @@ Do not commit build outputs, credentials, game dumps, local CSDK installations, 
 
 ## Releases are explicit
 
-Ordinary commits do not change the public version, create tags, publish GitHub releases, or schedule releases. A successful CI run uploads temporary build artifacts only. A release requires a separate explicit request for that release. Follow [the release checklist](docs/RELEASING.md).
+Ordinary commits do not change the public version, create tags, publish GitHub releases, or schedule releases. A successful CI run uploads temporary build artifacts only. A release requires a separate explicit request for that release. Releases are published by the maintainer through the manual Release workflow.
 
 The active Blender Python bridge is required. Do not remove it as part of cleanup. The retired Python desktop GUI is absent. Optional Blender integration probes retain a small independent Python reference library for fixture/export comparisons; normal Rust CI uses checked-in fixtures.

@@ -49,6 +49,40 @@ fn material_cache_invalidates_texture_compiler_and_shader_inputs() {
     assert_ne!(explicit.key, changed.key);
 }
 #[test]
+fn csdk_12_keys_are_unchanged_and_csdk_13_shader_folders_invalidate_the_cache() {
+    let temp = tempfile::tempdir().unwrap();
+    let (content, compiler, csdk) = setup(temp.path());
+    let cancel = CancellationToken::new();
+    // Reduced CSDK 12: shaders_*.vpk files only, no shaders folder. The
+    // engine inputs are exactly the compiler and the archive files, as before.
+    fs::write(csdk.join("game/core/shaders_pc_dir.vpk"), "archive").unwrap();
+    let older = plan_cache("a.vmat", &content, &compiler, &csdk, &cancel).unwrap();
+    let mut names: Vec<_> = older.engine.keys().map(|k| k.replace('\\', "/")).collect();
+    names.sort();
+    assert_eq!(names.len(), 3, "{names:?}");
+    assert!(names.iter().all(|n| n == "compiler" || n.ends_with("game/core/shaders_vpk") || n.ends_with("game/core/shaders_pc_dir.vpk")), "{names:?}");
+    assert_eq!(
+        older.key,
+        cache_key_from_inputs(&older.source, &older.engine).unwrap()
+    );
+    // Reduced CSDK 13: loose shader programs in game\citadel\shaders and
+    // game\core\shaders. A changed program changes the key.
+    let current = temp.path().join("csdk13");
+    let vfx = current.join("game/citadel/shaders/vfx");
+    fs::create_dir_all(&vfx).unwrap();
+    fs::create_dir_all(current.join("game/core/shaders")).unwrap();
+    fs::write(vfx.join("pbr_pc_50_ps.vcs"), "program v1").unwrap();
+    fs::write(current.join("game/core/shaders/common.vcs"), "core").unwrap();
+    let first = plan_cache("a.vmat", &content, &compiler, &current, &cancel).unwrap();
+    assert_eq!(first.engine.keys().filter(|k| k.replace('\\', "/").ends_with("/shaders")).count(), 2);
+    assert_eq!(first.key, plan_cache("a.vmat", &content, &compiler, &current, &cancel).unwrap().key);
+    fs::write(vfx.join("pbr_pc_50_ps.vcs"), "program version 2").unwrap();
+    let changed = plan_cache("a.vmat", &content, &compiler, &current, &cancel).unwrap();
+    assert_ne!(first.key, changed.key);
+    fs::write(vfx.join("pbr_vulkan_50_ps.vcs"), "new program").unwrap();
+    assert_ne!(changed.key, plan_cache("a.vmat", &content, &compiler, &current, &cancel).unwrap().key);
+}
+#[test]
 fn nested_source_programs_and_missing_textures_disable_cache() {
     let temp = tempfile::tempdir().unwrap();
     let (content, compiler, csdk) = setup(temp.path());

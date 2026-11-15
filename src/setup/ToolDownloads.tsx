@@ -16,16 +16,18 @@ export function ToolLink({ id, disabled = false }: { id: ToolLinkId; disabled?: 
   </span>;
 }
 
-export function ToolDownloads({ busy, expanded = false, modelSetup }: { busy: boolean; expanded?: boolean; modelSetup?: () => void }) {
+/** The four programs a new user installs, in the order the guide lists them. */
+export const MAIN_TOOLS = ['deadlock', 'blender', 'source2viewer', 'csdk'] as const;
+
+export function ToolDownloads({ busy, expanded = false }: { busy: boolean; expanded?: boolean }) {
   const row = (id: ToolLinkId) => <div className="tool-download-row" key={id}><div><div className="tool-download-title"><strong>{toolLinks[id].name}</strong><span className="tool-requirement">{toolLinks[id].requirement}</span></div><p>{toolLinks[id].help}</p></div><ToolLink id={id} disabled={busy}/></div>;
   return <details className="disclosure tool-downloads" open={expanded || undefined}>
     <summary>Get programs and download links</summary>
     <div className="disclosure-content">
       <p className="hint">Links open the publisher’s site or the CSDK community guide in your browser. Install or extract each tool, then select its location below.</p>
-      {(['steam', 'deadlock', 'source2viewer', 'csdk'] as const).map(row)}
-      <div className="tool-download-row"><div><div className="tool-download-title"><strong>Model compiler toolset</strong><span className="tool-requirement">Required for replacement models</span></div><p>Keep your working toolset, or use the guided setup to acquire and verify the selected tool files.</p></div>{modelSetup ? <button disabled={busy} onClick={modelSetup}>Set up model compiler…</button> : <span className="hint">Available in Settings</span>}</div>
-      <details className="technical"><summary>Model-tool downloads, Blender and Windows runtimes</summary>{(['depotdownloader', 'cs2', 'blender', 'vcredist', 'webview2'] as const).map(row)}</details>
-      <p className="hint">VPK packaging and the independent cloth reader are included with the app. No separate Python or .NET installation is needed for them.</p>
+      {MAIN_TOOLS.map(row)}
+      <details className="technical"><summary>Windows runtimes (only if a tool will not start)</summary>{(['vcredist', 'webview2'] as const).map(row)}</details>
+      <p className="hint">VPK packaging and the independent cloth reader are included with the app. No separate Python or .NET installation is needed for them, and no separate model compiler or other Steam download is needed besides Deadlock.</p>
     </div>
   </details>;
 }

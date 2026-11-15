@@ -29,18 +29,35 @@ pub struct FieldCheck {
     pub message: String,
     /// A corrected value the user can apply with one click.
     pub fix: Option<String>,
+    /// A model compiler backend the Settings page offers as a button
+    /// (`auto` for a toolset setup whose Community SDK compiles models).
+    /// Never applied by Fix all or Detect tools.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backend: Option<String>,
+    /// On the `csdk` check: the layout of the chosen SDK folder, when it is
+    /// exactly an SDK (the sidebar's Notifications show the move to Reduced
+    /// CSDK 13 for the older one).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<SdkLayout>,
 }
 
-/// Material compiler inside Reduced CSDK 12. The SDK has four copies (bin,
-/// bin_cs2, bin_server, bin_tools) with different particles.dll builds;
-/// bin_cs2 is the tested one.
+/// Material compiler inside Reduced CSDK 12 (the older layout). That SDK has
+/// four copies (bin, bin_cs2, bin_server, bin_tools) with different
+/// particles.dll builds; bin_cs2 is the tested one.
 pub const CSDK_COMPILER: &str = "game/bin_cs2/win64/resourcecompiler.exe";
 pub const CSDK_OTHER_COMPILERS: [&str; 3] = [
     "game/bin/win64/resourcecompiler.exe",
     "game/bin_tools/win64/resourcecompiler.exe",
     "game/bin_server/win64/resourcecompiler.exe",
 ];
+/// Compiler of the current layout (Reduced CSDK 13, November 2026): no
+/// bin_cs2, one bin set plus bin_server, which differs only in its active
+/// particles.dll. Both compiled materials, textures and an AG2 hero model
+/// byte for byte alike; bin is the tested one.
+pub const CURRENT_CSDK_COMPILER: &str = "game/bin/win64/resourcecompiler.exe";
+pub const CURRENT_CSDK_OTHER_COMPILERS: [&str; 1] = ["game/bin_server/win64/resourcecompiler.exe"];
 const CSDK_CONFIG: &str = "game/citadel/gameinfo.gi";
+const CSDK_CONTENT: &str = "content/citadel";
 const DEADLOCK_PAK: &str = "game/citadel/pak01_dir.vpk";
 const TOOLSET_COMPILER: &str = "game/bin/win64/resourcecompiler.exe";
 const TOOLSET_GAME: &str = "game/csgo";
@@ -51,8 +68,8 @@ pub const LONG_CSDK_PATH: usize = 60;
 pub const EXAMPLE_DEADLOCK: &str = r"C:\Program Files (x86)\Steam\steamapps\common\Deadlock";
 pub const EXAMPLE_PAK: &str =
     r"C:\Program Files (x86)\Steam\steamapps\common\Deadlock\game\citadel\pak01_dir.vpk";
-pub const EXAMPLE_CSDK: &str = r"C:\CSDK12";
-pub const EXAMPLE_COMPILER: &str = r"C:\CSDK12\game\bin_cs2\win64\resourcecompiler.exe";
+pub const EXAMPLE_CSDK: &str = r"C:\CSDK13";
+pub const EXAMPLE_COMPILER: &str = r"C:\CSDK13\game\bin\win64\resourcecompiler.exe";
 pub const EXAMPLE_S2V: &str = r"C:\Tools\Source2Viewer\Source2Viewer-CLI.exe";
 pub const EXAMPLE_TOOLSET: &str = r"C:\DeadlockModdingTools\DMBTools-1\toolset";
 pub const EXAMPLE_DEPOTDOWNLOADER: &str = r"C:\Tools\DepotDownloader\DepotDownloader.exe";
@@ -121,7 +138,7 @@ fn file_near(path: &Path, name: &str, down: usize) -> Option<PathBuf> {
 }
 
 fn check(field: &str, state: State, message: impl Into<String>, fix: Option<PathBuf>) -> FieldCheck {
-    FieldCheck { field: field.into(), state, message: message.into(), fix: fix.map(|p| text(&p)) }
+    FieldCheck { field: field.into(), state, message: message.into(), fix: fix.map(|p| text(&p)), backend: None, layout: None }
 }
 fn ok(field: &str, message: impl Into<String>) -> FieldCheck {
     check(field, State::Ok, message, None)
@@ -180,48 +197,135 @@ fn pak(settings: &Settings) -> FieldCheck {
     check("pak", State::Problem, format!("The file does not exist. Choose pak01_dir.vpk, for example {EXAMPLE_PAK}."), from_game())
 }
 
-/// Reduced CSDK 12 root: contains game\citadel\gameinfo.gi and the bin_cs2 compiler.
+/// The two shapes of the Community SDK. Told apart by what is in the folder,
+/// not by its name, so a later SDK with the same shape is accepted too.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SdkLayout {
+    /// Reduced CSDK 12: four compiler copies, bin_cs2 the tested one.
+    /// Compiles materials only (hero models stop with a schema mismatch).
+    Older,
+    /// Reduced CSDK 13 and later: one bin set (plus bin_server). Compiles
+    /// materials and hero models with AG2 nodes.
+    Current,
+}
+impl SdkLayout {
+    /// The compiler the app uses, relative to the SDK folder.
+    pub fn compiler(self) -> &'static str {
+        match self {
+            SdkLayout::Older => CSDK_COMPILER,
+            SdkLayout::Current => CURRENT_CSDK_COMPILER,
+        }
+    }
+    /// The SDK's other compiler copies, relative to the SDK folder.
+    pub fn other_compilers(self) -> &'static [&'static str] {
+        match self {
+            SdkLayout::Older => &CSDK_OTHER_COMPILERS,
+            SdkLayout::Current => &CURRENT_CSDK_OTHER_COMPILERS,
+        }
+    }
+    /// The compiler's folder as shown to players.
+    pub fn compiler_folder(self) -> &'static str {
+        match self {
+            SdkLayout::Older => r"game\bin_cs2\win64",
+            SdkLayout::Current => r"game\bin\win64",
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            SdkLayout::Older => "Reduced CSDK 12",
+            SdkLayout::Current => "Reduced CSDK 13",
+        }
+    }
+    /// Whether its compiler builds hero models (checked on November 14, 2026
+    /// with an AG2 hero: same skeleton, AG2 references, attachments and cloth
+    /// as the model toolset's compile).
+    pub fn compiles_models(self) -> bool {
+        self == SdkLayout::Current
+    }
+}
+
+/// The layout of the SDK whose root is exactly `root`, if it is one. A
+/// model toolset (game\csgo) or a Deadlock installation (pak01_dir.vpk) is
+/// never taken for the current layout, whose compiler path they share.
+pub fn sdk_layout(root: &Path) -> Option<SdkLayout> {
+    if !root.join(CSDK_CONFIG).is_file() {
+        return None;
+    }
+    if root.join(CSDK_COMPILER).is_file() {
+        return Some(SdkLayout::Older);
+    }
+    let current = root.join(CURRENT_CSDK_COMPILER).is_file()
+        && root.join(CSDK_CONTENT).is_dir()
+        && !root.join(TOOLSET_GAME).exists()
+        && !root.join(DEADLOCK_PAK).exists();
+    current.then_some(SdkLayout::Current)
+}
+
+/// Community SDK root near `path` (itself, a parent, or a folder up to two
+/// levels inside it): either layout of [`sdk_layout`].
 pub fn csdk_root(path: &Path) -> Option<PathBuf> {
-    let complete = |p: &Path| p.join(CSDK_CONFIG).is_file() && p.join(CSDK_COMPILER).is_file();
-    ancestors(path, 5).into_iter().chain(descendants(path, 2)).find(|p| complete(p))
+    ancestors(path, 5).into_iter().chain(descendants(path, 2)).find(|p| sdk_layout(p).is_some())
+}
+
+/// The layout of the SDK chosen in Settings, when that field is exactly an
+/// SDK folder.
+pub fn settings_sdk_layout(settings: &Settings) -> Option<SdkLayout> {
+    let value = settings.csdk.trim();
+    if value.is_empty() {
+        return None;
+    }
+    sdk_layout(Path::new(value))
 }
 
 fn csdk(settings: &Settings) -> FieldCheck {
     let value = settings.csdk.trim();
     if value.is_empty() {
-        return check("csdk", State::Problem, format!("Choose the extracted Reduced_CSDK_12 folder (it contains the folders game and content), for example {EXAMPLE_CSDK}."), None);
+        return check("csdk", State::Problem, format!("Choose the extracted Reduced_CSDK_13 folder (it contains the folders game and content), for example {EXAMPLE_CSDK}."), None);
     }
     let path = Path::new(value);
     if is_zip(path) {
-        return check("csdk", State::Problem, "This is the downloaded ZIP. Extract it first (right-click → Extract All), then choose the extracted Reduced_CSDK_12 folder.", None);
+        return check("csdk", State::Problem, "This is the downloaded ZIP. Extract it first (right-click → Extract All), then choose the extracted Reduced_CSDK_13 folder.", None);
     }
     let Some(root) = csdk_root(path) else {
         return check("csdk", State::Problem, if path.exists() {
-            r"This is not a complete Reduced CSDK 12: game\citadel\gameinfo.gi or game\bin_cs2\win64\resourcecompiler.exe is missing. Extract the whole ZIP again into a new, empty folder such as C:\CSDK12."
-        } else { r"This folder does not exist. Choose the extracted Reduced_CSDK_12 folder, for example C:\CSDK12." }, None);
+            r"This is not a complete Community SDK: game\citadel\gameinfo.gi or game\bin\win64\resourcecompiler.exe is missing. Extract the whole Reduced CSDK 13 ZIP again into a new, empty folder such as C:\CSDK13."
+        } else { r"This folder does not exist. Choose the extracted Reduced_CSDK_13 folder, for example C:\CSDK13." }, None);
     };
     if !same(&root, path) {
         let why = if root.starts_with(path) { "The SDK was extracted inside another folder of the same name." } else { "This is a folder inside the SDK." };
         return check("csdk", State::Problem, format!("{why} The SDK itself is {}.", text(&root)), Some(root));
     }
-    if !settings.deadlock.trim().is_empty() && root.starts_with(Path::new(settings.deadlock.trim())) {
-        return check("csdk", State::Problem, r"The SDK is inside the Deadlock game folder. Extract it to its own folder, for example C:\CSDK12.", None);
-    }
-    if text(&root).len() > LONG_CSDK_PATH {
-        return check("csdk", State::Warning, format!(r"Found, but the folder path is long ({} characters). Long paths can make material compiles fail; move the folder to C:\CSDK12 if they do.", text(&root).len()), None);
-    }
-    if text(&root).to_lowercase().contains("onedrive") {
-        return check("csdk", State::Warning, r"Found, but it is inside OneDrive. Syncing can lock compiler files; C:\CSDK12 is safer.", None);
-    }
-    ok("csdk", "Reduced CSDK 12 found.")
+    let layout = sdk_layout(&root).expect("csdk_root returns SDK folders");
+    let name = layout.name();
+    let found = if !settings.deadlock.trim().is_empty() && root.starts_with(Path::new(settings.deadlock.trim())) {
+        check("csdk", State::Problem, format!(r"The SDK is inside the Deadlock game folder. Extract it to its own folder, for example {EXAMPLE_CSDK}."), None)
+    } else if text(&root).len() > LONG_CSDK_PATH {
+        check("csdk", State::Warning, format!(r"{name} found, but the folder path is long ({} characters). Long paths can make material compiles fail; move the folder to {EXAMPLE_CSDK} if they do.", text(&root).len()), None)
+    } else if text(&root).to_lowercase().contains("onedrive") {
+        check("csdk", State::Warning, format!(r"{name} found, but it is inside OneDrive. Syncing can lock compiler files; {EXAMPLE_CSDK} is safer."), None)
+    } else {
+        match layout {
+            // The sidebar's Notifications show the steps to move over (from `layout`).
+            SdkLayout::Older => check("csdk", State::Warning, "Reduced CSDK 12 found. Reduced CSDK 13 replaces it and also compiles hero models.", None),
+            SdkLayout::Current => ok("csdk", "Reduced CSDK 13 found. It compiles materials and hero models."),
+        }
+    };
+    FieldCheck { layout: Some(layout), ..found }
 }
 
 fn resourcecompiler(settings: &Settings) -> FieldCheck {
     let value = settings.resourcecompiler.trim();
     let root = csdk_root(Path::new(settings.csdk.trim())).filter(|_| !settings.csdk.trim().is_empty());
-    let expected = root.as_ref().map(|r| r.join(CSDK_COMPILER));
+    let layout = root.as_deref().and_then(sdk_layout);
+    let expected = root.as_ref().zip(layout).map(|(r, l)| r.join(l.compiler()));
     if value.is_empty() {
-        return check("resourcecompiler", State::Problem, format!(r"Choose resourcecompiler.exe in the SDK's game\bin_cs2\win64 folder, for example {EXAMPLE_COMPILER}."), expected);
+        let folder = layout.map_or(r"game\bin\win64", SdkLayout::compiler_folder);
+        let example = match layout {
+            Some(SdkLayout::Older) => r"C:\CSDK12\game\bin_cs2\win64\resourcecompiler.exe",
+            _ => EXAMPLE_COMPILER,
+        };
+        return check("resourcecompiler", State::Problem, format!(r"Choose resourcecompiler.exe in the SDK's {folder} folder, for example {example}."), expected);
     }
     let path = Path::new(value);
     if path.is_dir() {
@@ -232,12 +336,16 @@ fn resourcecompiler(settings: &Settings) -> FieldCheck {
         return check("resourcecompiler", State::Problem, if path.exists() { "This is not resourcecompiler.exe." } else { "This file does not exist." }, expected);
     }
     if let Some(expected) = &expected {
+        let layout = layout.expect("expected comes from the layout");
         if same(path, expected) {
-            return ok("resourcecompiler", "Material compiler found (bin_cs2, the tested copy).");
+            return ok("resourcecompiler", match layout {
+                SdkLayout::Older => "Material compiler found (bin_cs2, the tested copy).",
+                SdkLayout::Current => r"Material compiler found (game\bin\win64, the tested copy).",
+            });
         }
         let root = root.as_ref().expect("expected comes from root");
         if path.starts_with(root) {
-            return check("resourcecompiler", State::Warning, r"This is one of the SDK's other compiler copies. Use the one in game\bin_cs2\win64, the copy the app is tested with.", Some(expected.clone()));
+            return check("resourcecompiler", State::Warning, format!("This is one of the SDK's other compiler copies. Use the one in {}, the copy the app is tested with.", layout.compiler_folder()), Some(expected.clone()));
         }
         let toolset = !settings.cswin.trim().is_empty() && path.starts_with(Path::new(settings.cswin.trim()));
         return check("resourcecompiler", State::Problem, if toolset {
@@ -277,8 +385,10 @@ pub fn toolset_root(path: &Path) -> Option<PathBuf> {
 /// choose by mistake: a Community SDK folder (any level of it) or Deadlock's
 /// own game files (downloaded from Deadlock's depot instead of the toolset).
 pub fn toolset_mistake(path: &Path) -> Option<&'static str> {
-    if csdk_root(path).is_some() {
-        return Some("This folder is part of the Community SDK (Reduced CSDK 12), which only compiles materials. The model compiler is a separate toolset from Counter-Strike 2's Workshop Tools: on Set up model compiler…, click Fetch manifests and plan, then Download; the app selects the toolset folder for you.");
+    match csdk_root(path).as_deref().and_then(sdk_layout) {
+        Some(SdkLayout::Older) => return Some("This folder is part of the Community SDK (Reduced CSDK 12), which only compiles materials. The model compiler is a separate toolset from Counter-Strike 2's Workshop Tools: on Set up model compiler…, click Fetch manifests and plan, then Download; the app selects the toolset folder for you. Reduced CSDK 13 compiles models too, without a separate toolset."),
+        Some(SdkLayout::Current) => return Some("This folder is part of the Community SDK (Reduced CSDK 13), which compiles hero models itself. Choose it under Community SDK, leave Model compiler toolset empty and keep the model compiler backend on auto."),
+        None => {}
     }
     let deadlock = |p: &Path| p.join("citadel").is_dir() && !p.join("csgo").is_dir();
     if ancestors(path, 2).iter().chain(&[path.join("game")]).any(|p| deadlock(p)) {
@@ -287,20 +397,57 @@ pub fn toolset_mistake(path: &Path) -> Option<&'static str> {
     None
 }
 
-/// The model compiler: the downloaded toolset. A model compile with the
-/// Community SDK's compiler stops with a ParticleFloatType_t schema mismatch.
+/// The model compiler, following `toolchain::select`: with the backend on
+/// auto, a Community SDK of the current layout (Reduced CSDK 13), which
+/// compiles hero models itself, else the downloaded toolset. A model compile
+/// with Reduced CSDK 12's compiler stops with a ParticleFloatType_t schema
+/// mismatch.
 fn model_compiler(settings: &Settings) -> Vec<FieldCheck> {
-    let root_text = settings.cswin.trim();
-    let not_set = "The model compiler is not set up. Open Set up model compiler…, get the files, then click Use this toolset in settings. Without it, models are compiled with the Community SDK, which stops with a schema mismatch.";
+    let sdk_models = settings_sdk_layout(settings).is_some_and(SdkLayout::compiles_models);
     if settings.model_backend == "csdk" {
-        return vec![check("cswin", State::Problem, "Model compiler backend is set to CSDK. The Community SDK cannot compile hero models (it stops with a schema mismatch). Set the backend to auto and set up the model toolset.", None)];
+        if sdk_models {
+            return vec![ok("cswin", "Models are compiled with Reduced CSDK 13 (model compiler backend: csdk); no separate model toolset is needed.")];
+        }
+        return vec![check("cswin", State::Problem, "Model compiler backend is set to CSDK, but this Community SDK cannot compile hero models (Reduced CSDK 12 stops with a schema mismatch). Set the backend to auto, then use Reduced CSDK 13 or set up the model toolset.", None)];
     }
+    // Auto compiles with the SDK; whatever the toolset fields hold is unused.
+    if sdk_models && settings.model_backend == "auto" {
+        return vec![ok("cswin", "Models are compiled with Reduced CSDK 13; no separate model toolset is needed.")];
+    }
+    let mut out = toolset_checks(settings);
+    // A toolset chosen on purpose (backend cswin) next to a Reduced CSDK 13:
+    // offer the switch to auto. Only the Settings page button applies it.
+    if settings.model_backend == "cswin" && sdk_models {
+        if let Some(first) = out.iter_mut().find(|c| c.field == "cswin") {
+            if first.state == State::Ok {
+                first.message = "Hero models are compiled by your downloaded model toolset. Reduced CSDK 13 compiles them too, so the toolset is no longer needed.".into();
+            }
+            first.backend = Some("auto".into());
+        }
+    }
+    out
+}
+
+/// The downloaded model toolset's fields, when the toolset compiles the models.
+fn toolset_checks(settings: &Settings) -> Vec<FieldCheck> {
+    let root_text = settings.cswin.trim();
     if root_text.is_empty() {
-        return vec![check("cswin", State::Problem, not_set, None)];
+        let older = settings_sdk_layout(settings) == Some(SdkLayout::Older);
+        return vec![check("cswin", State::Problem, if older {
+            "The model compiler is not set up. Reduced CSDK 12 cannot compile hero models; Reduced CSDK 13 replaces it and compiles materials and the hero model, so choose it as the Community SDK. An already downloaded model toolset can still be chosen under Advanced configuration."
+        } else if settings.model_backend == "cswin" && settings_sdk_layout(settings) == Some(SdkLayout::Current) {
+            "The model compiler is not set up. The backend is set to cswin, but no model toolset is chosen; Reduced CSDK 13 compiles the hero model, so the backend can go back to auto."
+        } else {
+            crate::toolchain::MODEL_TOOLSET_NOT_SET
+        }, None)];
     }
     let root_path = Path::new(root_text);
-    if csdk_root(root_path).is_some_and(|r| same(&r, root_path)) {
-        return vec![check("cswin", State::Problem, "This is the Community SDK, not the model toolset. Choose the toolset folder you downloaded with Set up model compiler… (it contains game\\csgo).", None)];
+    if let Some(layout) = csdk_root(root_path).filter(|r| same(r, root_path)).as_deref().and_then(sdk_layout) {
+        return vec![check("cswin", State::Problem, if layout.compiles_models() {
+            "This is the Community SDK (Reduced CSDK 13), not the model toolset. It compiles models itself: choose it under Community SDK and leave Model compiler toolset empty."
+        } else {
+            "This is the Community SDK, not the model toolset. Choose the toolset folder you downloaded with Set up model compiler… (it contains game\\csgo)."
+        }, None)];
     }
     let Some(root) = toolset_root(root_path) else {
         let why = toolset_mistake(root_path).map(str::to_owned).unwrap_or_else(|| format!(r"No model toolset here: game\bin\win64\resourcecompiler.exe or game\csgo\gameinfo.gi is missing. The downloaded toolset is the toolset folder inside your acquisition folder, for example {EXAMPLE_TOOLSET}."));
@@ -351,14 +498,22 @@ fn optional_folder(field: &str, value: &str) -> FieldCheck {
     }
 }
 
+/// Blender: nearly every model needs it, but an empty path is only a warning
+/// (a prepared DMX builds without it), so it never reopens the setup guide.
+fn blender(settings: &Settings) -> FieldCheck {
+    if settings.blender.trim().is_empty() {
+        return check("blender", State::Warning, "Blender is not set. It is needed to prepare Blender, FBX and glTF models; Detect tools finds an installed Blender.", None);
+    }
+    optional_file("blender", &settings.blender, "blender.exe", "Blender")
+}
+
 /// Every path field of Settings, in the order the Settings page shows them.
 pub fn field_checks(settings: &Settings) -> Vec<FieldCheck> {
-    let mut out = vec![workspace(settings), deadlock(settings), pak(settings), source2viewer(settings), resourcecompiler(settings), csdk(settings)];
+    let mut out = vec![workspace(settings), deadlock(settings), pak(settings), blender(settings), source2viewer(settings), csdk(settings), resourcecompiler(settings)];
     out.push(optional_folder("steam", &settings.steam));
     out.extend(model_compiler(settings));
     out.push(optional_folder("optional_cs2", &settings.optional_cs2));
     out.push(optional_file("vpk_tool", &settings.vpk_tool, "vpk.exe", "VPK tool"));
-    out.push(optional_file("blender", &settings.blender, "blender.exe", "Blender"));
     out
 }
 
@@ -367,13 +522,17 @@ pub fn apply_fixes(settings: &Settings) -> Settings {
     let mut result = settings.clone();
     // An earlier detection may have put the Community SDK into the model
     // compiler fields; clear them so Set up model compiler… can fill them.
+    // A Reduced CSDK 13 compiles models itself: its csdk backend is kept.
     let sdk = csdk_root(Path::new(result.csdk.trim())).filter(|_| !result.csdk.trim().is_empty());
+    let sdk_models = sdk.as_deref().and_then(sdk_layout).is_some_and(SdkLayout::compiles_models);
     let in_sdk = |value: &str| sdk.as_ref().is_some_and(|r| !value.trim().is_empty() && Path::new(value.trim()).starts_with(r));
     if (result.cswin.trim().is_empty() || in_sdk(&result.cswin)) && (in_sdk(&result.cswin_resourcecompiler) || in_sdk(&result.model_game) || result.model_backend == "csdk") {
         result.cswin.clear();
         result.cswin_resourcecompiler.clear();
         result.model_game.clear();
-        result.model_backend = "auto".into();
+        if !sdk_models {
+            result.model_backend = "auto".into();
+        }
     }
     // A fix can make another one possible (the CSDK root, then its compiler).
     for _ in 0..3 {
@@ -512,6 +671,120 @@ mod tests {
         assert_eq!(state(&field_checks(&picked), "csdk").1, Some(text(&inner)));
     }
 
+    /// Reduced CSDK 13's shape: one bin set plus bin_server, no bin_cs2.
+    fn current_sdk(root: &Path) {
+        for rel in [CSDK_CONFIG, CURRENT_CSDK_COMPILER, CURRENT_CSDK_OTHER_COMPILERS[0], "content/citadel/x.txt"] { touch(root, rel); }
+    }
+
+    #[test]
+    fn a_nested_csdk_13_extraction_and_its_bin_server_copy_are_corrected() {
+        let t = tempfile::tempdir().unwrap();
+        let outer = t.path().join("Reduced_CSDK_13");
+        let inner = outer.join("Reduced_CSDK_13");
+        current_sdk(&inner);
+        assert_eq!(sdk_layout(&inner), Some(SdkLayout::Current));
+        let mut s = Settings { csdk: text(&outer), resourcecompiler: text(&inner.join(CURRENT_CSDK_OTHER_COMPILERS[0])), ..Default::default() };
+        let checks = field_checks(&s);
+        assert_eq!(state(&checks, "csdk"), (State::Problem, Some(text(&inner))));
+        assert_eq!(state(&checks, "resourcecompiler"), (State::Warning, Some(text(&inner.join(CURRENT_CSDK_COMPILER)))));
+        assert!(checks.iter().find(|c| c.field == "resourcecompiler").unwrap().message.contains(r"game\bin\win64"));
+        s = apply_fixes(&s);
+        assert_eq!(s.csdk, text(&inner));
+        assert_eq!(s.resourcecompiler, text(&inner.join(CURRENT_CSDK_COMPILER)));
+        let checks = field_checks(&s);
+        let csdk = checks.iter().find(|c| c.field == "csdk").unwrap();
+        // Ok, or a Warning for the long temporary path; never a Problem.
+        assert_ne!(csdk.state, State::Problem);
+        assert!(csdk.message.starts_with("Reduced CSDK 13 found"), "{}", csdk.message);
+        assert_eq!(csdk.layout, Some(SdkLayout::Current));
+        assert_eq!(state(&checks, "resourcecompiler").0, State::Ok);
+        // A folder inside the SDK points back to it.
+        let picked = Settings { csdk: text(&inner.join("game/bin")), ..Default::default() };
+        assert_eq!(state(&field_checks(&picked), "csdk").1, Some(text(&inner)));
+    }
+
+    #[test]
+    fn a_working_csdk_12_is_a_warning_without_a_fix_and_says_csdk_13_replaced_it() {
+        let t = tempfile::tempdir().unwrap();
+        let sdk = t.path().join("CSDK12");
+        for rel in [CSDK_CONFIG, CSDK_COMPILER, CSDK_OTHER_COMPILERS[0]] { touch(&sdk, rel); }
+        let s = Settings { csdk: text(&sdk), resourcecompiler: text(&sdk.join(CSDK_COMPILER)), ..Default::default() };
+        let checks = field_checks(&s);
+        let csdk = checks.iter().find(|c| c.field == "csdk").unwrap();
+        // A Warning (never a Problem): it still compiles materials.
+        assert_eq!((csdk.state, csdk.fix.as_deref(), csdk.layout), (State::Warning, None, Some(SdkLayout::Older)));
+        assert_eq!(serde_json::to_value(csdk).unwrap()["layout"], "older");
+        assert_eq!(apply_fixes(&s).csdk, s.csdk);
+        // Without a toolset, the model compiler says CSDK 13 replaces it.
+        let model = checks.iter().find(|c| c.field == "cswin").unwrap();
+        assert_eq!(model.state, State::Problem);
+        assert!(model.message.starts_with("The model compiler is not set up.") && model.message.contains("Reduced CSDK 12 cannot compile hero models") && model.message.contains("Reduced CSDK 13 replaces it"), "{}", model.message);
+        assert!(csdk.message.starts_with("Reduced CSDK 12 found.") && csdk.message.contains("Reduced CSDK 13"), "{}", csdk.message);
+        assert_eq!(state(&checks, "resourcecompiler").0, State::Ok);
+        // bin is one of CSDK 12's other copies, not its compiler.
+        let other = Settings { resourcecompiler: text(&sdk.join(CSDK_OTHER_COMPILERS[0])), ..s.clone() };
+        assert_eq!(state(&field_checks(&other), "resourcecompiler"), (State::Warning, Some(text(&sdk.join(CSDK_COMPILER)))));
+    }
+
+    #[test]
+    fn model_toolsets_and_game_installs_are_never_a_current_layout_sdk() {
+        let t = tempfile::tempdir().unwrap();
+        // A model toolset shares the compiler path; a stray citadel config
+        // and content folder do not make it an SDK.
+        let toolset = t.path().join("toolset");
+        current_sdk(&toolset);
+        touch(&toolset, "game/csgo/gameinfo.gi");
+        assert_eq!(sdk_layout(&toolset), None);
+        // Neither is Deadlock's own installation.
+        let game = t.path().join("Deadlock");
+        current_sdk(&game);
+        touch(&game, DEADLOCK_PAK);
+        assert_eq!(sdk_layout(&game), None);
+        // Nor a folder without content\citadel.
+        let partial = t.path().join("partial");
+        for rel in [CSDK_CONFIG, CURRENT_CSDK_COMPILER] { touch(&partial, rel); }
+        assert_eq!(sdk_layout(&partial), None);
+        assert_eq!(csdk_root(&partial), None);
+    }
+
+    #[test]
+    fn csdk_13_compiles_models_without_a_toolset_and_csdk_12_does_not() {
+        let t = tempfile::tempdir().unwrap();
+        let current = t.path().join("CSDK13");
+        current_sdk(&current);
+        let older = t.path().join("CSDK12");
+        for rel in [CSDK_CONFIG, CSDK_COMPILER] { touch(&older, rel); }
+        let cswin = |csdk: &Path, backend: &str| {
+            let s = Settings { csdk: text(csdk), model_backend: backend.into(), ..Default::default() };
+            field_checks(&s).into_iter().find(|c| c.field == "cswin").unwrap()
+        };
+        let auto = cswin(&current, "auto");
+        assert_eq!(auto.state, State::Ok);
+        assert!(auto.message.contains("no separate model toolset is needed"), "{}", auto.message);
+        assert_eq!(cswin(&current, "csdk").state, State::Ok);
+        assert_eq!(cswin(&older, "auto").state, State::Problem);
+        let explicit = cswin(&older, "csdk");
+        assert_eq!(explicit.state, State::Problem);
+        assert!(explicit.message.contains("schema mismatch"));
+        // Fix all keeps the csdk backend for CSDK 13 and clears the SDK's
+        // own paths from the model toolset fields; CSDK 12 goes back to auto.
+        let crossed = |csdk: &Path| Settings {
+            csdk: text(csdk),
+            cswin_resourcecompiler: text(&csdk.join("game/bin/win64/resourcecompiler.exe")),
+            model_game: text(&csdk.join("game/citadel")),
+            model_backend: "csdk".into(),
+            ..Default::default()
+        };
+        let fixed = apply_fixes(&crossed(&current));
+        assert_eq!((fixed.model_backend.as_str(), fixed.cswin_resourcecompiler.as_str(), fixed.model_game.as_str()), ("csdk", "", ""));
+        assert_eq!(apply_fixes(&crossed(&older)).model_backend, "auto");
+        // CSDK 13 chosen as the model toolset says to choose it as the SDK.
+        let s = Settings { cswin: text(&current), model_backend: "auto".into(), ..Default::default() };
+        let message = field_checks(&s).into_iter().find(|c| c.field == "cswin").unwrap().message;
+        assert!(message.contains("Reduced CSDK 13") && message.contains("Community SDK"), "{message}");
+        assert!(toolset_mistake(&current.join("game")).unwrap().contains("compiles hero models itself"));
+    }
+
     #[test]
     fn the_model_toolset_compiler_in_the_material_field_and_a_missing_toolset_are_problems() {
         let t = tempfile::tempdir().unwrap();
@@ -596,11 +869,76 @@ mod tests {
     #[test]
     fn empty_optional_fields_are_not_problems() {
         let checks = field_checks(&Settings::default());
-        for field in ["steam", "optional_cs2", "vpk_tool", "blender"] {
+        for field in ["steam", "optional_cs2", "vpk_tool"] {
             assert_eq!(state(&checks, field).0, State::Optional, "{field}");
         }
+        // An empty Blender is a warning: needed by most models, never a Problem.
+        let blender = checks.iter().find(|c| c.field == "blender").unwrap();
+        assert_eq!((blender.state, blender.fix.as_deref()), (State::Warning, None));
+        assert!(blender.message.starts_with("Blender is not set.") && blender.message.contains("FBX"), "{}", blender.message);
         for field in ["workspace", "deadlock", "pak", "csdk", "resourcecompiler", "source2viewer", "cswin"] {
             assert_eq!(state(&checks, field).0, State::Problem, "{field}");
         }
+    }
+
+    /// A new user's empty settings lead to Reduced CSDK 13 only: no message
+    /// names the downloaded toolset or the tools it needs.
+    #[test]
+    fn empty_settings_never_point_to_the_model_toolset() {
+        for check in field_checks(&Settings::default()) {
+            for word in ["Set up model compiler", "DepotDownloader", "Counter-Strike", "CSDK 12", "toolset"] {
+                assert!(!check.message.contains(word), "{}: {}", check.field, check.message);
+            }
+            assert_eq!((check.backend.as_deref(), check.layout), (None, None), "{}", check.field);
+        }
+        let model = field_checks(&Settings::default()).into_iter().find(|c| c.field == "cswin").unwrap();
+        assert_eq!(model.message, crate::toolchain::MODEL_TOOLSET_NOT_SET);
+        assert!(model.message.starts_with("The model compiler is not set up.") && model.message.contains("Reduced CSDK 13"));
+    }
+
+    /// A toolset chosen on purpose (backend cswin) next to a Reduced CSDK 13
+    /// gets a one-click switch to auto; Fix all and a CSDK 12 never offer it.
+    #[test]
+    fn an_explicit_toolset_beside_csdk_13_is_offered_auto_but_never_switched() {
+        let t = tempfile::tempdir().unwrap();
+        let current = t.path().join("CSDK13");
+        current_sdk(&current);
+        let older = t.path().join("CSDK12");
+        for rel in [CSDK_CONFIG, CSDK_COMPILER] { touch(&older, rel); }
+        let toolset = t.path().join("DMBTools-1").join("toolset");
+        touch(&toolset, TOOLSET_COMPILER);
+        touch(&toolset, "game/csgo/gameinfo.gi");
+        let setup = |sdk: &Path, backend: &str| Settings {
+            csdk: text(sdk), resourcecompiler: text(&sdk.join(sdk_layout(sdk).unwrap().compiler())),
+            cswin: text(&toolset), cswin_resourcecompiler: text(&toolset.join(TOOLSET_COMPILER)), model_game: text(&toolset.join(TOOLSET_GAME)),
+            model_backend: backend.into(), ..Default::default()
+        };
+        let pinned = setup(&current, "cswin");
+        let checks = field_checks(&pinned);
+        let model = checks.iter().find(|c| c.field == "cswin").unwrap();
+        assert_eq!((model.state, model.backend.as_deref()), (State::Ok, Some("auto")));
+        assert!(model.message.contains("Reduced CSDK 13 compiles them too"), "{}", model.message);
+        assert_eq!(state(&checks, "cswin_resourcecompiler").0, State::Ok);
+        let json = serde_json::to_value(model).unwrap();
+        assert_eq!(json["backend"], "auto");
+        // Fix all leaves the backend and the toolset as they are.
+        assert_eq!(apply_fixes(&pinned), pinned);
+        // Only checks with a suggestion serialize the field.
+        assert!(serde_json::to_value(&checks[0]).unwrap().get("backend").is_none());
+        // With Reduced CSDK 12 the toolset is still needed: no suggestion.
+        let older_pinned = setup(&older, "cswin");
+        assert!(field_checks(&older_pinned).iter().all(|c| c.backend.is_none()));
+        assert_eq!(field_checks(&older_pinned).into_iter().find(|c| c.field == "cswin").unwrap().message, "Model toolset found.");
+        // Auto with CSDK 13 compiles with the SDK; the toolset fields are unused.
+        let auto = setup(&current, "auto");
+        let model = field_checks(&auto).into_iter().find(|c| c.field == "cswin").unwrap();
+        assert_eq!((model.state, model.backend), (State::Ok, None));
+        assert!(model.message.starts_with("Models are compiled with Reduced CSDK 13"), "{}", model.message);
+        // An explicit cswin backend with no toolset is a Problem with the same suggestion.
+        let empty = Settings { cswin: String::new(), cswin_resourcecompiler: String::new(), model_game: String::new(), ..pinned.clone() };
+        let model = field_checks(&empty).into_iter().find(|c| c.field == "cswin").unwrap();
+        assert_eq!((model.state, model.backend.as_deref()), (State::Problem, Some("auto")));
+        assert!(model.message.starts_with("The model compiler is not set up."), "{}", model.message);
+        assert_eq!(apply_fixes(&empty).model_backend, "cswin");
     }
 }

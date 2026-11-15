@@ -137,7 +137,7 @@ fn failed_blender_validation_preserves_the_previous_settings() {
     saved.workspace = "unchanged workspace".into();
     app.save_settings(&saved).unwrap();
     let before = fs::read(state.join("settings.json")).unwrap();
-    let unsupported = version_fixture(&temp.path().join("unsupported"), "5.3.0");
+    let unsupported = version_fixture(&temp.path().join("unsupported"), "5.4.0");
     for path in [unsupported, temp.path().join("missing blender")] {
         assert!(app.validate_blender(Some(path)).is_err());
         assert_eq!(fs::read(state.join("settings.json")).unwrap(), before);

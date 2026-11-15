@@ -30,20 +30,95 @@ pub fn rank(stem: &str) -> Option<(u8, usize)> {
     Some((group, stem.len()))
 }
 
-/// Animation files below `root`, a few levels deep: (is an AnimGraph2 clip,
-/// path). Clips are a `.dmx` next to a `.vnmclip` of the same name; their
-/// folders differ per hero (`clips`, Warden's `clip`, Sinclair's
-/// `dmx/animation/ag2`). Other `.dmx` files are older-style animations or meshes.
-fn animation_files(root: &Path, depth: usize, out: &mut Vec<(bool, PathBuf)>) {
+/// What a `.vnmclip` written by Source 2 Viewer 21.1 or later (a
+/// `CNmClipDocument`) says: the DMX of its take and the frames it plays.
+struct ClipDocument {
+    source: PathBuf,
+    /// `m_nStartFrame`..`m_nEndFrame` of the take, when the clip names them.
+    range: Option<(f64, f64)>,
+}
+
+fn is_clip_file(path: &Path) -> bool {
+    path.extension().is_some_and(|x| x.eq_ignore_ascii_case("vnmclip"))
+}
+
+/// The take of a newer `.vnmclip`. Source 2 Viewer 21.1 writes a clip's DMX
+/// where `m_sourceFilename` names it (often `dmx/animation/…`, one take shared
+/// by several clips that each play a frame range of it), placed relative to the
+/// folder the `.vnmclip` went to: from the game archive that is the archive
+/// path, from a single compiled model the `.vnmclip` files land beside the
+/// `.vmdl` and the takes under another parent. The DMX is therefore the longest
+/// tail of `m_sourceFilename` found below an ancestor of the clip's folder
+/// (single file names only in that folder), never above the sources' root, the
+/// folder holding `models`. Older versions wrote no `_class` and the clip's
+/// own frames as a `.dmx` beside the `.vnmclip` (`animation_files`).
+fn clip_document(clip: &Path) -> Option<ClipDocument> {
+    let document = deadlock_resource::text::Document::parse(std::fs::read_to_string(clip).ok()?).ok()?;
+    let scalar = |key: &str| document.root.get(key).and_then(|n| n.scalar()).map(str::trim);
+    if scalar("_class") != Some("CNmClipDocument") {
+        return None;
+    }
+    let source = scalar("m_sourceFilename")?.replace('\\', "/");
+    let parts: Vec<&str> = source.split('/').collect();
+    if !source.to_ascii_lowercase().ends_with(".dmx") || parts.iter().any(|p| p.is_empty() || *p == "." || *p == ".." || p.contains(':')) {
+        return None;
+    }
+    let folder = clip.parent()?;
+    let root = folder.ancestors().find(|a| a.file_name().is_some_and(|n| n.eq_ignore_ascii_case("models")))?.parent()?;
+    let ancestors: Vec<&Path> = folder.ancestors().take_while(|a| a.starts_with(root)).collect();
+    let source = (1..=parts.len()).rev().find_map(|tail| {
+        let relative: PathBuf = parts[parts.len() - tail..].iter().collect();
+        ancestors.iter().enumerate().filter(|(up, _)| tail > 1 || *up == 0).map(|(_, a)| a.join(&relative)).find(|p| p.is_file())
+    })?;
+    let frame = |key: &str| scalar(key).and_then(|v| v.parse::<f64>().ok());
+    let range = match (frame("m_nStartFrame"), frame("m_nEndFrame")) {
+        (Some(start), Some(end)) if start >= 0. && end >= start => Some((start, end)),
+        _ => None,
+    };
+    Some(ClipDocument { source, range })
+}
+
+fn collect_animation_files(root: &Path, depth: usize, dmx: &mut Vec<PathBuf>, clips: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(root) else { return };
     for path in entries.filter_map(|e| e.ok()).map(|e| e.path()) {
         if path.is_dir() {
             if depth > 0 {
-                animation_files(&path, depth - 1, out);
+                collect_animation_files(&path, depth - 1, dmx, clips);
             }
         } else if path.extension().is_some_and(|x| x.eq_ignore_ascii_case("dmx")) {
-            out.push((path.with_extension("vnmclip").is_file(), path));
+            dmx.push(path);
+        } else if is_clip_file(&path) {
+            clips.push(path);
         }
+    }
+}
+
+/// Animation files below `root`, a few levels deep: (is an AnimGraph2 clip,
+/// path). A clip is a newer `.vnmclip` whose take was found (`clip_document`;
+/// the path is the `.vnmclip`, so the clip keeps its own name and frame range),
+/// or a `.dmx` next to an older `.vnmclip` of the same name. Clip folders
+/// differ per hero (`clips`, Warden's `clip`, Sinclair's `dmx/animation/ag2`).
+/// Takes of newer clips are not listed again; other `.dmx` files are
+/// older-style animations or meshes.
+fn animation_files(root: &Path, depth: usize, out: &mut Vec<(bool, PathBuf)>) {
+    let (mut dmx, mut clips) = (vec![], vec![]);
+    collect_animation_files(root, depth, &mut dmx, &mut clips);
+    let key = |p: &Path| p.to_string_lossy().to_lowercase();
+    let mut takes = BTreeSet::new();
+    let mut newer = BTreeSet::new();
+    for clip in clips {
+        if let Some(document) = clip_document(&clip) {
+            takes.insert(key(&document.source));
+            newer.insert(key(&clip));
+            out.push((true, clip));
+        }
+    }
+    for path in dmx {
+        if takes.contains(&key(&path)) {
+            continue;
+        }
+        let beside = path.with_extension("vnmclip");
+        out.push((beside.is_file() && !newer.contains(&key(&beside)), path));
     }
 }
 
@@ -138,18 +213,29 @@ struct ClipTracks {
     dmx: Dmx,
     positions: BTreeMap<i32, Track<3>>,
     rotations: BTreeMap<i32, Track<4>>,
-    /// Seconds to the last key.
+    /// Seconds to the last key (of the clip's frame range).
     length: f64,
+    /// Seconds into the take where the clip starts (a newer `.vnmclip`'s
+    /// `m_nStartFrame`); 0 for a DMX of its own.
+    offset: f64,
 }
 impl ClipTracks {
+    /// A clip's `.dmx`, or a newer `.vnmclip`: its take, from its start frame
+    /// to its end frame.
     fn load(clip: &Path) -> Option<Self> {
-        let dmx = Dmx::load(clip).ok()?;
+        let (file, range) = if is_clip_file(clip) {
+            let document = clip_document(clip)?;
+            (document.source, document.range)
+        } else {
+            (clip.to_path_buf(), None)
+        };
+        let dmx = Dmx::load(&file).ok()?;
         let rate = dmx.elements.iter().find(|e| e.kind == "DmeChannelsClip").and_then(|c| match c.get("frameRate") {
             Some(Value::Integer(r)) if *r > 0 => Some(f64::from(*r)),
             Some(Value::Float(r)) if *r > 0. => Some(f64::from(*r)),
             _ => None,
         }).unwrap_or(30.);
-        let mut this = Self { dmx, positions: BTreeMap::new(), rotations: BTreeMap::new(), length: 0. };
+        let mut this = Self { dmx, positions: BTreeMap::new(), rotations: BTreeMap::new(), length: 0., offset: 0. };
         fn track<const N: usize>(times: Vec<f64>, values: Vec<f64>, rate: f64) -> Option<Track<N>> {
             let values: Vec<[f64; N]> = values.chunks_exact(N).map(|c| std::array::from_fn(|k| c[k])).collect();
             if values.is_empty() {
@@ -178,6 +264,10 @@ impl ClipTracks {
             }
         }
         this.length = this.positions.values().map(|t| *t.times.last().unwrap()).chain(this.rotations.values().map(|t| *t.times.last().unwrap())).fold(0., f64::max);
+        if let Some((start, end)) = range {
+            this.offset = (start / rate).min(this.length);
+            this.length = ((end - start) / rate).min(this.length - this.offset);
+        }
         Some(this)
     }
     fn element(&self, index: i32) -> Option<&deadlock_dmx::Element> {
@@ -210,11 +300,12 @@ impl ClipTracks {
         let model = self.dmx.elements.iter().find(|e| e.kind == "DmeModel")?;
         Some(self.refs(model.get("children")))
     }
-    /// The animated local transform of a DmeTransform `t` seconds after its first key.
+    /// The animated local transform of a DmeTransform `t` seconds after the
+    /// clip's start (its first key, plus the start frame of a newer clip).
     fn animated(&self, transform: i32, t: f64) -> (Option<[f64; 3]>, Option<[f64; 4]>) {
         (
-            self.positions.get(&transform).map(|k| k.at(k.times[0] + t)),
-            self.rotations.get(&transform).map(|k| k.at(k.times[0] + t)),
+            self.positions.get(&transform).map(|k| k.at(k.times[0] + self.offset + t)),
+            self.rotations.get(&transform).map(|k| k.at(k.times[0] + self.offset + t)),
         )
     }
     /// The local transform of a joint's DmeTransform at `t`: animated, else its rest value.
@@ -484,6 +575,68 @@ mod tests {
         std::fs::write(haze.join("haze_body.dmx"), b"").unwrap();
         assert_eq!(find_clip(old.path(), &haze).unwrap(), haze.join("haze_primary_stand_idle.dmx"));
         assert!(find_clip(&base.join("none"), &base.join("none")).is_none());
+    }
+    /// A `.vnmclip` as Source 2 Viewer 21.1 writes it.
+    fn newer_clip(path: &Path, source: &str, range: Option<(u32, u32)>) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let range = range.map(|(s, e)| format!("\tm_nStartFrame = {s}\n\tm_nEndFrame = {e}\n")).unwrap_or_default();
+        let text = format!("<!-- kv3 encoding:text:version{{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}} format:generic:version{{7412167c-06e9-4698-aff2-e63eb59037e7}} -->\n{{\n\t_class = \"CNmClipDocument\"\n\tm_nVersion = 1\n\tm_sourceFilename = \"{source}\"\n\tm_animationSkeletonName = \"models/x/x.vnmskel\"\n{range}\tm_bonesToSampleInModelSpace = [  ]\n\tm_eventTracks = [  ]\n}}\n");
+        std::fs::write(path, text).unwrap();
+    }
+    fn touch(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, b"").unwrap();
+    }
+    #[test]
+    fn newer_clips_are_found_through_the_take_their_vnmclip_names() {
+        // From the game archive (21.1): the clip keeps its name, its take is at
+        // the archive path it names and is not listed again on its own.
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path();
+        let haze = base.join("models/heroes_staging/haze");
+        newer_clip(&haze.join("clips/weapon_stand_idle.vnmclip"), "models/heroes_staging/haze/dmx/animation/primary_idle.dmx", None);
+        touch(&haze.join("dmx/animation/primary_idle.dmx"));
+        touch(&haze.join("haze_primary_stand_idle.dmx"));
+        newer_clip(&haze.join("clips/reload_idle_quick.vnmclip"), "models/heroes_staging/haze/dmx/animation/primary_reload.dmx", Some((40, 60)));
+        newer_clip(&haze.join("clips/reload_idle.vnmclip"), "models/heroes_staging/haze/dmx/animation/primary_reload.dmx", None);
+        touch(&haze.join("dmx/animation/primary_reload.dmx"));
+        // A take beside its own clip (Haze's corner leans) is that clip, once.
+        newer_clip(&haze.join("clips/corner_lean_stand_idle.vnmclip"), "models/heroes_staging/haze/clips/corner_lean_stand_idle.dmx", None);
+        touch(&haze.join("clips/corner_lean_stand_idle.dmx"));
+        // A clip whose take was not written, or that names a path outside the sources, is no clip.
+        newer_clip(&haze.join("clips/missing_stand_idle.vnmclip"), "models/heroes_staging/haze/dmx/animation/missing.dmx", None);
+        newer_clip(&haze.join("clips/escape_stand_idle.vnmclip"), "../outside.dmx", None);
+        touch(&base.join("outside.dmx"));
+        assert_eq!(find_clip(base, &haze).unwrap(), haze.join("clips/weapon_stand_idle.vnmclip"));
+        let all = find_ranked(base, &haze, &CLIPS, rank);
+        assert_eq!(all, vec![haze.join("clips/weapon_stand_idle.vnmclip"), haze.join("clips/corner_lean_stand_idle.vnmclip"), haze.join("haze_primary_stand_idle.dmx")]);
+        let mut files = vec![];
+        animation_files(&base.join("models"), 8, &mut files);
+        assert!(!files.iter().any(|(_, p)| p.ends_with("dmx/animation/primary_idle.dmx") || p.ends_with("clips/corner_lean_stand_idle.dmx")), "{files:?}");
+        // Each clip of a shared take keeps its own frame range.
+        let quick = clip_document(&haze.join("clips/reload_idle_quick.vnmclip")).unwrap();
+        assert_eq!((quick.source, quick.range), (haze.join("dmx/animation/primary_reload.dmx"), Some((40., 60.))));
+        assert_eq!(clip_document(&haze.join("clips/reload_idle.vnmclip")).unwrap().range, None);
+        // From a single compiled model (21.1): the .vnmclip files sit beside
+        // the .vmdl and the takes under another parent (Lady Geist, whose clips
+        // name heroes_staging/ghost).
+        let flat = tempfile::tempdir().unwrap();
+        let geist = flat.path().join("models/heroes_wip/geist");
+        touch(&geist.join("geist.vmdl"));
+        newer_clip(&geist.join("weapon_stand_idle.vnmclip"), "models/heroes_staging/ghost/dmx/animation/primary_idle.dmx", None);
+        touch(&flat.path().join("models/heroes_wip/dmx/animation/primary_idle.dmx"));
+        newer_clip(&geist.join("reload_quick_stand_idle.vnmclip"), "models/heroes_staging/ghost/clips/reload_quick_stand_idle.dmx", None);
+        touch(&geist.join("reload_quick_stand_idle.dmx"));
+        touch(&geist.join("geist_primary_stand_idle.dmx"));
+        assert_eq!(clip_document(&geist.join("weapon_stand_idle.vnmclip")).unwrap().source, flat.path().join("models/heroes_wip/dmx/animation/primary_idle.dmx"));
+        assert_eq!(find_ranked(flat.path(), &geist, &CLIPS, rank), vec![geist.join("weapon_stand_idle.vnmclip"), geist.join("reload_quick_stand_idle.vnmclip"), geist.join("geist_primary_stand_idle.dmx")]);
+        // An older .vnmclip (no _class) keeps the older rule: its .dmx beside it.
+        let old = tempfile::tempdir().unwrap();
+        let wraith = old.path().join("models/heroes_wip/wraith/clips");
+        touch(&wraith.join("weapon_stand_idle.dmx"));
+        std::fs::write(wraith.join("weapon_stand_idle.vnmclip"), "{\n\tm_sourceFilename = \"models/heroes_wip/wraith/dmx/animation/primary_idle.dmx\"\n}\n").unwrap();
+        assert!(clip_document(&wraith.join("weapon_stand_idle.vnmclip")).is_none());
+        assert_eq!(find_clip(old.path(), &old.path().join("models/heroes_wip/wraith")).unwrap(), wraith.join("weapon_stand_idle.dmx"));
     }
     #[test]
     fn a_turned_shoulder_moves_the_hand_and_its_gun_with_it() {

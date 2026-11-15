@@ -197,6 +197,17 @@ pub fn detect_target(
         outcome?;saved?;if let Some(error)=cleanup_error{return Err(error);}Ok(report)
     })
 }
+/// Source 2 Viewer writes `exceptions.txt` into its working folder when a file
+/// fails to process. Its commands run in the system temp folder: always
+/// writable, never the app's install or start folder, and outside the
+/// decompiled source tree (hashed as the hero's source inventory). Paths are
+/// made absolute first, so the changed folder cannot move them.
+fn source2viewer(cli: &Path) -> Result<CommandSpec> {
+    Ok(CommandSpec::new(absolute(cli)?).current_dir(std::env::temp_dir()))
+}
+fn absolute(path: &Path) -> Result<PathBuf> {
+    std::path::absolute(path).map_err(|e| CoreError::io("Resolve Source2Viewer CLI path", e))
+}
 pub fn decompile_from_archive(
     cli: &Path,
     archive: &Path,
@@ -208,12 +219,13 @@ pub fn decompile_from_archive(
     }
     let resource = relative_asset(resource)?;
     let source = resource.strip_suffix("_c").unwrap_or(&resource);
-    require_native_path(&safety::inside(destination, source)?)?;
-    let mut directory = destination.as_os_str().to_os_string();
+    let destination = absolute(destination)?;
+    require_native_path(&safety::inside(&destination, source)?)?;
+    let mut directory = destination.into_os_string();
     directory.push(std::path::MAIN_SEPARATOR.to_string());
-    Ok(CommandSpec::new(cli)
+    Ok(source2viewer(cli)?
         .arg("-i")
-        .arg(archive)
+        .arg(absolute(archive)?)
         .arg("-f")
         .arg(resource)
         .arg("-o")
@@ -221,10 +233,11 @@ pub fn decompile_from_archive(
         .arg("-d"))
 }
 pub fn decompile_resource(cli: &Path, resource: &Path, destination: &Path) -> Result<CommandSpec> {
-    require_native_path(destination)?;
-    Ok(CommandSpec::new(cli)
+    let destination = absolute(destination)?;
+    require_native_path(&destination)?;
+    Ok(source2viewer(cli)?
         .arg("-i")
-        .arg(resource)
+        .arg(absolute(resource)?)
         .arg("-o")
         .arg(destination)
         .arg("-d"))
@@ -237,9 +250,9 @@ pub fn inspect_block(cli: &Path, resource: &Path, block: &str) -> Result<Command
     {
         return Err(failure("Invalid resource block name"));
     }
-    Ok(CommandSpec::new(cli)
+    Ok(source2viewer(cli)?
         .arg("-i")
-        .arg(resource)
+        .arg(absolute(resource)?)
         .arg("-b")
         .arg(block))
 }
@@ -278,6 +291,29 @@ mod path_tests {
             assert!(windows_tool_path(input).is_err(), "{input}");
         }
         assert!(windows_tool_path(&format!(r"\\?\C:\{}", "a".repeat(260))).is_err());
+    }
+
+    #[test]
+    fn source2viewer_runs_in_the_temp_folder_with_absolute_paths() {
+        let temp = tempfile::tempdir().unwrap();
+        let cli = temp.path().join("Source2Viewer-CLI.exe");
+        fs::write(&cli, b"cli fixture").unwrap();
+        let out = temp.path().join("base");
+        let archive = decompile_from_archive(&cli, Path::new("pak01_dir.vpk"), "models/heroes_wip/geist/geist.vmdl_c", &out).unwrap();
+        let file = decompile_resource(&cli, Path::new("geist.vmdl_c"), &out.join("models/heroes_wip/geist/geist.vmdl")).unwrap();
+        let block = inspect_block(&cli, Path::new("geist.vmdl_c"), "DATA").unwrap();
+        for spec in [&archive, &file, &block] {
+            // exceptions.txt can never land where the app was started or installed.
+            assert_eq!(spec.cwd.as_deref(), Some(std::env::temp_dir().as_path()));
+            assert_eq!(spec.program, cli);
+            assert!(Path::new(&spec.args[1]).is_absolute(), "{:?}", spec.args);
+        }
+        let mut folder = out.clone().into_os_string();
+        folder.push(std::path::MAIN_SEPARATOR.to_string());
+        assert_eq!(archive.args, ["-i".into(), std::path::absolute("pak01_dir.vpk").unwrap().into_os_string(), "-f".into(), "models/heroes_wip/geist/geist.vmdl_c".into(), "-o".into(), folder, "-d".into()]);
+        assert_eq!(&file.args[2..], ["-o".into(), std::path::absolute(out.join("models/heroes_wip/geist/geist.vmdl")).unwrap().into_os_string(), "-d".into()]);
+        assert_eq!(&block.args[2..], ["-b".into(), std::ffi::OsString::from("DATA")]);
+        assert!(inspect_block(&cli, Path::new("geist.vmdl_c"), "data").is_err());
     }
 
     #[cfg(windows)]

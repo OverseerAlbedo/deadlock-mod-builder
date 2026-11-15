@@ -143,6 +143,10 @@ describe('Connected desktop workspace', () => {
     const handler = mocks.drop.mock.calls[0][0];
     act(() => handler({payload:{type:'drop',paths:['C:\\Models\\bad.exe'],position:{x:1,y:1}}}));
     expect(mocks.analyze).not.toHaveBeenCalled();
+    // One line at the top; the whole error is one click away.
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not import the dropped fileDetails in Notifications.');
+    expect(screen.queryByText('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Show details'}));
     expect(screen.getByRole('alert')).toHaveTextContent('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.');
   });
   it('keeps failed-analysis timing evidence and surfaces complete error details', async () => {
@@ -154,6 +158,9 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
     fireEvent.click(screen.getByRole('button',{name:'Choose model…'}));
     await screen.findByRole('alert');
+    expect(screen.getByRole('alert')).toHaveTextContent('Model is malformed');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Unexpected binary block at byte 500');
+    fireEvent.click(screen.getByRole('button',{name:'Show details'}));
     expect(screen.getByRole('alert')).toHaveTextContent('Unexpected binary block at byte 500');
     fireEvent.click(screen.getByRole('button',{name:'Step timings'}));
     expect(screen.getByText(/Failed/)).toBeInTheDocument();
@@ -346,6 +353,8 @@ describe('Connected desktop workspace', () => {
     navigate('Build & install');expect(screen.queryByText('Ready to build',{exact:true})).not.toBeInTheDocument();
     mocks.inspectProject.mockRejectedValue({kind:'validation',message:'Source input changed',details:'Fresh native validation failed.'});
     fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));await screen.findByRole('alert');
+    expect(screen.getByRole('alert')).toHaveTextContent('Source input changed');
+    fireEvent.click(screen.getByRole('button',{name:'Show details'}));
     expect(screen.getByRole('alert')).toHaveTextContent('Fresh native validation failed');
     expect(screen.queryByText('Ready to build',{exact:true})).not.toBeInTheDocument();
     expect(screen.getByText('Analyze to check compatibility')).toBeInTheDocument();
@@ -444,4 +453,161 @@ describe('Autosave and recovery', () => {
     await waitFor(()=>expect(mocks.clearAutosaves).toHaveBeenCalledWith(draft.id));
     intervals.mockRestore();
   });
+});
+
+describe('Sidebar notifications', () => {
+  const sdk12 = 'C:\\CSDK12', sdk13 = 'C:\\CSDK13';
+  const checks = async (value: Settings) => value.csdk === sdk12
+    ? [{field:'csdk',state:'warning',message:'Reduced CSDK 12 found. Reduced CSDK 13 replaces it and also compiles hero models.',layout:'older'}]
+    : value.csdk ? [{field:'csdk',state:'ok',message:'Reduced CSDK 13 found. It compiles materials and hero models.',layout:'current'}] : [];
+  const region = () => screen.getByRole('region',{name:'Notifications'});
+  const inList = () => within(region());
+  const navNames = () => [...document.querySelectorAll('aside.sidebar nav button')].map(button => button.textContent);
+  const csdkItem = () => inList().queryByRole('button',{name:/Reduced CSDK 12 in use/});
+  async function withCsdk12(backend = 'auto') {
+    mocks.checkSettingFields.mockImplementation(checks);
+    mocks.settings.mockResolvedValue({...settings,csdk:sdk12,model_backend:backend});
+    render(<App/>);await screen.findByLabelText('Project name');
+    await waitFor(()=>expect(csdkItem()).toBeInTheDocument());
+  }
+  const setSdk = (value: string) => { fireEvent.click(screen.getByRole('button',{name:'Settings'})); fireEvent.change(screen.getByLabelText('Community SDK'),{target:{value}}); };
+  beforeEach(() => { localStorage.removeItem('dmb.ignoredNotifications'); mocks.checkSettingFields.mockReset(); mocks.prebuildWarnings.mockReset(); mocks.inspectProject.mockReset(); mocks.buildProject.mockReset(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('sits between the navigation and the version, outside the navigation, and starts empty', async () => {
+    render(<App/>);await screen.findByLabelText('Project name');
+    expect(navNames()).toEqual(['New-user setup','1Character & model','2Prepare model','3Appearance & weapons','4Physics & preview','5Build & install','Motion','Extras','Step timings','Logs','Settings']);
+    expect(region().closest('nav')).toBeNull();
+    expect(region().parentElement).toHaveClass('sidebar');
+    expect(region().previousElementSibling?.tagName).toBe('NAV');
+    expect(region().nextElementSibling).toHaveClass('sidebar-bottom');
+    expect(inList().getByText('No notifications')).toBeInTheDocument();
+    expect(inList().queryByRole('button',{name:'Clear'})).toBeNull();
+    // With empty settings the sidebar names none of the older tools.
+    expect(document.querySelector('aside.sidebar')!.textContent).not.toMatch(/CSDK 12|Counter-Strike|DepotDownloader|Set up model compiler/);
+  });
+  it('shows the section in Simple mode too', async () => {
+    localStorage.setItem('dmb.uiMode','simple');
+    render(<App/>);await screen.findByLabelText('Project name');
+    expect(inList().getByText('No notifications')).toBeInTheDocument();
+  });
+  it('lists Reduced CSDK 12 while the draft settings choose it, collapsed, with the steps on click', async () => {
+    await withCsdk12();
+    const row = csdkItem()!;
+    expect(row).toHaveAttribute('aria-expanded','false');
+    expect(row.textContent).toContain('Warning');
+    expect(region().querySelector('.notification-summary')?.textContent).toBe('!1 warning');
+    expect(inList().queryByRole('button',{name:'Find Reduced CSDK 13'})).toBeNull();
+    fireEvent.click(row);
+    expect(row).toHaveAttribute('aria-expanded','true');
+    expect(region().querySelectorAll('.notice-body ol > li')).toHaveLength(3);
+    expect(inList().getByRole('button',{name:'Find Reduced CSDK 13'})).toBeInTheDocument();
+    // Settings keeps the one-line check and no longer shows the steps.
+    fireEvent.click(inList().getByRole('button',{name:'Open Settings'}));
+    expect(screen.getByRole('heading',{name:'Settings'})).toBeInTheDocument();
+    expect(screen.getByText('Reduced CSDK 12 found. Reduced CSDK 13 replaces it and also compiles hero models.')).toBeVisible();
+    expect(screen.queryByRole('note',{name:'Moving to Reduced CSDK 13'})).toBeNull();
+    // Draft settings drive it: an unsaved switch to CSDK 13 removes it, back to 12 brings it back.
+    setSdk(sdk13);
+    await waitFor(()=>expect(csdkItem()).toBeNull());
+    expect(inList().getByText('No notifications')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Community SDK'),{target:{value:sdk12}});
+    await waitFor(()=>expect(csdkItem()).toBeInTheDocument());
+  });
+  it('adds the toolset step only for a cswin backend', async () => {
+    await withCsdk12('cswin');
+    fireEvent.click(csdkItem()!);
+    expect(region().querySelectorAll('.notice-body ol > li')).toHaveLength(4);
+    expect(region().querySelector('.notice-body')!.textContent).toContain('Compile models with Reduced CSDK 13');
+  });
+  it('Find Reduced CSDK 13 fills the draft and opens Settings when one is found', async () => {
+    await withCsdk12();
+    mocks.detectSettings.mockImplementation(async (value: Settings) => ({...value,csdk:sdk13,resourcecompiler:'C:\\CSDK13\\game\\bin\\win64\\resourcecompiler.exe',workspace:'ignored'}));
+    fireEvent.click(csdkItem()!);
+    fireEvent.click(inList().getByRole('button',{name:'Find Reduced CSDK 13'}));
+    expect(await screen.findByRole('heading',{name:'Settings'})).toBeInTheDocument();
+    expect(mocks.detectSettings).toHaveBeenCalledWith({...settings,csdk:'',resourcecompiler:''});
+    expect(screen.getByLabelText('Community SDK')).toHaveValue(sdk13);
+    expect(screen.getByLabelText('Workspace folder')).toHaveValue('');
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    await waitFor(()=>expect(csdkItem()).toBeNull());
+    expect(mocks.saveSettings).not.toHaveBeenCalled();
+  });
+  it('Find Reduced CSDK 13 says so inside the item when none is found', async () => {
+    await withCsdk12();
+    mocks.detectSettings.mockImplementation(async (value: Settings) => ({...value,csdk:sdk12}));
+    fireEvent.click(csdkItem()!);
+    fireEvent.click(inList().getByRole('button',{name:'Find Reduced CSDK 13'}));
+    expect(await inList().findByText(/No extracted Reduced CSDK 13 was found/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading',{name:'Settings'})).toBeNull();
+  });
+  it('Clear hides the state for this session while it holds; it comes back with the condition and after a restart', async () => {
+    await withCsdk12();
+    fireEvent.click(inList().getByRole('button',{name:'Clear'}));
+    expect(csdkItem()).toBeNull();
+    expect(inList().getByText('No notifications')).toBeInTheDocument();
+    expect(region().querySelector('.notification-summary')).toBeNull();
+    // Still CSDK 12 (a new check of changed settings): stays hidden.
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    fireEvent.change(screen.getByLabelText('Workspace folder'),{target:{value:'C:\\W'}});
+    await waitFor(()=>expect(mocks.checkSettingFields).toHaveBeenCalledWith(expect.objectContaining({workspace:'C:\\W'})));
+    expect(csdkItem()).toBeNull();
+    setSdk(sdk13);
+    await waitFor(()=>expect(mocks.checkSettingFields).toHaveBeenCalledWith(expect.objectContaining({csdk:sdk13})));
+    fireEvent.change(screen.getByLabelText('Community SDK'),{target:{value:sdk12}});
+    await waitFor(()=>expect(csdkItem()).toBeInTheDocument());
+    expect(localStorage.getItem('dmb.ignoredNotifications')).toBeNull();
+    // Dismiss on the state item does the same for that item.
+    fireEvent.click(inList().getByRole('button',{name:'Dismiss'}));
+    expect(csdkItem()).toBeNull();
+    // A restart shows a cleared state again.
+    cleanup();
+    render(<App/>);await screen.findByLabelText('Project name');
+    await waitFor(()=>expect(csdkItem()).toBeInTheDocument());
+  });
+  it('Ignore keeps the choice across restarts until Settings shows ignored notifications again', async () => {
+    await withCsdk12();
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    expect(screen.queryByRole('button',{name:'Show ignored notifications again'})).toBeNull();
+    fireEvent.click(csdkItem()!);
+    fireEvent.click(inList().getByRole('button',{name:'Ignore'}));
+    expect(csdkItem()).toBeNull();
+    expect(JSON.parse(localStorage.getItem('dmb.ignoredNotifications')!)).toEqual(['csdk12']);
+    // The check under the field stays.
+    expect(screen.getByText('Reduced CSDK 12 found. Reduced CSDK 13 replaces it and also compiles hero models.')).toBeVisible();
+    cleanup();
+    mocks.checkSettingFields.mockClear();
+    render(<App/>);await screen.findByLabelText('Project name');
+    await waitFor(()=>expect(mocks.checkSettingFields).toHaveBeenCalledTimes(2));
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+    expect(csdkItem()).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    fireEvent.click(screen.getByRole('button',{name:'Show ignored notifications again'}));
+    expect(localStorage.getItem('dmb.ignoredNotifications')).toBeNull();
+    expect(csdkItem()).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Show ignored notifications again'})).toBeNull();
+  });
+  it('checks the draft settings once per change: Settings and the guide use the app\'s checks', async () => {
+    mocks.checkSettingFields.mockImplementation(checks);
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    fireEvent.change(screen.getByLabelText('Workspace folder'),{target:{value:'C:\\One'}});
+    await waitFor(()=>expect(mocks.checkSettingFields).toHaveBeenCalledWith(expect.objectContaining({workspace:'C:\\One'})));
+    fireEvent.click(screen.getByRole('button',{name:'Open new-user setup'}));
+    fireEvent.click(screen.getByRole('button',{name:'2. Game and tools'}));
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 400)); });
+    expect(mocks.checkSettingFields.mock.calls.filter(([value]) => value.workspace === 'C:\\One')).toHaveLength(1);
+  });
+  it('renders when the storage throws', async () => {
+    mocks.checkSettingFields.mockImplementation(checks);
+    mocks.settings.mockResolvedValue({...settings,csdk:sdk12});
+    vi.spyOn(Storage.prototype,'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    vi.spyOn(Storage.prototype,'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    render(<App/>);await screen.findByLabelText('Project name');
+    await waitFor(()=>expect(csdkItem()).toBeInTheDocument());
+    fireEvent.click(csdkItem()!);
+    fireEvent.click(inList().getByRole('button',{name:'Ignore'}));
+    expect(csdkItem()).toBeNull();
+  });
+
 });

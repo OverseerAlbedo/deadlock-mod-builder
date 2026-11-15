@@ -16,6 +16,7 @@ pub mod material_recovery;
 pub mod provenance;
 pub mod service;
 pub mod source;
+pub mod fbx_images;
 pub mod secondary_bones;
 pub mod structure;
 pub mod weapon;

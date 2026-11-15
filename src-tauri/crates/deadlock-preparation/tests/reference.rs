@@ -121,7 +121,7 @@ fn staging_rejects_symlink_dependency_escape() {
 }
 #[test]
 fn supported_blender_minor_is_launch_only() {
-    for version in ["4.2.0", "4.5.3", "5.0.1", "5.2.2"] {
+    for version in ["4.2.0", "4.5.3", "5.0.1", "5.2.2", "5.3.0"] {
         let r = blender::version_report(
             Path::new("blender.exe"),
             &format!("Blender {version}\nbuild fixture"),
@@ -130,7 +130,7 @@ fn supported_blender_minor_is_launch_only() {
         assert!(r.launch_verified);
         assert!(!r.conversion_certified);
     }
-    for version in ["4.1.9", "5.1.0", "5.3.0", "6.0.0"] {
+    for version in ["4.1.9", "5.1.0", "5.4.0", "6.0.0"] {
         assert!(
             blender::version_report(Path::new("blender.exe"), &format!("Blender {version}"))
                 .is_err()

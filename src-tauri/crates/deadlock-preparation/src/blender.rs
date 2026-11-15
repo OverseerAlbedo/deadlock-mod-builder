@@ -12,9 +12,9 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-pub const SUPPORTED_DESCRIPTION: &str = "Blender 4.2–4.5, 5.0 or 5.2 LTS";
+pub use deadlock_core::blender_version::SUPPORTED_DESCRIPTION;
 pub fn supported_version(version: [u32; 3]) -> bool {
-    matches!((version[0], version[1]), (4, 2..=5) | (5, 0 | 2))
+    deadlock_core::blender_version::supported(version)
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BlenderValidation {
@@ -88,7 +88,7 @@ pub fn detect() -> Option<PathBuf> {
         std::env::var_os("PROGRAMFILES").unwrap_or_else(|| "C:/Program Files".into()),
     )
     .join("Blender Foundation");
-    let mut candidates: Vec<_> = fs::read_dir(root)
+    let candidates: Vec<_> = fs::read_dir(root)
         .ok()?
         .filter_map(|entry| entry.ok())
         .filter(|entry| {
@@ -100,8 +100,8 @@ pub fn detect() -> Option<PathBuf> {
         .map(|entry| entry.path().join("blender.exe"))
         .filter(|path| path.is_file())
         .collect();
-    candidates.sort();
-    candidates.pop()
+    // By version number, highest supported first (not by folder name order).
+    deadlock_core::blender_version::choose_install(candidates)
 }
 const SCRIPTS: [(&str, &[u8]); 25] = [
     ("source_springs.py", include_bytes!("../resources/blender/source_springs.py")),

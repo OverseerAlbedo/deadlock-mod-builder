@@ -67,6 +67,32 @@ fn metadata(path: &Path) -> Result<EngineInput> {
         .map_err(|_| invalid("Engine timestamp exceeds supported nanosecond range."))?;
     Ok(EngineInput::Metadata((info.len(), ns)))
 }
+/// The size and modification time of every file below `folder`, by relative
+/// path, digested into one value.
+fn shader_folder(folder: &Path, cancel: &CancellationToken) -> Result<EngineInput> {
+    use sha2::{Digest, Sha256};
+    deadlock_vpk::check_unlinked_path(folder, false)?;
+    let mut entries = BTreeMap::new();
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(current) = pending.pop() {
+        for entry in fs::read_dir(&current)? {
+            cancel.check()?;
+            let path = entry?.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.is_file() {
+                let relative = path
+                    .strip_prefix(folder)
+                    .map_err(|_| invalid("Shader file outside its folder."))?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                entries.insert(relative, metadata(&path)?);
+            }
+        }
+    }
+    let listing = serde_json::to_vec(&entries)?;
+    Ok(EngineInput::Hash(format!("{:x}", Sha256::digest(listing))))
+}
 pub fn plan_cache(
     material: &str,
     content: &Path,
@@ -133,7 +159,7 @@ pub fn plan_cache(
         let folder = csdk.join(sub);
         if folder.is_dir() {
             deadlock_vpk::check_unlinked_path(&folder, false)?;
-            for file in fs::read_dir(folder)? {
+            for file in fs::read_dir(&folder)? {
                 cancel.check()?;
                 let file = file?.path();
                 if file.is_file()
@@ -144,6 +170,14 @@ pub fn plan_cache(
                 {
                     engine.insert(path_text(&file)?, metadata(&file)?);
                 }
+            }
+            // Reduced CSDK 13 ships its shaders as loose files in a shaders
+            // folder instead of shaders_*.vpk archives. One entry per folder,
+            // from every file's path, size and time; Reduced CSDK 12 has no
+            // such folder, so its keys stay as they were.
+            let shaders = folder.join("shaders");
+            if shaders.is_dir() {
+                engine.insert(path_text(&shaders)?, shader_folder(&shaders, cancel)?);
             }
         }
     }

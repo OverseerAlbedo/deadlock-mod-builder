@@ -17,19 +17,22 @@ const pathFields: PathField[] = [
   {key: 'workspace', label: 'Workspace folder', directory: true, example: String.raw`C:\Users\<you>\AppData\Local\DeadlockModBuilder\workspaces`, hint: 'Where the app keeps project files and builds. Detect tools fills in a default.'},
   {key: 'deadlock', label: 'Deadlock installation', directory: true, download: 'deadlock', example: String.raw`C:\Program Files (x86)\Steam\steamapps\common\Deadlock`, hint: 'The Deadlock folder itself (it contains a folder called game). In Steam: right-click Deadlock → Manage → Browse local files.'},
   {key: 'pak', label: 'Deadlock game archive', directory: false, example: String.raw`...\steamapps\common\Deadlock\game\citadel\pak01_dir.vpk`, hint: 'The file pak01_dir.vpk inside game\\citadel. Not one of the numbered pak01_000.vpk files.'},
+  {key: 'blender', label: 'Blender executable', directory: false, download: 'blender', example: String.raw`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`, hint: 'Needed to prepare Blender, FBX and glTF models. Supported: Blender 4.2–4.5, 5.0, 5.2 LTS (recommended) and 5.3.'},
   {key: 'source2viewer', label: 'Source 2 Viewer CLI', directory: false, download: 'source2viewer', example: String.raw`C:\Tools\Source2Viewer\Source2Viewer-CLI.exe`, hint: 'From the cli-windows-x64 download: Source2Viewer-CLI.exe. Source2Viewer.exe (the viewer app) does not work here.'},
-  {key: 'resourcecompiler', label: 'Resource compiler', directory: false, example: String.raw`C:\CSDK12\game\bin_cs2\win64\resourcecompiler.exe`, hint: 'The material compiler: resourcecompiler.exe in the Community SDK’s game\\bin_cs2\\win64 folder. The SDK has other copies; use the bin_cs2 one.'},
-  {key: 'csdk', label: 'Community SDK', directory: true, download: 'csdk', example: String.raw`C:\CSDK12`, hint: 'The extracted Reduced_CSDK_12 folder, the one that directly contains game and content. A short path such as C:\\CSDK12 avoids long-path errors.'},
+  {key: 'csdk', label: 'Community SDK', directory: true, download: 'csdk', example: String.raw`C:\CSDK13`, hint: 'The extracted Reduced_CSDK_13 folder, the one that directly contains game and content. It compiles the materials and the hero model. A short path such as C:\\CSDK13 avoids long-path errors.'},
+  {key: 'resourcecompiler', label: 'Resource compiler', directory: false, example: String.raw`C:\CSDK13\game\bin\win64\resourcecompiler.exe`, hint: 'The Community SDK’s own resourcecompiler.exe (in game\\bin\\win64, not the bin_server copy). Detect tools or the suggested path fills it in.'},
 ];
 const advancedPathFields: PathField[] = [
   {key: 'steam', label: 'Steam installation', directory: true, download: 'steam', example: String.raw`C:\Program Files (x86)\Steam`},
-  {key: 'model_game', label: 'Model compiler game folder', directory: true, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset\game\csgo`, hint: 'Filled by Use this toolset in settings.'},
-  {key: 'cswin', label: 'Model compiler toolset', directory: true, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset`, hint: 'The toolset folder from Set up model compiler…. Never the Community SDK.'},
-  {key: 'cswin_resourcecompiler', label: 'Model compiler executable', directory: false, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset\game\bin\win64\resourcecompiler.exe`, hint: 'The compiler inside the toolset above.'},
-  {key: 'optional_cs2', label: 'Optional Counter-Strike 2 installation', directory: true, download: 'cs2', example: String.raw`C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive`},
   {key: 'vpk_tool', label: 'External VPK tool', directory: false, example: 'Leave empty', hint: 'Leave blank with the included builtin packaging backend.'},
   {key: 'ag2_adapter', label: 'Animation graph adapter', directory: false, example: 'Leave empty'},
-  {key: 'blender', label: 'Blender executable', directory: false, download: 'blender', example: String.raw`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`, hint: 'Needed to prepare Blender, FBX and glTF models. Supported: Blender 4.2–4.5, 5.0 and 5.2 LTS.'},
+];
+/** Only for setups that still compile hero models with a toolset downloaded from Steam. */
+const toolsetPathFields: PathField[] = [
+  {key: 'cswin', label: 'Model compiler toolset', directory: true, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset`, hint: 'The toolset folder from Set up model compiler…. Used only when no Reduced CSDK 13 is chosen as the Community SDK, or with the backend set to cswin. Never the Community SDK.'},
+  {key: 'cswin_resourcecompiler', label: 'Model compiler executable', directory: false, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset\game\bin\win64\resourcecompiler.exe`, hint: 'The compiler inside the toolset above.'},
+  {key: 'model_game', label: 'Model compiler game folder', directory: true, example: String.raw`C:\DeadlockModdingTools\DMBTools-1\toolset\game\csgo`, hint: 'Filled by Use this toolset in settings.'},
+  {key: 'optional_cs2', label: 'Optional Counter-Strike 2 installation', directory: true, download: 'cs2', example: String.raw`C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive`},
 ];
 
 /** Shortcuts handled in App.tsx. */
@@ -59,7 +62,9 @@ export function SetupTestPanel({ test, busy, go }: { test: () => Promise<SetupTe
   </div>;
 }
 
-export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go, theme = 'original', chooseTheme, guideShown, setGuideShown, customThemes = [], saveCustomThemes }: {
+export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go, theme = 'original', chooseTheme, guideShown, setGuideShown, customThemes = [], saveCustomThemes, fields: liftedFields, ignoredNotifications = 0, showIgnoredNotifications }: {
+  /** The live field checks when the app runs them (undefined: this page runs its own; null: not read yet). */ fields?: FieldCheck[] | null;
+  /** How many sidebar notifications are ignored for good, and how to show them again. */ ignoredNotifications?: number; showIgnoredNotifications?: () => void;
   /** Opens a page from an error's fix button. */ go?: (page: string) => void;
   /** The look (Appearance): saved at once, not with the tool paths. */ theme?: string; chooseTheme?: (theme: string) => void;
   /** Whether New-user setup is listed in the sidebar (hidden after Done, or here). */ guideShown?: boolean; setGuideShown?: (shown: boolean) => void;
@@ -75,14 +80,15 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
   const [fields, setFields] = useState<FieldCheck[] | null>(null);
   /** The theme editor, when open: the theme it starts from and the custom theme it edits. */
   const [editor, setEditor] = useState<{start: Theme; editing?: ThemePreset} | null>(null);
-  // Live checks while typing or after choosing a path (files only; cheap).
+  // Live checks while typing or after choosing a path (files only; cheap), unless the app passes its own.
+  const ownChecks = liftedFields === undefined;
   useEffect(() => {
-    if (!settings || !isDesktop()) return;
+    if (!ownChecks || !settings || !isDesktop()) return;
     let active = true;
     const timer = window.setTimeout(() => { void Promise.resolve().then(() => api.checkSettingFields(settings)).then(result => { if (active) setFields(result ?? null); }).catch(() => { if (active) setFields(null); }); }, 300);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [settings]);
-  const checks = fields ?? status?.fields ?? null;
+  }, [settings, ownChecks]);
+  const checks = (ownChecks ? fields : liftedFields) ?? status?.fields ?? null;
   const checkFor = (key: string) => checks?.find(item => item.field === key);
   const fixable = (checks ?? []).filter(item => item.fix && item.state !== 'ok');
   const problems = (checks ?? []).filter(item => item.state === 'problem');
@@ -105,24 +111,30 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
   return <>
     {!embedded && <PageTitle eyebrow="Preferences & tools" title="Settings" subtitle="Set up your tools and choose where projects are built." action={<div className="settings-save-action"><span className="muted" role="status">{!settings?'Loading settings…':dirty?'Unsaved changes':'Settings saved'}</span><button className="primary" disabled={busy || !settings || !dirty} onClick={persist}>Save settings</button></div>} />}
     {!settings ? <p className="empty-state">Settings are not available. Open the desktop application to load your configuration.</p> : <>
-      {!embedded && (onboarding || modelSetup) && <div className="setup-entry"><div><h2>Getting started</h2><p>Reopen the setup guide or configure your model compiler.</p></div><div className="row">{onboarding && <button disabled={busy} onClick={onboarding}>Open new-user setup</button>}{modelSetup && <button className="tertiary" disabled={busy} onClick={modelSetup}>Set up model compiler…</button>}</div></div>}
-      <ToolDownloads busy={busy} expanded={embedded} modelSetup={modelSetup}/>
+      {!embedded && onboarding && <div className="setup-entry"><div><h2>Getting started</h2><p>Reopen the setup guide.</p></div><div className="row"><button disabled={busy} onClick={onboarding}>Open new-user setup</button></div></div>}
+      <ToolDownloads busy={busy} expanded={embedded}/>
       {!embedded && chooseTheme && <Section title="Appearance" id="appearance">
         <ThemeCards active={theme} customs={customThemes} disabled={busy} onChoose={chooseTheme} onCustomize={() => setEditor({start: themeById(theme, customThemes)})} onEdit={preset => setEditor({start: themeById(preset.id, customThemes), editing: preset})} onDelete={id => { if (saveCustomThemes) { saveCustomThemes(customThemes.filter(t => t.id !== id)); if (id === theme) chooseTheme('original'); } }}/>
         {editor && <ThemeCustomizer start={editor.start} editing={editor.editing} customs={customThemes} disabled={busy} onCancel={() => setEditor(null)} onSave={preset => { saveCustomThemes?.([...customThemes.filter(t => t.id !== preset.id), preset]); chooseTheme(preset.id); setEditor(null); }}/>}
         <p className="hint">A theme changes at once and is kept with your settings, so it survives restarts and reinstalls. The mark in the sidebar and the window icon (title bar and taskbar) follow it. Customize… makes your own from any theme: a color picker or a hex code for each color, with a live preview.</p>
         {setGuideShown && <><Check label="Show New-user setup in the sidebar (Getting started)" value={guideShown !== false} onChange={setGuideShown} disabled={busy}/><p className="hint">Hide it once you know the five steps; Done on the guide's last step hides it as well. It stays available from Open new-user setup below.</p></>}
+        {ignoredNotifications > 0 && showIgnoredNotifications && <div className="row"><button disabled={busy} onClick={showIgnoredNotifications}>Show ignored notifications again</button><span className="hint">{ignoredNotifications === 1 ? 'One notification is' : `${ignoredNotifications} notifications are`} ignored in the sidebar's Notifications.</span></div>}
       </Section>}
       <Section title="Folders and tools" actions={<div className="row"><button disabled={busy} onClick={()=>detect()}>Detect tools</button><button disabled={busy} onClick={()=>detect(true)}>Search a folder…</button>{fixable.length > 0 && <button disabled={busy} onClick={() => void fixAll()}>Fix {fixable.length === 1 ? 'the marked path' : `all ${fixable.length} marked paths`}</button>}{embedded && verify ? <button className="primary" disabled={busy} onClick={verify}>Save and check tools</button> : <button disabled={busy} onClick={check}>Check paths</button>}</div>}>
         {checks && <p className={`settings-check-summary ${problems.length ? 'has-problems' : 'all-good'}`} role="status">{problems.length === 0 ? 'All required paths look right.' : `${problems.length} ${problems.length === 1 ? 'path needs' : 'paths need'} fixing. Each one says what is wrong${fixable.length ? '; use the suggested path where offered' : ''}.`}</p>}
         <div className="settings-fields">{renderPaths(pathFields)}</div>
-        {modelCheck && <div className="settings-model-check"><strong>Model compiler</strong><FieldStatus check={modelCheck} busy={busy} apply={value => settings && update({...settings, cswin: value})}/>{modelCheck.state !== 'ok' && modelSetup && <button className="primary" disabled={busy} onClick={modelSetup}>Set up model compiler…</button>}</div>}
+        {modelCheck && <div className="settings-model-check"><strong>Model compiler</strong><FieldStatus check={modelCheck} busy={busy} apply={value => settings && update({...settings, cswin: value})}/>{modelCheck.backend && settings.model_backend !== modelCheck.backend && <button className="primary" disabled={busy} onClick={() => update({...settings, model_backend: modelCheck.backend!})}>Compile models with Reduced CSDK 13</button>}</div>}
         {testSetup && <SetupTestPanel test={testSetup} busy={busy} go={go}/>}
       </Section>
       {status&&<Section title="Path check"><dl className="summary-list">{Object.entries(status.files_found).map(([name,found])=><Fragment key={name}><dt>{name}</dt><dd><StateLabel tone={found?'ready':'attention'}>{found?"Found":"Not found"}</StateLabel></dd></Fragment>)}<dt>Model compiler</dt><dd><StateLabel tone={status.model_files_found?'ready':'attention'}>{status.model_files_found?'Found':'Not set up'}</StateLabel></dd></dl><p className="hint">{status.model_status}</p></Section>}
       <details className="disclosure"><summary>Advanced configuration</summary><div className="disclosure-content settings-fields">{renderPaths(advancedPathFields)}
+        <details className="disclosure settings-toolset"><summary>Downloaded model toolset (older setups)</summary><div className="disclosure-content">
+          <p className="hint">Not needed with Reduced CSDK 13. Only for setups that still compile hero models with a toolset downloaded from Steam.</p>
+          {modelSetup && <div className="row"><button disabled={busy} onClick={modelSetup}>Set up model compiler…</button></div>}
+          <div className="settings-fields">{renderPaths(toolsetPathFields)}</div>
+        </div></details>
         {expert&&([{key:'model_backend', label:'Model compiler backend', values:['auto','cswin','csdk']},{key:'model_format',label:'ModelDoc format',values:['auto','40','41']},{key:'vpk_backend',label:'Packaging backend',values:['builtin','valve']}] as const).map(field => <div className="field" key={field.key}><label htmlFor={`settings-${field.key}`}>{field.label}</label><select id={`settings-${field.key}`} disabled={busy} value={settings[field.key]} onChange={event => update({...settings, [field.key]: event.target.value})}>{[...new Set([...field.values, settings[field.key]])].map(value => <option key={value} value={value}>{value}</option>)}</select></div>)}
-        {expert&&<p className="hint">Leave the backend on auto. The csdk backend cannot compile hero models; it exists for diagnostics.</p>}
+        {expert&&<p className="hint">Leave the backend on auto: Reduced CSDK 13 compiles the models; without it, a downloaded model toolset is used. cswin forces the toolset, csdk forces the Community SDK.</p>}
       </div></details>
       {!embedded&&<details className="disclosure"><summary>Keyboard shortcuts</summary><div className="disclosure-content"><dl className="summary-list shortcut-list">{SHORTCUTS.map(([keys,what])=><Fragment key={keys}><dt><kbd>{keys}</kbd></dt><dd>{what}</dd></Fragment>)}</dl></div></details>}
     </>}

@@ -3,9 +3,9 @@ use crate::{Result, invalid, path_text, write_json};
 use deadlock_project::asset_paths;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::BTreeMap,
     fs::{self, File},
-    io::Read,
+    io::{BufReader, Read},
     path::{Component, Path, PathBuf},
 };
 pub const SOURCE_SUFFIXES: [&str; 4] = ["glb", "gltf", "fbx", "blend"];
@@ -165,33 +165,123 @@ fn gltf_data(source: &Path) -> Result<serde_json::Value> {
     input.read_exact(&mut bytes)?;
     Ok(serde_json::from_slice(&bytes)?)
 }
+/// Folder entries an FBX's texture search looks at, at most: the model's
+/// folder can be a Downloads folder or a drive.
+const SEARCH_ENTRIES: usize = 200_000;
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Kind {
+    Directory,
+    File,
+    Other,
+}
+type Listing = std::io::Result<Vec<std::io::Result<(PathBuf, Kind)>>>;
+fn list_directory(directory: &Path) -> Listing {
+    Ok(fs::read_dir(directory)?
+        .map(|entry| {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            // Links are never followed.
+            let kind = if ty.is_symlink() {
+                Kind::Other
+            } else if ty.is_dir() {
+                Kind::Directory
+            } else if ty.is_file() {
+                Kind::File
+            } else {
+                Kind::Other
+            };
+            Ok((entry.path(), kind))
+        })
+        .collect())
+}
+/// Images below an FBX's folder that `wanted` accepts by file name;
+/// `referenced` marks them as files Blender will open (see
+/// `stage_source_with_cancel`). The extension list keeps staging to the
+/// formats it always copied.
+struct TextureSearch<'a> {
+    root: &'a Path,
+    /// The staging folder, which may lie below `root`: its earlier copies must
+    /// not be found and staged again one level deeper each time.
+    destination: &'a Path,
+    files: &'a mut BTreeMap<PathBuf, bool>,
+    referenced: bool,
+    wanted: &'a dyn Fn(&str) -> bool,
+    list: &'a dyn Fn(&Path) -> Listing,
+    examined: usize,
+    limit: usize,
+    cancel: &'a deadlock_core::CancellationToken,
+}
+impl TextureSearch<'_> {
+    fn walk(&mut self, directory: &Path) -> Result<()> {
+        let entries = match (self.list)(directory) {
+            Ok(entries) => entries,
+            // Blender's image search passes over folders it cannot list; only
+            // the FBX's own folder must be readable.
+            Err(_) if directory != self.root => return Ok(()),
+            Err(error) => return Err(error.into()),
+        };
+        for entry in entries {
+            self.cancel.check()?;
+            self.examined += 1;
+            if self.examined > self.limit {
+                return Err(invalid(format!(
+                    "The folder of the model, {}, holds too many files to search for its textures (more than {}). Put the model and its textures in a folder of their own.",
+                    self.root.display(),
+                    self.limit
+                )));
+            }
+            // An entry removed or refused mid-walk is passed over like a folder.
+            let Ok((path, kind)) = entry else { continue };
+            match kind {
+                Kind::Directory if !self.destination.starts_with(&path) => self.walk(&path)?,
+                Kind::File
+                    if ["png", "jpg", "jpeg", "tga", "tif", "tiff", "bmp"]
+                        .contains(&suffix(&path).as_str())
+                        && path
+                            .file_name()
+                            .is_some_and(|name| (self.wanted)(&name.to_string_lossy())) =>
+                {
+                    *self.files.entry(path).or_default() |= self.referenced;
+                }
+                _ => {}
+            }
+            if self.files.len() > 5000 {
+                return Err(invalid(
+                    "FBX texture folder too large. Export this character into a dedicated folder.",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
 fn collect_textures(
-    directory: &Path,
-    files: &mut BTreeSet<PathBuf>,
+    root: &Path,
+    destination: &Path,
+    files: &mut BTreeMap<PathBuf, bool>,
+    referenced: bool,
+    wanted: &dyn Fn(&str) -> bool,
     cancel: &deadlock_core::CancellationToken,
 ) -> Result<()> {
-    for entry in fs::read_dir(directory)? {
-        cancel.check()?;
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_symlink() {
-            continue;
-        }
-        if ty.is_dir() {
-            collect_textures(&entry.path(), files, cancel)?;
-        } else if ty.is_file()
-            && ["png", "jpg", "jpeg", "tga", "tif", "tiff", "bmp"]
-                .contains(&suffix(&entry.path()).as_str())
-        {
-            files.insert(entry.path());
-        }
-        if files.len() > 5000 {
-            return Err(invalid(
-                "FBX texture folder too large. Export this character into a dedicated folder.",
-            ));
-        }
+    TextureSearch {
+        root,
+        destination,
+        files,
+        referenced,
+        wanted,
+        list: &list_directory,
+        examined: 0,
+        limit: SEARCH_ENTRIES,
+        cancel,
     }
-    Ok(())
+    .walk(root)
+}
+/// UTF-16 length of `path` when Blender (which, unlike this app, is not
+/// long-path aware) cannot open it: 260 or more, checked with Blender 5.2.
+pub fn too_long_for_blender(path: &Path) -> Option<usize> {
+    match deadlock_core::safety::require_windows_native_path(path) {
+        Err(deadlock_core::CoreError::NativePathTooLong { units, .. }) => Some(units),
+        _ => None,
+    }
 }
 pub fn stage_source(
     value: &str,
@@ -251,7 +341,8 @@ pub fn stage_source_with_cancel(
         )?;
         return Ok(local);
     }
-    let mut files = BTreeSet::from([source.clone()]);
+    // Each file to stage, and whether Blender is known to open it.
+    let mut files = BTreeMap::from([(source.clone(), true)]);
     if ["gltf", "glb"].contains(&suffix(&source).as_str()) {
         let data = gltf_data(&source)?;
         for kind in ["buffers", "images"] {
@@ -267,21 +358,58 @@ pub fn stage_source_with_cancel(
                     if uri.is_empty() || uri.starts_with("data:") {
                         continue;
                     }
-                    files.insert(dependency(&source, uri)?);
+                    files.insert(dependency(&source, uri)?, true);
                 }
             }
         }
     }
     if suffix(&source) == "fbx" {
-        collect_textures(source.parent().unwrap(), &mut files, cancel)?;
+        // Only the images the FBX names (issue #7: a folder of wallpapers next
+        // to the model); every image when it cannot be read as a binary FBX.
+        let input = File::open(&source)?;
+        let length = input.metadata()?.len();
+        let parent = source.parent().unwrap();
+        // `source` and `destination` are both `asset_paths::resolve`d (real
+        // case, long names, no `\\?\`), so `starts_with` compares like with like.
+        match crate::fbx_images::image_names(BufReader::new(input), length, cancel)? {
+            Some(names) => collect_textures(
+                parent,
+                &destination,
+                &mut files,
+                true,
+                &|name| names.contains(&name.to_lowercase()),
+                cancel,
+            )?,
+            None => {
+                collect_textures(parent, &destination, &mut files, false, &|_| true, cancel)?
+            }
+        }
     }
-    let mut manifest = Vec::new();
-    for file in files {
+    let mut staged = Vec::new();
+    for (file, referenced) in files {
         cancel.check()?;
         let relative = file
             .strip_prefix(source.parent().unwrap())
-            .map_err(|_| invalid("Escaping source dependency."))?;
-        let dest = destination.join(relative);
+            .map_err(|_| invalid("Escaping source dependency."))?
+            .to_path_buf();
+        let dest = destination.join(&relative);
+        // Blender cannot open the copy from 260 characters on, so a file it
+        // needs stops here and an image it may not need is left out.
+        if let (true, Some(units)) = (cfg!(windows), too_long_for_blender(&dest)) {
+            if !referenced {
+                continue;
+            }
+            return Err(invalid(format!(
+                "{} is too long for Blender once copied into the workspace: its path there would be {units} characters, and Blender can only open paths shorter than 260. Give the file a shorter name (a renamed texture must then be chosen again in your model's material), or choose a shorter Workspace folder in Settings, for example C:\\DMB.",
+                file.display()
+            )));
+        }
+        staged.push((file, relative, dest));
+    }
+    let mut manifest = Vec::new();
+    for (file, relative, dest) in staged {
+        cancel.check()?;
+        let relative = relative.as_path();
         if asset_paths::resolve(&dest)? == file {
             return Err(invalid(
                 "Source and staged dependency must be different files.",
@@ -308,4 +436,64 @@ pub fn stage_source_with_cancel(
     }
     write_json(&destination.join("source-manifest.json"), &manifest)?;
     Ok(local)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Error, ErrorKind};
+    /// A folder tree in memory: `m/` holds a texture, a folder Windows refuses,
+    /// an entry that fails to read and a folder with three more images.
+    fn listing(directory: &Path) -> Listing {
+        let p = |s: &str| PathBuf::from(s);
+        match directory.to_str().unwrap() {
+            "m" => Ok(vec![
+                Ok((p("m/body.png"), Kind::File)),
+                Ok((p("m/locked"), Kind::Directory)),
+                Err(Error::new(ErrorKind::NotFound, "removed mid-walk")),
+                Ok((p("m/textures"), Kind::Directory)),
+                Ok((p("m/link.png"), Kind::Other)),
+            ]),
+            "m/textures" => Ok(vec![
+                Ok((p("m/textures/body.png"), Kind::File)),
+                Ok((p("m/textures/face.png"), Kind::File)),
+                Ok((p("m/textures/notes.txt"), Kind::File)),
+            ]),
+            _ => Err(Error::new(ErrorKind::PermissionDenied, "Access is denied. (os error 5)")),
+        }
+    }
+    fn search(root: &str, destination: &str, limit: usize, all: bool) -> Result<Vec<String>> {
+        let mut files = BTreeMap::new();
+        let wanted = |name: &str| all || name == "body.png";
+        TextureSearch {
+            root: Path::new(root),
+            destination: Path::new(destination),
+            files: &mut files,
+            referenced: true,
+            wanted: &wanted,
+            list: &listing,
+            examined: 0,
+            limit,
+            cancel: &deadlock_core::CancellationToken::new(),
+        }
+        .walk(Path::new(root))?;
+        Ok(files.keys().map(|p| p.to_str().unwrap().to_owned()).collect())
+    }
+    #[test]
+    fn texture_search_passes_over_unreadable_folders_and_entries() {
+        assert_eq!(search("m", "w", 100, false).unwrap(), ["m/body.png", "m/textures/body.png"]);
+        assert_eq!(search("m", "w", 100, true).unwrap(), ["m/body.png", "m/textures/body.png", "m/textures/face.png"]);
+        // The model's own folder must be readable.
+        assert!(search("m/locked", "w", 100, true).unwrap_err().to_string().contains("os error 5"));
+    }
+    #[test]
+    fn texture_search_skips_the_staging_folder() {
+        assert_eq!(search("m", "m/textures/work/source", 100, true).unwrap(), ["m/body.png"]);
+    }
+    #[test]
+    fn texture_search_stops_past_its_entry_limit() {
+        // Eight entries in all; the failed entry counts too.
+        assert!(search("m", "w", 8, true).is_ok());
+        let error = search("m", "w", 7, true).unwrap_err().to_string();
+        assert!(error.contains("The folder of the model, m, holds too many files to search for its textures (more than 7)"), "{error}");
+    }
 }

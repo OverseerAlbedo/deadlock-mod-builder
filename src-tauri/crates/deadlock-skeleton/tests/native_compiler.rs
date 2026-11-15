@@ -17,7 +17,7 @@ fn typed(v: &serde_json::Value) -> Value {
 }
 #[test]
 fn actual_tangtang_native_drift_is_bounded_and_original_budget_is_unchanged() {
-    // Captured from the TangTang conversion: private assets, skipped with a note when absent.
+    // Optional test data (the TangTang conversion); skipped with a note when absent.
     let Some(text) = common::private_text("fixtures/tangtang-native-binds.json") else { return };
     let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
     let skeleton: Skeleton = serde_json::from_value(fixture["skeleton"].clone()).unwrap();

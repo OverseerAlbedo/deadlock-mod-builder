@@ -13,7 +13,26 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
 npm run tauri -- dev
 ```
 
+`npm run dev` serves only the browser frontend; native operations need `npm run tauri -- dev`.
+
 The two lockfiles are required. Do not update dependencies while fixing a release unless the change requires it. A normal app build does not require Python or the .NET SDK; Blender supplies its own interpreter and the independent reader is self-contained.
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | React interface and its tests (`src/theme/` is the Theme Manager and customizer) |
+| `src-tauri/src/` | Tauri desktop host and commands |
+| `src-tauri/crates/` | Rust pipeline: preparation, materials, skeleton/DMX export, cloth, compilation, VPK, storage, tools |
+| `src-tauri/crates/deadlock-preparation/resources/blender/` | Python scripts embedded into the app and run inside Blender |
+| `resources/` | Hero catalog, tool recipe and hash-pinned native readers |
+| `physics-references/` | Records of the Vindicta cloth references; the compiled models are optional data |
+| `tools/cloth-reader/` | Source of the independent cloth reader |
+| `scripts/` | Repository checks, Windows packaging, startup check and Blender test harnesses |
+| `legacy/python/` | Python reference modules and fixture helpers imported by some `scripts/test_blender*.py` probes and by `scripts/test_source_compatibility.py`; not used by the app |
+| `docs/` | Documentation |
+| `.github/workflows/` | CI: tests and portable build on every push; manual release workflow |
+| `licenses/` | Third-party notices |
 
 ## Distribution
 
@@ -22,6 +41,8 @@ pwsh -NoProfile -File scripts/build-windows.ps1
 ```
 
 The script installs locked npm dependencies, runs frontend and all default Rust workspace tests, builds the MSVC x64 Tauri application, stages portable resources from the Tauri configuration, verifies their hashes, launches the copied app and reader, and produces checksums. It stops on the first failure. It does not tag, push, or publish. To include an NSIS installer for an explicitly requested release, add `-Release`. Push/PR CI uses the portable-only default; manual workflow dispatch offers a release checkbox.
+
+Outputs land in `artifacts/portable/` (the portable app), `artifacts/release/` (checksums; the installer with `-Release`) and `artifacts/validation/` (logs). Releases are published only through the manual **Release** workflow (`.github/workflows/release.yml`).
 
 `-SkipStartupSmoke` is available only for local environments without an interactive Windows desktop. CI never uses it. A skipped startup check must not be described as verified.
 
@@ -35,17 +56,16 @@ Captured native/game tests marked `#[ignore]` require separately supplied inputs
 
 `.gitattributes` keeps exact fixture and resource bytes. Do not enable automatic JSON formatting across fixture directories. Reader hashes are anchored both in `resources/native/cloth-reader/manifest.json` and Rust production trust pins. Rebuilding the reader is an intentional qualification change, not a routine CI step; see its [README](../tools/cloth-reader/README.md).
 
-## Private assets
+## Optional data
 
-Data captured from third-party characters and the user's own compiled references are not in this repository: the TangTang presets (`tangtang_r2`, `tangtang_reference`: the accepted groups, the two proxies the app compiles in and the earlier reviewed proxies the cloth-authoring tests compare against), the rig captures `daki-rig.json`, `tangtang-rig.json` and `tangtang-native-binds.json`, the anti-twist capture of deadlock-cloth (compiled TangTang cloth on Haze) and the two compiled Vindicta cloth references (`physics-references/*/…vmdl_c`; the repository keeps their READMEs and acceptance record). They live in the private repository `OverseerAlbedo/deadlock-mod-builder-private-assets`. Clone it to `private-assets/` at the repository root (ignored by git) or point `DMB_PRIVATE_ASSETS` at it:
+The TangTang presets, the two compiled Vindicta cloth references (`physics-references/*/…vmdl_c`) and some test data are optional. They are read from a `private-assets/` folder at the repository root (ignored by git), or from the folder `DMB_PRIVATE_ASSETS` names:
 
 ```powershell
-git clone https://github.com/OverseerAlbedo/deadlock-mod-builder-private-assets private-assets
 cargo clean --manifest-path src-tauri/Cargo.toml -p deadlock-cloth-authoring   # after adding the folder to an existing checkout
 node scripts/sync-private-assets.mjs   # copies the Vindicta references into physics-references/ (build-windows.ps1 does this itself)
 ```
 
-Without it everything builds and tests from the public source alone: `deadlock-cloth-authoring/build.rs` leaves `cfg(tangtang_assets)` unset, the Physics page offers only Automatic and hides the included Vindicta reference (`get_capabilities`), a saved TangTang preset fails Analyze with "not included in this build", and the tests that need a capture (`automap`, `following`, `mmd_mapping`, `structure`, `weapon` in deadlock-preparation; `native_compiler` and `parity` in deadlock-skeleton; `parity` and `roll_lock` in deadlock-cloth; `parity` and `cloth_parity` in deadlock-resource; `motion` in deadlock-pipeline; the ignored TangTang tests in deadlock-cloth-authoring) print `skipped: private asset …` on stderr and pass; run them with `-- --nocapture` to see the notes. The Blender harness scripts (`test_blender_any_humanoid.py`, `test_blender_rig_recovery.py`, `test_blender_secondary_bones.py`) and `capture_compact_fitting.py` need the folder and say so. GitHub Actions checks the private repository out when the `PRIVATE_ASSETS_TOKEN` secret (a token that can read it) is set; without the secret, workflow builds and the installers they publish carry no TangTang presets, and the release notes say so.
+Without the folder everything builds and tests. The Physics page then offers only Automatic movement and hides the included Vindicta reference, and a project saved with a TangTang preset fails Analyze with "not included in this build". Tests that need the data print `skipped: private asset …` on stderr and pass; run them with `-- --nocapture` to see the notes. Some Blender harness scripts (`test_blender_any_humanoid.py`, `test_blender_rig_recovery.py`, `test_blender_secondary_bones.py`) need the folder and say so. GitHub Actions adds the folder when the `PRIVATE_ASSETS_TOKEN` secret is set.
 
 ## Runtime resources
 
@@ -57,10 +77,25 @@ The `scripts/test_blender*.py` scripts exercise the active embedded bridge. Thei
 
 ```powershell
 $env:DMB_PREP_TEST_OUTPUT = 'C:\DMB-tests\pose-controls'
-& 'C:\Program Files\Blender Foundation\Blender 5.0\blender.exe' --background --factory-startup --python-exit-code 23 --python scripts/test_blender_pose_controls.py
+& 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' --background --factory-startup --python-exit-code 23 --python scripts/test_blender_pose_controls.py
 ```
 
-Use your actual supported Blender path and a fresh output folder. These probes are outside default CI because Blender and some character inputs are separate requirements. They were preserved during repository cleanup, not rerun or newly certified by the release-only change.
+Use your actual supported Blender path and a fresh output folder. Use Blender 5.2 LTS or 5.3: Blender 5.0's FBX importer crashes in one harness case. These probes are outside default CI because Blender and some character inputs are separate requirements.
+
+## End-to-end build of a project copy
+
+`src-tauri/tests/e2e_build.rs` takes one saved project through the app's own pipeline (optionally Prepare again, then Analyze and Build) to check a toolset change, for example compiling models with Reduced CSDK 13 instead of the downloaded model toolset. It is ignored by default and reads only environment variables:
+
+```powershell
+$env:DMB_E2E_SETTINGS = "$env:APPDATA\com.deadlockmodbuilder.migration\settings.json"   # only read
+$env:DMB_E2E_PROJECT  = 'C:\Path\To\Project.dmb.json'                                  # only read
+$env:DMB_E2E_SCRATCH  = 'C:\DMB-tests\e2e\run-1'                                       # new or empty
+$env:DMB_E2E_OVERRIDES = '{"cswin":"","cswin_resourcecompiler":"","model_game":"","model_backend":"auto"}'  # optional
+$env:DMB_E2E_PREPARE  = '1'   # optional: Prepare again first (needed after a game update changed the hero)
+cargo test --manifest-path src-tauri/Cargo.toml --locked --test e2e_build -- --ignored --nocapture
+```
+
+The run copies the settings (with the overrides) and the project under a new project ID into the scratch folder, copies the project's prepared files into a new workspace there, and turns install off; the VPK stays in the scratch workspace. It refuses a scratch folder inside the user's workspace, project folder, Community SDK, model toolset, game or settings folder, checks that the game's addons folder is unchanged, and writes `e2e-report.json` (result, timings, log, and the new `dmb_<id>` compiler folders it created in the SDK and toolset, which it leaves for you to delete). Use a short scratch path: the compiler and Blender stop at long paths.
 
 ## Windows CI prerequisites
 
@@ -80,11 +115,11 @@ Biped digit aliases follow Autodesk's [MotionBuilder Biped template](https://hel
 
 ## Any-humanoid and gun probe
 
-`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against the captured 196-bone hero in `private-assets/fixtures/daki-rig.json` (private assets, above). It does not use `legacy/python`.
+`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against a hero rig from the optional data (above). It does not use `legacy/python`.
 
 ```powershell
 cargo build --manifest-path src-tauri/Cargo.toml -p deadlock-preparation --example e2e_probe
-& 'C:\Program Files\Blender Foundation\Blender 5.0\blender.exe' --background --factory-startup --python scripts/test_blender_any_humanoid.py -- C:\DMB-tests\any-humanoid
+& 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' --background --factory-startup --python scripts/test_blender_any_humanoid.py -- C:\DMB-tests\any-humanoid
 ```
 
 The gun reference used there is synthetic; production measures the decompiled original gun meshes. See [model preparation](MODEL_PREPARATION.md).

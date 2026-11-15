@@ -8,7 +8,7 @@ import { BrandMark } from './components/BrandMark';
 import { applyTheme, themeById } from './theme/themes';
 import type { ThemePreset } from './models';
 import { saveBuildRecord } from './build/changes';
-import type { Capabilities, ErrorHelp, HeroRecord, LogEntry, ModelSummary, Project, ProjectDocument, Settings, SetupStatus, TimingEvent, TimingReport } from './models';
+import type { Capabilities, FieldCheck, HeroRecord, LogEntry, ModelSummary, Project, ProjectDocument, Settings, SetupStatus, TimingEvent, TimingReport } from './models';
 import { ProjectOverview } from './components/ProjectOverview';
 import { ExtrasPage, MotionPage, PhysicsPage } from './components/CustomizationPages';
 import { decodePreview, type PreviewScene } from './preview/packet';
@@ -30,6 +30,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { StorageSection } from './components/StorageSection';
 import { CharacterPreview } from './components/CharacterPreview';
 import { Timings } from './components/Timings';
+import { addEvent, Badge, builtText, eventItems, MoveToCsdk13, Notifications, readIgnored, usesCsdk12, writeIgnored, type AppEvent, type ErrorRecord, type NewEvent, type NotificationItem, type StateNotification } from './components/Notifications';
 import { revealSection } from './components/workflowNavigation';
 
 /** How often a project with unsaved changes is autosaved. */
@@ -42,6 +43,23 @@ const GUIDE_SEEN = 'dmb.setupGuideSeen', GUIDE_SHOWN = 'dmb.setupGuideShownThisS
 const EXPERT_PAGES: Page[] = ['motion', 'timings'];
 /** Paths a build cannot do without; a problem in one of them opens the setup guide. */
 const REQUIRED_FIELDS = ['workspace', 'deadlock', 'pak', 'source2viewer', 'resourcecompiler', 'csdk', 'cswin'];
+/** The title, details and help of a failed operation (shown at the top and kept by its notification). */
+function errorRecord(title: string, cause: unknown): ErrorRecord {
+  const message=typeof cause==='object'&&cause!==null&&'message' in cause&&typeof cause.message==='string'?cause.message:title;
+  return {title:message, details:errorText(cause), help:errorHelp(cause)};
+}
+const errorKind = (cause: unknown) => typeof cause === 'object' && cause !== null && 'kind' in cause ? cause.kind : undefined;
+const isCancelled = (cause: unknown) => errorKind(cause) === 'cancelled';
+/** The backend's "Another operation is running" guard: shown, never logged. */
+const isBusy = (cause: unknown) => errorKind(cause) === 'busy';
+/** Notification titles for the failures of the main operations (by the title `run` gives `fail`);
+ * other failures keep that title. */
+const FAILURE_TITLES: Record<string, string> = {
+  'Build did not complete': 'Build failed', 'Installation did not complete': 'Installation failed',
+  'Project analysis did not complete': 'Analysis failed', 'Test my setup': 'Setup test failed',
+  'Your model could not be prepared': 'Model preparation failed', 'Your model could not be prepared automatically': 'Model preparation failed',
+  'Model conversion did not complete': 'Model preparation failed', 'Prepared model could not be accepted': 'Model preparation failed',
+};
 /** "about 2 minutes left" from earlier runs of the same operation. */
 export function timeLeft(typical: number | undefined, startedUtc: string | undefined, now: number): string | null {
   if (!typical || !startedUtc) return null;
@@ -121,7 +139,13 @@ export function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [cancellable, setCancellable] = useState(false);
-  const [error, setError] = useState<{title: string; details: string; help: ErrorHelp | null} | null>(null);
+  /** The failure at the top of the page: one line, or the whole error (`full`) when asked for. */
+  const [error, setError] = useState<{record: ErrorRecord; logged: boolean; full: boolean} | null>(null);
+  // Notifications: this session's events (newest first) and the failure to open in the list.
+  const [events, setEvents] = useState<AppEvent[]>([]);
+  const eventId = useRef(0);
+  const [focusEvent, setFocusEvent] = useState<string | null>(null);
+  const pushEvent = useCallback((event: NewEvent) => { const id = `event-${++eventId.current}`; setEvents(current => addEvent(current, {...event, id, at: Date.now()})); return id; }, []);
   const [toast, setToast] = useState('');
   const [guideStep, setGuideStep] = useState<number|undefined>(undefined);
   // Done on the guide's last step takes it out of the sidebar; Settings brings it back. Kept on this PC.
@@ -162,10 +186,13 @@ export function App() {
   const nativeActive=useRef(false);nativeActive.current=backendRunning;
   const alive = useRef(true);
   const desktop = isDesktop();
-  const fail = useCallback((title: string, cause: unknown) => {
-    const message=typeof cause==='object'&&cause!==null&&'message' in cause&&typeof cause.message==='string'?cause.message:title;
-    setError({title:message, details:errorText(cause), help:errorHelp(cause)});
-  }, []);
+  /** A failure: one line at the top and (when logged) an error notification with its own copy. */
+  const showFailure = useCallback((title: string, cause: unknown, log: boolean) => {
+    const record = errorRecord(title, cause);
+    setError({record, logged: log, full: false});
+    if (log) setFocusEvent(pushEvent({kind: 'error', title: FAILURE_TITLES[title] ?? title, error: record}));
+  }, [pushEvent]);
+  const fail = useCallback((title: string, cause: unknown) => showFailure(title, cause, !isBusy(cause) && !isCancelled(cause)), [showFailure]);
   const notify = useCallback((message: string) => setToast(message), []);
   const run = useCallback(async <T,>(label: string, operation: () => Promise<T>, canCancel = false, refreshTimings=true): Promise<T | undefined> => {
     if (active.current) return undefined;
@@ -173,11 +200,28 @@ export function App() {
     setBusy(label); setCancellable(canCancel); setError(null);
     try { return await operation(); }
     catch (cause) {
-      if (typeof cause === 'object' && cause !== null && 'kind' in cause && cause.kind === 'cancelled') notify('Operation cancelled');
+      if (isCancelled(cause)) notify('Operation cancelled');
       else fail(label, cause);
     } finally { try{if(refreshTimings){const latest=await api.latestTimings();if(alive.current){setBackendRunning(latest?.status==='running');if(latest)setReport(latest);}}}catch{/* Preserve the original operation error if its receipt cannot be read. */} active.current = false; if (alive.current) { setBusy(null); setCancellable(false); } }
     return undefined;
   }, [fail, notify]);
+  // Live checks of the draft settings (files only; cheap). The one caller: Settings,
+  // the guide and the Notifications use these.
+  const [fieldChecks, setFieldChecks] = useState<FieldCheck[] | null>(null);
+  useEffect(() => {
+    if (!settings || !desktop) return;
+    let current = true;
+    const timer = window.setTimeout(() => { void Promise.resolve().then(() => api.checkSettingFields(settings)).then(result => { if (current) setFieldChecks(result ?? null); }).catch(() => { if (current) setFieldChecks(null); }); }, 300);
+    return () => { current = false; window.clearTimeout(timer); };
+  }, [settings, desktop]);
+  // Notifications: states cleared for this session
+  // (until their condition goes away), and states ignored for good (kept on this PC).
+  const [clearedStates, setClearedStates] = useState<Set<StateNotification>>(() => new Set());
+  const [ignoredStates, setIgnoredStates] = useState<StateNotification[]>(readIgnored);
+  const setIgnored = (kinds: StateNotification[]) => { setIgnoredStates(kinds); writeIgnored(kinds); };
+  const [csdkFound, setCsdkFound] = useState<string | null>(null);
+  const csdk12 = usesCsdk12(fieldChecks);
+  useEffect(() => { if (!csdk12) { setClearedStates(current => { if (!current.has('csdk12')) return current; const next = new Set(current); next.delete('csdk12'); return next; }); setCsdkFound(null); } }, [csdk12]);
   useEffect(() => {
     alive.current = true;
     if (!desktop) return;
@@ -187,7 +231,7 @@ export function App() {
     const queued: LogEntry[] = [];
     const merge = (incoming: LogEntry[]) => setLogs(current => [...new Map([...current, ...incoming].map(entry => [entry.sequence, entry])).values()].sort((a,b) => a.sequence-b.sequence).slice(-20000));
     const timer = window.setInterval(() => { if (queued.length) merge(queued.splice(0)); }, 50);
-    const timingTimer=window.setInterval(()=>{if((timingPending||timingRunning)&&!timingReading){timingPending=false;timingReading=true;void api.latestTimings().then(value=>{if(!disposed&&value){timingRunning=value.status==='running';setBackendRunning(timingRunning);setReport(value);}}).catch(cause=>{if(!disposed)fail('Could not refresh step timings',cause);}).finally(()=>{timingReading=false;});}},200);
+    const timingTimer=window.setInterval(()=>{if((timingPending||timingRunning)&&!timingReading){timingPending=false;timingReading=true;void api.latestTimings().then(value=>{if(!disposed&&value){timingRunning=value.status==='running';setBackendRunning(timingRunning);setReport(value);}}).catch(cause=>{if(!disposed)showFailure('Could not refresh step timings',cause,false);}).finally(()=>{timingReading=false;});}},200);
     void (async () => {
       try {
         const unlisten = await listen<LogEntry>('build-log', event => queued.push(event.payload));
@@ -230,7 +274,7 @@ export function App() {
       } catch (cause) { if (!disposed) fail('Could not initialize the workspace', cause); }
     })();
     return () => { disposed = true; alive.current = false; releaseLogs?.();releaseTimings?.(); window.clearInterval(timer);window.clearInterval(timingTimer); };
-  }, [desktop, fail]);
+  }, [desktop, fail, showFailure]);
   // Autosave every few minutes while the project has unsaved changes.
   const dirtyRef = useRef(projectDirty); dirtyRef.current = projectDirty;
   useEffect(() => {
@@ -352,12 +396,12 @@ export function App() {
         if(target){target.dispatchEvent(new CustomEvent('dmb-file-drop',{detail:payload.paths}));return;}
         if(payload.paths.length===1&&/\.(blend|glb|gltf|fbx)$/i.test(payload.paths[0])&&!active.current){void startPreparationRef.current(payload.paths[0]);}
         else if (payload.paths.length !== 1 || !/\.dmx$/i.test(payload.paths[0])) fail('Could not import the dropped file', 'Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.');
-        else if (active.current) fail('An operation is already running', 'Wait for the current operation to finish or cancel it, then drop the model again.');
+        else if (active.current) showFailure('An operation is already running', 'Wait for the current operation to finish or cancel it, then drop the model again.', false);
         else void analyzeRef.current(payload.paths[0]);
       }
     }).then(unlisten => { if (disposed) unlisten(); else release = unlisten; }).catch(cause => fail('Drag and drop could not be enabled', cause));
     return () => { disposed = true; release?.(); };
-  }, [desktop, fail]);
+  }, [desktop, fail, showFailure]);
   useEffect(() => {
     if (!desktop) return;
     let disposed = false; let release: UnlistenFn | undefined;
@@ -394,14 +438,19 @@ export function App() {
     // Common causes of failed builds, before a long build starts; the user may build anyway.
     let warnings:string[]=[];try{warnings=(await api.prebuildWarnings())??[];}catch{warnings=[];}
     if(warnings.length&&!await ask(`${warnings.map(w=>`• ${w}`).join('\n\n')}\n\nBuild anyway?`,{title:'Before building',kind:'warning',okLabel:'Build anyway',cancelLabel:'Cancel'}))return;
+    const name=document.project.name;
     await run('Build did not complete',async()=>{setBuildResult(null);const value=await api.buildProject(document.project,overwriteOutput,overwriteInstall,document.path);const analyzed=JSON.stringify(document.project);setDocument({project:value.project,path:value.path});setProjectDirty(false);
       // The build checked exactly the analyzed inputs; what it records in the project is not a change to analyze again.
-      setInspection(prev=>prev&&prev.project===analyzed?{...prev,project:JSON.stringify(value.project)}:prev);forgetAutosaves(value.project.id);setBuildResult(value.result);if(value.result.compiled||value.result.vpk)saveBuildRecord(value.project);notify(value.result.installed?'Verified VPK installed.':value.result.vpk?'Verified VPK published.':value.result.compiled?'Compilation completed; no VPK was requested.':'Source preparation completed; no compilation was requested.');},true);}
-  async function installProject(selected:string|null,overwrite:boolean){if(!document)return;await run('Installation did not complete',async()=>{const path=selected??await open({title:'Select VPK to validate and install',multiple:false,filters:[{name:'VPK archive',extensions:['vpk']}]});if(typeof path!=='string')return;setInstalled(null);setInstalled(await api.installProject(document.project,path,overwrite));notify('VPK validated and installed.');},true);}
+      setInspection(prev=>prev&&prev.project===analyzed?{...prev,project:JSON.stringify(value.project)}:prev);forgetAutosaves(value.project.id);setBuildResult(value.result);if(value.result.compiled||value.result.vpk)saveBuildRecord(value.project);notify(value.result.installed?'Verified VPK installed.':value.result.vpk?'Verified VPK published.':value.result.compiled?'Compilation completed; no VPK was requested.':'Source preparation completed; no compilation was requested.');
+      pushEvent({kind:'success',operation:'build',title:'Build completed',project:value.project.name||name,lines:[builtText(value.result)],paths:value.result.vpk?[{label:'Output',path:value.result.vpk}]:value.result.prepared?[{label:'Files',path:value.result.prepared}]:[],open:{label:'Open Build & install',page:'build'}});},true);}
+  async function installProject(selected:string|null,overwrite:boolean){if(!document)return;await run('Installation did not complete',async()=>{const path=selected??await open({title:'Select VPK to validate and install',multiple:false,filters:[{name:'VPK archive',extensions:['vpk']}]});if(typeof path!=='string')return;setInstalled(null);const value=await api.installProject(document.project,path,overwrite);setInstalled(value);notify('VPK validated and installed.');
+    pushEvent({kind:'success',operation:'install',title:'Mod installed',project:document.project.name,lines:[`The VPK was validated and installed as ${basename(value)}.`],paths:[{label:'Installed',path:value}],open:{label:'Open Build & install',page:'build'}});},true);}
   /** The game's addons folder and the output folder, read again (Analyze, Build & install). */
   async function scanSlots(project=documentRef.current?.project){if(!project)return;const scan=++slotScan.current;try{const value=await api.vpkSlots(project);if(scan===slotScan.current)setSlots(value);}catch{if(scan===slotScan.current)setSlots(null);}}
   async function inspectProject(){if(!document)return;await run('Project analysis did not complete',async()=>{
-    setInspection(null);const value=await api.inspectProject(document.project);updateProject(value.project);setInspection({report:value.report,project:JSON.stringify(value.project)});if('dmx' in value.report)setSummary({...value.report.dmx,path:value.project.dmx});await scanSlots();notify('needs_review' in value.report&&value.report.needs_review?'Review the analysis before building.':'Project analysis complete.');
+    setInspection(null);const value=await api.inspectProject(document.project);updateProject(value.project);setInspection({report:value.report,project:JSON.stringify(value.project)});if('dmx' in value.report)setSummary({...value.report.dmx,path:value.project.dmx});await scanSlots();const review='needs_review' in value.report&&value.report.needs_review;notify(review?'Review the analysis before building.':'Project analysis complete.');
+    // A report that waits for the user's choice is a warning (the same flag the Build page reads).
+    pushEvent({kind:review?'warning':'success',operation:'analyze',title:'Analysis finished',project:value.project.name,lines:[review?'Some items need your choice before building. Review them on Build & install.':'Project analysis complete.'],open:{label:'Open Build & install',page:'build'}});
   },true);}
   async function prepareProject(offline:boolean){if(!document)return;await run('Source preparation did not complete',async()=>{const value=await api.prepareProject(document.project,offline);updateProject(value.project);setPrepared(value.prepared);notify('Compiler source files prepared.');},true);}
   async function validateOriginal(compile:boolean){if(!document)return;await run('Original model test did not complete',async()=>{setOriginalValidation(await api.validateOriginal(document.project,compile));notify(compile?'Original test completed. Review the native receipt.':'Original compiler plan inspected.');},true);}
@@ -429,7 +478,18 @@ export function App() {
   async function checkSetup(){if(settings)await run('Could not check tool paths',async()=>{setSetupStatus(null);setSetupStatus(await api.setupStatus(settings));});}
   async function verifySetup(){if(settings)await run('Could not save and check tools',async()=>{setSetupStatus(null);await api.saveSettings(settings);setSavedSettings(settings);setInspection(null);setSetupStatus(await api.setupStatus(settings));notify('Settings saved and tool locations checked.');});}
   /** Test my setup with the paths on screen (saved or not). */
-  async function testSetup(){return settings?run('Test my setup',()=>api.testSetup(settings)):undefined;}
+  async function testSetup(){
+    if(!settings)return undefined;
+    const value=await run('Test my setup',()=>api.testSetup(settings));
+    if(value?.passed)pushEvent({kind:'success',operation:'setup-test',title:'Setup test passed',lines:['Every check of Test my setup passed.'],open:{label:'Open Settings',page:'settings'}});
+    else if(value){
+      // The panel shows each failed step in place; the notification names them and keeps their details.
+      const failed=value.steps.filter(step=>!step.passed);
+      const record:ErrorRecord={title:`Failed: ${failed.map(step=>step.name).join(', ')||'a check'}.`,details:failed.map(step=>[`${step.name}: ${step.detail}`,step.error?errorText(step.error):''].filter(Boolean).join('\n')).join('\n\n'),help:failed.map(step=>errorHelp(step.error)).find(Boolean)??null};
+      setFocusEvent(pushEvent({kind:'error',title:'Setup test failed',error:record}));
+    }
+    return value;
+  }
   async function loadPreview(path=document?.project.dmx,stay=false){if(!path)return;await run('Preview could not be loaded',async()=>{const buffer=await api.preview(path);setPreview(decodePreview(buffer));if(!stay)setPage('appearance');notify('Preview loaded');},true);}
   function updateProject(project:Project){const current=documentRef.current;if(!current)return;if(current.project!==document?.project){notify('Project changed while the selection was being checked. Please select it again.');return;}const next={...current,project};documentRef.current=next;setDocument(next);setProjectDirty(true);}
   async function selectHero(hero:HeroRecord){if(!document)return;await run('Could not select the character',async()=>{const project=await api.selectHero(document.project,hero.path);updateProject(project);setSummary(null);setPreview(null);notify('Character selected');});}
@@ -463,24 +523,33 @@ export function App() {
   function navigate(page:Page, section?:string){setPage(page);if(section)requestAnimationFrame(()=>revealSection(section));}
   const unavailable = Boolean(busy) || backendBusy || !desktop;
   const done = stepsDone(document?.project, Boolean(buildResult?.vpk || installed));
+  const goPage = (target: string) => setPage(target as Page);
+  const clearState = (kind: StateNotification) => setClearedStates(current => new Set(current).add(kind));
+  const stateItems: NotificationItem[] = settings && csdk12 && !clearedStates.has('csdk12') && !ignoredStates.includes('csdk12') ? [{id:'csdk12', kind:'warning', title:'Reduced CSDK 12 in use', dismiss:()=>clearState('csdk12'),
+    body:<MoveToCsdk13 settings={settings} busy={unavailable} update={value=>{setSettings(value);setSetupStatus(null);}} go={goPage} notify={notify} fail={fail} found={csdkFound} setFound={setCsdkFound} ignore={()=>setIgnored([...ignoredStates.filter(kind=>kind!=='csdk12'),'csdk12'])}/>}] : [];
+  const showDetails = (event: AppEvent) => { if (!event.error) return; setError({record: event.error, logged: true, full: true}); window.document.querySelector('.workspace')?.scrollTo?.({top: 0}); };
+  const notifications = [...stateItems, ...eventItems(events, {go: goPage, showDetails, dismiss: id => setEvents(current => current.filter(event => event.id !== id))})];
+  const clearNotifications = () => { setEvents([]); setClearedStates(current => { const next = new Set(current); for (const item of stateItems) next.add(item.id as StateNotification); return next; }); };
   return <div className="app-shell">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark theme={theme}/></span><div>Deadlock<span>Mod Builder</span></div></div><nav aria-label="Main navigation">{NAV_GROUPS.map(group=>({group,items:navigation.filter(item=>group.pages.includes(item.id)&&(expert||!EXPERT_PAGES.includes(item.id))&&(item.id!=='onboarding'||!guideDone))})).filter(({items})=>items.length>0).map(({group,items})=><div className="nav-group" key={group.label}><div className="nav-group-label">{group.label}</div>{items.map(item=>{const current=page===item.id||(page==='setup'&&item.id==='settings')||(page==='onboarding'&&item.id==='settings'&&guideDone);const finished=done.has(item.id);return <button key={item.id} className={`nav-item ${item.step?'nav-step':''} ${finished?'nav-done':''} ${current?'selected':''}`} aria-current={current?'page':undefined} onClick={()=>setPage(item.id)}>{item.step?<span className="nav-step-number" aria-hidden="true">{finished?'✓':item.step}</span>:<NavIcon type={item.icon}/>}{item.label}</button>;})}</div>)}</nav><div className="sidebar-bottom"><span className="version">{APP_VERSION}</span><button className="tertiary about-link" onClick={()=>{setPage('settings');requestAnimationFrame(()=>{const details=window.document.getElementById('app-about');if(details instanceof HTMLDetailsElement)details.open=true;details?.scrollIntoView?.({block:'start'});});}}>About this build</button></div></aside>
+    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark theme={theme}/></span><div>Deadlock<span>Mod Builder</span></div></div><nav aria-label="Main navigation">{NAV_GROUPS.map(group=>({group,items:navigation.filter(item=>group.pages.includes(item.id)&&(expert||!EXPERT_PAGES.includes(item.id))&&(item.id!=='onboarding'||!guideDone))})).filter(({items})=>items.length>0).map(({group,items})=><div className="nav-group" key={group.label}><div className="nav-group-label">{group.label}</div>{items.map(item=>{const current=page===item.id||(page==='setup'&&item.id==='settings')||(page==='onboarding'&&item.id==='settings'&&guideDone);const finished=done.has(item.id);return <button key={item.id} className={`nav-item ${item.step?'nav-step':''} ${finished?'nav-done':''} ${current?'selected':''}`} aria-current={current?'page':undefined} onClick={()=>setPage(item.id)}>{item.step?<span className="nav-step-number" aria-hidden="true">{finished?'✓':item.step}</span>:<NavIcon type={item.icon}/>}{item.label}</button>;})}</div>)}</nav><Notifications items={notifications} clear={clearNotifications} focus={focusEvent}/><div className="sidebar-bottom"><span className="version">{APP_VERSION}</span><button className="tertiary about-link" onClick={()=>{setPage('settings');requestAnimationFrame(()=>{const details=window.document.getElementById('app-about');if(details instanceof HTMLDetailsElement)details.open=true;details?.scrollIntoView?.({block:'start'});});}}>About this build</button></div></aside>
     <div className="workspace-shell"><header className="topbar"><div className="project-identity"><span>{document?.project.name ?? 'Project workspace'}</span>{projectDirty && <span className="dirty-indicator" aria-label="Unsaved project changes">●</span>}<span className="muted">/ {page==='setup'?'Model tool setup':page==='onboarding'?'New-user setup':navigation.find(item => item.id === page)?.label}</span></div><div className="row project-controls"><div className="segmented topbar-mode" role="radiogroup" aria-label="Interface mode">{([[false,'Simple'],[true,'Expert']] as const).map(([value,label])=><button key={label} type="button" role="radio" aria-checked={expert===value} title={value?'Every page, table and tool':'The five steps with recommended settings'} onClick={()=>setExpert(value)}>{label}</button>)}</div><button className="topbar-button" disabled={unavailable} onClick={() => void newProject()}>New</button><button className="topbar-button" disabled={unavailable} onClick={() => void openProject()}>Open…</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject()}>Save</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject(true)}>Save as…</button></div></header>
       <main className={`workspace page-${page} ${['project','appearance','physics','motion','build','timings','logs','settings'].includes(page)?'studio-workspace':''}`}>
         {!desktop && <div className="capability-notice"><strong>Desktop connection required</strong><p>This browser cannot access the Rust backend. Run the Tauri desktop application to open projects and analyze models.</p></div>}
         {settingsDirty && !['settings','onboarding','setup'].includes(page) && <div className="capability-notice"><strong>Tool settings have unsaved changes</strong><p>Save settings to use the tool paths you selected.</p><button disabled={unavailable} onClick={()=>void persistSettings()}>Save settings</button></div>}
-        {error && <ErrorNotice {...error} dismiss={() => setError(null)} go={target => { setError(null); setPage(target as Page); }} />}
+        {error && (error.full
+          ? <ErrorNotice {...error.record} dismiss={() => setError(null)} go={target => { setError(null); setPage(target as Page); }} />
+          : <div className="error-line" role="alert"><Badge kind="error"/><strong>{error.record.title}</strong>{error.logged && <span className="error-line-hint">Details in Notifications.</span>}<button className="tertiary" onClick={() => setError({...error, full: true})}>Show details</button><button className="tertiary error-line-close" aria-label="Close" title="Close" onClick={() => setError(null)}>×</button></div>)}
         {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={fresh} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()} chooseModel={()=>void chooseModel()} prepareAgain={prepareAgain}/> : <><PageTitle title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
         {page === 'appearance' && <Appearance weapons={document?<WeaponsSection project={document.project} update={updateProject} busy={unavailable} operate={run} refreshPreview={()=>void loadPreview(undefined,true)} openPreparation={prepareAgain} separate={{projectPath:document.path,saveProject:saveDuringOperation}}/>:undefined} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
         {document&&<div hidden={page!=='physics'}><PhysicsPage expert={expert} tangtangPresets={capabilities?.tangtang_presets??true} vindictaReference={capabilities?.vindicta_reference??true} preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>void loadPreview(undefined,true)} busy={unavailable} report={inspection?.report??null} fail={fail} analyze={()=>void inspectProject()} analyzing={busy==='Project analysis did not complete'}/>:null} openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
         {page==='motion'&&document&&<MotionPage catalog={catalog?.includes_animations===false?null:catalog} discover={()=>void discoverComponents()} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
         {page==='extras'&&document&&<ExtrasPage catalog={catalog} discover={()=>discoverComponents(true)} discovering={busy==='Character asset discovery did not complete'} canDiscover={Boolean(settings?.pak)&&!settingsDirty} openSetup={()=>setPage('settings')} reviewBuild={()=>navigate('build')} key={`${document.project.id}:${document.project.original_model}`} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
-        {document&&<div hidden={page!=='prepare'}><PreparationPage expert={expert} key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>setPage('appearance')}/></div>}
+        {document&&<div hidden={page!=='prepare'}><PreparationPage expert={expert} key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>{pushEvent({kind:'success',operation:'prepare',title:'Model prepared',project:documentRef.current?.project.name,lines:['The model was prepared. Check the gun fit and the materials on Appearance & weapons.'],open:{label:'Open Appearance & weapons',page:'appearance'}});setPage('appearance');}}/></div>}
         {page==='build'&&document&&<BuildPage expert={expert} analyzing={busy==='Project analysis did not complete'} go={navigate} project={document.project} update={updateProject} report={inspection?.report??null} fresh={fresh} slots={slots} scanSlots={()=>void scanSlots()} prepared={prepared} original={originalValidation} busy={unavailable} inspect={()=>void inspectProject()} prepare={offline=>void prepareProject(offline)} validateOriginal={compile=>void validateOriginal(compile)} build={(output,install)=>void buildProject(output,install)} result={buildResult} install={(path,overwrite)=>void installProject(path,overwrite)} installed={installed} chooseFreeSlot={()=>void chooseFreeSlot()} openOutput={()=>void run('Output folder could not be opened',async()=>{await api.openOutput(document.project);})}/>}
         {page === 'timings' && <Timings report={report} openReport={() => void openReport()} busy={unavailable} />}
         {page === 'logs' && <><LogView entries={logs} copy={() => void copyLog()} save={() => void saveLog()} busy={unavailable} /><ToolLogs busy={!desktop} fail={fail}/></>}
-        {page === 'settings' && <><SettingsPage expert={expert} theme={theme} chooseTheme={next=>void chooseTheme(next)} customThemes={customThemes} saveCustomThemes={presets=>void saveCustomThemes(presets)} guideShown={!guideDone} setGuideShown={shown=>setGuideDone(!shown)} go={page=>setPage(page as Page)} testSetup={testSetup} onboarding={()=>{setGuideDone(false);setPage('onboarding');}} modelSetup={()=>setPage('setup')} settings={settings} update={value => {setSettings(value);setSetupStatus(null);}} persist={() => void persistSettings()} busy={unavailable} dirty={settingsDirty} fail={fail} detect={extra=>void detectSettings(extra)} status={setupStatus} check={()=>void checkSetup()} />{settings&&desktop&&<StorageSection settings={settings} update={value=>setSettings(value)} project={document?.project??null} busy={unavailable} dirty={settingsDirty} operate={run}/>}{settings&&expert&&<Disclosure title="Tool diagnostics" hint="Compiler candidates, configuration audits and Blender validation"><ToolDiagnostics settings={settings} blenderSaved={path=>{setSettings(current=>current?{...current,blender:path}:current);setSavedSettings(current=>current?{...current,blender:path}:current);setSetupStatus(null);setInspection(null);}} disabled={unavailable} operate={run}/></Disclosure>}{expert&&<Disclosure title="About this build" hint="Version and qualification status" id="app-about"><p>Deadlock Mod Builder Rust · {APP_VERSION}</p><p className="hint">The Vindicta R12 project has been reported working in game. This update recognizes MMD physics helpers during source import and retains the accepted cloth reference. Other projects and toolchains require their own validation.</p></Disclosure>}</>}
-        {settings&&document&&<div hidden={page!=='onboarding'}><OnboardingPage startStep={guideStep} active={page==='onboarding'} project={document.project} settings={settings} busy={unavailable} dirty={settingsDirty} status={setupStatus} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={()=>void persistSettings()} testSetup={testSetup} verify={()=>void verifySetup()} detect={extra=>void detectSettings(extra)} check={()=>void checkSetup()} fail={fail} go={setPage} openProject={()=>void openProject()} chooseModel={()=>void chooseModel()} analyze={()=>{setPage('build');void inspectProject();}} finish={()=>{setGuideDone(true);setPage('project');}}/></div>}
+        {page === 'settings' && <><SettingsPage fields={fieldChecks} ignoredNotifications={ignoredStates.length} showIgnoredNotifications={()=>setIgnored([])} expert={expert} theme={theme} chooseTheme={next=>void chooseTheme(next)} customThemes={customThemes} saveCustomThemes={presets=>void saveCustomThemes(presets)} guideShown={!guideDone} setGuideShown={shown=>setGuideDone(!shown)} go={page=>setPage(page as Page)} testSetup={testSetup} onboarding={()=>{setGuideDone(false);setPage('onboarding');}} modelSetup={()=>setPage('setup')} settings={settings} update={value => {setSettings(value);setSetupStatus(null);}} persist={() => void persistSettings()} busy={unavailable} dirty={settingsDirty} fail={fail} detect={extra=>void detectSettings(extra)} status={setupStatus} check={()=>void checkSetup()} />{settings&&desktop&&<StorageSection settings={settings} update={value=>setSettings(value)} project={document?.project??null} busy={unavailable} dirty={settingsDirty} operate={run}/>}{settings&&expert&&<Disclosure title="Tool diagnostics" hint="Compiler candidates, configuration audits and Blender validation"><ToolDiagnostics settings={settings} blenderSaved={path=>{setSettings(current=>current?{...current,blender:path}:current);setSavedSettings(current=>current?{...current,blender:path}:current);setSetupStatus(null);setInspection(null);}} disabled={unavailable} operate={run}/></Disclosure>}{expert&&<Disclosure title="About this build" hint="Version and qualification status" id="app-about"><p>Deadlock Mod Builder Rust · {APP_VERSION}</p><p className="hint">The Vindicta R12 project has been reported working in game. This update recognizes MMD physics helpers during source import and retains the accepted cloth reference. Other projects and toolchains require their own validation.</p></Disclosure>}</>}
+        {settings&&document&&<div hidden={page!=='onboarding'}><OnboardingPage fields={fieldChecks} expert={expert} startStep={guideStep} active={page==='onboarding'} project={document.project} settings={settings} busy={unavailable} dirty={settingsDirty} status={setupStatus} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={()=>void persistSettings()} testSetup={testSetup} verify={()=>void verifySetup()} detect={extra=>void detectSettings(extra)} check={()=>void checkSetup()} fail={fail} go={setPage} openProject={()=>void openProject()} chooseModel={()=>void chooseModel()} analyze={()=>{setPage('build');void inspectProject();}} finish={()=>{setGuideDone(true);setPage('project');}}/></div>}
         {settings&&document&&<div hidden={page!=='setup'}><button className="tertiary" disabled={unavailable} onClick={()=>setPage('settings')}>← Back to settings</button><SetupPage settings={settings} project={document.project} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={async next=>{await api.saveSettings(next);setSettings(next);setSavedSettings(next);setSetupStatus(null);setInspection(null);}} busy={unavailable} operate={run}/></div>}
       </main><footer className={`statusbar ${busy||backendBusy||finished?'statusbar-working':'statusbar-idle'}`}>{busy||backendBusy||finished?<div className={`statusbar-progress ${progress===null&&!finished?'indeterminate':''} ${finished??''}`} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={finished?100:progress===null?undefined:Math.round(progress*100)}><div className="statusbar-progress-fill" style={finished?{width:'100%'}:progress===null?undefined:{width:`${Math.max(2,progress*100)}%`}}/></div>:null}<span className="statusbar-text" aria-live="polite">{finished?(finished==='succeeded'?'Done':'Stopped with an error'):busy||backendBusy?`${progress===null?'':`${Math.round(progress*100)}% · `}${runningStep??busy??'Working…'}${remaining?` · ${remaining}`:''}`:desktop?'Ready':'Desktop backend unavailable'}</span><div className="row">{settingsDirty && <span className="muted">Settings unsaved</span>}{((busy&&cancellable)||(!busy&&backendBusy)) && <button onClick={() => void cancel()}>Cancel</button>}</div></footer>
     </div>{toast && <div className="toast" role="status">{toast}</div>}<SteamQrDialog/>

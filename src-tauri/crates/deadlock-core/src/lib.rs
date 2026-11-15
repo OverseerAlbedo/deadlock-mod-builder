@@ -1,6 +1,7 @@
 //! Shared infrastructure. Timings are measured at operation boundaries, never inferred from logs.
 #![forbid(unsafe_code)]
 
+pub mod blender_version;
 pub mod cancellation;
 pub mod error;
 pub mod process;

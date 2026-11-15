@@ -21,9 +21,9 @@ format and compatibility checks; this does not make arbitrary files interchangea
 
 ## Setup
 
-Save Settings before checking them. Select `blender.exe`, the original game archive, the material compiler, and the separate model toolset where applicable. Use the app's model-toolset guide for acquisition; do not mix unrelated compiler DLLs.
+Save Settings before checking them. Select `blender.exe`, the original game archive and the Community SDK with its compiler. Reduced CSDK 13 (`game/bin/win64/resourcecompiler.exe`) compiles materials and hero models, so nothing else is needed; with the model compiler backend on auto it compiles the models even when a model toolset is set. The older setup, Reduced CSDK 12 (`game/bin_cs2/win64`) with a model toolset downloaded from Steam, keeps working (Settings → Advanced configuration → Downloaded model toolset); the sidebar's Notifications show the steps to move to Reduced CSDK 13. Do not mix unrelated compiler DLLs.
 
-The Blender bridge accepts 4.2–4.5, 5.0 and 5.2 LTS. Newer source files may still depend on features or add-ons absent from the installed version. An import error should be diagnosed from the final Python exception, not only Blender's configured exit code 23.
+The Blender bridge accepts 4.2–4.5, 5.0, 5.2 LTS and 5.3; 5.2 LTS is recommended. Newer source files may still depend on features or add-ons absent from the installed version. An import error should be diagnosed from the final Python exception, not only Blender's configured exit code 23.
 
 ## Models and mapping
 
@@ -45,11 +45,11 @@ Automatic mode operates on preserved secondary groups and available mesh evidenc
 
 Halos, hats, crowns, hairpins and other rigid accessories stay on the head instead of receiving hair motion. Breast motion is switched on and off on the **Physics** tab (Automatic motion → **Breast motion**), together with its amount (**More movement** for a bigger bounce, **Stiffer** for less). When the prepared model has breast bones, that applies at the next Analyze and Build without converting again. When it has none, the switch says so: in Model preparation, **Keep or add breast bones** must be on; click **Inspect again to add breast bones** (they are added where the chest has breasts, or the reason is shown), convert, and click **Use prepared model**.
 
-Vindicta, Daki, TangTang and Graves have accepted user-tested configurations. This is not certification of every combination of source character, target hero, motion, and game version. Native test fixtures, standalone previews and compiler success do not replace gameplay verification.
+The app cannot test every combination of source character, target hero, motion and game version. A successful build and the previews do not replace a look at the character in a match.
 
 ## Disk space
 
-Projects are built in the workspace folder (by default `%LOCALAPPDATA%DeadlockModBuilderworkspaces`), and each project also has working copies in the CSDK and model toolset folders. **Settings → Storage** shows how much each project uses and clears data the builder can recreate: old model preparations, older backups, build caches, compiler working folders and leftovers of interrupted operations. Data a saved or open project still uses, built VPKs and workspaces with a build lock are kept. **Remove…** deletes all stored data of one project (its saved project file stays; installed mods are not touched). Retention choices are saved with the other settings.
+Projects are built in the workspace folder (by default `%LOCALAPPDATA%\DeadlockModBuilder\workspaces`), and each project also has working copies in the Community SDK folder (material folders, and `dmb_<id>_model` model folders, since Reduced CSDK 13 compiles the model). An older setup that still compiles models with a downloaded model toolset also has model folders in the toolset folder. Storage lists the folders in the Community SDK chosen now; after moving from Reduced CSDK 12 to 13, the working folders left in the old SDK folder go away when you delete that folder. **Settings → Storage** shows how much each project uses and clears data the builder can recreate: old model preparations, older backups, build caches, compiler working folders and leftovers of interrupted operations. Data a saved or open project still uses, built VPKs and workspaces with a build lock are kept. **Remove…** deletes all stored data of one project (its saved project file stays; installed mods are not touched). Retention choices are saved with the other settings.
 
 ## Logs
 

@@ -35,8 +35,16 @@ fn tool_selection_requires_coherent_root_and_configuration() {
     assert!(paths
         .content
         .ends_with("citadel_addons/dmb_0123456789abcdef_model"));
+    // Model game folder belongs to the downloaded toolset: the csdk backend
+    // ignores it, the toolset backend refuses one outside its root.
     s.model_game = dir.path().join("other/game/citadel").display().to_string();
+    let ignored = toolchain::select(&s, false).unwrap();
+    assert_eq!(ignored.game, safety::resolve_path(&dir.path().join("game/citadel")).unwrap());
+    s.model_backend = "cswin".into();
+    s.cswin = s.csdk.clone();
     assert!(toolchain::select(&s, false).is_err());
+    s.model_backend = "csdk".into();
+    s.cswin.clear();
     s.model_game.clear();
     s.deadlock = s.csdk.clone();
     assert!(toolchain::select(&s, false).is_err());
@@ -767,14 +775,156 @@ fn local_detection_preserves_explicit_compiler_and_finds_optional_steam_tools() 
     safety::atomic_write(&full.join("game/csgo/gameinfo.gi"), b"GameInfo{}").unwrap();
     let mut settings = Settings::default();
     settings.steam = steam.display().to_string();
+    // A chosen folder that is no Reduced CSDK 13, so a CSDK 13 installed on
+    // this PC does not make the model toolset unnecessary.
+    settings.csdk = root.path().join("no-sdk").display().to_string();
     let found =
         deadlock_tools::detection::detect(&settings, &[], &CancellationToken::new()).unwrap();
     assert_eq!(found.optional_cs2, full.display().to_string());
-    assert_eq!(found.model_backend, "cswin");
+    // Detect fills a found toolset but never pins the backend to it.
+    assert_eq!(found.model_backend, "auto");
     settings.cswin_resourcecompiler = "explicit-choice.exe".into();
     let found =
         deadlock_tools::detection::detect(&settings, &[], &CancellationToken::new()).unwrap();
     assert_eq!(found.cswin_resourcecompiler, "explicit-choice.exe");
+}
+
+/// Reduced CSDK 13's shape: game\bin and game\bin_server, no bin_cs2.
+fn current_sdk(root: &Path) {
+    for rel in [
+        "game/bin/win64/resourcecompiler.exe",
+        "game/bin_server/win64/resourcecompiler.exe",
+    ] {
+        safety::atomic_write(&root.join(rel), b"fixture executable").unwrap();
+    }
+    safety::atomic_write(&root.join("game/citadel/gameinfo.gi"), b"GameInfo{}").unwrap();
+    safety::atomic_write(&root.join("content/citadel/readme.txt"), b"x").unwrap();
+}
+
+#[test]
+fn auto_compiles_models_with_csdk_13_first_then_a_model_toolset() {
+    let dir = tempfile::tempdir().unwrap();
+    let sdk = dir.path().join("CSDK13");
+    current_sdk(&sdk);
+    let toolset = dir.path().join("toolset");
+    safety::atomic_write(&toolset.join("game/bin/win64/resourcecompiler.exe"), b"x").unwrap();
+    safety::atomic_write(&toolset.join("game/csgo/gameinfo.gi"), b"GameInfo{}").unwrap();
+    let mut s = Settings::default();
+    s.csdk = sdk.display().to_string();
+    s.model_backend = "auto".into();
+    let tool = toolchain::select(&s, true).unwrap();
+    assert_eq!(tool.backend, "csdk");
+    assert_eq!(tool.compiler, safety::resolve_path(&sdk.join("game/bin/win64/resourcecompiler.exe")).unwrap());
+    assert_eq!(tool.game, safety::resolve_path(&sdk.join("game/citadel")).unwrap());
+    // The model addon sits beside the material addon, under its own name.
+    let paths = tool.paths("0123456789abcdef0123456789abcdef").unwrap();
+    assert!(paths.content.ends_with("content/citadel_addons/dmb_0123456789abcdef_model"));
+    assert!(paths.game.ends_with("game/citadel_addons/dmb_0123456789abcdef_model"));
+    // With a CSDK 13 chosen, auto compiles with it even when a downloaded
+    // toolset is set; the explicit cswin backend keeps using the toolset.
+    s.cswin = toolset.display().to_string();
+    s.cswin_resourcecompiler = toolset.join("game/bin/win64/resourcecompiler.exe").display().to_string();
+    s.model_game = toolset.join("game/csgo").display().to_string();
+    assert_eq!(toolchain::select(&s, true).unwrap().backend, "csdk");
+    s.model_backend = "cswin".into();
+    assert_eq!(toolchain::select(&s, true).unwrap().backend, "cswin");
+    // Without a CSDK 13, auto falls back to the toolset.
+    let no_sdk = Settings { csdk: String::new(), model_backend: "auto".into(), ..s.clone() };
+    assert_eq!(toolchain::select(&no_sdk, true).unwrap().backend, "cswin");
+    // The csdk backend ignores the toolset's own fields.
+    s.model_backend = "csdk".into();
+    let tool = toolchain::select(&s, true).unwrap();
+    assert_eq!((tool.backend.as_str(), tool.root.clone()), ("csdk", safety::resolve_path(&sdk).unwrap()));
+    assert_eq!(tool.game, safety::resolve_path(&sdk.join("game/citadel")).unwrap());
+    // Reduced CSDK 12 never becomes the automatic model compiler.
+    let older = dir.path().join("CSDK12");
+    setup(&older);
+    let mut s = Settings::default();
+    s.csdk = older.display().to_string();
+    s.model_backend = "auto".into();
+    let error = toolchain::select(&s, true).unwrap_err().to_string();
+    assert!(error.contains(toolchain::MODEL_TOOLSET_NOT_SET), "{error}");
+    assert!(error.contains("Reduced CSDK 13"));
+}
+
+#[test]
+fn detect_never_pins_a_found_toolset_so_a_later_csdk_13_compiles_the_models() {
+    let dir = tempfile::tempdir().unwrap();
+    // A Counter-Strike tools folder (CSWin64 layout) and no Community SDK.
+    let toolset = dir.path().join("CSWin64");
+    safety::atomic_write(&toolset.join("game/bin/win64/resourcecompiler.exe"), b"x").unwrap();
+    safety::atomic_write(&toolset.join("game/csgo/gameinfo.gi"), b"GameInfo{}").unwrap();
+    let mut settings = Settings::default();
+    settings.workspace = dir.path().join("work").display().to_string();
+    // A chosen folder that is no SDK, so an SDK installed on this PC is not found.
+    settings.csdk = dir.path().join("no-sdk").display().to_string();
+    let found = deadlock_tools::detection::detect(&settings, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!(safety::resolve_path(Path::new(&found.cswin)).unwrap(), safety::resolve_path(&toolset).unwrap());
+    assert_eq!(found.model_backend, "auto");
+    assert_eq!(toolchain::select(&found, true).unwrap().backend, "cswin");
+    // Once Reduced CSDK 13 is chosen, auto compiles with it, toolset fields or not.
+    let sdk = dir.path().join("CSDK13");
+    current_sdk(&sdk);
+    let mut later = found.clone();
+    later.csdk = sdk.display().to_string();
+    later.resourcecompiler = sdk.join("game/bin/win64/resourcecompiler.exe").display().to_string();
+    assert_eq!(toolchain::select(&later, true).unwrap().backend, "csdk");
+    let again = deadlock_tools::detection::detect(&later, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!((again.model_backend.as_str(), toolchain::select(&again, true).unwrap().backend.as_str()), ("auto", "csdk"));
+    // With auto and a CSDK 13, Detect fills no toolset fields at all.
+    let mut fresh = Settings::default();
+    fresh.workspace = settings.workspace.clone();
+    fresh.csdk = sdk.display().to_string();
+    let fresh = deadlock_tools::detection::detect(&fresh, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!((fresh.cswin.as_str(), fresh.cswin_resourcecompiler.as_str(), fresh.model_game.as_str(), fresh.model_backend.as_str()), ("", "", "", "auto"));
+    // An explicit cswin backend stays explicit.
+    let mut pinned = later.clone();
+    pinned.model_backend = "cswin".into();
+    assert_eq!(toolchain::select(&pinned, true).unwrap().backend, "cswin");
+    let kept = deadlock_tools::detection::detect(&pinned, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!(kept.model_backend, "cswin");
+}
+
+#[test]
+fn detection_finds_a_doubled_csdk_13_folder_and_prefers_it_to_csdk_12() {
+    let dir = tempfile::tempdir().unwrap();
+    let older = dir.path().join("Reduced_CSDK_12");
+    setup(&older);
+    let current = dir.path().join("Reduced_CSDK_13/Reduced_CSDK_13");
+    current_sdk(&current);
+    // A model toolset beside them is never taken for the SDK.
+    let toolset = dir.path().join("CSDK13");
+    safety::atomic_write(&toolset.join("game/bin/win64/resourcecompiler.exe"), b"x").unwrap();
+    safety::atomic_write(&toolset.join("game/csgo/gameinfo.gi"), b"GameInfo{}").unwrap();
+    let mut settings = Settings::default();
+    settings.workspace = dir.path().join("work").display().to_string();
+    let found = deadlock_tools::detection::detect(&settings, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!(safety::resolve_path(Path::new(&found.csdk)).unwrap(), safety::resolve_path(&current).unwrap());
+    // CSDK 13 compiles the models: Detect leaves the model toolset empty
+    // instead of taking the Counter-Strike tools folder beside it.
+    assert_eq!((found.cswin.as_str(), found.cswin_resourcecompiler.as_str(), found.model_backend.as_str()), ("", "", "auto"));
+    assert_eq!(toolchain::select(&found, true).unwrap().backend, "csdk");
+    assert_eq!(
+        safety::resolve_path(Path::new(&found.resourcecompiler)).unwrap(),
+        safety::resolve_path(&current.join("game/bin/win64/resourcecompiler.exe")).unwrap()
+    );
+    // An SDK already chosen is kept.
+    settings.csdk = older.display().to_string();
+    let kept = deadlock_tools::detection::detect(&settings, &[dir.path().to_path_buf()], &CancellationToken::new()).unwrap();
+    assert_eq!(kept.csdk, older.display().to_string());
+    assert!(kept.resourcecompiler.replace('\\', "/").ends_with("game/bin_cs2/win64/resourcecompiler.exe"), "{}", kept.resourcecompiler);
+}
+
+#[test]
+fn sdk_game_names_the_csdk_13_compiler() {
+    let dir = tempfile::tempdir().unwrap();
+    current_sdk(dir.path());
+    let mut s = Settings::default();
+    s.csdk = dir.path().display().to_string();
+    let error = toolchain::sdk_game(&s).unwrap_err().to_string();
+    assert!(error.replace('\\', "/").contains("game/bin/win64/resourcecompiler.exe"), "{error}");
+    s.resourcecompiler = dir.path().join("game/bin/win64/resourcecompiler.exe").display().to_string();
+    assert_eq!(toolchain::sdk_game(&s).unwrap(), safety::resolve_path(&dir.path().join("game/citadel")).unwrap());
 }
 
 #[test]

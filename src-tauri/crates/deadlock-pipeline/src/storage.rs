@@ -1103,4 +1103,53 @@ mod tests {
         assert!(!mine.exists() && !empty.exists() && !theirs.exists());
         assert!(unowned.join("file").is_file());
     }
+
+    /// Reduced CSDK 13 compiles the model too: `dmb_<id16>_model` then sits
+    /// beside the material folder `dmb_<id16>` under the same citadel_addons.
+    #[test]
+    fn model_folders_beside_material_folders_in_the_sdk_belong_to_their_own_project() {
+        let temp = tempfile::tempdir().unwrap();
+        let csdk = temp.path().join("csdk");
+        let id = "00112233445566778899aabbccddeeff";
+        let other = "0011223344556677ffeeddccbbaa9988";
+        let owned = |path: &Path, project: &str| {
+            touch(&path.join("models/x.vmdl_c"), 10);
+            fs::write(path.join(".deadlock-builder.json"), format!("{{\"project\":\"{project}\"}}")).unwrap();
+        };
+        let material = csdk.join("game/citadel_addons/dmb_0011223344556677");
+        let model = csdk.join("game/citadel_addons/dmb_0011223344556677_model");
+        let model_source = csdk.join("content/citadel_addons/dmb_0011223344556677_model");
+        owned(&material, id);
+        owned(&model, id);
+        owned(&model_source, id);
+        // Another project whose ID starts the same way, and the user's own addon.
+        let theirs = csdk.join("content/citadel_addons/dmb_0011223344556677_model_x");
+        owned(&theirs, other);
+        let user = csdk.join("game/citadel_addons/my_addon_model");
+        touch(&user.join("file"), 10);
+        let workspace = temp.path().join("ws");
+        fs::create_dir_all(workspace.join(id)).unwrap();
+        fs::create_dir_all(workspace.join(other)).unwrap();
+        let settings = Settings {
+            workspace: workspace.to_string_lossy().into_owned(),
+            csdk: csdk.to_string_lossy().into_owned(),
+            ..Default::default()
+        };
+        let scan = scan(&settings, &BTreeMap::new()).unwrap();
+        let mut found = scan.compiler[id].clone();
+        found.sort();
+        let mut expected = vec![material.clone(), model.clone(), model_source.clone()];
+        expected.sort();
+        assert_eq!(found, expected);
+        assert!(!scan.compiler.contains_key(other));
+        let request = ClearRequest {
+            project: Some(id.into()),
+            kinds: vec![Kind::Compiler],
+            remove_project: false,
+            unused_shared: false,
+        };
+        clear(&settings, &BTreeMap::new(), &request, &CancellationToken::new()).unwrap();
+        assert!(!material.exists() && !model.exists() && !model_source.exists());
+        assert!(theirs.join("models/x.vmdl_c").is_file() && user.join("file").is_file());
+    }
 }

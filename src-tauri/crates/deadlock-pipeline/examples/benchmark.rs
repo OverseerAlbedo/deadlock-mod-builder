@@ -53,7 +53,7 @@ fn input(path: &Path) -> Result<Value> {
 fn run(bench: &mut Bench, repo: &Path, v22: &Path, output: &Path) -> Result<Value> {
     let cancel = CancellationToken::new();
     let source = v22.join("Collection.dmx");
-    // The accepted Vindicta reference is a private asset (docs/DEVELOPMENT.md, Private assets).
+    // The accepted Vindicta reference is optional data (docs/DEVELOPMENT.md, Optional data).
     let cloth_path = std::env::var_os("DMB_PRIVATE_ASSETS")
         .map(PathBuf::from)
         .unwrap_or_else(|| repo.join("private-assets"))

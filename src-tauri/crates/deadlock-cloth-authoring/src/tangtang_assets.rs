@@ -1,9 +1,8 @@
 //! The reviewed TangTang data behind the `tangtang_r2` and `tangtang_reference`
-//! presets: the 38 accepted groups and the two proxies. It is captured from a
-//! third-party character and kept outside the public repository (private
-//! assets, see `build.rs`), so it is compiled in only when the files were
-//! present at build time. Without them every preset answers with
-//! [`NOT_INCLUDED`] and Automatic authors the movement as for any other model.
+//! presets: the 38 accepted groups and the two proxies. It is optional data
+//! (see `build.rs`), compiled in only when the files were present at build
+//! time. Without them every preset answers with [`NOT_INCLUDED`] and
+//! Automatic authors the movement as for any other model.
 
 /// Whether this build carries the TangTang presets.
 pub const AVAILABLE: bool = cfg!(tangtang_assets);

@@ -133,7 +133,7 @@ fn lying_sources_get_an_upright_rotation() {
 
 #[test]
 fn real_mmd_rigs_renamed_to_generic_names_keep_their_body_roles() {
-    // Daki and TangTang are private assets (skipped with a note when absent); the parallel-leg rig is public.
+    // Two of the rigs are optional test data (skipped with a note when absent); the parallel-leg rig is built in.
     let private = ["fixtures/daki-rig.json", "fixtures/tangtang-rig.json"].into_iter().filter_map(common::private_text);
     for fixture in private.chain([include_str!("fixtures/parallel-leg-rig.json").to_owned()]) {
         let value: serde_json::Value = serde_json::from_str(&fixture).unwrap();

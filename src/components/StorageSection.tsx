@@ -16,7 +16,7 @@ const kinds: Record<StorageKind, {label: string; hint: (settings: Settings) => s
   backups: {label: 'Backups', hint: s => `Replaced VPKs and earlier original files. Clear keeps the newest ${s.keep_backups ?? 1} per file.`},
   output: {label: 'Built VPK', hint: () => 'The finished mod. Kept until you remove the project data.'},
   build_data: {label: 'Build caches and staging', hint: () => 'Recreated by the next Analyze or Build.'},
-  compiler: {label: 'Compiler working folders', hint: () => 'Copies in the CSDK and model toolset. Recreated by the next build.'},
+  compiler: {label: 'Compiler working folders', hint: () => 'Copies in the Community SDK (material and, with Reduced CSDK 13, model folders) and in the model toolset when one is used. Recreated by the next build.'},
   temporary: {label: 'Leftovers', hint: () => 'From interrupted operations.'},
   records: {label: 'Records and analysis', hint: () => 'Project snapshots, build records and texture analysis.'},
 };
@@ -66,7 +66,7 @@ export function StorageSection({ settings, update, project, busy, dirty, operate
     <button disabled={busy} onClick={() => void measure()}>{report ? 'Measure again' : 'Measure storage'}</button>
     {report && <button disabled={busy || !report.reclaimable} onClick={() => void clear({kinds: cleanup, unused_shared: true}, `Remove data the builder can recreate in every project (about ${formatBytes(report.reclaimable)})? Built VPKs, the data each project uses and the newest backups stay.`)}>Clean up all projects…</button>}
   </div>}>
-    <p className="hint">Projects are built in <code>{settings.workspace || 'the workspace folder'}</code>. The builder also keeps a working copy per project in the CSDK and model toolset folders.</p>
+    <p className="hint">Projects are built in <code>{settings.workspace || 'the workspace folder'}</code>. The builder also keeps working copies per project in the Community SDK folder (and in the model toolset folder when one is used).</p>
     <div className="settings-fields storage-retention">
       <div className="field"><label htmlFor="storage-keep-backups">Backups kept per file</label>
         <select id="storage-keep-backups" disabled={busy} value={settings.keep_backups ?? 1} onChange={event => update({...settings, keep_backups: Number(event.target.value)})}>

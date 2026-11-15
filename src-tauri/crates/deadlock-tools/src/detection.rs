@@ -136,7 +136,7 @@ pub fn detect(
     } else {
         vec![PathBuf::from(&result.csdk)]
     };
-    for name in ["CSDK12", "REDUCED_CSDK12"] {
+    for name in ["CSDK13", "REDUCED_CSDK13", "CSDK12", "REDUCED_CSDK12"] {
         if let Some(value) = std::env::var_os(name) {
             csdk.push(PathBuf::from(value));
         }
@@ -165,34 +165,53 @@ pub fn detect(
     for root in &roots {
         csdk.extend([
             root.clone(),
+            root.join("Reduced_CSDK_13"),
+            root.join("Reduced CSDK13"),
+            root.join("CSDK13"),
+            root.join("Reduced_CSDK_13/Reduced_CSDK_13"),
             root.join("Reduced_CSDK_12"),
             root.join("Reduced CSDK12"),
             root.join("CSDK12"),
             root.join("Reduced_CSDK_12/Reduced_CSDK_12"),
         ]);
     }
+    // Only complete SDK folders (game\citadel\gameinfo.gi and the layout's
+    // compiler), so a model toolset or a Deadlock installation is never taken
+    // for one. A Community SDK already chosen is kept; otherwise the current
+    // layout (Reduced CSDK 13) wins over Reduced CSDK 12.
+    let mut sdks: Vec<(PathBuf, crate::setup_checks::SdkLayout)> = vec![];
+    let mut seen_sdk = HashSet::new();
     for candidate in csdk {
         cancel.check()?;
-        // bin_cs2 first: the SDK's other compiler copies use different
-        // particles.dll builds; bin_cs2 is the tested material compiler.
-        for suffix in [
-            crate::setup_checks::CSDK_COMPILER,
-            "game/bin/win64/resourcecompiler.exe",
-            "game/bin_tools/win64/resourcecompiler.exe",
-        ] {
-            let rc = candidate.join(suffix);
-            if rc.is_file() {
-                if result.csdk.is_empty() {
-                    result.csdk = candidate.to_string_lossy().into_owned();
-                }
-                if result.resourcecompiler.is_empty() && candidate == Path::new(&result.csdk) {
-                    result.resourcecompiler = rc.to_string_lossy().into_owned();
-                }
-                let vpk = rc.with_file_name("vpk.exe");
-                if vpk.is_file() && result.vpk_tool.is_empty() {
-                    result.vpk_tool = vpk.to_string_lossy().into_owned();
-                }
+        if let Some(layout) = crate::setup_checks::sdk_layout(&candidate) {
+            let key = candidate.to_string_lossy().replace('\\', "/").trim_end_matches('/').to_lowercase();
+            if seen_sdk.insert(key) {
+                sdks.push((candidate, layout));
             }
+        }
+    }
+    if result.csdk.is_empty() {
+        let preferred = sdks
+            .iter()
+            .find(|(_, layout)| layout.compiles_models())
+            .or_else(|| sdks.first());
+        if let Some((root, _)) = preferred {
+            result.csdk = root.to_string_lossy().into_owned();
+        }
+    }
+    if result.resourcecompiler.is_empty() && !result.csdk.is_empty() {
+        let root = PathBuf::from(&result.csdk);
+        if let Some(layout) = crate::setup_checks::sdk_layout(&root) {
+            let rc = root.join(layout.compiler());
+            if rc.is_file() {
+                result.resourcecompiler = rc.to_string_lossy().into_owned();
+            }
+        }
+    }
+    for (root, layout) in &sdks {
+        let vpk = root.join(layout.compiler()).with_file_name("vpk.exe");
+        if vpk.is_file() && result.vpk_tool.is_empty() {
+            result.vpk_tool = vpk.to_string_lossy().into_owned();
         }
     }
     let mut model_roots = if result.cswin.is_empty() {
@@ -227,22 +246,26 @@ pub fn detect(
             .filter(|r| r.join("game/csgo").is_dir())
             .collect::<Vec<_>>(),
     )?;
-    if result.cswin_resourcecompiler.is_empty() {
+    // With the backend on auto, a Reduced CSDK 13 compiles the models:
+    // Detect fills no toolset fields then, so no Counter-Strike tools folder
+    // is put next to it.
+    let sdk_models = result.model_backend == "auto" && crate::toolchain::sdk_compiles_models(&result);
+    if result.cswin_resourcecompiler.is_empty() && !sdk_models {
         let preferred = if !result.cswin.is_empty() && result.model_backend != "csdk" {
             Some(safety::resolve_path(Path::new(&result.cswin))?)
         } else {
             None
         };
-        // Only a real model toolset; the Community SDK cannot compile hero models.
+        // Only a downloaded model toolset fills these fields. Reduced CSDK 13
+        // needs none (auto compiles with it first), and Reduced CSDK 12
+        // cannot compile hero models. The backend is never written: auto
+        // stays auto, so a Reduced CSDK 13 chosen later takes over.
         if let Some(candidate) = available.into_iter().find(|c| {
             c.backend == "cswin"
                 && (result.model_backend == "auto" || c.backend == result.model_backend)
                 && preferred.as_ref().is_none_or(|p| *p == c.root)
         }) {
-            result.model_backend = candidate.backend.clone();
-            if candidate.backend == "cswin" {
-                result.cswin = candidate.root.to_string_lossy().into_owned();
-            }
+            result.cswin = candidate.root.to_string_lossy().into_owned();
             result.cswin_resourcecompiler = candidate.compiler.to_string_lossy().into_owned();
             if result.model_game.is_empty() {
                 result.model_game = candidate.game.to_string_lossy().into_owned();
@@ -270,9 +293,9 @@ pub fn detect(
         for base in ["ProgramFiles", "ProgramFiles(x86)"] {
             let Some(base) = std::env::var_os(base) else { continue };
             let folder = PathBuf::from(base).join("Blender Foundation");
-            let mut found: Vec<PathBuf> = fs::read_dir(&folder).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.path().join("blender.exe")).filter(|p| p.is_file()).collect();
-            found.sort();
-            if let Some(newest) = found.pop() {
+            let found: Vec<PathBuf> = fs::read_dir(&folder).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.path().join("blender.exe")).filter(|p| p.is_file()).collect();
+            // By version number, highest supported first (not by folder name order).
+            if let Some(newest) = deadlock_core::blender_version::choose_install(found) {
                 result.blender = newest.to_string_lossy().into_owned();
                 break;
             }
@@ -320,7 +343,8 @@ pub fn status(settings: &Settings) -> BTreeMap<String, bool> {
 }
 pub fn model_status(settings: &Settings) -> String {
     match crate::toolchain::select(settings, true) {
-        Ok(tool) => format!("Model compiler found ({}). Test it once with your hero in Set up model compiler….", tool.backend),
+        Ok(tool) if tool.backend == "csdk" && crate::toolchain::sdk_compiles_models(settings) =>"Models are compiled with the Community SDK (Reduced CSDK 13); no separate model toolset is needed. Test my setup checks it.".into(),
+        Ok(tool) => format!("Model compiler found ({}). Test it once with your hero in Set up model compiler… (Settings → Advanced configuration → Downloaded model toolset).", tool.backend),
         Err(error) => error.to_string().trim_start_matches("Integrity check failed: ").to_owned(),
     }
 }

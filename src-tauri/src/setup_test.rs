@@ -38,7 +38,7 @@ const FIELD_NAMES: [(&str, &str); 11] = [
     ("source2viewer", "Source2Viewer CLI"),
     ("resourcecompiler", "Resource compiler"),
     ("csdk", "Community SDK"),
-    ("cswin", "Model toolset"),
+    ("cswin", "Model compiler"),
     ("cswin_resourcecompiler", "Model resource compiler"),
     ("model_game", "Model game folder"),
     ("vpk_tool", "VPK tool"),
@@ -98,7 +98,7 @@ impl Application {
             let mut steps = vec![path_step(&settings)];
             let (runner, _logs) = self.create_runner(clock, token)?;
             steps.push(step("Material compiler (Community SDK)", self.test_material(&settings, &runner, clock, token)));
-            steps.push(step("Model compiler (model toolset)", self.test_model_compiler(&settings, &runner, clock, token)));
+            steps.push(step("Model compiler (Reduced CSDK 13 or model toolset)", self.test_model_compiler(&settings, &runner, clock, token)));
             Ok(SetupTest { passed: steps.iter().all(|s| s.passed), steps })
         })
         .map(|(result, _)| result)
@@ -131,6 +131,9 @@ impl Application {
         std::fs::create_dir_all(&report).map_err(|e| AppError::io("Could not create the test folder", e))?;
         let probe = deadlock_tools::compiler::detect_target(&toolset, runner, &content, &game, &report.join("format.json"), "auto", clock, None, token)?;
         let format = probe.target.map_or("an unknown format".to_string(), |t| format!("ModelDoc format {t}"));
+        if toolset.backend == "csdk" {
+            return Ok(format!("The Community SDK compiles the models: its compiler answers and reads {format}. No separate model toolset is needed. Compile your hero once to be sure it builds."));
+        }
         Ok(format!("The {} model compiler answers and reads {format}. Compile your hero once to be sure it builds.", toolset.backend))
     }
 }

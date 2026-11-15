@@ -271,7 +271,8 @@ impl Application {
         SetupStatus {
             files_found: deadlock_tools::detection::status(settings),
             model_status: match &model {
-                Ok(tool) => format!("Model compiler found ({}). Test it once with your hero in Set up model compiler….", tool.backend),
+                // Says when Reduced CSDK 13 compiles the models.
+                Ok(_) => deadlock_tools::detection::model_status(settings),
                 Err(error) => error.to_string().trim_start_matches("Integrity check failed: ").to_owned(),
             },
             model_files_found: model.is_ok(),
@@ -1229,8 +1230,15 @@ impl Application {
         fs::create_dir_all(parent).map_err(|e| AppError::io("Could not create log folder", e))?;
         let mut output = tempfile::Builder::new()
             .prefix(".dmb-log-")
-            .tempfile_in(parent)
-            .map_err(|e| AppError::io("Could not create log export", e))?;
+            // Verbatim, so persist works past 260 characters; writes go through
+            // the file because tempfile's Write names that path in its errors.
+            .tempfile_in(deadlock_core::safety::long_path(parent))
+            .map_err(|e| {
+                AppError::io(
+                    "Could not create log export",
+                    deadlock_core::safety::plain_error(e),
+                )
+            })?;
         lock(&self.log)
             .writer
             .flush()
@@ -1238,12 +1246,12 @@ impl Application {
         std::io::copy(
             &mut File::open(&self.log_path)
                 .map_err(|e| AppError::io("Could not read session log", e))?,
-            &mut output,
+            output.as_file_mut(),
         )
         .map_err(|e| AppError::io("Could not export session log", e))?;
         for entry in logs {
             writeln!(
-                output,
+                output.as_file_mut(),
                 "\n--- Full tool evidence: {} ({} bytes) ---",
                 entry.path.display(),
                 entry.bytes
@@ -1257,15 +1265,17 @@ impl Application {
                 .map_err(|e| AppError::io("Could not read tool log", e))?;
             // Tool output can name the user's profile folder; exports are shared.
             output
+                .as_file_mut()
                 .write_all(crate::privacy::scrub(&String::from_utf8_lossy(&raw)).as_bytes())
                 .map_err(|e| AppError::io("Could not export tool log", e))?;
         }
         output
+            .as_file_mut()
             .flush()
             .and_then(|_| output.as_file().sync_all())
             .map_err(|e| AppError::io("Could not flush log export", e))?;
         output
-            .persist(&resolved)
+            .persist(deadlock_core::safety::long_path(&resolved))
             .map_err(|e| AppError::io("Could not publish log export", e.error))?;
         Ok(())
     }

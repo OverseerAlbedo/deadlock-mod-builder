@@ -31,10 +31,10 @@ export function checkRepository() {
       assert.ok(pins.includes(hash), `Production trust pin missing for ${name}`);
     }
   }
-  // The compiled Vindicta reference is a private asset (scripts/sync-private-assets.mjs copies it in); check its hash only when it is there.
+  // The compiled Vindicta reference is optional (scripts/sync-private-assets.mjs copies it in); check its hash only when it is there.
   const baseline = readJson('physics-references/Vindicta-R12-Balanced/baseline.json');
   if (existsSync(join(root, baseline.included_path))) assert.equal(sha256(join(root, baseline.included_path)), baseline.reference_sha256);
-  else console.log('Private assets absent: the included Vindicta reference is not part of this build.');
+  else console.log('Optional data absent: the included Vindicta reference is not part of this build.');
   for (const source of Object.keys(readJson('src-tauri/tauri.conf.json').bundle.resources)) {
     const path = resolve(root, 'src-tauri', source);
     const files = statSync(path).isDirectory() ? walk(path) : [path];

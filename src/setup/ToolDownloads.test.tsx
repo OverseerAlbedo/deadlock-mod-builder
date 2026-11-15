@@ -23,10 +23,14 @@ describe('Program download links',()=>{
     expect(screen.getByRole('button',{name:'Copy link'})).toBeInTheDocument();
   });
   it('explains downloads and scopes browser permission to the listed pages',()=>{
-    const modelSetup=vi.fn();render(<ToolDownloads busy={false} expanded modelSetup={modelSetup}/>);
+    render(<ToolDownloads busy={false} expanded/>);
     expect(screen.getByText(/Windows x64 command-line download/)).toBeInTheDocument();
     expect(toolLinks.blender.url).toBe('https://www.blender.org/releases/5-2/');
-    fireEvent.click(screen.getByRole('button',{name:'Set up model compiler…'}));expect(modelSetup).toHaveBeenCalledOnce();
+    // The four programs a new user needs, in order; no model toolset row.
+    const rows=[...document.querySelectorAll('.tool-downloads > .disclosure-content > .tool-download-row strong')].map(e=>e.textContent);
+    expect(rows).toEqual(['Deadlock','Blender 5.2 LTS','Source 2 Viewer CLI','Reduced CSDK 13']);
+    expect(screen.queryByRole('button',{name:'Set up model compiler…'})).toBeNull();
+    expect(screen.queryByText(/DepotDownloader|Counter-Strike/)).toBeNull();
     const permission=capability.permissions.find(p=>typeof p==='object'&&p.identifier==='opener:allow-open-url') as {allow:{url:string}[]};
     expect(permission.allow.map(p=>p.url).sort()).toEqual(Object.values(toolLinks).map(p=>p.url).sort());
     expect(capability.permissions).not.toContain('opener:default');

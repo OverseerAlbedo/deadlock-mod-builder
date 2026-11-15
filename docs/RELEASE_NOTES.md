@@ -1,29 +1,26 @@
-# Deadlock Mod Builder 0.13.0-beta.14
+# Deadlock Mod Builder 0.13.0-beta.15
 
-**Feet on the floor**, better automatic movement for long capes, braids and arm cloth, gun tilt and aim, and VPK slot fixes. Everything from the earlier betas is still in; see `CHANGELOG.md`.
+**Reduced CSDK 13 by default**, a simpler setup, **Notifications** in the sidebar, Blender 5.3, Source 2 Viewer 21.1 and a fix for long file names. Everything from the earlier betas is still in; see `CHANGELOG.md`.
 
 ## New
 
-- **Feet on the floor** (Model preparation → Fit & review). The fit lines up your model's ankles with the hero's, so feet taller than the hero's (heels, thick soles) sank into the floor, by 1.3–5.6 in on most test characters. Choose **Line up the ankles** (the default, the fit as before), **Shorten or lengthen the legs** (below the hips; the knees and ankles then sit a little off the hero's) or **Move the whole character up or down** (the body and hands then sit off the hero's joints). Prepare model says how far the soles were from the floor. The converted model's 3D view now draws its grid at the game's floor, so a gun hanging below the feet no longer makes the character look like it floats.
-- **Gun tilt and aim** (Model preparation → Gun): pitch (muzzle up or down) and yaw (left or right) around the grip besides roll, with 5° buttons and exact fields under Advanced, for each hand.
-- **Arm colliders** for automatic movement: cloth hanging from the shoulders stops at the arms instead of passing through them, and capes hanging from an arm follow it the way Valve's own arm cloth does.
-- **Long capes and cloak panels** inside a cloth part now swing like streamers (twist protection, fold limits and tethers) instead of hanging stiff, **braids** move as hair, and **hair reaching past the knees** hangs under gravity. Other characters' moving parts are unchanged.
+- **Reduced CSDK 13** is supported and is now the default. It compiles the materials and the hero model, so no separate model compiler is needed. A new setup needs four things: Deadlock, Blender, Source 2 Viewer CLI and Reduced CSDK 13. Then click **Detect tools**, **Save and check tools** and **Test my setup**.
+- **Notifications** in the sidebar, above the version. Errors and the results of Analyze, Prepare model, Build, Install and Test my setup are listed there with a green, yellow or red badge; click one to open it. **Clear** empties the list for now. An error now shows one line at the top of the page, and **Show details** opens the whole error with **Copy for support**.
+- **Blender 5.3** is accepted. Blender 5.2 LTS stays the recommended version, and the Blender path is now in the main list of Settings.
+- **Source 2 Viewer CLI 21.1** works with the app.
+
+## If you already use Reduced CSDK 12 or a downloaded model toolset
+
+- Nothing switches by itself, and your setup keeps building.
+- With Reduced CSDK 12 chosen, Notifications shows **Reduced CSDK 12 in use** with the steps to move to Reduced CSDK 13 and a **Find Reduced CSDK 13** button. **Ignore** hides it for good if you want to keep your setup (Settings can show it again).
+- A setup that uses a downloaded model toolset gets one button in Settings, **Compile models with Reduced CSDK 13**, once Reduced CSDK 13 is the Community SDK. The toolset page and its fields are now under Settings → Advanced configuration → Downloaded model toolset (older setups).
 
 ## Fixed
 
-- A gun from its own file whose left and right halves are named for the hands was split into two guns (one-gun heroes got only half). It stays one gun now.
-- Analyze stopped with "Preview cannot triangulate a self-intersecting polygon" or "Preview cannot triangulate this DMX polygon" on guns with flat folded faces or faces whose corners sit at one spot. Those faces are accepted now; faces that really cross themselves still get help.
-- Build stopped with "Missing or ambiguous generated bone" when moving-part bones had names that differ only in non-English characters (for example 侧裙, 前裙, 后裙). They get distinct names now; such models need Convert and Use prepared model once (Analyze says so).
-- Capes hanging from a breast bone (MMD-style rigs) moved as breasts. They move as the cape now.
-- **VPK slots**: a slot stayed "in use" after you deleted that VPK while the app was open, and Build was blocked by "Confirm replacement of the existing output" when rebuilding into the same slot. Find free slot reads the addons folder again, the Build page refreshes every few seconds, your own installed build is recognized, and Build replaces its own earlier output (kept as a backup).
-- Adding a gun file whose parts have modifiers could stop with a UnicodeDecodeError.
-- "Invalid compiled mesh remapping table" (issue #6) now says which mesh and bone are affected. Mesh mapping shows **Add it to …** for unused meshes even while a suggestion is waiting.
-
-## Checked
-
-- Checked in a match on October 24–25, 2026 with an MMD-style character on Vindicta: the braid, back cloak and shoulder capes move (a little clipping on the arm remains), and Shorten or lengthen the legs is hardly noticeable.
-- Not yet checked in a match: Move the whole character up or down, and gun tilt and aim.
+- Automatic preparation of an FBX model stopped with "The system cannot find the path specified. (os error 3)" when a folder below the model held a picture with a very long name (issue #7). Only the images the FBX uses are copied now, long paths no longer break the copy, and a texture whose path would be too long for Blender gets a message naming the file.
+- Blender closed without an error while inspecting a model whose armature has an object-level driver.
+- Detect tools no longer picks a Counter-Strike tools folder as the model compiler, finds the `Reduced_CSDK_13` folder the ZIP extracts to, and chooses among installed Blender versions by version number.
 
 ## After updating the app
 
-- Characters prepared earlier keep their fit. To use Feet on the floor, choose it and click Prepare model again. Projects, settings and themes are kept.
+- Projects, settings and themes are kept.

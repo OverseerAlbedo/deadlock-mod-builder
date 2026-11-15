@@ -3,7 +3,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Component, Path, PathBuf},
 };
 use tempfile::NamedTempFile;
@@ -130,6 +130,11 @@ pub fn digest(path: &Path) -> Result<String> {
 pub fn digest_with_cancel(path: &Path, cancel: &CancellationToken) -> Result<String> {
     let mut source =
         File::open(path).map_err(|e| CoreError::io(format!("Open {}", path.display()), e))?;
+    digest_reader(&mut source, cancel)
+}
+
+/// SHA-256 of what `source` yields from its current position.
+pub fn digest_reader(source: &mut impl Read, cancel: &CancellationToken) -> Result<String> {
     let mut hash = Sha256::new();
     let mut buffer = vec![0; 1024 * 1024];
     loop {
@@ -145,6 +150,61 @@ pub fn digest_with_cancel(path: &Path, cancel: &CancellationToken) -> Result<Str
     Ok(format!("{:x}", hash.finalize()))
 }
 
+/// `path` as an absolute verbatim Windows path (`\\?\C:\…`, `\\?\UNC\server\share\…`),
+/// unchanged when it already is one or names a device, and on other systems.
+/// std adds this prefix itself for long paths, but tempfile hands its paths to
+/// SetFileAttributesW and MoveFileExW as given, which fail from 260 characters
+/// (issue #7: "Publish …: The system cannot find the path specified").
+/// Unlike `resolve_path` it neither touches the disk nor follows links.
+pub fn long_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        use std::path::Prefix;
+        let Ok(absolute) = std::path::absolute(path) else {
+            return path.to_path_buf();
+        };
+        let wide: Vec<u16> = absolute.as_os_str().encode_wide().collect();
+        let prefixed = |head: &str, tail: &[u16]| {
+            let mut units: Vec<u16> = head.encode_utf16().collect();
+            units.extend_from_slice(tail);
+            PathBuf::from(OsString::from_wide(&units))
+        };
+        match absolute.components().next() {
+            Some(Component::Prefix(prefix)) => match prefix.kind() {
+                Prefix::Disk(_) => prefixed(r"\\?\", &wide),
+                Prefix::UNC(..) => prefixed(r"\\?\UNC\", &wide[2..]),
+                _ => absolute,
+            },
+            _ => absolute,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
+}
+
+/// tempfile names the temporary file in some of its errors; show that path the
+/// way the user knows it, without the `long_path` prefix. Errors with an OS
+/// code carry no path and are returned as they are.
+pub fn plain_error(error: std::io::Error) -> std::io::Error {
+    if error.raw_os_error().is_some() {
+        return error;
+    }
+    let text = error.to_string();
+    // The path is Debug-quoted, so each backslash is doubled.
+    let plain = text
+        .replace(r#""\\\\?\\UNC\\"#, r#""\\\\"#)
+        .replace(r#""\\\\?\\"#, "\"");
+    if plain == text {
+        error
+    } else {
+        std::io::Error::new(error.kind(), plain)
+    }
+}
+
 fn temporary_for(path: &Path) -> Result<NamedTempFile> {
     let parent = path
         .parent()
@@ -152,14 +212,17 @@ fn temporary_for(path: &Path) -> Result<NamedTempFile> {
         .unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(parent)
         .map_err(|e| CoreError::io(format!("Create {}", parent.display()), e))?;
+    // A verbatim parent gives the staging file a verbatim path, which
+    // tempfile's persist needs past 260 characters (see `long_path`).
     tempfile::Builder::new()
         .prefix(".builder-")
-        .tempfile_in(parent)
-        .map_err(|e| CoreError::io("Create staging file", e))
+        .tempfile_in(long_path(parent))
+        .map_err(|e| CoreError::io("Create staging file", plain_error(e)))
 }
 
 fn publish(mut temporary: NamedTempFile, path: &Path) -> Result<()> {
     temporary
+        .as_file_mut()
         .flush()
         .map_err(|e| CoreError::io("Flush staging file", e))?;
     temporary
@@ -167,14 +230,16 @@ fn publish(mut temporary: NamedTempFile, path: &Path) -> Result<()> {
         .sync_all()
         .map_err(|e| CoreError::io("Sync staging file", e))?;
     temporary
-        .persist(path)
+        .persist(long_path(path))
         .map_err(|e| CoreError::io(format!("Publish {}", path.display()), e.error))?;
     Ok(())
 }
 
 pub fn atomic_write(path: &Path, data: impl AsRef<[u8]>) -> Result<()> {
     let mut temporary = temporary_for(path)?;
+    // Through the file itself: tempfile's own Write adds its verbatim path to errors.
     temporary
+        .as_file_mut()
         .write_all(data.as_ref())
         .map_err(|e| CoreError::io("Write staging file", e))?;
     publish(temporary, path)
@@ -218,14 +283,21 @@ pub fn copy_verified(source: &Path, target: &Path, cancel: &CancellationToken) -
         }
         hash.update(&buffer[..count]);
         temporary
+            .as_file_mut()
             .write_all(&buffer[..count])
             .map_err(|e| CoreError::io("Copy staged archive", e))?;
     }
     temporary
+        .as_file_mut()
         .flush()
         .map_err(|e| CoreError::io("Flush staged archive", e))?;
     let expected = format!("{:x}", hash.finalize());
-    if digest_with_cancel(temporary.path(), cancel)? != expected {
+    // Read back through the open file, whose path is the verbatim staging one.
+    let mut staged = temporary.as_file();
+    staged
+        .seek(SeekFrom::Start(0))
+        .map_err(|e| CoreError::io("Read back staged archive", e))?;
+    if digest_reader(&mut staged, cancel)? != expected {
         return Err(CoreError::Integrity(
             "Staged copy does not match the source archive".into(),
         ));
@@ -334,6 +406,65 @@ mod tests {
         assert_eq!(fs::read(&target).unwrap(), b"old bytes");
         atomic_copy(&source, &target, &CancellationToken::new()).unwrap();
         assert_eq!(digest(&source).unwrap(), digest(&target).unwrap());
+    }
+    /// Issue #7: a wallpaper staged with its 206-character name at 322 characters.
+    #[cfg(windows)]
+    fn long_target(root: &Path) -> PathBuf {
+        let name = "#фон #небо #город #море #лес #поле #река #гора #сад #дом #мост #парк #луна #снег #да #wallpaper #sky #city #sea #forest #field #river #hill #garden #house #bridge #park #moon #snow #example #long #file .jpg";
+        let mut path = root.join("source").join("Programs");
+        while path.as_os_str().len() < 120 {
+            path.push("folder");
+        }
+        let path = path.join(name);
+        assert!(path.as_os_str().encode_wide().count() > 300);
+        path
+    }
+    #[cfg(windows)]
+    use std::os::windows::ffi::OsStrExt;
+    #[cfg(windows)]
+    #[test]
+    fn long_paths_are_verbatim_only_on_windows_drives_and_shares() {
+        assert_eq!(long_path(Path::new(r"C:\a\..\b\c.png")), Path::new(r"\\?\C:\b\c.png"));
+        assert_eq!(long_path(Path::new(r"\\server\share\x\y")), Path::new(r"\\?\UNC\server\share\x\y"));
+        for same in [r"\\?\C:\a\b", r"\\?\UNC\server\share\x", r"\\.\pipe\name"] {
+            assert_eq!(long_path(Path::new(same)), Path::new(same));
+        }
+        let relative = long_path(Path::new("x.json"));
+        assert!(relative.to_str().unwrap().starts_with(r"\\?\") && relative.ends_with("x.json"), "{relative:?}");
+        assert_eq!(plain_error(std::io::Error::other(format!("denied at path {:?}", Path::new(r"\\?\C:\w\.builder-1.tmp")))).to_string(), format!("denied at path {:?}", Path::new(r"C:\w\.builder-1.tmp")));
+        assert_eq!(plain_error(std::io::Error::other(format!("denied at path {:?}", Path::new(r"\\?\UNC\s\h\.b.tmp")))).to_string(), format!("denied at path {:?}", Path::new(r"\\s\h\.b.tmp")));
+    }
+    #[cfg(windows)]
+    #[test]
+    fn writes_and_copies_publish_past_260_characters() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = long_target(dir.path());
+        atomic_write(&target, b"first").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"first");
+        atomic_write(&target, b"second").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"second");
+        let source = dir.path().join("short.jpg");
+        fs::write(&source, b"pixels").unwrap();
+        let copy = target.with_file_name(format!("copy {}", target.file_name().unwrap().to_str().unwrap()));
+        assert_eq!(copy_verified(&source, &copy, &CancellationToken::new()).unwrap(), digest(&source).unwrap());
+        atomic_copy(&source, &target, &CancellationToken::new()).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"pixels");
+        // No staging file is left behind.
+        assert_eq!(fs::read_dir(target.parent().unwrap()).unwrap().count(), 2);
+        // A short ordinary path still works.
+        let short = dir.path().join("short.json");
+        write_json(&short, &[1]).unwrap();
+        assert_eq!(fs::read(&short).unwrap(), b"[\n  1\n]\n");
+    }
+    #[cfg(windows)]
+    #[test]
+    fn a_failed_publish_names_the_path_as_given() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = long_target(dir.path());
+        fs::create_dir_all(&target).unwrap();
+        let error = atomic_write(&target, b"x").unwrap_err().to_string();
+        assert!(error.starts_with(&format!("Publish {}:", target.display())), "{error}");
+        assert!(!error.contains(r"\\?\"), "{error}");
     }
     #[cfg(unix)]
     #[test]

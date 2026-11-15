@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeSet,
     fs,
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -508,8 +508,10 @@ pub(crate) fn publish_copy(
     fs::create_dir_all(parent).map_err(|e| CoreError::io("Create output folder", e))?;
     let mut pending = tempfile::Builder::new()
         .prefix(".dmb-publish-")
-        .tempfile_in(parent)
-        .map_err(|e| CoreError::io("Create publication copy", e))?;
+        // Verbatim, so persist works past 260 characters (`safety::long_path`);
+        // the copy is written and read through its handle, whose errors carry no path.
+        .tempfile_in(safety::long_path(parent))
+        .map_err(|e| CoreError::io("Create publication copy", safety::plain_error(e)))?;
     let mut input =
         fs::File::open(source).map_err(|e| CoreError::io("Open verified package", e))?;
     let mut buffer = vec![0; 1024 * 1024];
@@ -522,14 +524,20 @@ pub(crate) fn publish_copy(
             break;
         }
         pending
+            .as_file_mut()
             .write_all(&buffer[..count])
             .map_err(|e| CoreError::io("Write publication copy", e))?;
     }
     pending
+        .as_file_mut()
         .flush()
         .and_then(|_| pending.as_file().sync_all())
         .map_err(|e| CoreError::io("Sync publication copy", e))?;
-    if safety::digest_with_cancel(pending.path(), cancel)?
+    let mut written = pending.as_file();
+    written
+        .seek(SeekFrom::Start(0))
+        .map_err(|e| CoreError::io("Read publication copy", e))?;
+    if safety::digest_reader(&mut written, cancel)?
         != safety::digest_with_cancel(source, cancel)?
     {
         return Err(invalid(
@@ -555,11 +563,11 @@ pub(crate) fn publish_copy(
     cancel.check()?;
     if overwrite {
         pending
-            .persist(target)
+            .persist(safety::long_path(target))
             .map_err(|e| CoreError::io("Publish verified package", e.error))?;
     } else {
         pending
-            .persist_noclobber(target)
+            .persist_noclobber(safety::long_path(target))
             .map_err(|e| CoreError::io("Publish new verified package", e.error))?;
     }
     // Older replaced copies beyond the retention setting are removed only
@@ -603,5 +611,33 @@ mod cleanup_tests {
             assert_eq!(output.exists(), !clean);
             assert_eq!(temp.path().join("pending_token_000.vpk").exists(), !clean);
         }
+    }
+}
+
+/// Issue #7: tempfile's rename needs verbatim paths from 260 characters on.
+#[cfg(all(test, windows))]
+mod long_path_tests {
+    use super::*;
+    #[test]
+    fn a_package_publishes_and_replaces_past_260_characters() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut folder = temp.path().join("addons");
+        while folder.as_os_str().len() < 280 {
+            folder.push("long output folder");
+        }
+        let target = folder.join("pak22_dir.vpk");
+        let source = temp.path().join("built.vpk");
+        let backups = temp.path().join("backups");
+        let cancel = CancellationToken::new();
+        fs::write(&source, b"first").unwrap();
+        publish_copy(&source, &target, &backups, 2, false, &cancel).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"first");
+        fs::write(&source, b"second").unwrap();
+        // Without overwrite it refuses; with it, the old copy is backed up.
+        assert!(publish_copy(&source, &target, &backups, 2, false, &cancel).is_err());
+        publish_copy(&source, &target, &backups, 2, true, &cancel).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"second");
+        assert_eq!(fs::read_dir(&backups).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(&folder).unwrap().count(), 1);
     }
 }

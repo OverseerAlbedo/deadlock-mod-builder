@@ -90,7 +90,7 @@ fn get_setup_status(state: AppState<'_>, settings: Settings) -> SetupStatus {
 pub struct Capabilities {
     /// The TangTang presets (private data; see deadlock-cloth-authoring/build.rs).
     pub tangtang_presets: bool,
-    /// The included Vindicta cloth reference (a private asset copied in by scripts/sync-private-assets.mjs).
+    /// The included Vindicta cloth reference (optional; copied in by scripts/sync-private-assets.mjs).
     pub vindicta_reference: bool,
 }
 /// Installed mods after the game's October 16, 2026 attachment change (Build & install → Installed mods).

@@ -29,7 +29,7 @@ pub struct PreparedModel {
 impl ModelPipeline<'_> {
     pub fn managed_addon(&self, p: &Project) -> Result<(PathBuf, PathBuf)> {
         if self.settings.csdk.is_empty() || !Path::new(&self.settings.csdk).is_dir() {
-            return Err(invalid("Choose the Reduced CSDK12 folder in Setup."));
+            return Err(invalid("Choose the Community SDK folder (Reduced CSDK 13) in Setup."));
         }
         deadlock_vpk::check_unlinked_path(Path::new(&self.settings.csdk), false)
             .map_err(vpk_error)?;

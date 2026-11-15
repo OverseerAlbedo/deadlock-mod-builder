@@ -63,7 +63,7 @@ fn too_long(material: &str, path: &Path, length: usize) -> String {
     let fix = if readable >= PREPARED_NAME_CHARS + over {
         "Prepare the model again (step 2, Prepare again): this version gives materials shorter names, and your material choices are kept."
     } else {
-        "Move the Reduced CSDK12 folder to a shorter path (for example C:\\CSDK12) and choose it again in Setup, or give the material a shorter name in Blender and prepare the model again."
+        "Move the Community SDK folder to a shorter path (for example C:\\CSDK13) and choose it again in Setup, or give the material a shorter name in Blender and prepare the model again."
     };
     format!(
         "The compiler would write a texture of {material} at a path {length} characters long, but Windows tools stop at {NATIVE_PATH_LIMIT} ({over} too many): {shown}. {fix}"
@@ -91,6 +91,6 @@ mod tests {
         check_native_paths(&content, &[short.into()]).unwrap();
         std::fs::write(&file, format!("\"Layer0\"\n{{\n\t\"TextureColor\"\t\"models/heroes_staging/haze/textures/builder/{}.png\"\n}}\n", "x".repeat(80))).unwrap();
         let error = check_native_paths(&content, &[short.into()]).unwrap_err().to_string();
-        assert!(error.contains("_png_00000000.vtex") && error.contains("Reduced CSDK12"), "{error}");
+        assert!(error.contains("_png_00000000.vtex") && error.contains("Community SDK folder to a shorter path"), "{error}");
     }
 }

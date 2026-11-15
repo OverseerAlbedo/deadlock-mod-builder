@@ -1,4 +1,4 @@
-"""Executed ONLY by external Blender 4.2–4.5 / 5.0 / 5.2, with autoexec disabled."""
+"""Executed ONLY by external Blender 4.2–4.5 / 5.0 / 5.2 / 5.3, with autoexec disabled."""
 import sys
 import json
 import math
@@ -238,12 +238,15 @@ def rest_rig_controls(rig, meshes):
     constraint=re.compile(r'^constraints\[('+quoted+r')\]\.[A-Za-z_][A-Za-z_0-9]*$')
     pose_drivers=0
     for driver in drivers:
-        match=pose.fullmatch(driver.data_path)
+        # Read the path before removing the F-curve: a removed driver's data is
+        # freed, and reading it afterwards crashed Blender (object-level drivers).
+        path=driver.data_path
+        match=pose.fullmatch(path)
         if not match or (match[2] not in transform and not constraint.fullmatch(match[2])):
             world=rig.matrix_world.copy()
             rig.animation_data.drivers.remove(driver)
             rig.matrix_world=world
-            baked.append('object driver '+driver.data_path)
+            baked.append('object driver '+path)
             continue
         pose_drivers+=1
     constraints=sum(len(b.constraints) for b in rig.pose.bones)

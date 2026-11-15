@@ -31,16 +31,15 @@ struct Rule {
 }
 
 const MODEL_TOOLSET_STEPS: &[&str] = &[
-    "Open Settings → Set up model compiler….",
-    "If you already downloaded the toolset, click Verify existing acquisition; otherwise click Fetch manifests and plan, approve the Steam sign-in, then Download.",
-    "Click Use this toolset in settings. The app saves it for you.",
-    r"Check Settings → Advanced configuration: Model compiler toolset ends in \toolset and the backend is auto. The Community SDK must not be used as the model compiler.",
+    "Download Reduced CSDK 13 (Settings → Get programs and download links), extract it to a short folder such as C:\\CSDK13 and choose that folder in Settings → Community SDK. It compiles the hero model too; nothing else is needed.",
+    "Click Detect tools, then Save and check tools. If the Model compiler line offers Compile models with Reduced CSDK 13, click it and save.",
     "Build again.",
+    "Only if you keep a model toolset downloaded from Steam: choose it under Settings → Advanced configuration → Downloaded model toolset.",
 ];
 
 const RULES: &[Rule] = &[
     Rule { any: &["not included in this build"], all: &["tangtang"],
-        cause: "This copy of the app was built without the TangTang preset data, which is kept outside the public source code.",
+        cause: "This copy of the app was built without the TangTang presets.",
         steps: &["Open Physics & preview → Automatic motion and choose Automatic — match movement to each part.", "Click Analyze project again. Automatic authors the movement from your model; the TangTang presets only ever applied to the accepted Haze conversion."],
         action: Some(("Open Physics & preview", "physics")) },
     Rule { any: &["another operation is running"], all: &[],
@@ -78,14 +77,14 @@ const RULES: &[Rule] = &[
         steps: &["Open Extras → Colors and select the material named in the message.", "Use the controls it offers, or remove it and choose another material.", "Build again."],
         action: Some(("Open Extras", "extras")) },
     Rule { any: &["particlefloattype_t", "schema mismatch"], all: &[],
-        cause: "The character model was compiled with the Community SDK's compiler. That compiler only builds materials; hero models need the model toolset.",
-        steps: MODEL_TOOLSET_STEPS, action: Some(("Set up model compiler", "setup")) },
+        cause: "The character model was compiled with a compiler that cannot build hero models, such as Reduced CSDK 12's. Hero models need Reduced CSDK 13.",
+        steps: MODEL_TOOLSET_STEPS, action: Some(("Open Settings", "settings")) },
     Rule { any: &["model compiler is not set up", "model compiler is missing", "model game configuration is missing", "model compiler executable must be"], all: &[],
-        cause: "The model compiler (the toolset from Set up model compiler…) is not selected or is incomplete.",
-        steps: MODEL_TOOLSET_STEPS, action: Some(("Set up model compiler", "setup")) },
+        cause: "No model compiler is selected (Reduced CSDK 13 as the Community SDK compiles the hero model), or the selected one is incomplete.",
+        steps: MODEL_TOOLSET_STEPS, action: Some(("Open Settings", "settings")) },
     Rule { any: &["no valid format conversion"], all: &["modeldoc"],
         cause: "The selected model compiler is not the version the app needs (it cannot read ModelDoc 41).",
-        steps: &["Open Settings → Set up model compiler….", "Download the pinned toolset, or click Verify existing acquisition for the one you have.", "Click Test original hero compatibility, then Use this toolset in settings.", "Build again."],
+        steps: &["Open Settings → Advanced configuration → Downloaded model toolset → Set up model compiler….", "Download the pinned toolset, or click Verify existing acquisition for the one you have.", "Click Test original hero compatibility, then Use this toolset in settings.", "Build again."],
         action: Some(("Set up model compiler", "setup")) },
     // DepotDownloader asked for a password nobody can type: tool runs have no
     // console and no input. It then crashes in SteamKit's LogOn.
@@ -123,12 +122,12 @@ const RULES: &[Rule] = &[
         steps: &["Click Fetch manifests and plan and approve the Steam sign-in.", "Review the plan, then click Download.", "Verify runs by itself after the download."],
         action: Some(("Open model tool setup", "setup")) },
     Rule { any: &["community sdk is incomplete", "folder around the sdk", "sdk game configuration is missing", "choose the community sdk folder"], all: &[],
-        cause: "Settings → Community SDK does not point at a complete Reduced CSDK 12 folder.",
-        steps: &[r"Open the Reduced_CSDK_12 folder you extracted. The right folder directly contains the folders game and content.", r"If there is a Reduced_CSDK_12 folder inside another Reduced_CSDK_12 folder, choose the inner one, or move it to C:\CSDK12.", "In Settings, click Detect tools, then Check paths; fix any field marked red.", "If game\\citadel\\gameinfo.gi is missing, extract the whole ZIP again into a new, empty folder."],
+        cause: "Settings → Community SDK does not point at a complete Community SDK folder (Reduced CSDK 13, or the older Reduced CSDK 12).",
+        steps: &[r"Open the Reduced_CSDK_13 folder you extracted. The right folder directly contains the folders game and content.", r"If there is a Reduced_CSDK_13 folder inside another Reduced_CSDK_13 folder (the ZIP extracts that way), choose the inner one, or move it to C:\CSDK13.", "In Settings, click Detect tools, then Check paths; fix any field marked red.", "If game\\citadel\\gameinfo.gi is missing, extract the whole ZIP again into a new, empty folder."],
         action: Some(("Open Settings", "settings")) },
     Rule { any: &["resource compiler points outside", "select the material compiler", "select resourcecompiler.exe", "the resource compiler must belong"], all: &[],
         cause: "Settings → Resource compiler is not the Community SDK's own material compiler.",
-        steps: &[r"Set Resource compiler to <Community SDK>\game\bin_cs2\win64\resourcecompiler.exe, for example C:\CSDK12\game\bin_cs2\win64\resourcecompiler.exe.", "The model toolset's compiler belongs only under Advanced configuration → Model compiler executable.", "Click Check paths, then build again."],
+        steps: &[r"Set Resource compiler to <Community SDK>\game\bin\win64\resourcecompiler.exe, for example C:\CSDK13\game\bin\win64\resourcecompiler.exe (in the older Reduced CSDK 12 it is game\bin_cs2\win64). Detect tools fills it in.", "The model toolset's compiler belongs only under Advanced configuration → Model compiler executable.", "Click Check paths, then build again."],
         action: Some(("Open Settings", "settings")) },
     Rule { any: &["not enough space on the disk", "os error 112", "no space left"], all: &[],
         cause: "The drive with the workspace ran out of free space.",
@@ -140,11 +139,21 @@ const RULES: &[Rule] = &[
         action: None },
     Rule { any: &["access is denied", "os error 5)", "permission denied"], all: &[],
         cause: "Windows refused access to a file or folder.",
-        steps: &["Close Deadlock, Blender and File Explorer windows showing the project, then try again.", r"Avoid protected folders such as C:\Program Files for the workspace, the SDK and the toolset; use for example C:\CSDK12.", "If an antivirus quarantined resourcecompiler.exe or DepotDownloader.exe, restore it and allow it."],
+        steps: &["Close Deadlock, Blender and File Explorer windows showing the project, then try again.", r"Avoid protected folders such as C:\Program Files for the workspace, the SDK and the toolset; use for example C:\CSDK13.", "If an antivirus quarantined resourcecompiler.exe or DepotDownloader.exe, restore it and allow it."],
         action: None },
+    // FBX staging searches the model's folder for its textures (issue #7).
+    Rule { any: &["fbx texture folder too large", "too many files to search for its textures"], all: &[],
+        cause: "Your model's folder holds too many files for the app to search it for the model's textures, for example when the model sits in Downloads.",
+        steps: &["Make a new folder for the model alone and move (or export) the model file and its textures into it, keeping any texture subfolders.", "In Character & model, choose the model file in its new folder.", "Prepare the model again."],
+        action: Some(("Open Character & model", "project")) },
+    // Issue #7: Blender cannot open a staged texture from 260 characters on.
+    Rule { any: &["too long for blender"], all: &[],
+        cause: "A file of your model gets a path too long for Blender once the app copies it into the workspace.",
+        steps: &["Give the file named in the message a shorter name. If it is a texture, choose the renamed file again in your model's material in Blender and save the model.", r"Or open Settings and choose a shorter Workspace folder, for example C:\DMB.", "Prepare the model again."],
+        action: Some(("Open Settings", "settings")) },
     Rule { any: &["os error 206", "filename or extension is too long", "path is too long", "too long for the compiler"], all: &[],
         cause: "A file path is longer than Windows allows.",
-        steps: &[r"Move the Reduced CSDK 12 folder to a short path such as C:\CSDK12 and update Settings → Community SDK and Resource compiler.", "In Model preparation, click Prepare again so material names are shortened.", "Build again."],
+        steps: &[r"If the message names a file of your model, give it a shorter name, or choose a shorter Workspace folder in Settings, for example C:\DMB.", r"If it names the model compiler or the SDK, move the Community SDK folder to a short path such as C:\CSDK13 and update Settings → Community SDK and Resource compiler.", "In Model preparation, click Prepare again so material names are shortened.", "Try again."],
         action: Some(("Open Settings", "settings")) },
     Rule { any: &["incorrect function. (os error 1)"], all: &[],
         cause: "A path points at a drive or a location Windows cannot use as a normal folder.",
@@ -156,7 +165,7 @@ const RULES: &[Rule] = &[
         action: Some(("Open Settings", "settings")) },
     Rule { any: &["blender is not configured", "blender executable not found"], all: &[],
         cause: "Blender is needed to prepare Blender, FBX and glTF models, and the app cannot find it.",
-        steps: &["Install Blender 5.2 LTS (Settings → Get programs has the link).", r"In Settings → Advanced configuration → Blender executable, select blender.exe, for example C:\Program Files\Blender Foundation\Blender 5.2lender.exe.", "Click Save settings and prepare again."],
+        steps: &["Install Blender 5.2 LTS (Settings → Get programs has the link).", r"In Settings → Advanced configuration → Blender executable, select blender.exe, for example C:\Program Files\Blender Foundation\Blender 5.2\blender.exe.", "Click Save settings and prepare again."],
         action: Some(("Open Settings", "settings")) },
     Rule { any: &["export_scene_ot_gltf"], all: &[],
         cause: "Blender failed while exporting the model for the preview.",
@@ -164,7 +173,7 @@ const RULES: &[Rule] = &[
         action: Some(("Open Logs", "logs")) },
     Rule { any: &["blender"], all: &["exit code"],
         cause: "Blender stopped while preparing your model.",
-        steps: &["Open Logs and look for the lines starting with Traceback or Error just before the failure.", "Check that the file opens in Blender on its own.", "Use a supported Blender: 4.2–4.5, 5.0 or 5.2 LTS (5.2 is recommended). Set it in Settings → Blender executable and click Validate Blender.", "Save the file as a new .blend without add-on data and prepare again."],
+        steps: &["Open Logs and look for the lines starting with Traceback or Error just before the failure.", "Check that the file opens in Blender on its own.", "Use a supported Blender: 4.2–4.5, 5.0, 5.2 LTS or 5.3 (5.2 LTS is recommended). Set it in Settings → Blender executable and click Validate Blender.", "Save the file as a new .blend without add-on data and prepare again."],
         action: Some(("Open Logs", "logs")) },
     Rule { any: &["confirm replacement of the existing output"], all: &[],
         cause: "This VPK slot already holds a file from this project.",
@@ -222,6 +231,12 @@ const RULES: &[Rule] = &[
         cause: "The motion setup for one or more moving parts could not be built.",
         steps: &["Open Physics & preview and find the parts named in the message.", "Set their part type to Rigid (or switch them off), then Analyze again.", "Build again. Other moving parts keep their motion."],
         action: Some(("Open Physics & preview", "physics")) },
+    // Source 2 Viewer's summary when it exits with code 2; it runs in the temp
+    // folder, where it leaves exceptions.txt (compiler.rs source2viewer).
+    Rule { any: &["file(s) failed to process"], all: &[],
+        cause: "Source 2 Viewer could not decompile one or more of the hero's game files, usually after a Deadlock update or with an older Source 2 Viewer CLI.",
+        steps: &["Download the latest Source 2 Viewer CLI (Settings → Get programs) and replace the old Source2Viewer-CLI.exe.", "If it still fails, open the exceptions.txt named in the message (in your temp folder) or Logs: they name the game file that could not be read. Check for a newer version of this app.", "Analyze or build again."],
+        action: Some(("Open Settings", "settings")) },
     Rule { any: &["unsupported or malformed kv3", "decompil"], all: &[],
         cause: "Source 2 Viewer could not read a game file, usually after a Deadlock update.",
         steps: &["Download the latest Source 2 Viewer CLI (Settings → Get programs) and replace the old Source2Viewer-CLI.exe.", "Check for a newer version of this app.", "Build again."],
@@ -275,9 +290,16 @@ mod tests {
     fn real_failures_point_to_the_page_that_fixes_them() {
         for (message, expected) in [
             ("The TangTang presets are not included in this build. Choose Automatic for the movement.", "physics"),
-            ("Compiler startup schema mismatch (ParticleFloatType_t). This happens before VMDL loading", "setup"),
-            (r"Model compiler is missing: \\?\C:\Deadlockmoddingtools\Reduced_CSDK_12\game\bin_cs2\win64\resourcecompiler.exe.", "setup"),
+            // The fix is choosing Reduced CSDK 13, in Settings.
+            ("Compiler startup schema mismatch (ParticleFloatType_t). This happens before VMDL loading", "settings"),
+            (r"Model compiler is missing: \\?\C:\Deadlockmoddingtools\Reduced_CSDK_12\game\bin_cs2\win64\resourcecompiler.exe.", "settings"),
             (r"The Community SDK is incomplete: \\?\C:\Deadlockmoddingtools\Reduced_CSDK_12\game\citadel\gameinfo.gi is missing.", "settings"),
+            // Reduced CSDK 13: toolchain::MODEL_TOOLSET_NOT_SET and sdk_game's messages.
+            (deadlock_tools::toolchain::MODEL_TOOLSET_NOT_SET, "settings"),
+            ("The model compiler is not set up. Choose Reduced CSDK 13 as the Community SDK in Settings: it compiles the hero model too, so nothing else needs installing.", "settings"),
+            ("The model compiler is not set up. Reduced CSDK 12 cannot compile hero models; Reduced CSDK 13 replaces it and compiles materials and the hero model, so choose it as the Community SDK. An already downloaded model toolset can still be chosen under Advanced configuration.", "settings"),
+            (r"Select the material compiler in Settings → Resource compiler: \\?\C:\Tools\Reduced_CSDK_13\Reduced_CSDK_13\game\bin\win64\resourcecompiler.exe.", "settings"),
+            (r"Settings → Community SDK points to the folder around the SDK. Choose \\?\C:\Tools\Reduced_CSDK_13\Reduced_CSDK_13 instead (the SDK was extracted inside a folder of the same name).", "settings"),
             ("Choose DepotDownloader.exe. Download DepotDownloader-windows-x64.zip", "setup"),
             (r"Nothing has been downloaded into C:\Tools\DMBTools yet.", "setup"),
             (r"Copy staged archive: There is not enough space on the disk. (os error 112)", "settings"),
@@ -302,10 +324,20 @@ mod tests {
             ("Native float32 precision collapses or reverses a cloth proxy face", "physics"),
             (r"C:\Downloads: The system cannot find the file specified. (os error 2)", "settings"),
             (r"\\?\C:: Incorrect function. (os error 1)", "settings"),
+            // Issue #7 (Russian Windows), then the staging check that replaced it.
+            (r"Operation could not be completed: Publish E:\workspace\0123456789abcdef0123456789abcdef\humanoid_preparation\fedcba9876543210fedcba9876543210\source\Programs\#фон #небо #город #море #лес #поле #река #гора #сад #дом #мост #парк #луна #снег #да #wallpaper #sky #city #sea #forest #field #river #hill #garden #house #bridge #park #moon #snow #example #long #file .jpg: Системе не удается найти указанный путь. (os error 3)", "settings"),
+            (r"D:\Models\Hero\Programs\#фон #небо #город.jpg is too long for Blender once copied into the workspace: its path there would be 322 characters, and Blender can only open paths shorter than 260. Give the file a shorter name (a renamed texture must then be chosen again in your model's material), or choose a shorter Workspace folder in Settings, for example C:\DMB.", "settings"),
+            (r"Operation could not be completed: Publish C:\w\source\Textures\body.png: The filename or extension is too long. (os error 206)", "settings"),
+            // FBX staging's two folder limits, in source.rs's words.
+            ("FBX texture folder too large. Export this character into a dedicated folder.", "project"),
+            (r"The folder of the model, C:\Users\me\Downloads, holds too many files to search for its textures (more than 200000). Put the model and its textures in a folder of their own.", "project"),
             ("Load error: Failed to load document kv3 data: No valid format conversion from 'dmb_modeldoc_probe' to 'modeldoc41'", "setup"),
         ] {
             assert_eq!(page(message).as_deref(), Some(expected), "{message}");
         }
+        // The staging message gets its own help, not the compiler path help.
+        let blender_path = help("validation", r"D:\m\Programs\a.jpg is too long for Blender once copied into the workspace: its path there would be 322 characters, and Blender can only open paths shorter than 260.", "").unwrap();
+        assert!(blender_path.cause.contains("too long for Blender") && blender_path.steps[1].contains("Workspace folder"), "{blender_path:?}");
         // A DepotDownloader run that fails is not a missing program.
         let run = help("tool", "External tool failed", r"Tool C:\Tools\DepotDownloader\DepotDownloader.exe failed (exit code 1).").unwrap();
         assert_eq!(run.action.unwrap().page, "logs");
@@ -348,6 +380,21 @@ mod tests {
         // Unknown tool failures still say where to look.
         assert_eq!(help("tool", "External tool failed", "Tool x.exe failed (exit code 9)").unwrap().action.unwrap().page, "logs");
     }
+    /// A new user's empty settings, as Test my setup's first step reports
+    /// them, and the model compiler messages: the fix is in Settings
+    /// (Reduced CSDK 13), not on the model toolset page.
+    #[test]
+    fn missing_model_compiler_help_leads_to_csdk_13_in_settings() {
+        let step = crate::setup_test::path_step(&deadlock_project::Settings::default());
+        let error = step.error.expect("empty settings fail the path step");
+        assert!(error.details.contains(deadlock_tools::toolchain::MODEL_TOOLSET_NOT_SET), "{}", error.details);
+        assert_eq!(error.help.and_then(|h| h.action).map(|a| a.page).as_deref(), Some("settings"));
+        let model = help("validation", deadlock_tools::toolchain::MODEL_TOOLSET_NOT_SET, "").unwrap();
+        assert_eq!(model.action.as_ref().map(|a| (a.label.as_str(), a.page.as_str())), Some(("Open Settings", "settings")));
+        assert!(model.steps[0].contains("Reduced CSDK 13") && model.steps.last().unwrap().starts_with("Only if you keep a model toolset"), "{model:?}");
+        // The rule about an incompatible downloaded toolset keeps its page.
+        assert_eq!(page("Load error: Failed to load document kv3 data: No valid format conversion from 'dmb_modeldoc_probe' to 'modeldoc41'").as_deref(), Some("setup"));
+    }
     /// Hero colors refusals, as the build reports them.
     #[test]
     fn hero_color_refusals_point_to_extras() {
@@ -377,5 +424,27 @@ mod tests {
         }
         // The replacement-model refusal keeps its plain message.
         assert!(help("validation", "Include a replacement model to use Appearance, Equipment or a static facial expression. To recolor the hero's own model instead, use Extras → Colors.", "").is_none());
+    }
+    /// Source 2 Viewer exiting with code 2 (a truncated hero model, November 14,
+    /// 2026): the end of a hero decompile's output no longer says "decompiled".
+    #[test]
+    fn a_source_2_viewer_run_with_failed_files_gets_decompiler_help() {
+        let details = "Tool C:\\Tools\\Source2Viewer\\Source2Viewer-CLI.exe failed (exit code 2).\nstdout:\n\t-- Block: RED2  Size: 8573   bytes [Offset: 5020432]\n\t-- Block: DATA  Size: 35106  bytes [Offset: 5029008]\n--- Wrote 0 files\n2 file(s) failed to process, see \"C:\\Users\\me\\AppData\\Local\\Temp\\exceptions.txt\".\n\nstderr:\nFound \"Deadlock\" from \"D:\\Deadlock\\game\\citadel\\gameinfo.gi\"\nFull stdout: C:\\w\\logs\\1.stdout\nFull stderr: C:\\w\\logs\\1.stderr";
+        let help = help("tool", "External tool failed", details).unwrap();
+        assert!(help.cause.starts_with("Source 2 Viewer could not decompile") && help.steps[1].contains("exceptions.txt"), "{help:?}");
+        assert_eq!(help.action.map(|a| a.page).as_deref(), Some("settings"));
+    }
+    /// A backslash lost in editing once left a backspace byte in an example path
+    /// ("Blender 5.2" + 0x08 + "lender.exe"); no help text may hold a control character.
+    #[test]
+    fn help_texts_hold_no_control_characters() {
+        let texts = RULES.iter().flat_map(|r| {
+            [r.cause].into_iter().chain(r.steps.iter().copied()).chain(r.action.into_iter().flat_map(|(label, page)| [label, page]))
+        });
+        for text in texts.chain(MODEL_TOOLSET_STEPS.iter().copied()).chain(GENERIC_TOOL.iter().copied()).chain(GENERIC.iter().copied()) {
+            assert!(!text.chars().any(char::is_control), "control character in help text: {text:?}");
+        }
+        let blender = help("validation", "Blender is not configured", "").unwrap();
+        assert!(blender.steps.iter().any(|s| s.contains(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")), "{blender:?}");
     }
 }

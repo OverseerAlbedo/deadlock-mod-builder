@@ -6,6 +6,7 @@ opening a public issue, with the app version, the affected step and how to
 reproduce it.
 
 The application runs Blender and the game's resource tools on files you choose,
-reads and writes your Deadlock installation's `addons` folder, and stores projects
-under `%LOCALAPPDATA%\DeadlockModBuilder`. Only open source files and projects you
-trust, and do not commit tokens, credentials or private game dumps.
+reads and writes your Deadlock installation's `addons` folder, and keeps project
+working data in the Workspace folder (by default
+`%LOCALAPPDATA%\DeadlockModBuilder\workspaces`). Only open source files and
+projects you trust, and do not commit tokens, credentials or private game dumps.

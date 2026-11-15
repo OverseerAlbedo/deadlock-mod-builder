@@ -399,12 +399,14 @@ pub fn publish_directory(source: &Path, destination: &Path) -> Result<()> {
         // tempfile's no-clobber persist is MoveFileExW(source, destination, 0):
         // it moves a directory on the same volume and fails if anything already
         // exists at the destination. Cleanup is disabled so a failed attempt
-        // never tries to delete the source.
+        // never tries to delete the source. Both paths are verbatim because
+        // MoveFileExW gets them as given and fails from 260 characters.
         let mut pending =
-            tempfile::TempPath::try_from_path(source).map_err(|e| Error::io(source, e))?;
+            tempfile::TempPath::try_from_path(deadlock_core::safety::long_path(source))
+                .map_err(|e| Error::io(source, e))?;
         pending.disable_cleanup(true);
         pending
-            .persist_noclobber(destination)
+            .persist_noclobber(deadlock_core::safety::long_path(destination))
             .map_err(|e| Error::io(destination, e.error))
     }
     #[cfg(not(any(
@@ -435,5 +437,28 @@ mod tests {
         assert!(source.join("payload").exists());
         assert!(destination.is_dir());
         assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
+    }
+    /// Issue #7: MoveFileExW needs verbatim paths from 260 characters on.
+    #[cfg(windows)]
+    #[test]
+    fn publication_moves_a_directory_past_260_characters() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("pending");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("payload"), "new").unwrap();
+        let mut destination = root.path().join("snapshots");
+        while destination.as_os_str().len() < 300 {
+            destination.push("snapshot folder");
+        }
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        publish_directory(&source, &destination).unwrap();
+        assert_eq!(fs::read(destination.join("payload")).unwrap(), b"new");
+        assert!(!source.exists());
+        // An existing long destination still refuses and keeps the source.
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("payload"), "newer").unwrap();
+        assert!(publish_directory(&source, &destination).is_err());
+        assert_eq!(fs::read(source.join("payload")).unwrap(), b"newer");
+        assert_eq!(fs::read(destination.join("payload")).unwrap(), b"new");
     }
 }

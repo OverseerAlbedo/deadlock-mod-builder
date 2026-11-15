@@ -42,7 +42,18 @@ Thumbs.db
 # Ignore build directories, not every model/JSON/EXE file.
 # Required readers and format fixtures must survive a fresh clone.
 
-# Private assets (TangTang cloth proxies, captured rig fixtures): a separate private repository cloned here; builds and tests work without it.
+# Optional local data; builds and tests work without it.
 /private-assets/
-# The compiled Vindicta references are private assets; scripts/sync-private-assets.mjs copies them here for local builds.
+# Compiled references that scripts/sync-private-assets.mjs copies in for local builds.
 /physics-references/**/*.vmdl_c
+
+# Local notes.
+/private-notes/
+# Local notes and launchers.
+/CLAUDE.md
+/CLAUDE.local.md
+/.claude/
+/Launch.cmd
+/Launch-Rust.cmd
+/Build-Windows.cmd
+/Build-Rust-Windows.cmd

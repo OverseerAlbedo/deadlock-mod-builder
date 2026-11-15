@@ -5,7 +5,7 @@ of the Builder's Rust native-resource decoder. The normal viewer's `F6` text for
 cannot be an exact numerical transport. This program emits the parsed values as
 KV3 text with invariant `G9` (Float32) and `G17` (Float64) numeric formatting
 and never modifies its input. Explicit precision preserves the exact native
-value at power-of-two boundaries, including TangTang's `-2**-25` quaternion
+value at power-of-two boundaries, including a `-2**-25` quaternion
 component; the previous `R` format emitted an adjacent Float64 for that value.
 The receiving verifier still applies no numeric tolerance.
 Annotations remain covered by the Builder's primary typed comparison; this

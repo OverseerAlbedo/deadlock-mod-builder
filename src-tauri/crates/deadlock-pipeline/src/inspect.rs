@@ -480,7 +480,7 @@ impl<'a> ModelPipeline<'a> {
             let unskinned_meshes:Vec<_>=summary.meshes.iter().filter(|m|selected.contains(&m.name)&&!m.has_skin_weights).map(|m|m.name.clone()).collect();
             if !unskinned_meshes.is_empty()&&!summary.bones.is_empty(){warnings.push(format!("Replacement meshes have no skin weights: {}",unskinned_meshes.join(", ")));}
             if model.lod_groups>1{warnings.push(lod_warning(p.lod_strategy).into());}
-            if !model.ag2.is_empty(){warnings.push("AG2 uses the selected native model toolset. Original graph identifiers are verified after compilation; CSDK compiles materials.".into());}
+            if !model.ag2.is_empty(){warnings.push(if deadlock_tools::toolchain::select(self.settings,false).is_ok_and(|t|t.backend=="csdk"){"AG2 is compiled by the Community SDK (Reduced CSDK 13), which also compiles the materials. Original graph identifiers are verified after compilation."}else{"AG2 uses the selected native model toolset. Original graph identifiers are verified after compilation; CSDK compiles materials."}.into());}
             if p.animation_policy==AnimationPolicy::DisableLegacy{warnings.push("Legacy animation nodes will be disabled only in the compiler copy; check sequences in game.".into());}
             let needs_review=!unresolved_meshes.is_empty()||!secondary_meshes_left_out.is_empty()||materials.values().any(|c|c.mode.as_deref()==Some("generate")&&(!c.confirmed.unwrap_or(false)||c.ambiguous.as_ref().is_some_and(|v|!v.is_empty())))||p.lod_strategy==LodStrategy::Choose||((model.lod_groups>1||geometry.source_triangles>500000)&&!p.review_lods)||(!unskinned_meshes.is_empty()&&!summary.bones.is_empty()&&!p.allow_unskinned);
             let input_hashes=self.fingerprint_inputs(p,&materials)?;

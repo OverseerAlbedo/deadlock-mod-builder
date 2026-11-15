@@ -28,9 +28,9 @@ jobs:
       CARGO_INCREMENTAL: '0'
       CARGO_BUILD_JOBS: '2'
       RUST_BACKTRACE: '1'
-      # Optional: a token that can read OverseerAlbedo/deadlock-mod-builder-private-assets.
-      # With it the build carries the TangTang presets and the captured-rig tests run;
-      # without it everything builds and tests the same from the public source alone.
+      # Optional: a token for the optional data checkout below. With it the build
+      # carries the TangTang presets and the tests that use the data run; without
+      # it everything builds and tests the same.
       PRIVATE_ASSETS_TOKEN: ${{ secrets.PRIVATE_ASSETS_TOKEN }}
       DMB_RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
     steps:
@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Check out the private assets (TangTang presets, captured rig fixtures) when a token is configured
+      - name: Check out the optional data (TangTang presets, test fixtures) when a token is configured
         if: env.PRIVATE_ASSETS_TOKEN != ''
         uses: actions/checkout@v4
         with:

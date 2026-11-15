@@ -941,7 +941,7 @@ impl<'a> ComponentService<'a> {
                 let target_game = deadlock_tools::toolchain::sdk_game(self.settings)?;
                 if self.settings.csdk.is_empty() || !root.is_dir() {
                     return Err(fail(
-                        "Choose the Reduced CSDK12 folder in Setup to compile these image formats.",
+                        "Choose the Community SDK folder (Reduced CSDK 13) in Setup to compile these image formats.",
                     ));
                 }
                 if !self.settings.deadlock.is_empty()

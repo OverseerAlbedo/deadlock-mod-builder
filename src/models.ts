@@ -97,7 +97,9 @@ export interface StorageClearResult { removed_bytes: number; removed: string[]; 
 export type OperationStatus = 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'cached';
 export type StepStatus = OperationStatus;
 /** One Settings path field: right, wrong (with a one-click fix) or optional. */
-export interface FieldCheck { field: string; state: 'ok'|'warning'|'problem'|'optional'; message: string; fix?: string|null }
+export interface FieldCheck { field: string; state: 'ok'|'warning'|'problem'|'optional'; message: string; fix?: string|null;
+  /** A model compiler backend offered as a button (setup_checks `backend`); never applied by Fix all. */ backend?: string;
+  /** On the csdk check: the chosen SDK's layout (older = Reduced CSDK 12, current = 13 and later). */ layout?: 'older'|'current' }
 /** An autosave of a project (state/autosave/<id>/<saved_ms>.json). */
 export interface Autosave { file: string; id: string; name: string; path: string | null; saved_ms: number }
 /** Whether the last session crashed, and the newest autosave of each project. */
