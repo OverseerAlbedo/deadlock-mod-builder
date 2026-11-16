@@ -2,6 +2,7 @@
 
 [![Windows tests and portable application](https://github.com/OverseerAlbedo/deadlock-mod-builder/actions/workflows/windows.yml/badge.svg)](https://github.com/OverseerAlbedo/deadlock-mod-builder/actions/workflows/windows.yml)
 [![Latest release](https://img.shields.io/github/v/release/OverseerAlbedo/deadlock-mod-builder?include_prereleases&label=release)](https://github.com/OverseerAlbedo/deadlock-mod-builder/releases)
+[![Website](https://img.shields.io/badge/website-overseeralbedo.github.io-blue.svg)](https://overseeralbedo.github.io/deadlock-mod-builder/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Deadlock Mod Builder is a Windows desktop app that turns a character model into a Deadlock hero replacement mod. Pick the hero, add your model, review the guns, materials and movement, then build and install a VPK, all in one app. Blender runs in the background to prepare the model; no separate Python installation is needed.
@@ -86,6 +87,7 @@ More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 | Document | Contents |
 | --- | --- |
+| [Website](https://overseeralbedo.github.io/deadlock-mod-builder/) | The download, guide, troubleshooting and changelog as web pages |
 | [Model preparation](docs/MODEL_PREPARATION.md) | The five steps, bone mapping, textures, moving parts, the movement preview, gun customization |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Compatibility limits and fixes for common failures |
 | [Release notes](docs/RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) | What changed in each release |
