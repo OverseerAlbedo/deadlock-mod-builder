@@ -57,3 +57,6 @@ Thumbs.db
 /Launch-Rust.cmd
 /Build-Windows.cmd
 /Build-Rust-Windows.cmd
+
+# Website build output (site/build.py)
+/site/dist/
