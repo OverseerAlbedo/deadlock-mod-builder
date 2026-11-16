@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#121518">
+<title>$title</title>
+<meta name="description" content="$description">
+$head_extra<link rel="stylesheet" href="${root}assets/style.css">
+<link rel="icon" href="${root}favicon.ico" sizes="any">
+<link rel="icon" href="${root}assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="${root}assets/icon.png">
+$social$json_ld</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="${home_href}"><img src="${root}assets/icon.svg" alt="" width="32" height="32"><span>$site_name</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+$nav_items
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main" tabindex="-1">
+$main
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Deadlock Mod Builder is open source under the <a href="$license_url">MIT License</a>. Source code and releases are on <a href="$repo_url">GitHub</a>.</p>
+    <p>Unofficial tool, not affiliated with or endorsed by Valve. Deadlock and its assets belong to their respective owners.</p>
+  </div>
+</footer>
+</body>
+</html>
