@@ -30,6 +30,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 try:
     from markdown_it import MarkdownIt
+    from markdown_it.token import Token
     from mdit_py_plugins.anchors import anchors_plugin
 except ImportError:
     sys.exit("error: markdown-it-py and mdit-py-plugins are missing. Run: python -m pip install -r site/requirements.txt")
@@ -67,6 +68,17 @@ HOME = Page(
 
 # Markdown sources that become site pages, keyed by repository path.
 DOC_PAGES = {
+    "docs/FIRST_MOD.md": Page(
+        path="make-a-deadlock-character-mod/",
+        title="How to make a Deadlock character mod – step by step",
+        description=(
+            "Step-by-step tutorial for making a Deadlock character mod: replace a hero's model with your "
+            "own Blender, FBX or glTF model and install it as a VPK."
+        ),
+        nav="tutorial",
+        label="the step-by-step tutorial",
+        toc=True,
+    ),
     "docs/MODEL_PREPARATION.md": Page(
         path="guide/",
         title="Model preparation guide – Deadlock Mod Builder",
@@ -100,6 +112,8 @@ DOC_PAGES = {
         label="the changelog",
     ),
 }
+
+TUTORIAL = DOC_PAGES["docs/FIRST_MOD.md"]
 
 NOT_FOUND = Page(
     path="404.html",
@@ -240,6 +254,27 @@ def make_markdown(config: dict) -> MarkdownIt:
                         child.attrSet("decoding", "async")
 
     md.core.ruler.push("site_links", site_links)
+
+    def figures(state) -> None:
+        """A paragraph that is only an image, a line break and an italic line (the
+        README's screenshot pattern) becomes <figure class="shot"> with a caption."""
+        tokens = state.tokens
+        for i in range(len(tokens) - 2):
+            if tokens[i].type != "paragraph_open" or tokens[i + 2].type != "paragraph_close":
+                continue
+            kids = tokens[i + 1].children or []
+            if (len(kids) < 5 or kids[0].type != "image" or kids[1].type != "softbreak"
+                    or kids[2].type != "em_open" or kids[-1].type != "em_close"
+                    or any(k.type == "em_close" for k in kids[3:-1])):
+                continue
+            tokens[i].tag = tokens[i + 2].tag = "figure"
+            tokens[i].attrSet("class", "shot")
+            tokens[i].hidden = tokens[i + 2].hidden = False
+            kids[1] = Token("html_inline", "", 0, content="<figcaption>")
+            kids[2] = Token("html_inline", "", 0, content="")
+            kids[-1] = Token("html_inline", "", 0, content="</figcaption>")
+
+    md.core.ruler.push("figures", figures)
 
     def table_open(self, tokens, idx, options, env):
         return '<div class="table-wrap" tabindex="0" role="region" aria-label="Table">\n<table>\n'
@@ -408,6 +443,8 @@ def build_home(md, config, readme: str, version: str) -> str:
     )
 
     links = [
+        (TUTORIAL.path, "Step-by-step tutorial",
+         "How to make your first Deadlock character mod, from installing the tools to checking it in game."),
         ("guide/", "Model preparation guide",
          "The five steps, bone mapping, textures, moving parts, the movement preview and gun customization."),
         ("troubleshooting/", "Troubleshooting", "Compatibility limits and fixes for common failures."),
@@ -432,6 +469,7 @@ def build_home(md, config, readme: str, version: str) -> str:
         hero_figure=hero_figure,
         steps="\n".join(steps),
         after_steps=f'<div class="prose">\n{after_html}</div>' if after_html else "",
+        tutorial_url=esc(rel_url(HOME.path, TUTORIAL.path)),
         features=md_block("Features"),
         requirements=md_block("What you need"),
         install=md_block("Installation"),
@@ -487,6 +525,7 @@ def page_html(config, page: Page, main: str, *, json_ld: dict | None = None, ext
     repo = config["repoUrl"]
 
     nav = [
+        ("tutorial", "Tutorial", f"{root}{TUTORIAL.path}", ""),
         ("guide", "Guide", f"{root}guide/", ""),
         ("troubleshooting", "Troubleshooting", f"{root}troubleshooting/", ""),
         ("changelog", "Changelog", f"{root}changelog/", ""),

@@ -308,6 +308,9 @@ h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { opacity: 1; }
 .toc a { text-decoration: none; }
 .toc a:hover { text-decoration: underline; }
 
+.doc figure.shot { max-width: 100%; margin: 1.5rem 0 2rem; }
+.steps-more { margin: 0; }
+
 .notfound { padding-block: 4rem 2rem; }
 
 @media (max-width: 600px) {

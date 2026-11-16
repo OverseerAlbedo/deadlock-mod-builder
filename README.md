@@ -88,6 +88,7 @@ More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 | Document | Contents |
 | --- | --- |
 | [Website](https://overseeralbedo.github.io/deadlock-mod-builder/) | The download, guide, troubleshooting and changelog as web pages |
+| [Your first mod](docs/FIRST_MOD.md) | A step-by-step tutorial: from a character model to a mod in the game |
 | [Model preparation](docs/MODEL_PREPARATION.md) | The five steps, bone mapping, textures, moving parts, the movement preview, gun customization |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Compatibility limits and fixes for common failures |
 | [Release notes](docs/RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) | What changed in each release |
