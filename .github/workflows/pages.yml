@@ -60,3 +60,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+  notify:
+    # Tells the IndexNow search engines (Bing and others) which pages changed.
+    # A failure here does not fail the deployment.
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Submit the changed pages to IndexNow
+        run: python3 site/indexnow.py
