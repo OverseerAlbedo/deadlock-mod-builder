@@ -14,7 +14,7 @@ pub const POLICY: &str = "surface-fitted-long-skirt-v7";
 /// A panel that is a long skirt on its own reaches at least this far below the
 /// pelvis and spans at least this much (torso lengths, head to pelvis), in its
 /// weighted joints and in its visible fabric. Until October 2026 it was 0.5 and
-/// 0.65, which a skirt ending at mid-thigh (SiViolet's MMD version) just missed.
+/// 0.65, which a skirt ending at mid-thigh (on one MMD model) just missed.
 pub const SKIRT_REACH: f64 = 0.45;
 pub const SKIRT_SPAN: f64 = 0.6;
 /// A shorter panel joins the skirt when it reaches and spans this much and
@@ -92,7 +92,7 @@ pub(crate) fn analyze(
     }
     if !body.contains(&pelvis) { return if explicit { Err(missing()) } else { Ok(None) }; }
     let mut candidates = BTreeSet::new();
-    // Shorter panels (SiViolet's back panel ends higher and starts lower than
+    // Shorter panels (one model's back panel ends higher and starts lower than
     // its neighbors) join the skirt only when they share mesh, directly or
     // through other joining panels, with a panel that qualifies on its own;
     // alone they stay independent cloth.
@@ -212,8 +212,8 @@ pub(crate) fn analyze(
     }
     if links.is_empty() { return Ok(None); }
     // How close each skirt joint's own fabric comes to the body: its travel
-    // limit is capped so the fabric cannot reach the body (SiViolet's back
-    // panel showed her underwear when she walked backwards).
+    // limit is capped so the fabric cannot reach the body (a test model's back
+    // panel showed the underwear when walking backwards).
     let moving: BTreeSet<usize> = groups.iter().flat_map(|g| g.bones.iter().map(|n| lookup[n.as_str()])).collect();
     let skirt_joints: BTreeSet<usize> = linked.iter().flat_map(|&g| groups[g].bones.iter().map(|n| lookup[n.as_str()])).collect();
     let gaps = crate::body_colliders::fabric_gaps(d, &moving, &skirt_joints, torso * 0.35, cancel)?;

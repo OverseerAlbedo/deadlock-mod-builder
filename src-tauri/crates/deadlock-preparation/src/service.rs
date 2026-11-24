@@ -63,6 +63,25 @@ pub struct Inspection {
     /// The gun file's objects added to the scene, and the bone holding them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weapon_file: Option<serde_json::Value>,
+    /// The character meshes carry bone weights but the file has no skeleton
+    /// (worker.py `missing_skeleton`); absent in every other case.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_skeleton: Option<MissingSkeleton>,
+}
+/// `worker.py MISSING_SKELETON_POLICY`.
+pub const MISSING_SKELETON_POLICY: &str = "missing-skeleton-v1";
+/// Bone weights without their skeleton: the armature was deleted or never
+/// saved with the mesh, so the file is treated as a model without a skeleton.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MissingSkeleton {
+    /// `missing-skeleton-v1`.
+    pub policy: String,
+    /// Vertex groups that carry weights on the kept character meshes.
+    pub groups: u32,
+    /// The kept character meshes with weights (or an armature modifier without its object).
+    pub meshes: Vec<String>,
+    /// An armature modifier without its object was on one of them.
+    pub modifier: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceInput {
@@ -121,7 +140,7 @@ pub struct Analysis {
     /// Breast bones added in Blender; conversion repeats this request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub breast_generation: Option<serde_json::Value>,
-    /// The Weapon tab's gun file; conversion adds it the same way.
+    /// The Gun tab's gun file; conversion adds it the same way.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weapon_file: Option<WeaponFileRecord>,
 }
@@ -179,6 +198,20 @@ pub struct PreparationResult {
     pub textures: String,
     pub target_model: String,
     pub warnings: Vec<String>,
+    /// Model fitting -> Leg joints as this conversion measured it (Preserve source
+    /// proportions only): the choice, the body scale, the thigh and shin length
+    /// scales and the inches between the model's joints and the hero's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leg_fit: Option<serde_json::Value>,
+}
+/// The receipt's Leg joints measurements for the page (without the joint positions).
+fn leg_fit(audit: &PolicyAudit) -> Option<serde_json::Value> {
+    let mut value = audit.values.get("leg_joint_fit")?.clone();
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("fitted");
+        fields.remove("hero_joints");
+    }
+    Some(value)
 }
 fn load<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     Ok(serde_json::from_slice(&fs::read(path)?)?)
@@ -302,7 +335,7 @@ impl PreparationService {
                 let gun = source::resolve_source(&selection.source)?;
                 if gun == source {
                     return Err(invalid(
-                        "The gun file is the character source itself. Clear the gun file and choose the gun in the Weapon tab instead.",
+                        "The gun file is the character source itself. Clear the gun file and choose the gun in the Gun tab instead.",
                     ));
                 }
                 Some(gun)
@@ -415,7 +448,8 @@ impl PreparationService {
                 },
                 source: path_text(&local)?,
                 source_sha256: digest(&local)?,
-                analysis: info,
+                // A rigid prop's leftover vertex groups are not a missing character skeleton.
+                analysis: Inspection { missing_skeleton: None, ..info },
             });
         }
         let weapon_model = project.model_input_mode == ModelInputMode::Weapon;
@@ -871,9 +905,21 @@ impl PreparationService {
             if raw.is_file() {
                 fs::remove_file(&raw)?;
             }
+            // A corrected export keeps the exact bind, roles and mapping, so the
+            // fit clips are made with stays the original conversion's.
+            if correction {
+                if let Some(previous) = Path::new(&project.preparation_report).parent().map(|p| p.join(crate::clip_making::FIT_FILE)) {
+                    let here = destination.join(crate::clip_making::FIT_FILE);
+                    // Never stops the export: without it, making a clip asks to prepare again.
+                    if previous.is_file() && !here.exists() {
+                        let _ = fs::copy(&previous, &here);
+                    }
+                }
+            }
             Ok(())
         })?;
         Ok(PreparationResult {
+            leg_fit: leg_fit(&receipt.prepared.rest_alignment),
             dmx: path_text(&dmx)?,
             blend: receipt.prepared.blend,
             report: path_text(&report_path)?,
@@ -888,7 +934,7 @@ pub fn review_issues(
     analysis: &Analysis,
     options: &PreparationOptions,
 ) -> Result<Vec<algorithms::ReviewIssue>> {
-    let issue = |tab: &str, message: String| algorithms::ReviewIssue { tab: tab.into(), message, scope: None, roles: vec![], bones: vec![] };
+    let issue = |tab: &str, message: String| algorithms::ReviewIssue { tab: tab.into(), message, scope: None, roles: vec![], bones: vec![], kind: None };
     // A gun file chosen, changed or cleared after the inspection needs a new one.
     let gun_file = provenance::check_weapon_file_selection(options, analysis.weapon_file.as_ref().map(|w| &w.selection))
         .err()
@@ -897,7 +943,7 @@ pub fn review_issues(
         // A separate weapon model needs a chosen gun and a computable fit only.
         return Ok(match weapon_plan(project, analysis, options) {
             Ok(Some(_)) => vec![],
-            Ok(None) => vec![issue("weapon", "Choose the gun to use for this weapon model in the Weapon tab.".into())],
+            Ok(None) => vec![issue("weapon", "Choose the gun to use for this weapon model in the Gun tab.".into())],
             Err(error) => vec![issue("weapon", error.to_string())],
         }
         .into_iter()
@@ -923,7 +969,7 @@ pub fn review_issues(
     if let Err(error) = crate::fitting::mode(options) {
         issues.push(algorithms::ReviewIssue {
             tab: "model fitting".into(), message: error.to_string(),
-            scope: None, roles: vec![], bones: vec![],
+            scope: None, roles: vec![], bones: vec![], kind: None,
         });
     }
     let selected = shape_mode.and_then(serde_json::Value::as_str).unwrap_or("");
@@ -944,6 +990,7 @@ pub fn review_issues(
             scope: None,
             roles: vec![],
             bones: vec![],
+            kind: None,
         });
     }
     Ok(issues)
@@ -1015,7 +1062,7 @@ pub fn weapon_plan(project: &Project, analysis: &Analysis, options: &Preparation
     crate::weapon::plan_choice(&choice, &gun_context(project, analysis, &source_roles, &target, body_scale(analysis, options)))
 }
 
-/// Fit preview for the Weapon tab (no Blender run): each hand of a dual-wield
+/// Fit preview for the Gun tab (no Blender run): each hand of a dual-wield
 /// hero, with the hero's body around the guns.
 pub fn weapon_preview(project: &Project, analysis: &Analysis, options: &PreparationOptions) -> Result<crate::weapon::Preview> {
     let choice = crate::weapon::choice(options)?;
@@ -1117,6 +1164,11 @@ fn same_image(a: Option<&String>, b: Option<&String>) -> bool {
         _ => false,
     }
 }
+/// Whether two image files hold the same bytes (false when either cannot be read).
+fn same_bytes(a: &str, b: &str) -> bool {
+    let (Ok(x), Ok(y)) = (std::fs::metadata(a), std::fs::metadata(b)) else { return false };
+    x.is_file() && y.is_file() && x.len() == y.len() && matches!((std::fs::read(a), std::fs::read(b)), (Ok(p), Ok(q)) if p == q)
+}
 /// A material's settings after preparing the same hero again: what the user
 /// changed is kept, while a texture or tint that is still the previous
 /// preparation's automatic pick takes the new automatic pick. Before October
@@ -1140,6 +1192,7 @@ fn refreshed_material(kept: &MaterialChoices, earlier: Option<&MaterialChoices>,
     let channels: std::collections::BTreeSet<&String> = kept_textures.keys().chain(earlier_textures.keys()).chain(fresh_textures.keys()).collect();
     let mut textures = kept_textures.clone();
     let mut refreshed = false;
+    let mut chosen = Vec::new();
     for channel in channels {
         if same_image(kept_textures.get(channel), earlier_textures.get(channel)) {
             refreshed |= !same_image(kept_textures.get(channel), fresh_textures.get(channel));
@@ -1147,10 +1200,37 @@ fn refreshed_material(kept: &MaterialChoices, earlier: Option<&MaterialChoices>,
                 Some(path) => textures.insert(channel.clone(), path.clone()),
                 None => textures.remove(channel),
             };
+        } else if kept_textures.get(channel).is_some_and(|p| !p.is_empty()) {
+            chosen.push(channel.clone());
         }
     }
+    // A preparation label ("Blender image connection" ...) describes only an
+    // image the preparation found: never one the user chose, and never a
+    // channel without an image (earlier runs labelled channels they found
+    // nothing for, and the page showed that label beside a hand pick).
+    let unlabel = |out: &mut MaterialChoices| {
+        let images = out.textures.clone().unwrap_or_default();
+        if let Some(serde_json::Value::Object(sources)) = out.extensions.get_mut("texture_match_sources") {
+            sources.retain(|channel, _| !chosen.contains(channel) && images.get(channel).is_some_and(|p| !p.is_empty()));
+        }
+    };
+    // The images this preparation found for a channel the user chose are
+    // offered beside the pick (never put in its place), unless one of them is
+    // the picked file itself (a prepared copy holds the same bytes).
+    let offer = |out: &mut MaterialChoices| {
+        for channel in &chosen {
+            let found: Vec<String> = fresh.candidates.as_ref().and_then(|c| c.get(channel)).cloned().unwrap_or_default()
+                .into_iter().chain(fresh_textures.get(channel).cloned())
+                .filter(|p| !p.is_empty()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+            let found = if found.iter().any(|p| kept_textures.get(channel).is_some_and(|k| same_bytes(k, p))) { Vec::new() } else { found };
+            let lists = out.candidates.get_or_insert_with(Default::default);
+            if found.is_empty() { lists.remove(channel); } else { lists.insert(channel.clone(), found); }
+        }
+    };
     if !refreshed {
-        // Nothing automatic changed: the material stays exactly as it was.
+        // Nothing automatic changed: the material stays as it was.
+        unlabel(&mut out);
+        offer(&mut out);
         return out;
     }
     out.textures = Some(textures);
@@ -1162,21 +1242,49 @@ fn refreshed_material(kept: &MaterialChoices, earlier: Option<&MaterialChoices>,
     if let Some(sources) = fresh.extensions.get("texture_match_sources") {
         out.extensions.insert("texture_match_sources".into(), sources.clone());
     }
+    unlabel(&mut out);
     // The review lists describe the new preparation.
     out.candidates = fresh.candidates.clone();
     out.ambiguous = fresh.ambiguous.clone();
     out
 }
 
+/// The user's own model file the project was last prepared from (the project points at the
+/// staged copy), when its report and analysis can be read.
+pub fn original_source(project: &Project) -> Option<String> {
+    let path = Path::new(&project.preparation_report);
+    let report: Receipt = load(path).ok()?;
+    let analysis: Analysis = load(&asset_paths::resolve(&path.parent()?.join(report.analysis_path)).ok()?).ok()?;
+    Some(analysis.source_original).filter(|source| !source.is_empty())
+}
 pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project> {
     if result.target_model != project.original_model {
         return Err(invalid("Prepared result targets another hero."));
     }
     let report: Receipt = load(Path::new(&result.report))?;
+    // The gun parts each receipt's fitted gun disables (see the mesh mapping below).
+    let disabled = |receipt: &Receipt| receipt.prepared.algorithm_audits.get("weapon").map(crate::weapon::receipt_disabled).unwrap_or_default();
+    let still_off = disabled(&report);
     let earlier_report = load::<Receipt>(Path::new(&project.preparation_report)).ok();
     let same_hero_preparation = earlier_report.as_ref()
         .is_some_and(|old| old.target_model == report.target_model && old.target_sha256 == report.target_sha256);
+    // A copy made for another hero (`hero_copy`), prepared for the first time: the original's
+    // report, with its materials moved to this hero's folder, tells its automatic picks from
+    // the user's, so the material choices carry over as they do when preparing again.
+    let copied_report = (project.preparation_report.is_empty() && !project.copied_report.is_empty())
+        .then(|| load::<Receipt>(Path::new(&project.copied_report)).ok())
+        .flatten()
+        .map(|mut old| {
+            let from = old.target_model.clone();
+            old.prepared.materials = std::mem::take(&mut old.prepared.materials).into_iter()
+                .map(|(path, choice)| (deadlock_project::hero_copy::moved_material(&path, &from, &project.original_model), choice))
+                .collect();
+            old
+        });
+    let copied = copied_report.is_some();
+    let earlier_report = if copied { copied_report } else { earlier_report };
     let mut p = project.clone();
+    p.copied_report.clear();
     p.dmx = result.dmx.clone();
     p.preparation_blend = result.blend.clone();
     p.preparation_report = result.report.clone();
@@ -1194,14 +1302,23 @@ pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project>
     p.materials = report.prepared.materials;
     p.meshes.clear();
     p.review_lods = false;
-    if same_hero_preparation {
-        let available: std::collections::BTreeSet<_> = report.prepared.meshes.iter().map(|m| m.name.as_str()).collect();
-        for (name, mapping) in &project.meshes {
-            if mapping.targets().is_ok_and(|targets| targets.iter().all(|n| available.contains(n))) {
-                p.meshes.insert(name.clone(), mapping.clone());
+    if same_hero_preparation || copied {
+        // The mesh mapping names this hero's meshes: only the same hero keeps it.
+        if same_hero_preparation {
+            let available: std::collections::BTreeSet<_> = report.prepared.meshes.iter().map(|m| m.name.as_str()).collect();
+            // Gun parts the earlier fitted gun disabled and this preparation's
+            // gun does not come back with the hero's gun.
+            let fitted_off = earlier_report.as_ref().map(disabled).unwrap_or_default();
+            for (name, mapping) in &project.meshes {
+                if fitted_off.contains(name) && !still_off.contains(name) && *mapping == deadlock_project::MeshMapping::One("@disable".into()) {
+                    continue;
+                }
+                if mapping.targets().is_ok_and(|targets| targets.iter().all(|n| available.contains(n))) {
+                    p.meshes.insert(name.clone(), mapping.clone());
+                }
             }
+            p.review_lods = project.review_lods && p.meshes.len() == project.meshes.len();
         }
-        p.review_lods = project.review_lods && p.meshes.len() == project.meshes.len();
         // A material whose readable name was shortened keeps its identity
         // hash; its choices and surface changes follow it to the new path.
         let renamed = renamed_materials(project.materials.keys(), &p.materials);
@@ -1229,7 +1346,7 @@ pub fn handoff(project: &Project, result: &PreparationResult) -> Result<Project>
         if !roots.is_empty() {
             let mut choice=project.customization.secondary_motion.clone().unwrap_or_default();
             let same_roots=project.preparation_options.values.get("physics_roots")==p.preparation_options.values.get("physics_roots");
-            if !same_hero_preparation || !same_roots {choice=Default::default();}
+            if !(same_hero_preparation || copied) || !same_roots {choice=Default::default();}
             choice.enabled=Some(choice.enabled.unwrap_or(true));
             choice.preset.get_or_insert_with(||"automatic".into());
             if choice.enabled==Some(true){
@@ -1363,6 +1480,7 @@ pub fn resume(project: &Project) -> Result<(Analysis, PreparationResult, Receipt
         textures: project.textures.clone(),
         target_model: report.target_model.clone(),
         warnings: report.prepared.warnings.clone(),
+        leg_fit: leg_fit(&report.prepared.rest_alignment),
     };
     Ok((analysis, result, report))
 }
@@ -1441,5 +1559,83 @@ mod tests {
         layer.extensions.insert("face_layer".into(), serde_json::json!("blush"));
         assert_eq!(refreshed_material(&kept, Some(&kept), &layer).extensions.get("face_layer"), Some(&serde_json::json!("blush")));
         assert!(!refreshed_material(&layer, Some(&layer), &kept).extensions.contains_key("face_layer"));
+    }
+    #[test]
+    fn a_base_color_picked_by_file_name_is_refreshed_like_any_automatic_pick() {
+        let textures = |pairs: &[(&str, &str)]| Some(pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<BTreeMap<_, _>>());
+        let source = |label: &str| serde_json::json!({"color": label});
+        let mut earlier = MaterialChoices { textures: Some(BTreeMap::new()), color: Some([0.8, 0.8, 0.8]), confirmed: Some(false), ..Default::default() };
+        earlier.extensions.insert("texture_match_sources".into(), source("Blender image connection"));
+        let mut fresh = MaterialChoices { textures: textures(&[("color", "C:/w/prep-2/textures/mi_hair_color_0123456789ab.jpg")]), color: Some([1., 1., 1.]), confirmed: Some(false), ..Default::default() };
+        fresh.extensions.insert("texture_match_sources".into(), source("Image file name beside the model"));
+        // The project still holds the earlier preparation's empty pick.
+        let out = refreshed_material(&earlier, Some(&earlier), &fresh);
+        assert_eq!((out.textures, out.color, out.confirmed), (fresh.textures.clone(), fresh.color, Some(false)));
+        assert_eq!(out.extensions["texture_match_sources"], source("Image file name beside the model"));
+        // An image the user chose meanwhile stays, without the earlier run's
+        // label for the channel it found nothing for.
+        let chosen = MaterialChoices { textures: textures(&[("color", "D:/art/hair.png")]), ..earlier.clone() };
+        let out = refreshed_material(&chosen, Some(&earlier), &fresh);
+        assert_eq!((&out.textures, out.color, out.confirmed), (&chosen.textures, chosen.color, chosen.confirmed));
+        assert_eq!(out.extensions["texture_match_sources"], serde_json::json!({}));
+    }
+    /// Two materials sharing one image whose file was missing, and a third
+    /// material (a prop's, left out of this run) with its own image. The user
+    /// picked the prop's image for the second material by hand. Preparing
+    /// again with the images found keeps that pick (it was not automatic),
+    /// gives the first material the shared image, and labels only images the
+    /// preparation found.
+    #[test]
+    fn preparing_again_keeps_a_hand_pick_and_labels_only_found_images() {
+        let label = || serde_json::json!({"color": "Blender image connection", "opacity": "Blender image connection"});
+        let material = |color: Option<&str>| {
+            let mut m = MaterialChoices {
+                textures: Some(color.map(|p| BTreeMap::from([("color".to_string(), p.to_string())])).unwrap_or_default()),
+                color: Some([1., 1., 1.]),
+                confirmed: Some(false),
+                ..Default::default()
+            };
+            m.extensions.insert("texture_match_sources".into(), label());
+            m
+        };
+        // The earlier run found nothing and still wrote its labels.
+        let earlier = material(None);
+        let mut whites = material(Some("D:/art/T_Sample_Prop.jpg"));
+        whites.confirmed = Some(true);
+        let fresh_face = {
+            let mut m = material(Some("C:/w/prep-2/textures/mi_whites_color_0092be636f5d.jpg"));
+            m.extensions.insert("texture_match_sources".into(), serde_json::json!({"color": "Blender image connection"}));
+            m
+        };
+        let mut fresh_face = fresh_face;
+        fresh_face.candidates = Some(BTreeMap::from([("color".to_string(), vec!["C:/w/prep-2/textures/mi_whites_color_0092be636f5d.jpg".to_string()])]));
+        let out = refreshed_material(&whites, Some(&earlier), &fresh_face);
+        assert_eq!(out.textures.as_ref().unwrap()["color"], "D:/art/T_Sample_Prop.jpg");
+        assert_eq!(out.confirmed, Some(true));
+        assert_eq!(out.ambiguous, whites.ambiguous);
+        assert_eq!(out.extensions["texture_match_sources"], serde_json::json!({}));
+        // The image found now is offered beside the hand pick.
+        assert_eq!(out.candidates.as_ref().unwrap()["color"], vec!["C:/w/prep-2/textures/mi_whites_color_0092be636f5d.jpg".to_string()]);
+        // Only the hand pick and its offer differ from the material as it was.
+        let mut expected = whites.clone();
+        expected.candidates = out.candidates.clone();
+        expected.extensions = out.extensions.clone();
+        assert_eq!(out, expected);
+        // A prepared copy of the very file the user picked is not offered.
+        let temp = tempfile::tempdir().unwrap();
+        let (picked, copy) = (temp.path().join("T_Sample_Face.jpg"), temp.path().join("mi_face_color_0092be636f5d.jpg"));
+        std::fs::write(&picked, b"same pixels").unwrap();
+        std::fs::write(&copy, b"same pixels").unwrap();
+        let mut face = material(Some(picked.to_str().unwrap()));
+        face.confirmed = Some(true);
+        let mut fresh_copy = material(Some(copy.to_str().unwrap()));
+        fresh_copy.candidates = Some(BTreeMap::from([("color".to_string(), vec![copy.to_string_lossy().into_owned()])]));
+        let out = refreshed_material(&face, Some(&earlier), &fresh_copy);
+        assert!(out.candidates.unwrap_or_default().get("color").is_none());
+        assert_eq!(out.textures, face.textures);
+        // A material the user had not touched takes the image found now.
+        let untouched = refreshed_material(&earlier, Some(&earlier), &fresh_face);
+        assert_eq!(untouched.textures, fresh_face.textures);
+        assert_eq!(untouched.extensions["texture_match_sources"], serde_json::json!({"color": "Blender image connection"}));
     }
 }

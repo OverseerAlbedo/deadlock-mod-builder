@@ -12,14 +12,15 @@ import { api, basename, type HeroProportions } from '../api';
 /** Shiv, Wraith and other heroes far outside ordinary proportions (same rule as preparation). */
 export function ProportionNotice({hero, value}: {hero: string; value: HeroProportions}) {
   const what = value.extremes.map(e => e === 'arms' ? (Math.abs(value.arm_left - value.arm_right) > 0.05 ? `a long ${value.arm_right > value.arm_left ? 'right' : 'left'} arm` : 'long arms') : 'short legs').join(' and ');
-  return <p className="field-check field-check-warning hero-proportions" role="note">{hero} has unusual proportions: {what}. With <strong>Keep source proportions</strong>, preparation fits your model's body to {hero} and spreads the difference over the whole arm; with <strong>Match hero proportions</strong> your model takes {hero}'s proportions. Check the arms in game.</p>;
+  return <p className="field-check field-check-warning hero-proportions" role="note">{hero} has unusual proportions: {what}. With <strong>Preserve source proportions</strong>, preparation fits your model's body to {hero} and spreads the difference over the whole arm; with <strong>Match hero proportions</strong> your model takes {hero}'s proportions. Check the arms in game.</p>;
 }
-export function ProjectOverview({ document, report, fresh, disabled, update, selectHero, fail, go, loadOutfit, saveOutfit, chooseModel, prepareAgain }: {
+export function ProjectOverview({ document, report, fresh, disabled, update, selectHero, copyForHero, fail, go, loadOutfit, saveOutfit, chooseModel, prepareAgain }: {
   document: ProjectDocument; report: ProjectInspection | null; fresh: boolean; disabled: boolean;
   update: (project: Project) => void; selectHero: React.ComponentProps<typeof HeroPicker>['select'];
+  /** Make a copy for another hero (a new project; this one is not changed). */ copyForHero?: React.ComponentProps<typeof HeroPicker>['select'];
   fail: (title: string, error: unknown) => void; go: (page: ReviewDestination | 'prepare', section?: string) => void;
   loadOutfit: () => void; saveOutfit: () => void;
-  /** Choose the character model file; Blender, FBX and glTF files are prepared automatically. */
+  /** Choose the character model file; Blender, FBX, glTF and MMD files are prepared automatically. */
   chooseModel?: () => void;
   /** Prepare the chosen model again (after the gun file changed). */
   prepareAgain?: () => void;
@@ -46,10 +47,10 @@ export function ProjectOverview({ document, report, fresh, disabled, update, sel
     <PageTitle eyebrow="Step 1 of 5" title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use. Everything else is set up for you." />
     <div className="overview-start">
     <section className="overview-identity" aria-label="Project summary">
-      <div className="overview-character" id="character-selection"><span className="eyebrow">Hero to replace</span><strong className="hero-name">{hero}</strong><HeroPicker current={project.original_model} disabled={disabled} select={selectHero} fail={fail}/>{proportions&&proportions.extremes.length>0&&<ProportionNotice hero={hero} value={proportions}/>}</div>
+      <div className="overview-character" id="character-selection"><span className="eyebrow">Hero to replace</span><strong className="hero-name">{hero}</strong><HeroPicker current={project.original_model} disabled={disabled} select={selectHero} fail={fail}/>{proportions&&proportions.extremes.length>0&&<ProportionNotice hero={hero} value={proportions}/>}{copyForHero&&project.original_model&&<HeroPicker copy current={project.original_model} disabled={disabled} select={copyForHero} fail={fail}/>}</div>
       <div className="overview-model" id="your-model"><span className="eyebrow">Your model</span>
         <strong className="hero-name">{source ? basename(source) : project.dmx ? basename(project.dmx) : 'No model chosen'}</strong>
-        <span className="muted">{prepared ? project.preparation_report ? 'Prepared and ready' : 'Game-ready model (DMX)' : source ? 'Not prepared yet' : 'Blender, FBX, GLB, glTF or DMX'}</span>
+        <span className="muted">{prepared ? project.preparation_report ? 'Prepared and ready' : 'Game-ready model (DMX)' : source ? 'Not prepared yet' : 'Blender, FBX, GLB, glTF, MMD or DMX'}</span>
         {chooseModel && <button className={source || project.dmx ? '' : 'primary'} disabled={disabled || !project.original_model} onClick={chooseModel}>{source || project.dmx ? 'Choose another model…' : 'Choose model file…'}</button>}
         {!project.original_model && <span className="hint">Choose the hero first.</span>}
         {(source || !project.dmx) && <><FilePathInput label="Gun from another file (optional)" kind="weapon" value={gunFile} disabled={disabled} fail={fail} update={path => {

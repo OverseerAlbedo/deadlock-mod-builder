@@ -1,16 +1,20 @@
 import { version as APP_VERSION } from "../package.json";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ask, open, save } from '@tauri-apps/plugin-dialog';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { openFor, saveFor } from './dialogs';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { api, basename, errorHelp, errorText, isDesktop, type VpkSlots } from './api';
 import { BrandMark } from './components/BrandMark';
 import { applyTheme, themeById } from './theme/themes';
 import type { ThemePreset } from './models';
+import { defaultFit } from './models';
 import { saveBuildRecord } from './build/changes';
+import { runningText } from './operationText';
 import type { Capabilities, FieldCheck, HeroRecord, LogEntry, ModelSummary, Project, ProjectDocument, Settings, SetupStatus, TimingEvent, TimingReport } from './models';
 import { ProjectOverview } from './components/ProjectOverview';
-import { ExtrasPage, MotionPage, PhysicsPage } from './components/CustomizationPages';
+import { ExtrasPage, PhysicsPage } from './components/CustomizationPages';
+import { MotionPage } from './motion/MotionPage';
 import { decodePreview, type PreviewScene } from './preview/packet';
 import { ToolDiagnostics } from './setup/ToolDiagnostics';
 import { ClothAuthoringPanel } from './cloth/ClothAuthoringPanel';
@@ -18,8 +22,10 @@ import { SetupPage } from './setup/SetupPage';
 import { SteamQrDialog } from './setup/SteamQrDialog';
 import { OnboardingPage } from './setup/OnboardingPage';
 import { PreparationPage } from './preparation/PreparationPage';
+import { GUN_EXTENSIONS, isSourceModel, SOURCE_EXTENSIONS } from './preparation/sourceFormats';
 import { WeaponsSection } from './preparation/WeaponsSection';
 import { BuildPage } from './build/BuildPage';
+import { buildRefused } from './build/readiness';
 import type { BuildResult, ProjectInspection, OriginalValidation, PreparedModel } from './build/models';
 import { Appearance } from './components/Appearance';
 import type { ComponentCatalog } from './components/AssetCatalog';
@@ -29,9 +35,13 @@ import { Disclosure, ErrorNotice, NavIcon, PageTitle } from './components/Primit
 import { SettingsPage } from './components/SettingsPage';
 import { StorageSection } from './components/StorageSection';
 import { CharacterPreview } from './components/CharacterPreview';
+import { textureStore } from './preview/textures';
+import { viewChoices } from './preview/viewChoices';
 import { Timings } from './components/Timings';
 import { addEvent, Badge, builtText, eventItems, MoveToCsdk13, Notifications, readIgnored, usesCsdk12, writeIgnored, type AppEvent, type ErrorRecord, type NewEvent, type NotificationItem, type StateNotification } from './components/Notifications';
 import { revealSection } from './components/workflowNavigation';
+import { HistoryButtons, HistoryContext, useProjectHistory, useUndoKeys } from './history/useProjectHistory';
+import { copyLines, HeroCopyNotice, type CopyNotice } from './components/HeroCopyNotice';
 
 /** How often a project with unsaved changes is autosaved. */
 export const AUTOSAVE_MS = 3 * 60 * 1000;
@@ -59,6 +69,7 @@ const FAILURE_TITLES: Record<string, string> = {
   'Project analysis did not complete': 'Analysis failed', 'Test my setup': 'Setup test failed',
   'Your model could not be prepared': 'Model preparation failed', 'Your model could not be prepared automatically': 'Model preparation failed',
   'Model conversion did not complete': 'Model preparation failed', 'Prepared model could not be accepted': 'Model preparation failed',
+  'Your object file could not be prepared': 'Object preparation failed',
 };
 /** "about 2 minutes left" from earlier runs of the same operation. */
 export function timeLeft(typical: number | undefined, startedUtc: string | undefined, now: number): string | null {
@@ -119,26 +130,42 @@ export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [projectDirty, setProjectDirty] = useState(false);
   const [savedSettings, setSavedSettings] = useState<Settings | null>(null);
+  const savedRef=useRef(savedSettings);savedRef.current=savedSettings;
   const settingsDirty = settings !== null && (savedSettings === null || Object.keys(settings).some(key => settings[key as keyof Settings] !== savedSettings[key as keyof Settings]));
   const [setupStatus,setSetupStatus]=useState<SetupStatus|null>(null);
   /** What this build includes (null until the backend answers; every choice is shown meanwhile). */
   const [capabilities,setCapabilities]=useState<Capabilities|null>(null);
   const [catalog,setCatalog]=useState<ComponentCatalog|null>(null);
   useEffect(()=>setCatalog(null),[document?.project.id,document?.project.original_model,settings?.pak]);
-  const [inspection,setInspection]=useState<{report:ProjectInspection;project:string}|null>(null);
+  // The preview's textures are kept across page changes; free them when the project closes or another opens.
+  // The preview's remembered view choices (look, Still or Movement, the last motion packet) go with them.
+  useEffect(()=>()=>{textureStore.clear();viewChoices.clear();},[document?.project.id]);
+  // `built`: the project a successful build checked after the analysis (that build ran its own analysis).
+  // `refused`: a build since refused because something still needs a choice (cleared by the next Analyze).
+  const [inspection,setInspection]=useState<{report:ProjectInspection;project:string;built?:string;refused?:boolean}|null>(null);
   // Whether the last Analyze saw the project as it is now (serialized once per change, not per render).
   const fresh=useMemo(()=>Boolean(document&&inspection?.project===JSON.stringify(document.project)),[document,inspection]);
+  // Build & install keeps the last analysis as a working list after project edits (readiness keptAnalysis).
+  const analyzedProject=useMemo(()=>inspection?JSON.parse(inspection.project) as Project:null,[inspection]);
+  const previousAnalysis=useMemo(()=>analyzedProject&&document&&!fresh?{analyzed:analyzedProject,verified:Boolean(inspection?.built)&&inspection?.built===JSON.stringify(document.project),refused:Boolean(inspection?.refused)}:null,[analyzedProject,document,inspection,fresh]);
   const [buildResult,setBuildResult]=useState<BuildResult|null>(null);
   const [installed,setInstalled]=useState<string|null>(null);
   const [prepared,setPrepared]=useState<PreparedModel|null>(null);
   const [originalValidation,setOriginalValidation]=useState<OriginalValidation|null>(null);
   const [preview, setPreview] = useState<PreviewScene|null>(null);
+  /** The prepared model (`project.dmx`) when the preview was loaded: a later one makes it stale for Load 3D previews automatically. */
+  const [previewModel, setPreviewModel] = useState('');
   const [summary, setSummary] = useState<ModelSummary | null>(null);
   const [report, setReport] = useState<TimingReport | null>(null);
   const [backendRunning,setBackendRunning]=useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [cancellable, setCancellable] = useState(false);
+  // Undo and Redo of the project's choices (one history; fences start it fresh after operations).
+  const writeProject = (project: Project) => { const current = documentRef.current; if (!current) return false; const next = {...current, project}; documentRef.current = next; setDocument(next); setProjectDirty(true); return true; };
+  const projectHistory = useProjectHistory({read: () => documentRef.current?.project, write: writeProject, notify: message => setToast(message), blocked: Boolean(busy) || backendRunning});
+  const history = projectHistory.controls;
+  useUndoKeys(history);
   /** The failure at the top of the page: one line, or the whole error (`full`) when asked for. */
   const [error, setError] = useState<{record: ErrorRecord; logged: boolean; full: boolean} | null>(null);
   // Notifications: this session's events (newest first) and the failure to open in the list.
@@ -187,17 +214,21 @@ export function App() {
   const alive = useRef(true);
   const desktop = isDesktop();
   /** A failure: one line at the top and (when logged) an error notification with its own copy. */
+  /** A failure was shown since the current run began (the status bar's result when the run started no backend operation). */
+  const failedDuringRun = useRef(false);
   const showFailure = useCallback((title: string, cause: unknown, log: boolean) => {
+    failedDuringRun.current = true;
     const record = errorRecord(title, cause);
     setError({record, logged: log, full: false});
     if (log) setFocusEvent(pushEvent({kind: 'error', title: FAILURE_TITLES[title] ?? title, error: record}));
   }, [pushEvent]);
   const fail = useCallback((title: string, cause: unknown) => showFailure(title, cause, !isBusy(cause) && !isCancelled(cause)), [showFailure]);
   const notify = useCallback((message: string) => setToast(message), []);
-  const run = useCallback(async <T,>(label: string, operation: () => Promise<T>, canCancel = false, refreshTimings=true): Promise<T | undefined> => {
+  /** `keepError`: an automatic preview load keeps the failure line of the operation before it. */
+  const run = useCallback(async <T,>(label: string, operation: () => Promise<T>, canCancel = false, refreshTimings=true, keepError=false): Promise<T | undefined> => {
     if (active.current) return undefined;
     active.current = true;
-    setBusy(label); setCancellable(canCancel); setError(null);
+    setBusy(label); setCancellable(canCancel); if (!keepError) setError(null);
     try { return await operation(); }
     catch (cause) {
       if (isCancelled(cause)) notify('Operation cancelled');
@@ -242,7 +273,7 @@ export function App() {
         // Fire and forget: an older or faked backend without the command leaves every choice shown.
         Promise.resolve().then(() => api.capabilities()).then(found => { if (!disposed) setCapabilities(found); }).catch(() => undefined);
         const [loadedSettings, loadedProject, retainedLogs, latestReport] = await Promise.all([api.settings(), api.newProject(), api.logs(), api.latestTimings()]);
-        if (!disposed) { setSettings(loadedSettings); setSavedSettings(loadedSettings); setDocument(loadedProject); merge(retainedLogs); setReport(latestReport);setBackendRunning(latestReport?.status==='running');timingRunning=latestReport?.status==='running';
+        if (!disposed) { setSettings(loadedSettings); setSavedSettings(loadedSettings); setDocument(loadedProject); projectHistory.controls.fence(); merge(retainedLogs); setReport(latestReport);setBackendRunning(latestReport?.status==='running');timingRunning=latestReport?.status==='running';
         // After a crash, offer the newest autosave.
         const recovery = await Promise.resolve().then(() => api.sessionRecovery()).catch(() => null);
         if (!disposed && recovery?.unclean) {
@@ -251,7 +282,7 @@ export function App() {
             let restore = false;
             try { restore = await ask(`Deadlock Mod Builder did not close normally. Restore the unsaved changes to “${latest.name || 'Untitled project'}” from ${new Date(latest.saved_ms).toLocaleString()}?`, {title:'Restore unsaved changes', kind:'warning', okLabel:'Restore', cancelLabel:'Not now'}); } catch { restore = false; }
             if (restore && !disposed) {
-              try { const restored = await api.restoreAutosave(latest.id, latest.file); documentRef.current = restored; setDocument(restored); setProjectDirty(true); notify('Unsaved changes restored. Save the project to keep them.'); }
+              try { const restored = await api.restoreAutosave(latest.id, latest.file); documentRef.current = restored; setDocument(restored); setProjectDirty(true); projectHistory.controls.fence(); notify('Unsaved changes restored. Save the project to keep them.'); }
               catch (cause) { fail('The autosave could not be restored', cause); }
             }
           }
@@ -291,7 +322,7 @@ export function App() {
   const saveProject = useCallback(async (saveAs = false) => {
     if (!document || active.current) return;
     await run('Could not save the project', async () => {
-      const path = !saveAs && document.path ? document.path : await save({title:'Save project',defaultPath:document.path ?? `${document.project.name}.dmb.json`,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
+      const path = !saveAs && document.path ? document.path : await saveFor('project',{title:'Save project',defaultPath:document.path ?? `${document.project.name}.dmb.json`,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
       if (!path) return;
       const saved = await api.saveProject(path, document.project);
       setDocument(saved); setProjectDirty(false); forgetAutosaves(saved.project.id); notify('Project saved');
@@ -301,27 +332,28 @@ export function App() {
   const saveDuringOperation = useCallback(async () => {
     const current = documentRef.current;
     if (!current) return undefined;
-    const path = current.path ?? await save({title:'Save project',defaultPath:`${current.project.name}.dmb.json`,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
+    const path = current.path ?? await saveFor('project',{title:'Save project',defaultPath:`${current.project.name}.dmb.json`,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
     if (!path) return undefined;
     const saved = await api.saveProject(path, current.project);
     setDocument(saved); setProjectDirty(false); forgetAutosaves(saved.project.id);
     return saved.path ?? path;
   }, []);
-  const openProject = useCallback(async () => {
+  /** Open… (a file window), or a known project file such as one Installed mods names. */
+  const openProject = useCallback(async (chosen?: string) => {
     if (active.current) return;
     await run('Could not open the project', async () => {
       if (!await discardProject()) return;
-      const path = await open({title:'Open project',multiple:false,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
+      const path = chosen ?? await openFor('project',{title:'Open project',multiple:false,filters:[{name:'Deadlock Mod Builder project',extensions:['json']}]});
       if (typeof path !== 'string') return;
       const loaded = await api.openProject(path);
-      setDocument(loaded); setProjectDirty(false); setSummary(null);setPreview(null);setInspection(null);setPrepared(null);setOriginalValidation(null);setBuildResult(null);setInstalled(null); setPage('project'); notify('Project opened');
+      setDocument(loaded); history.fence(); setProjectDirty(false); setSummary(null);setPreview(null);setInspection(null);setPrepared(null);setOriginalValidation(null);setBuildResult(null);setInstalled(null); setPage('project'); notify('Project opened');
     });
   }, [run, discardProject, notify]);
   const newProject = useCallback(async () => {
     if (active.current) return;
     await run('Could not create a project', async () => {
       if (!await discardProject()) return;
-      setDocument(await api.newProject()); setProjectDirty(false); setSummary(null);setPreview(null);setInspection(null);setPrepared(null);setOriginalValidation(null);setBuildResult(null);setInstalled(null); setPage('project');
+      setDocument(await api.newProject()); history.fence(); setProjectDirty(false); setSummary(null);setPreview(null);setInspection(null);setPrepared(null);setOriginalValidation(null);setBuildResult(null);setInstalled(null); setPage('project');
     });
   }, [run, discardProject]);
   const analyze = useCallback(async (path: string) => {
@@ -331,28 +363,28 @@ export function App() {
         const result = await api.analyze(path);
         void scanSlots();
         setSummary(result.summary);setPreview(null);setInspection(null); setReport(result.timings);
-        setDocument(current => current ? {...current,project:{...current.project,dmx:result.summary.path}} : current);
+        setDocument(current => current ? {...current,project:{...current.project,dmx:result.summary.path}} : current); history.fence();
         if (document.project.dmx !== result.summary.path) setProjectDirty(true);
         setPage('appearance'); notify('Model analysis complete');
       } finally { try { const latest = await api.latestTimings(); if (latest) setReport(latest); } catch (cause) { fail('Could not retrieve the timing report', cause); } }
     }, true);
   }, [document, run, notify, fail]);
-  /** Automatic preparation of a Blender, FBX or glTF model. A gun in a separate file is asked
+  /** Automatic preparation of a Blender, FBX, glTF or MMD model. A gun in a separate file is asked
    * for first: the fields are locked while preparation runs. */
   const startPreparation = useCallback(async (path: string) => {
     const current = documentRef.current;
     if (current && !current.project.preparation_options.weapon_source) {
       let wants = false;
-      try { wants = await ask('Is your gun in a separate file? Choose it now and it is prepared together with your character. You can also add it later on the Weapon tab.', {title:'Gun file', kind:'info', okLabel:'Choose gun file…', cancelLabel:'No, prepare now'}); } catch { wants = false; }
+      try { wants = await ask('Is your gun in a separate file? Choose it now and it is prepared together with your character. You can also add it later on the Gun tab.', {title:'Gun file', kind:'info', okLabel:'Choose gun file…', cancelLabel:'No, prepare now'}); } catch { wants = false; }
       if (wants) {
         try {
-          const gun = await open({title:'Choose the gun file', multiple:false, filters:[{name:'Gun file', extensions:['blend','glb','gltf','fbx']}]});
+          const gun = await openFor('gun-file',{title:'Choose the gun file', multiple:false, filters:[{name:'Gun file', extensions:[...GUN_EXTENSIONS]}]});
           if (typeof gun === 'string') {
             const checked = await api.validateAssetPath(gun, 'weapon');
             const latest = documentRef.current;
             if (latest) {
               const next = {...latest, project:{...latest.project, preparation_options:JSON.parse(JSON.stringify({...latest.project.preparation_options, weapon_source:checked, weapon:undefined, reviewed:false}))}};
-              documentRef.current = next; setDocument(next); setProjectDirty(true);
+              documentRef.current = next; setDocument(next); setProjectDirty(true); projectHistory.record(latest.project, next.project);
             }
           }
         } catch (cause) { fail('The gun file could not be used', cause); }
@@ -364,8 +396,8 @@ export function App() {
   const chooseModel = useCallback(async () => {
     if (active.current || !document) return;
     try {
-      const path = await open({title:'Select replacement model',multiple:false,filters:[{name:'Models',extensions:['dmx','blend','glb','gltf','fbx']}]});
-      // Blender, FBX and glTF models are inspected and prepared automatically (step 2).
+      const path = await openFor('model-source',{title:'Select replacement model',multiple:false,filters:[{name:'Models',extensions:['dmx',...SOURCE_EXTENSIONS]}]});
+      // Blender, FBX, glTF and MMD models are inspected and prepared automatically (step 2).
       if (typeof path === 'string') {if(/\.dmx$/i.test(path))await analyze(path);else await startPreparation(path);}
     } catch (cause) { fail('Could not choose a model', cause); }
   }, [analyze, document, fail, startPreparation]);
@@ -394,8 +426,8 @@ export function App() {
       else if (payload.type === 'drop') {
         setDrag(null);
         if(target){target.dispatchEvent(new CustomEvent('dmb-file-drop',{detail:payload.paths}));return;}
-        if(payload.paths.length===1&&/\.(blend|glb|gltf|fbx)$/i.test(payload.paths[0])&&!active.current){void startPreparationRef.current(payload.paths[0]);}
-        else if (payload.paths.length !== 1 || !/\.dmx$/i.test(payload.paths[0])) fail('Could not import the dropped file', 'Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.');
+        if(payload.paths.length===1&&isSourceModel(payload.paths[0])&&!active.current){void startPreparationRef.current(payload.paths[0]);}
+        else if (payload.paths.length !== 1 || !/\.dmx$/i.test(payload.paths[0])) fail('Could not import the dropped file', 'Drop one local file with the .dmx extension, or a Blender, GLB, glTF, FBX or MMD (.pmx, .pmd) source.');
         else if (active.current) showFailure('An operation is already running', 'Wait for the current operation to finish or cancel it, then drop the model again.', false);
         else void analyzeRef.current(payload.paths[0]);
       }
@@ -429,8 +461,8 @@ export function App() {
   }, [desktop, saveProject, openProject, newProject]);
 
   async function discoverComponents(extrasOnly=false){if(!document)return;const requested=document.project;await run('Character asset discovery did not complete',async()=>{const next=await (extrasOnly?api.discoverExtras(requested):api.discoverComponents(requested));if(documentRef.current?.project.id===requested.id&&documentRef.current.project.original_model===requested.original_model)setCatalog(next);notify('Character assets loaded.');},true);}
-  async function saveOutfit(){if(!document)return;await run('Outfit could not be saved',async()=>{const path=await save({title:'Save outfit preset',defaultPath:`${document.project.name}.outfit.json`,filters:[{name:'Outfit preset',extensions:['json']}]});if(path){await api.outfitSave(document.project,path,document.project.name);notify('Outfit preset saved.');}});}
-  async function loadOutfit(){if(!document)return;await run('Outfit could not be loaded',async()=>{const path=await open({title:'Load outfit preset',multiple:false,filters:[{name:'Outfit preset',extensions:['json']}]});if(typeof path==='string'){updateProject(await api.outfitLoad(document.project,path));setSummary(null);setPreview(null);notify('Outfit preset loaded. Review its choices.');}});}
+  async function saveOutfit(){if(!document)return;await run('Outfit could not be saved',async()=>{const path=await saveFor('outfit-preset',{title:'Save outfit preset',defaultPath:`${document.project.name}.outfit.json`,filters:[{name:'Outfit preset',extensions:['json']}]});if(path){await api.outfitSave(document.project,path,document.project.name);notify('Outfit preset saved.');}});}
+  async function loadOutfit(){if(!document)return;await run('Outfit could not be loaded',async()=>{const path=await openFor('outfit-preset',{title:'Load outfit preset',multiple:false,filters:[{name:'Outfit preset',extensions:['json']}]});if(typeof path==='string'){updateProject(await api.outfitLoad(document.project,path));setSummary(null);setPreview(null);notify('Outfit preset loaded. Review its choices.');}});}
   // The slot status (which Build checks) is read again for the chosen slot: choosing the slot it already had (pak09
   // deleted from the addons folder, Find free slot picks 9 again) changes nothing else that would rescan.
   async function chooseFreeSlot(){if(!document)return;await run('Could not choose a free VPK slot',async()=>{const value=await api.chooseFreeSlot(document.project);const project={...document.project,vpk_number:value.slot};updateProject(project);await scanSlots(project);notify(`Selected available slot: ${value.filename}`);});}
@@ -439,11 +471,19 @@ export function App() {
     let warnings:string[]=[];try{warnings=(await api.prebuildWarnings())??[];}catch{warnings=[];}
     if(warnings.length&&!await ask(`${warnings.map(w=>`• ${w}`).join('\n\n')}\n\nBuild anyway?`,{title:'Before building',kind:'warning',okLabel:'Build anyway',cancelLabel:'Cancel'}))return;
     const name=document.project.name;
-    await run('Build did not complete',async()=>{setBuildResult(null);const value=await api.buildProject(document.project,overwriteOutput,overwriteInstall,document.path);const analyzed=JSON.stringify(document.project);setDocument({project:value.project,path:value.path});setProjectDirty(false);
+    await run('Build did not complete',async()=>{setBuildResult(null);
+      // The build's own check refused what still needs a choice (readiness BUILD_REFUSALS): the kept list no longer allows Build until Analyze.
+      const value=await api.buildProject(document.project,overwriteOutput,overwriteInstall,document.path).catch(cause=>{if(buildRefused(cause))setInspection(prev=>prev?{...prev,refused:true,built:undefined}:prev);throw cause;});const analyzed=JSON.stringify(document.project);
+      // The build saves the project before and after building: into the user's own file when it has one, else into
+      // the workspace. Only the user's own file makes the project saved; a project never saved by the user stays unsaved.
+      const ownFile=document.path!==null;
+      setDocument({project:value.project,path:ownFile?value.path:null});history.fence();
+      if(ownFile)setProjectDirty(false);else if(analyzed!==JSON.stringify(value.project))setProjectDirty(true);
       // The build checked exactly the analyzed inputs; what it records in the project is not a change to analyze again.
-      setInspection(prev=>prev&&prev.project===analyzed?{...prev,project:JSON.stringify(value.project)}:prev);forgetAutosaves(value.project.id);setBuildResult(value.result);if(value.result.compiled||value.result.vpk)saveBuildRecord(value.project);notify(value.result.installed?'Verified VPK installed.':value.result.vpk?'Verified VPK published.':value.result.compiled?'Compilation completed; no VPK was requested.':'Source preparation completed; no compilation was requested.');
+      // From a kept analysis (Build & install) the build's own analysis passed: record what it checked.
+      setInspection(prev=>prev&&prev.project===analyzed?{...prev,project:JSON.stringify(value.project)}:prev?{...prev,built:JSON.stringify(value.project)}:prev);if(ownFile)forgetAutosaves(value.project.id);setBuildResult(value.result);if(value.result.compiled||value.result.vpk)saveBuildRecord(value.project);notify(value.result.installed?'Verified VPK installed.':value.result.vpk?'Verified VPK published.':value.result.compiled?'Compilation completed; no VPK was requested.':'Source preparation completed; no compilation was requested.');
       pushEvent({kind:'success',operation:'build',title:'Build completed',project:value.project.name||name,lines:[builtText(value.result)],paths:value.result.vpk?[{label:'Output',path:value.result.vpk}]:value.result.prepared?[{label:'Files',path:value.result.prepared}]:[],open:{label:'Open Build & install',page:'build'}});},true);}
-  async function installProject(selected:string|null,overwrite:boolean){if(!document)return;await run('Installation did not complete',async()=>{const path=selected??await open({title:'Select VPK to validate and install',multiple:false,filters:[{name:'VPK archive',extensions:['vpk']}]});if(typeof path!=='string')return;setInstalled(null);const value=await api.installProject(document.project,path,overwrite);setInstalled(value);notify('VPK validated and installed.');
+  async function installProject(selected:string|null,overwrite:boolean){if(!document)return;await run('Installation did not complete',async()=>{const path=selected??await openFor('vpk',{title:'Select VPK to validate and install',multiple:false,filters:[{name:'VPK archive',extensions:['vpk']}]});if(typeof path!=='string')return;setInstalled(null);const value=await api.installProject(document.project,path,overwrite);setInstalled(value);notify('VPK validated and installed.');
     pushEvent({kind:'success',operation:'install',title:'Mod installed',project:document.project.name,lines:[`The VPK was validated and installed as ${basename(value)}.`],paths:[{label:'Installed',path:value}],open:{label:'Open Build & install',page:'build'}});},true);}
   /** The game's addons folder and the output folder, read again (Analyze, Build & install). */
   async function scanSlots(project=documentRef.current?.project){if(!project)return;const scan=++slotScan.current;try{const value=await api.vpkSlots(project);if(scan===slotScan.current)setSlots(value);}catch{if(scan===slotScan.current)setSlots(null);}}
@@ -457,7 +497,7 @@ export function App() {
   async function importSourcePackage(){
     if(!document)return;
     await run('Source package import did not complete',async()=>{
-      const path=await open({title:'Import source package',multiple:false,filters:[{name:'Verified source package',extensions:['zip']}]});
+      const path=await openFor('source-package',{title:'Import source package',multiple:false,filters:[{name:'Verified source package',extensions:['zip']}]});
       if(typeof path!=='string')return;
       const project=await api.importSourcePackage(path,document.project);
       updateProject(project);setSummary(null);setPreview(null);notify('Source package imported and verified');
@@ -471,7 +511,7 @@ export function App() {
     if(!settings)return;
     await run('Tool detection did not complete',async()=>{
       const roots:string[]=[];
-      if(extraRoot){const selected=await open({title:'Search for installed tools',directory:true,multiple:false});if(typeof selected!=='string')return;roots.push(selected);}
+      if(extraRoot){const selected=await openFor('tools-folder',{title:'Search for installed tools',directory:true,multiple:false});if(typeof selected!=='string')return;roots.push(selected);}
       const detected=await api.detectSettings(settings,roots);setSettings(detected);setSetupStatus(await api.setupStatus(detected));notify('Detection complete. Review and save settings.');
     },true);
   }
@@ -490,17 +530,68 @@ export function App() {
     }
     return value;
   }
-  async function loadPreview(path=document?.project.dmx,stay=false){if(!path)return;await run('Preview could not be loaded',async()=>{const buffer=await api.preview(path);setPreview(decodePreview(buffer));if(!stay)setPage('appearance');notify('Preview loaded');},true);}
-  function updateProject(project:Project){const current=documentRef.current;if(!current)return;if(current.project!==document?.project){notify('Project changed while the selection was being checked. Please select it again.');return;}const next={...current,project};documentRef.current=next;setDocument(next);setProjectDirty(true);}
+  /** Loads the 3D preview (the prepared model, or another mesh to inspect). Resolves to whether it
+   * started (false while another operation runs). `quiet`: loaded by Load 3D previews
+   * automatically, so no "Preview loaded" toast. */
+  async function loadPreview(path=document?.project.dmx,stay=false,quiet=false){if(!path)return false;let started=false,loaded=false;const model=document?.project.dmx??'';await run('Preview could not be loaded',async()=>{started=true;const buffer=await api.preview(path);setPreview(decodePreview(buffer));setPreviewModel(model);loaded=true;if(!stay)setPage('appearance');if(!quiet)notify('Preview loaded');},true,true,quiet);if(started&&!loaded&&quiet)autoFailed.current.add(`${document?.project.id}:${path}`);return started;}
+  // Load 3D previews automatically (Settings → Appearance): the pages load their view by themselves.
+  // A prepared model whose automatic load failed is not loaded by itself again this session, on
+  // either page (Appearance & weapons and Physics & preview share the one preview).
+  const autoFailed=useRef(new Set<string>());
+  const autoPreviews=Boolean(savedSettings?.auto_previews);
+  const autoLoadPreview=autoPreviews?async()=>autoFailed.current.has(`${document?.project.id}:${document?.project.dmx}`)?true:loadPreview(undefined,true,true):undefined;
+  const previewCurrent=!preview||previewModel===(document?.project.dmx??'');
+  /** Saves one Appearance preference at once (not with the tool paths), as the theme is. */
+  async function savePreference(values:Pick<Settings,'default_fit_mode'|'auto_previews'>){
+    if(!savedRef.current||!settings)return;
+    // The saved settings plus this choice (never the unsaved tool paths); the ref keeps two quick changes.
+    // Shown at once; set back when it could not be saved.
+    const before={default_fit_mode:savedRef.current.default_fit_mode,auto_previews:savedRef.current.auto_previews};
+    const back=Object.fromEntries(Object.keys(values).map(key=>[key,before[key as keyof typeof before]]));
+    const next={...savedRef.current,...values};savedRef.current=next;
+    setSettings(current=>current?{...current,...values}:current);
+    setSavedSettings(current=>current?{...current,...values}:current);
+    try{if(desktop)await api.saveSettings(next);}
+    catch(cause){
+      setSettings(current=>current?{...current,...back}:current);
+      setSavedSettings(current=>current?{...current,...back}:current);
+      fail('The setting could not be saved',cause);
+    }
+  }
+  /** A change of the project. A hand edit is a step of the undo history; a change an operation
+   * makes (while `run` is active: preparing, Analyze, a loaded outfit, the hero …) is a fence. */
+  function updateProject(project:Project){const current=documentRef.current;if(!current)return;if(current.project!==document?.project){notify('Project changed while the selection was being checked. Please select it again.');return;}const next={...current,project};documentRef.current=next;setDocument(next);setProjectDirty(true);if(active.current)history.fence();else projectHistory.record(current.project,project);}
+  // Make a copy for another hero: what it carried (shown above Prepare model), and the source
+  // to check once the copy's Prepare model page has mounted (it is keyed by the project id).
+  // `model` is the hero the copy was made for: the notice shows only while the project still has that hero.
+  const [copyNotice,setCopyNotice]=useState<(CopyNotice&{id:string;model:string})|null>(null);
+  const [pendingSource,setPendingSource]=useState<{id:string;path:string}|null>(null);
+  useEffect(()=>{if(!pendingSource||document?.project.id!==pendingSource.id)return;setPendingSource(null);window.dispatchEvent(new CustomEvent('dmb-model-source',{detail:{path:pendingSource.path,auto:true}}));},[pendingSource,document?.project.id]);
+  useEffect(()=>{if(copyNotice&&document?.project.id!==copyNotice.id)setCopyNotice(null);},[copyNotice,document?.project.id]);
+  /** A new, unsaved project for `hero` with this character's choices; this project is not changed. */
+  async function copyForHero(hero:HeroRecord){if(!document||active.current)return;const original=document.project;await run('The copy for another hero could not be made',async()=>{
+    if(projectDirty&&!await ask('This project has unsaved changes. The copy includes them, but the project file keeps only what was last saved. Make the copy anyway?',{title:'Unsaved project',kind:'warning',okLabel:'Make the copy',cancelLabel:'Keep editing'}))return;
+    const value=await api.copyProjectForHero(original,hero.path);
+    let project=value.project;
+    // A free VPK slot for the copy (the original keeps its own); Build & install checks it again.
+    try{const slot=await api.chooseFreeSlot(project);if(slot?.slot)project={...project,vpk_number:slot.slot};}catch{/* the default slot stays */}
+    const next={path:null,project};documentRef.current=next;setDocument(next);history.fence();setProjectDirty(true);
+    setSummary(null);setPreview(null);setInspection(null);setPrepared(null);setOriginalValidation(null);setBuildResult(null);setInstalled(null);setSlots(null);
+    const notice:CopyNotice={...value.report,to:project.hero_name};setCopyNotice({...notice,id:project.id,model:project.original_model});
+    pushEvent({kind:'success',operation:'hero-copy',title:`Copy made for ${project.hero_name}`,project:project.name,lines:copyLines(notice),open:{label:'Open Prepare model',page:'prepare'}});
+    setPage('prepare');
+    if(project.preparation_source)setPendingSource({id:project.id,path:project.preparation_source});
+    notify(`Copy made for ${project.hero_name}. Save it as a new project.`);
+  });}
   async function selectHero(hero:HeroRecord){if(!document)return;await run('Could not select the character',async()=>{const project=await api.selectHero(document.project,hero.path);updateProject(project);setSummary(null);setPreview(null);notify('Character selected');});}
   async function openReport() {
     await run('Could not open the timing report', async () => {
-      const path = await open({title:'Open step timing report',multiple:false,filters:[{name:'Timing report',extensions:['json']}]});
+      const path = await openFor('timing-report',{title:'Open step timing report',multiple:false,filters:[{name:'Timing report',extensions:['json']}]});
       if (typeof path === 'string') { setReport(await api.timings(path)); notify('Timing report opened'); }
     },false,false);
   }
   async function copyLog() { await run('Could not copy the log', async () => { await navigator.clipboard.writeText(await api.logText()); notify('Session log copied'); }); }
-  async function saveLog() { await run('Could not save the log', async () => { const path = await save({title:'Save complete log',defaultPath:'deadlock-build.log'}); if (path) { await api.saveLog(path); notify('Full log saved'); } }); }
+  async function saveLog() { await run('Could not save the log', async () => { const path = await saveFor('log',{title:'Save complete log',defaultPath:'deadlock-build.log'}); if (path) { await api.saveLog(path); notify('Full log saved'); } }); }
   async function persistSettings() { if (settings) await run('Could not save settings', async () => { await api.saveSettings(settings); setSavedSettings(settings); setInspection(null); notify('Settings saved'); }); }
   async function cancel() { try { await api.cancel(); notify('Cancellation requested'); } catch (cause) { fail('Could not cancel the operation', cause); } }
   const backendBusy=backendRunning;
@@ -511,11 +602,16 @@ export function App() {
   // A finished operation fills the bar for a moment: green when it worked.
   const [finished,setFinished]=useState<'succeeded'|'failed'|null>(null);
   const wasRunning=useRef(false);
+  // The report that was current when the run began, unless that one was still running (then it is
+  // this run's own): a run that starts no backend operation must not show an earlier one's result.
+  const reportAtStart=useRef<string|null>(null);
+  const reportKey=(value:TimingReport|null)=>value?`${value.operation}\u0000${value.run_id}\u0000${value.started_utc}`:null;
   useEffect(()=>{
-    if(running){wasRunning.current=true;setFinished(null);return;}
+    if(running){if(!wasRunning.current){wasRunning.current=true;failedDuringRun.current=false;reportAtStart.current=report?.status==='running'?null:reportKey(report);}setFinished(null);return;}
     if(!wasRunning.current)return;
     wasRunning.current=false;
-    setFinished(report?.status==='succeeded'?'succeeded':report?.status==='failed'?'failed':null);
+    const own=report!==null&&reportKey(report)!==reportAtStart.current;
+    setFinished(own?(report?.status==='succeeded'?'succeeded':report?.status==='failed'?'failed':null):failedDuringRun.current?'failed':'succeeded');
     const timer=window.setTimeout(()=>setFinished(null),2500);
     return()=>window.clearTimeout(timer);
   },[running,report?.status]);
@@ -530,28 +626,29 @@ export function App() {
   const showDetails = (event: AppEvent) => { if (!event.error) return; setError({record: event.error, logged: true, full: true}); window.document.querySelector('.workspace')?.scrollTo?.({top: 0}); };
   const notifications = [...stateItems, ...eventItems(events, {go: goPage, showDetails, dismiss: id => setEvents(current => current.filter(event => event.id !== id))})];
   const clearNotifications = () => { setEvents([]); setClearedStates(current => { const next = new Set(current); for (const item of stateItems) next.add(item.id as StateNotification); return next; }); };
-  return <div className="app-shell">
+  return <HistoryContext.Provider value={history}><div className="app-shell">
     <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark theme={theme}/></span><div>Deadlock<span>Mod Builder</span></div></div><nav aria-label="Main navigation">{NAV_GROUPS.map(group=>({group,items:navigation.filter(item=>group.pages.includes(item.id)&&(expert||!EXPERT_PAGES.includes(item.id))&&(item.id!=='onboarding'||!guideDone))})).filter(({items})=>items.length>0).map(({group,items})=><div className="nav-group" key={group.label}><div className="nav-group-label">{group.label}</div>{items.map(item=>{const current=page===item.id||(page==='setup'&&item.id==='settings')||(page==='onboarding'&&item.id==='settings'&&guideDone);const finished=done.has(item.id);return <button key={item.id} className={`nav-item ${item.step?'nav-step':''} ${finished?'nav-done':''} ${current?'selected':''}`} aria-current={current?'page':undefined} onClick={()=>setPage(item.id)}>{item.step?<span className="nav-step-number" aria-hidden="true">{finished?'✓':item.step}</span>:<NavIcon type={item.icon}/>}{item.label}</button>;})}</div>)}</nav><Notifications items={notifications} clear={clearNotifications} focus={focusEvent}/><div className="sidebar-bottom"><span className="version">{APP_VERSION}</span><button className="tertiary about-link" onClick={()=>{setPage('settings');requestAnimationFrame(()=>{const details=window.document.getElementById('app-about');if(details instanceof HTMLDetailsElement)details.open=true;details?.scrollIntoView?.({block:'start'});});}}>About this build</button></div></aside>
-    <div className="workspace-shell"><header className="topbar"><div className="project-identity"><span>{document?.project.name ?? 'Project workspace'}</span>{projectDirty && <span className="dirty-indicator" aria-label="Unsaved project changes">●</span>}<span className="muted">/ {page==='setup'?'Model tool setup':page==='onboarding'?'New-user setup':navigation.find(item => item.id === page)?.label}</span></div><div className="row project-controls"><div className="segmented topbar-mode" role="radiogroup" aria-label="Interface mode">{([[false,'Simple'],[true,'Expert']] as const).map(([value,label])=><button key={label} type="button" role="radio" aria-checked={expert===value} title={value?'Every page, table and tool':'The five steps with recommended settings'} onClick={()=>setExpert(value)}>{label}</button>)}</div><button className="topbar-button" disabled={unavailable} onClick={() => void newProject()}>New</button><button className="topbar-button" disabled={unavailable} onClick={() => void openProject()}>Open…</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject()}>Save</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject(true)}>Save as…</button></div></header>
+    <div className="workspace-shell"><header className="topbar"><div className="project-identity"><span>{document?.project.name ?? 'Project workspace'}</span>{projectDirty && <span className="dirty-indicator" aria-label="Unsaved project changes">●</span>}{document && <HistoryButtons controls={history}/>}<span className="muted">/ {page==='setup'?'Model tool setup':page==='onboarding'?'New-user setup':navigation.find(item => item.id === page)?.label}</span></div><div className="row project-controls"><div className="segmented topbar-mode" role="radiogroup" aria-label="Interface mode">{([[false,'Simple'],[true,'Expert']] as const).map(([value,label])=><button key={label} type="button" role="radio" aria-checked={expert===value} title={value?'Every page, table and tool':'The five steps with recommended settings'} onClick={()=>setExpert(value)}>{label}</button>)}</div><button className="topbar-button" disabled={unavailable} onClick={() => void newProject()}>New</button><button className="topbar-button" disabled={unavailable} onClick={() => void openProject()}>Open…</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject()}>Save</button><button className="topbar-button" disabled={unavailable || !document} onClick={() => void saveProject(true)}>Save as…</button></div></header>
       <main className={`workspace page-${page} ${['project','appearance','physics','motion','build','timings','logs','settings'].includes(page)?'studio-workspace':''}`}>
         {!desktop && <div className="capability-notice"><strong>Desktop connection required</strong><p>This browser cannot access the Rust backend. Run the Tauri desktop application to open projects and analyze models.</p></div>}
         {settingsDirty && !['settings','onboarding','setup'].includes(page) && <div className="capability-notice"><strong>Tool settings have unsaved changes</strong><p>Save settings to use the tool paths you selected.</p><button disabled={unavailable} onClick={()=>void persistSettings()}>Save settings</button></div>}
         {error && (error.full
           ? <ErrorNotice {...error.record} dismiss={() => setError(null)} go={target => { setError(null); setPage(target as Page); }} />
           : <div className="error-line" role="alert"><Badge kind="error"/><strong>{error.record.title}</strong>{error.logged && <span className="error-line-hint">Details in Notifications.</span>}<button className="tertiary" onClick={() => setError({...error, full: true})}>Show details</button><button className="tertiary error-line-close" aria-label="Close" title="Close" onClick={() => setError(null)}>×</button></div>)}
-        {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={fresh} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()} chooseModel={()=>void chooseModel()} prepareAgain={prepareAgain}/> : <><PageTitle title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
-        {page === 'appearance' && <Appearance weapons={document?<WeaponsSection project={document.project} update={updateProject} busy={unavailable} operate={run} refreshPreview={()=>void loadPreview(undefined,true)} openPreparation={prepareAgain} separate={{projectPath:document.path,saveProject:saveDuringOperation}}/>:undefined} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
-        {document&&<div hidden={page!=='physics'}><PhysicsPage expert={expert} tangtangPresets={capabilities?.tangtang_presets??true} vindictaReference={capabilities?.vindicta_reference??true} preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>void loadPreview(undefined,true)} busy={unavailable} report={inspection?.report??null} fail={fail} analyze={()=>void inspectProject()} analyzing={busy==='Project analysis did not complete'}/>:null} openPreparation={()=>setPage('prepare')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={loadPreview}/></PhysicsPage></div>}
-        {page==='motion'&&document&&<MotionPage catalog={catalog?.includes_animations===false?null:catalog} discover={()=>void discoverComponents()} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
-        {page==='extras'&&document&&<ExtrasPage catalog={catalog} discover={()=>discoverComponents(true)} discovering={busy==='Character asset discovery did not complete'} canDiscover={Boolean(settings?.pak)&&!settingsDirty} openSetup={()=>setPage('settings')} reviewBuild={()=>navigate('build')} key={`${document.project.id}:${document.project.original_model}`} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
-        {document&&<div hidden={page!=='prepare'}><PreparationPage expert={expert} key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>{pushEvent({kind:'success',operation:'prepare',title:'Model prepared',project:documentRef.current?.project.name,lines:['The model was prepared. Check the gun fit and the materials on Appearance & weapons.'],open:{label:'Open Appearance & weapons',page:'appearance'}});setPage('appearance');}}/></div>}
-        {page==='build'&&document&&<BuildPage expert={expert} analyzing={busy==='Project analysis did not complete'} go={navigate} project={document.project} update={updateProject} report={inspection?.report??null} fresh={fresh} slots={slots} scanSlots={()=>void scanSlots()} prepared={prepared} original={originalValidation} busy={unavailable} inspect={()=>void inspectProject()} prepare={offline=>void prepareProject(offline)} validateOriginal={compile=>void validateOriginal(compile)} build={(output,install)=>void buildProject(output,install)} result={buildResult} install={(path,overwrite)=>void installProject(path,overwrite)} installed={installed} chooseFreeSlot={()=>void chooseFreeSlot()} openOutput={()=>void run('Output folder could not be opened',async()=>{await api.openOutput(document.project);})}/>}
+        {copyNotice && document?.project.original_model===copyNotice.model && (page==='prepare'||page==='project') && <HeroCopyNotice notice={copyNotice} dismiss={()=>setCopyNotice(null)}/>}
+        {page === 'project' && (document ? <ProjectOverview document={document} report={inspection?.report??null} fresh={fresh} disabled={unavailable} update={updateProject} selectHero={hero=>void selectHero(hero)} copyForHero={hero=>void copyForHero(hero)} fail={fail} go={navigate} loadOutfit={()=>void loadOutfit()} saveOutfit={()=>void saveOutfit()} chooseModel={()=>void chooseModel()} prepareAgain={prepareAgain}/> : <><PageTitle title="Character & model" subtitle="Choose the hero your mod replaces and the model you want to use."/><div className="empty-state"><h2>{desktop?'Loading workspace…':'Open the desktop application'}</h2><p>Project data comes from the Rust backend. No sample project is loaded.</p></div></>)}
+        {page === 'appearance' && <Appearance expert={expert} next={()=>navigate('physics')} openColors={()=>{setPage('extras');requestAnimationFrame(()=>window.document.getElementById('extras-tab-colors')?.click());}} autoLoad={autoLoadPreview} previewCurrent={previewCurrent} weapons={document?<WeaponsSection project={document.project} update={updateProject} busy={unavailable} operate={run} refreshPreview={()=>void loadPreview(undefined,true)} openPreparation={prepareAgain} separate={{projectPath:document.path,saveProject:saveDuringOperation}}/>:undefined} report={inspection?.report??null} fresh={inspection?.project===JSON.stringify(document?.project)} openPreparation={()=>setPage('prepare')} document={document} summary={summary} choose={() => void chooseModel()} analyze={path => void analyze(path)} busy={unavailable} drag={drag} update={updateProject} fail={fail} preview={preview} loadPreview={()=>void loadPreview()} importPackage={()=>void importSourcePackage()} analyzeMaterials={()=>void analyzeMaterials()} />}
+        {document&&<div hidden={page!=='physics'}><PhysicsPage expert={expert} tangtangPresets={capabilities?.tangtang_presets??true} vindictaReference={capabilities?.vindicta_reference??true} preview={page==='physics'?<CharacterPreview project={document.project} preview={preview} load={()=>loadPreview(undefined,true)} autoLoad={autoLoadPreview} previewCurrent={previewCurrent} busy={unavailable} report={inspection?.report??null} fail={fail} analyze={()=>inspectProject()} analyzing={busy==='Project analysis did not complete'}/>:null} openPreparation={()=>setPage('prepare')} next={()=>navigate('build')} report={inspection?.report??null} fresh={fresh} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail} summary={summary}><ClothAuthoringPanel project={document.project} update={updateProject} busy={unavailable} operate={run} onPreview={path=>{void loadPreview(path);}}/></PhysicsPage></div>}
+        {page==='motion'&&document&&<MotionPage canDiscover={Boolean(settings?.pak)&&!settingsDirty} expert={expert} operate={run} openPreparation={()=>setPage('prepare')} preview={preview} load={()=>void loadPreview(undefined,true)} autoLoad={autoLoadPreview} previewCurrent={previewCurrent} next={()=>navigate('build')} key={document.project.id} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
+        {page==='extras'&&document&&<ExtrasPage catalog={catalog} discover={()=>discoverComponents(true)} discovering={busy==='Character asset discovery did not complete'} canDiscover={Boolean(settings?.pak)&&!settingsDirty} openSetup={()=>setPage('settings')} openPreparation={()=>setPage('prepare')} reviewBuild={()=>navigate('build')} operate={run} autoPreviews={autoPreviews} key={`${document.project.id}:${document.project.original_model}`} project={document.project} update={updateProject} disabled={unavailable} fail={fail}/>}
+        {document&&<div hidden={page!=='prepare'}><PreparationPage expert={expert} defaultFit={defaultFit(savedSettings)} active={page==='prepare'} autoPreviews={autoPreviews} key={document.project.id} project={document.project} update={updateProject} busy={unavailable} operate={run} projectPath={document.path} saveProject={saveDuringOperation} next={()=>{pushEvent({kind:'success',operation:'prepare',title:'Model prepared',project:documentRef.current?.project.name,lines:['The model was prepared. Check the gun fit and the materials on Appearance & weapons.'],open:{label:'Open Appearance & weapons',page:'appearance'}});setPage('appearance');}}/></div>}
+        {page==='build'&&document&&<BuildPage expert={expert} analyzing={busy==='Project analysis did not complete'} go={navigate} project={document.project} update={updateProject} report={inspection?.report??null} fresh={fresh} previous={previousAnalysis} slots={slots} scanSlots={()=>void scanSlots()} prepared={prepared} original={originalValidation} busy={unavailable} inspect={()=>void inspectProject()} prepare={offline=>void prepareProject(offline)} validateOriginal={compile=>void validateOriginal(compile)} build={(output,install)=>void buildProject(output,install)} result={buildResult} install={(path,overwrite)=>void installProject(path,overwrite)} installed={installed} chooseFreeSlot={()=>void chooseFreeSlot()} openOutput={()=>void run('Output folder could not be opened',async()=>{await api.openOutput(document.project);})} openProjectFile={path=>void openProject(path)}/>}
         {page === 'timings' && <Timings report={report} openReport={() => void openReport()} busy={unavailable} />}
         {page === 'logs' && <><LogView entries={logs} copy={() => void copyLog()} save={() => void saveLog()} busy={unavailable} /><ToolLogs busy={!desktop} fail={fail}/></>}
-        {page === 'settings' && <><SettingsPage fields={fieldChecks} ignoredNotifications={ignoredStates.length} showIgnoredNotifications={()=>setIgnored([])} expert={expert} theme={theme} chooseTheme={next=>void chooseTheme(next)} customThemes={customThemes} saveCustomThemes={presets=>void saveCustomThemes(presets)} guideShown={!guideDone} setGuideShown={shown=>setGuideDone(!shown)} go={page=>setPage(page as Page)} testSetup={testSetup} onboarding={()=>{setGuideDone(false);setPage('onboarding');}} modelSetup={()=>setPage('setup')} settings={settings} update={value => {setSettings(value);setSetupStatus(null);}} persist={() => void persistSettings()} busy={unavailable} dirty={settingsDirty} fail={fail} detect={extra=>void detectSettings(extra)} status={setupStatus} check={()=>void checkSetup()} />{settings&&desktop&&<StorageSection settings={settings} update={value=>setSettings(value)} project={document?.project??null} busy={unavailable} dirty={settingsDirty} operate={run}/>}{settings&&expert&&<Disclosure title="Tool diagnostics" hint="Compiler candidates, configuration audits and Blender validation"><ToolDiagnostics settings={settings} blenderSaved={path=>{setSettings(current=>current?{...current,blender:path}:current);setSavedSettings(current=>current?{...current,blender:path}:current);setSetupStatus(null);setInspection(null);}} disabled={unavailable} operate={run}/></Disclosure>}{expert&&<Disclosure title="About this build" hint="Version and qualification status" id="app-about"><p>Deadlock Mod Builder Rust · {APP_VERSION}</p><p className="hint">The Vindicta R12 project has been reported working in game. This update recognizes MMD physics helpers during source import and retains the accepted cloth reference. Other projects and toolchains require their own validation.</p></Disclosure>}</>}
+        {page === 'settings' && <><SettingsPage fields={fieldChecks} savePreference={values=>void savePreference(values)}ignoredNotifications={ignoredStates.length} showIgnoredNotifications={()=>setIgnored([])} expert={expert} theme={theme} chooseTheme={next=>void chooseTheme(next)} customThemes={customThemes} saveCustomThemes={presets=>void saveCustomThemes(presets)} guideShown={!guideDone} setGuideShown={shown=>setGuideDone(!shown)} go={page=>setPage(page as Page)} testSetup={testSetup} onboarding={()=>{setGuideDone(false);setPage('onboarding');}} modelSetup={()=>setPage('setup')} settings={settings} update={value => {setSettings(value);setSetupStatus(null);}} persist={() => void persistSettings()} busy={unavailable} dirty={settingsDirty} fail={fail} detect={extra=>void detectSettings(extra)} status={setupStatus} check={()=>void checkSetup()} />{settings&&desktop&&<StorageSection settings={settings} update={value=>setSettings(value)} project={document?.project??null} busy={unavailable} dirty={settingsDirty} operate={run}/>}{settings&&expert&&<Disclosure title="Tool diagnostics" hint="Compiler candidates, configuration audits and Blender validation"><ToolDiagnostics settings={settings} blenderSaved={path=>{setSettings(current=>current?{...current,blender:path}:current);setSavedSettings(current=>current?{...current,blender:path}:current);setSetupStatus(null);setInspection(null);}} disabled={unavailable} operate={run}/></Disclosure>}{expert&&<Disclosure title="About this build" hint="Version, license and source code" id="app-about"><p>Deadlock Mod Builder {APP_VERSION}</p><p className="hint">Licensed under the GNU Affero General Public License v3.0 or later. Source code of this version: <code>https://github.com/OverseerAlbedo/deadlock-mod-builder</code>, tag <code>v{APP_VERSION}</code>. Third-party notices are in the <code>licenses</code> folder beside the app.</p></Disclosure>}</>}
         {settings&&document&&<div hidden={page!=='onboarding'}><OnboardingPage fields={fieldChecks} expert={expert} startStep={guideStep} active={page==='onboarding'} project={document.project} settings={settings} busy={unavailable} dirty={settingsDirty} status={setupStatus} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={()=>void persistSettings()} testSetup={testSetup} verify={()=>void verifySetup()} detect={extra=>void detectSettings(extra)} check={()=>void checkSetup()} fail={fail} go={setPage} openProject={()=>void openProject()} chooseModel={()=>void chooseModel()} analyze={()=>{setPage('build');void inspectProject();}} finish={()=>{setGuideDone(true);setPage('project');}}/></div>}
         {settings&&document&&<div hidden={page!=='setup'}><button className="tertiary" disabled={unavailable} onClick={()=>setPage('settings')}>← Back to settings</button><SetupPage settings={settings} project={document.project} updateSettings={value=>{setSettings(value);setSetupStatus(null);}} saveSettings={async next=>{await api.saveSettings(next);setSettings(next);setSavedSettings(next);setSetupStatus(null);setInspection(null);}} busy={unavailable} operate={run}/></div>}
-      </main><footer className={`statusbar ${busy||backendBusy||finished?'statusbar-working':'statusbar-idle'}`}>{busy||backendBusy||finished?<div className={`statusbar-progress ${progress===null&&!finished?'indeterminate':''} ${finished??''}`} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={finished?100:progress===null?undefined:Math.round(progress*100)}><div className="statusbar-progress-fill" style={finished?{width:'100%'}:progress===null?undefined:{width:`${Math.max(2,progress*100)}%`}}/></div>:null}<span className="statusbar-text" aria-live="polite">{finished?(finished==='succeeded'?'Done':'Stopped with an error'):busy||backendBusy?`${progress===null?'':`${Math.round(progress*100)}% · `}${runningStep??busy??'Working…'}${remaining?` · ${remaining}`:''}`:desktop?'Ready':'Desktop backend unavailable'}</span><div className="row">{settingsDirty && <span className="muted">Settings unsaved</span>}{((busy&&cancellable)||(!busy&&backendBusy)) && <button onClick={() => void cancel()}>Cancel</button>}</div></footer>
+      </main><footer className={`statusbar ${busy||backendBusy||finished?'statusbar-working':'statusbar-idle'}`}>{busy||backendBusy||finished?<div className={`statusbar-progress ${progress===null&&!finished?'indeterminate':''} ${finished??''}`} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={finished?100:progress===null?undefined:Math.round(progress*100)}><div className="statusbar-progress-fill" style={finished?{width:'100%'}:progress===null?undefined:{width:`${Math.max(2,progress*100)}%`}}/></div>:null}<span className="statusbar-text" aria-live="polite">{finished?(finished==='succeeded'?'Done':'Stopped with an error'):busy||backendBusy?`${progress===null?'':`${Math.round(progress*100)}% · `}${runningStep??runningText(busy)}${remaining?` · ${remaining}`:''}`:desktop?'Ready':'Desktop backend unavailable'}</span><div className="row">{settingsDirty && <span className="muted">Settings unsaved</span>}{((busy&&cancellable)||(!busy&&backendBusy)) && <button onClick={() => void cancel()}>Cancel</button>}</div></footer>
     </div>{toast && <div className="toast" role="status">{toast}</div>}<SteamQrDialog/>
-  </div>;
+  </div></HistoryContext.Provider>;
 }

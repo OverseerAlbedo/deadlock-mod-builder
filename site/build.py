@@ -61,7 +61,7 @@ HOME = Page(
     path="",
     title="Deadlock Mod Builder – make Deadlock character mods",
     description=(
-        "Free, open-source Windows app that turns a character model from Blender, FBX or glTF "
+        "Free, open-source Windows app that turns a character model from Blender, FBX, glTF or MMD "
         "into a Deadlock hero replacement mod and installs it as a VPK."
     ),
 )
@@ -73,7 +73,7 @@ DOC_PAGES = {
         title="How to make a Deadlock character mod – step by step",
         description=(
             "Step-by-step tutorial for making a Deadlock character mod: replace a hero's model with your "
-            "own Blender, FBX or glTF model and install it as a VPK."
+            "own Blender, FBX, glTF or MMD model and install it as a VPK."
         ),
         nav="tutorial",
         label="the step-by-step tutorial",
@@ -84,7 +84,7 @@ DOC_PAGES = {
         title="Model preparation guide – Deadlock Mod Builder",
         description=(
             "How Deadlock Mod Builder turns a character model into a Deadlock hero mod: the five steps, "
-            "bone mapping, textures, moving parts and fitting your own gun."
+            "joint matches, textures, moving parts, your own gun and the Extras."
         ),
         nav="guide",
         label="the model preparation guide",
@@ -94,7 +94,7 @@ DOC_PAGES = {
         path="troubleshooting/",
         title="Troubleshooting – Deadlock Mod Builder",
         description=(
-            "Fixes for common Deadlock Mod Builder problems: tool setup, Blender versions, bone mapping, "
+            "Fixes for common Deadlock Mod Builder problems: tool setup, Blender versions, joint matches, "
             "guns, physics, disk space, logs and the October 2026 camera fix."
         ),
         nav="troubleshooting",
@@ -417,7 +417,7 @@ def build_home(md, config, readme: str, version: str) -> str:
     issues = f"{repo}/issues/new/choose"
     faq = [
         ("Is Deadlock Mod Builder free?",
-         f'<p>Yes. It is open source under the <a href="{repo}/blob/{config["branch"]}/LICENSE">MIT License</a>, '
+         f'<p>Yes. It is open source under the <a href="{repo}/blob/{config["branch"]}/LICENSE">GNU Affero General Public License v3.0 or later</a>, '
          f'and the source code is on <a href="{repo}">GitHub</a>.</p>'),
         ("Which model files can I use?",
          f"<p>{esc(sentence_case(formats.group(1)))}. You can also add a gun from a separate file.</p>"),
@@ -446,12 +446,13 @@ def build_home(md, config, readme: str, version: str) -> str:
         (TUTORIAL.path, "Step-by-step tutorial",
          "How to make your first Deadlock character mod, from installing the tools to checking it in game."),
         ("guide/", "Model preparation guide",
-         "The five steps, bone mapping, textures, moving parts, the movement preview and gun customization."),
+         "The five steps, joint matches, textures, moving parts, the movement preview, gun customization "
+         "and the Extras (sounds, effects, items, ability objects, colors)."),
         ("troubleshooting/", "Troubleshooting", "Compatibility limits and fixes for common failures."),
         ("changelog/", "Changelog", "What changed in each release."),
         (issues, "Report a problem", "Bug reports and feature requests on GitHub."),
         (f"{repo}/releases", "All releases", "Installers and checksums for every version."),
-        (repo, "Source code", "The app's source, licensed under MIT."),
+        (repo, "Source code", "The app's source, licensed under the GNU AGPL v3.0 or later."),
     ]
     links_html = "\n".join(
         f'      <li><a href="{esc(href)}"><span class="link-title">{esc(title)}</span>'
@@ -773,7 +774,7 @@ def build() -> None:
         "applicationCategory": "DeveloperApplication",
         "softwareVersion": version,
         "downloadUrl": f"{repo}/releases/latest",
-        "license": "https://opensource.org/licenses/MIT",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
         "isAccessibleForFree": True,
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
     }

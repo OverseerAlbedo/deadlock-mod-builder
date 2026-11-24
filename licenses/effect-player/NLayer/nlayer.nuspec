@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>NLayer</id>
+    <version>3.0.0</version>
+    <authors>Mark Heath, Andrew Ward</authors>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <icon>naudio-icon.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/naudio/NLayer</projectUrl>
+    <description>Fully Managed MPEG 1 &amp; 2 Decoder for Layers 1, 2, &amp; 3</description>
+    <releaseNotes>- **`NLayer.NAudioSupport` now targets NAudio 3** (`NAudio.Core` 3.0.1). NAudio 3
+  dropped .NET Framework and `netstandard2.0`, so this package is now `net9.0`
+  only. Consumers on NAudio 2, .NET Framework, Unity or Mono should stay on
+  `NLayer.NAudioSupport` 2.x — mixing 3.x with an NAudio 2 install resolves
+  `NAudio.Core` up to 3.x and fails at runtime rather than at compile time.
+- `NLayer` itself is unchanged and still targets `netstandard2.0` and `net8.0`,
+  so the decoder remains available on every platform it already supported. The
+  major version bump only reflects the lockstep versioning of the two packages.
+- `Mp3FrameDecompressor` and `ManagedMpegStream` now implement NAudio 3's
+  `Span&lt;byte&gt;` overloads (`IMp3FrameDecompressor.DecompressFrame` and
+  `Stream.Read`) directly. NAudio 3 calls the span overload for every frame, and
+  its default implementation rents a pooled `byte[]` and copies through it; that
+  round trip is now gone.
+- `MpegFile.ReadSamples` and `MpegFrameDecoder.DecodeFrame` gained `Span&lt;byte&gt;`
+  and `Span&lt;float&gt;` overloads to support the above. They are compiled into the
+  `net8.0` asset only, so the `netstandard2.0` build keeps its dependency-free
+  package graph.
+- Added tests covering the NAudio bridge (`Mp3FrameDecompressor`,
+  `ManagedMpegStream` and `Mp3FileReaderBase` end to end) against NAudio 3, and
+  tests pinning the span paths to byte-for-byte parity with the array ones.
+- Fixed reading from a non-seekable stream, broken since 2.0.1. Such a stream has
+  no known sample count, which the end-of-stream trimming added in 2.0.1
+  represented as `long.MaxValue`; subtracting the read position from it and
+  truncating to `int` wrapped negative, so the very first read threw
+  `ArgumentOutOfRangeException`.</releaseNotes>
+    <copyright>© Mark Heath 2026</copyright>
+    <tags>audio csharp mp3</tags>
+    <repository type="git" url="https://github.com/naudio/NLayer" commit="046c7ce422970f8f0f0bc205d6c6341bcb7debf1" />
+    <dependencies>
+      <group targetFramework="net8.0" />
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+</package>

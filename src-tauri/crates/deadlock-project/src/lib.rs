@@ -1,8 +1,17 @@
 //! Schema-1 project persistence and portable paths. No build approval is inferred
 //! from a saved project; readiness validation belongs to the processing pipeline.
+pub mod ability_objects;
 pub mod asset_paths;
+pub mod color_parts;
+pub mod color_ranges;
 pub mod customization;
+pub mod effect_edit;
+pub mod hero_copy;
+pub mod item_icons;
+pub mod item_names;
+pub mod made_clip;
 pub mod presets;
+pub mod taken_clip;
 
 use asset_paths::{decode, encode, is_absolute, relative_asset, relative_to, resolve, text};
 pub use customization::{Customization, MaterialChoices, PreparationOptions};
@@ -67,7 +76,15 @@ pub struct Settings {
     pub theme: String,
     /// Themes made in Settings → Appearance → Customize.
     pub custom_themes: Vec<ThemePreset>,
+    /// Model fitting written into a project the first time a model is checked in it
+    /// (Settings → Appearance → Default fit for new models): "preserve_proportions"
+    /// (also when the field is absent) or "match_target". Saved projects keep their own.
+    pub default_fit_mode: String,
+    /// Load the 3D previews by themselves when their page is shown (off by default).
+    pub auto_previews: bool,
 }
+/// The fits Default fit for new models offers (`PreparationOptions.fit_mode` values).
+pub const DEFAULT_FIT_MODES: [&str; 2] = ["preserve_proportions", "match_target"];
 /// A custom theme: its tokens by name (as the UI's Theme Manager reads them),
 /// the three base colors it was derived from, and which built-in D is its icon.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -105,10 +122,17 @@ impl Default for Settings {
             clear_build_data_after_build: false,
             theme: "original".into(),
             custom_themes: vec![],
+            default_fit_mode: DEFAULT_FIT_MODES[0].into(),
+            auto_previews: false,
         }
     }
 }
 impl Settings {
+    /// The fit a model checked for the first time gets: the saved choice when it is one
+    /// of `DEFAULT_FIT_MODES`, otherwise Preserve source proportions.
+    pub fn default_fit(&self) -> &'static str {
+        DEFAULT_FIT_MODES.into_iter().find(|mode| *mode == self.default_fit_mode).unwrap_or(DEFAULT_FIT_MODES[0])
+    }
     pub fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self::default());
@@ -176,6 +200,12 @@ pub struct Project {
     pub allow_unskinned: bool,
     pub auto_split: bool,
     pub split_target: u32,
+    /// A copy made for another hero (`hero_copy`): the original project's preparation
+    /// report, read once by the copy's first preparation so material choices carry over
+    /// (its automatic picks are told from hand picks). Cleared by that preparation; absent
+    /// from saved files when empty.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub copied_report: String,
     #[serde(skip)]
     resolved_source: String,
     #[serde(skip)]
@@ -224,6 +254,7 @@ impl Default for Project {
             allow_unskinned: false,
             auto_split: false,
             split_target: 400000,
+            copied_report: String::new(),
             resolved_source: String::new(),
             resolved_textures: String::new(),
             rebase_log: Vec::new(),
@@ -337,7 +368,7 @@ impl Project {
         }
         Ok(result)
     }
-    fn paths_mut(&mut self) -> [(&'static str, &mut String); 13] {
+    fn paths_mut(&mut self) -> [(&'static str, &mut String); 14] {
         [
             ("preparation_source", &mut self.preparation_source),
             ("preparation_blend", &mut self.preparation_blend),
@@ -352,6 +383,7 @@ impl Project {
             ("material_mapping", &mut self.material_mapping),
             ("material_remap", &mut self.material_remap),
             ("skeleton_reference", &mut self.skeleton_reference),
+            ("copied_report", &mut self.copied_report),
         ]
     }
     pub fn rebase_assets(&mut self, old_source: &str, old_textures: &str) -> Result<Vec<String>> {
@@ -470,6 +502,8 @@ impl Project {
         self.validate_draft()?;
         self.rebase_assets("", "")?;
         let mut encoded = self.clone();
+        // An older app must refuse a file whose color ranges it would build wrong.
+        encoded.customization.mark_for_older_apps();
         let profile = resolve(path)?;
         let directory = profile.parent().unwrap_or_else(|| Path::new("."));
         for (_, value) in encoded.paths_mut() {

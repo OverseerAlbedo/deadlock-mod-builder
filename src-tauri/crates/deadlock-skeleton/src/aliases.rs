@@ -302,7 +302,7 @@ pub fn repair_aliases(
 
 /// Two bones that the compiler would write with the same name (`compiler_spelling`),
 /// as (first, second) in the given order: the compiled model would have one name
-/// for both (arcaneVin's skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0).
+/// for both (skirt panels such as 侧裙_0_0, 前裙_0_0 and 后裙_0_0).
 pub fn compiled_name_collision<'a>(names: impl IntoIterator<Item = &'a String>) -> Option<(String, String)> {
     let mut seen = BTreeMap::<String, &String>::new();
     for name in names {

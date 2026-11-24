@@ -17,7 +17,7 @@ describe('Gun helpers',()=>{
   });
   it('names guns by file and hand instead of listing every part',()=>{
     const objects=Array.from({length:284},(_,i)=>`gun_file_Part ${i} [L]`);
-    expect(gunName(gun({objects,gun_file:true,side:'left'}),'C:\\guns\\Artzy_Tyrannical_Dual_Rig.blend')).toBe('Left gun from Artzy_Tyrannical_Dual_Rig.blend · 284 parts');
+    expect(gunName(gun({objects,gun_file:true,side:'left'}),'C:\\guns\\Sample_Dual_Rig.blend')).toBe('Left gun from Sample_Dual_Rig.blend · 284 parts');
     expect(gunName(gun({objects:['Pistol','Mag']}))).toBe('Pistol and 1 more part (in your character file)');
   });
   it('turns, resizes and moves within range, per hand',()=>{

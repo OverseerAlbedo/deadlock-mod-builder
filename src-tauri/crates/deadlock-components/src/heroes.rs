@@ -227,6 +227,72 @@ impl GameModels {
     }
 }
 
+/// Inches in a metre: the hero definitions give speeds in metres per second
+/// (inferred from the neighbouring keys named in metres), the models are in inches.
+pub const INCHES_PER_METRE: f64 = 39.37;
+
+/// A hero's movement speeds from its definition (`m_mapStartingStats`
+/// `EMaxMoveSpeed` and `ESprintSpeed`, metres per second); a stat the hero
+/// leaves out comes from `hero_base`.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct MoveSpeeds {
+    pub max_move: f64,
+    pub sprint: f64,
+}
+impl MoveSpeeds {
+    /// The speeds of the enabled hero definition that loads `model`, None when
+    /// no definition loads it or a speed is missing.
+    pub fn from_definition(doc: &deadlock_resource::Value, model: &str) -> Option<Self> {
+        let key = model_key(model);
+        let rows = doc.object().ok()?;
+        let base = doc.get("hero_base");
+        let hero = rows.iter().map(|(_, h)| h).find(|h| {
+            h.get("m_strModelName").and_then(|v| v.string().ok()).is_some_and(|m| model_key(m) == key)
+                && !matches!(h.get("m_bDisabled").map(|v| &v.kind), Some(deadlock_resource::Kind::Bool(true)))
+        })?;
+        let stat = |name: &str| {
+            [Some(hero), base].into_iter().flatten().find_map(|h| h.get("m_mapStartingStats").and_then(|s| s.get(name)).and_then(|v| v.number().ok()))
+                .filter(|v| v.is_finite() && *v >= 0.)
+        };
+        Some(Self { max_move: stat("EMaxMoveSpeed").filter(|v| *v > 0.)?, sprint: stat("ESprintSpeed").unwrap_or(0.) })
+    }
+    /// `None` when the archive has no hero definitions or none loads `model`.
+    pub fn read(archive: &deadlock_vpk::Vpk, model: &str) -> Result<Option<Self>> {
+        let Some(key) = ["scripts/heroes.vdata_c", "scripts/heroes.vdata"].into_iter().find(|k| archive.entries.contains_key(*k)) else {
+            return Ok(None);
+        };
+        let doc = crate::icon_catalog::definition(&crate::read(archive, key)?)?;
+        Ok(Self::from_definition(&doc, model))
+    }
+}
+
+#[cfg(test)]
+mod move_speed_tests {
+    use super::*;
+    use deadlock_resource::{Kind, Value};
+    fn stats(rows: &[(&str, f64)]) -> Value {
+        Value::new(Kind::Object(rows.iter().map(|(k, v)| (k.to_string(), Value::new(Kind::F64(*v)))).collect()))
+    }
+    fn hero(model: &str, rows: &[(&str, f64)]) -> Value {
+        Value::new(Kind::Object(vec![("m_strModelName".into(), Value::new(Kind::String(model.into()))), ("m_mapStartingStats".into(), stats(rows))]))
+    }
+    #[test]
+    fn speeds_come_from_the_hero_and_fall_back_to_the_base_hero() {
+        let doc = Value::new(Kind::Object(vec![
+            ("hero_base".into(), Value::new(Kind::Object(vec![("m_mapStartingStats".into(), stats(&[("EMaxMoveSpeed", 7.2), ("ESprintSpeed", 1.6)]))]))),
+            ("hero_a".into(), hero("models/heroes_staging/a/a.vmdl", &[("EMaxMoveSpeed", 8.2)])),
+            ("hero_b".into(), hero("models/heroes_wip/b/b.vmdl", &[("EMaxMoveSpeed", 6.3), ("ESprintSpeed", 2.4)])),
+            ("hero_c".into(), hero("models/heroes_wip/c/c.vmdl", &[])),
+        ]));
+        assert_eq!(MoveSpeeds::from_definition(&doc, "models/heroes_staging/a/a.vmdl_c"), Some(MoveSpeeds { max_move: 8.2, sprint: 1.6 }));
+        assert_eq!(MoveSpeeds::from_definition(&doc, "models/heroes_wip/b/b.vmdl"), Some(MoveSpeeds { max_move: 6.3, sprint: 2.4 }));
+        assert_eq!(MoveSpeeds::from_definition(&doc, "models/heroes_wip/c/c.vmdl"), Some(MoveSpeeds { max_move: 7.2, sprint: 1.6 }));
+        assert_eq!(MoveSpeeds::from_definition(&doc, "models/heroes_wip/missing/missing.vmdl"), None);
+        // 8.2 + 1.6 m/s is about 386 in/s.
+        assert!(((8.2 + 1.6) * INCHES_PER_METRE - 385.8).abs() < 0.1);
+    }
+}
+
 #[cfg(test)]
 mod game_model_tests {
     use super::*;

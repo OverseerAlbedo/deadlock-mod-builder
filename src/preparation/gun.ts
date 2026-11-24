@@ -1,6 +1,6 @@
 import type { Hand, PreparationAnalysis, Shape, Vec3, WeaponCandidate, WeaponChoice, WeaponHand, WeaponReference } from './models';
 
-/** How the hero carries its gun, as the Weapon tab explains it. */
+/** How the hero carries its gun, as the Gun tab explains it. */
 export type HeroGun = 'dual'|'single'|'separate'|'unreadable'|'weapon_model'|'unknown';
 
 export function heroGun(reference:WeaponReference|null|undefined,weaponModel:boolean):HeroGun{

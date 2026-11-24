@@ -2,7 +2,7 @@
 //! immutable compiler-snapshot checks remain the caller's responsibility.
 //!
 //! Native three-point fits use NodeBases + ReverseOffsets instead of FitMatrices.
-//! The captured TangTang compiler output independently supplies both the axis
+//! The TangTang compiler output (optional data) independently supplies both the axis
 //! adjustment and rest transforms, allowing their relationship to be checked.
 use super::{number, usize_field};
 use crate::{field, invalid, strings, Result};

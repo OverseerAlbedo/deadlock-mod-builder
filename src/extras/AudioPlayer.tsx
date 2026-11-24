@@ -12,14 +12,16 @@ const stopEvent = "dmb-stop-extra-audio";
 export function AudioPlayer({
   bytes,
   label,
-  volume = 100,
+  volume: chosenVolume,
   disabled = false,
 }: {
   bytes: ArrayBuffer;
   label: string;
+  /** The volume the user sets for the build (the replacement); absent for the game's own sound. */
   volume?: number;
   disabled?: boolean;
 }) {
+  const volume = chosenVolume ?? 100;
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null),
     [peaks, setPeaks] = useState<number[]>([]),
     [position, setPosition] = useState(0),
@@ -240,7 +242,7 @@ export function AudioPlayer({
           {error}
         </p>
       )}
-      {peaks.some((peak) => (peak * volume) / 100 > 1) && (
+      {chosenVolume !== undefined && peaks.some((peak) => (peak * volume) / 100 > 1) && (
         <p className="extra-processing extra-caution">
           Peaks will clip at this volume. Lower it if you hear distortion.
         </p>

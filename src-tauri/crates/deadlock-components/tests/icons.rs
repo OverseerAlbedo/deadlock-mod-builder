@@ -170,6 +170,48 @@ fn discovery_uses_authoritative_hero_aliases_and_token_boundaries() {
     assert!(rows.iter().any(|r| r.target == TARGET));
 }
 
+/// A text file with a .png name: Analyze's check and the build's staging both
+/// refuse it with a message that names the file and the game image it replaces.
+#[test]
+fn a_file_that_is_not_a_picture_is_named_at_analyze_and_at_build() {
+    let temp = tempfile::tempdir().unwrap();
+    let fake = temp.path().join("not a picture.png");
+    fs::write(&fake, b"This is a text file, not an image.\n").unwrap();
+    let cancel = CancellationToken::new();
+    let row = selection(&fake);
+    let checked = icons::check_pictures(&[&row], &cancel).unwrap_err().to_string();
+    let archive = archive(temp.path(), &[(TARGET, bytes("embedded.vtex_c"))]);
+    let staged = icons::stage(&archive, &[row.clone()], &temp.path().join("content"), HERO, &cancel)
+        .unwrap_err()
+        .to_string();
+    for message in [&checked, &staged] {
+        assert!(message.contains(icons::PICTURE_NOT_READABLE), "{message}");
+        assert!(message.contains(&fake.display().to_string()), "{message}");
+        assert!(message.contains(TARGET), "{message}");
+        assert!(message.contains("The image format could not be determined"), "{message}");
+        assert!(!message.contains(r"\\?\"), "{message}");
+    }
+    // A long-path (verbatim) spelling of the same file is named the way the user knows it.
+    #[cfg(windows)]
+    {
+        let verbatim = std::path::PathBuf::from(format!(r"\\?\{}", fake.display()));
+        let message = icons::check_pictures(&[&selection(&verbatim)], &cancel).unwrap_err().to_string();
+        assert!(message.contains(icons::PICTURE_NOT_READABLE), "{message}");
+        assert!(message.contains(&fake.display().to_string()), "{message}");
+        assert!(!message.contains(r"\\?\"), "{message}");
+    }
+    // A switched-off row and a row without a file are not read.
+    let off = ResourceReplacement { enabled: Some(false), ..row.clone() };
+    let empty = ResourceReplacement { source: None, ..row };
+    icons::check_pictures(&[&off, &empty], &cancel).unwrap();
+    icons::check_pictures(&[&selection(&fixture("source.png"))], &cancel).unwrap();
+    // A file that is gone is named too, but not called "not a picture".
+    let gone = temp.path().join("moved away.png");
+    let message = icons::check_pictures(&[&selection(&gone)], &cancel).unwrap_err().to_string();
+    assert!(message.contains(&gone.display().to_string()) && message.contains("could not be used"), "{message}");
+    assert!(!message.contains(icons::PICTURE_NOT_READABLE), "{message}");
+}
+
 #[test]
 fn embedded_png_preserves_exact_header_and_publishes_only_selected_target() {
     for name in ["embedded.vtex_c", "padded.vtex_c", "one_pixel.vtex_c"] {
@@ -431,6 +473,95 @@ fn embedded_png_with_real_world_fallback_data_can_be_replaced() {
     let meta = icons::texture_metadata(&output).unwrap();
     assert_eq!((meta.format, meta.flags, meta.mips), (18,395,1));
     assert_eq!(meta.extra_types, [3]);
+}
+
+// A texture's edit record (RED2) naming the given compiler steps.
+fn edit_record(steps: &[&str]) -> Vec<u8> {
+    use deadlock_resource::{Kind, Value, binary};
+    let text = |s: &str| Value::new(Kind::String(s.into()));
+    let rows = steps.iter().map(|step| Value::new(Kind::Object(vec![
+        ("m_String".into(), text(step)),
+        ("m_CompilerIdentifier".into(), text("CompileTexture")),
+    ]))).collect();
+    let root = Value::new(Kind::Object(vec![("m_SpecialDependencies".into(), Value::new(Kind::Array(rows)))]));
+    binary::encode(&root, [0; 16]).unwrap()
+}
+
+// A DXT5 picture of one colour (`side` a multiple of 4) with an optional RED2
+// block before DATA.
+fn dxt5_resource(side: u16, red2: Option<Vec<u8>>) -> Vec<u8> {
+    // Alpha 100 everywhere; colour 565 (20, 24, 0) everywhere.
+    let colour = ((20u16 << 11) | (24 << 5)).to_le_bytes();
+    let block = [100, 100, 0, 0, 0, 0, 0, 0, colour[0], colour[1], colour[0], colour[1], 0, 0, 0, 0];
+    let mut data = vec![0u8; 40];
+    data[..2].copy_from_slice(&1u16.to_le_bytes());
+    data[2..4].copy_from_slice(&8u16.to_le_bytes());
+    data[20..22].copy_from_slice(&side.to_le_bytes());
+    data[22..24].copy_from_slice(&side.to_le_bytes());
+    data[24..26].copy_from_slice(&1u16.to_le_bytes());
+    data[26] = 2; data[27] = 1;
+    data[32..36].copy_from_slice(&8u32.to_le_bytes());
+    let mut blocks: Vec<(&[u8; 4], Vec<u8>)> = vec![];
+    if let Some(record) = red2 { blocks.push((b"RED2", record)); }
+    blocks.push((b"DATA", data));
+    let mut raw = vec![0u8; 16];
+    raw[4..6].copy_from_slice(&12u16.to_le_bytes()); raw[6..8].copy_from_slice(&1u16.to_le_bytes());
+    raw[8..12].copy_from_slice(&8u32.to_le_bytes());
+    raw[12..16].copy_from_slice(&(blocks.len() as u32).to_le_bytes());
+    raw.resize(16 + blocks.len() * 12, 0);
+    for (i, (name, bytes)) in blocks.iter().enumerate() {
+        raw.resize(raw.len().div_ceil(16) * 16, 0);
+        let pos = 16 + i * 12;
+        let offset = (raw.len() - pos - 4) as u32;
+        raw[pos..pos + 4].copy_from_slice(*name);
+        raw[pos + 4..pos + 8].copy_from_slice(&offset.to_le_bytes());
+        raw[pos + 8..pos + 12].copy_from_slice(&(bytes.len() as u32).to_le_bytes());
+        raw.extend_from_slice(bytes);
+    }
+    let declared = raw.len() as u32;
+    raw[..4].copy_from_slice(&declared.to_le_bytes());
+    for _ in 0..(side / 4) * (side / 4) { raw.extend(block); }
+    raw
+}
+
+fn first_pixel(raw: &[u8]) -> [u8; 4] {
+    let cancel = CancellationToken::new();
+    let (image, _) = icons::decode_image(&icons::preview_texture(raw, 1024, &cancel).unwrap(), &cancel).unwrap();
+    assert!(image.pixels().all(|p| p.0 == image.get_pixel(0, 0).0));
+    image.get_pixel(0, 0).0
+}
+
+const YCOCG: &str = "Texture Compiler Version Image YCoCg Conversion";
+
+#[test]
+fn dxt5_marked_as_scaled_ycocg_decodes_to_its_colour() {
+    // Stored: Co 165, Cg 97, scale byte 0 (scale 1), Y 100.
+    let plain = dxt5_resource(4, None);
+    assert!(!icons::ycocg_marked(&plain));
+    assert_eq!(first_pixel(&plain), [165, 97, 0, 100]);
+    let marked = dxt5_resource(4, Some(edit_record(&["Texture Compiler Version", YCOCG])));
+    assert!(icons::ycocg_marked(&marked));
+    // Y + Co − Cg, Y + Cg, Y − Co − Cg with Co = 37, Cg = −31; opaque.
+    assert_eq!(first_pixel(&marked), [168, 69, 94, 255]);
+    // Other compiler steps, an unreadable record or no record decode as stored.
+    for record in [edit_record(&["Texture Compiler Version Mip Box"]), b"opaque edit information".to_vec()] {
+        let raw = dxt5_resource(4, Some(record));
+        assert!(!icons::ycocg_marked(&raw));
+        assert_eq!(first_pixel(&raw), [165, 97, 0, 100]);
+    }
+}
+
+#[test]
+fn a_replacement_over_a_ycocg_picture_is_plain_rgba_without_the_marker() {
+    // Not a power of two, as the game's item pictures (200×200), so the app
+    // writes the replacement itself instead of compiling it.
+    let original = dxt5_resource(12, Some(edit_record(&[YCOCG])));
+    let (output, receipt) = replace_without_compiler(original, None);
+    let meta = icons::texture_metadata(&output).unwrap();
+    assert_eq!((meta.format, meta.flags), (4, 8));
+    assert!(!icons::ycocg_marked(&output));
+    assert!(deadlock_vpk::resource_blocks(&output).unwrap().blocks.iter().all(|b| b.name != "RED2"));
+    assert!(receipt.entries[0].metadata_verified);
 }
 
 #[test]

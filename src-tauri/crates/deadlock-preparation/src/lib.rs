@@ -3,20 +3,31 @@
 #![forbid(unsafe_code)]
 use sha2::{Digest, Sha256};
 use std::{fs::File, io::Read, path::Path};
+/// The preview reader of decompiled and prepared meshes, for the pipeline's
+/// color ranges that change one part (`deadlock-pipeline hero_meshes`), which
+/// must read meshes exactly as the Colors page's 3D view does.
+pub use deadlock_preview;
+pub mod ability_object;
 pub mod algorithms;
 pub mod automap;
 pub mod arm_helpers;
 pub mod leg_chains;
 pub mod blender;
 pub mod stance;
+pub mod clip_decode;
+pub mod clip_encode;
+pub mod clip_author;
+pub mod clip_making;
 pub mod following;
 pub mod fitting;
 pub mod mapping_presets;
 pub mod material_recovery;
+pub mod page_names;
 pub mod provenance;
 pub mod service;
 pub mod source;
 pub mod fbx_images;
+pub mod texture_names;
 pub mod secondary_bones;
 pub mod structure;
 pub mod weapon;

@@ -64,9 +64,10 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
   }
   const shown:PreparationOptions=options.weapon?options:{...options,weapon:weaponDefaults(analysis,undefined)};
   return <section className="weapons-step" id="weapons" aria-label="Weapons">
-    <div className="prep-workspace"><WeaponPanel project={project} analysis={analysis} options={shown} change={change} busy={busy} operate={operate} reinspect={openPreparation} separate={separate?{...separate,updateProject:value=>updateRef.current(value)}:undefined}/>
-    {(pending||needsInspection)&&<div className="prep-card prep-gun-apply" role="status"><div><strong>{needsInspection?'Your gun file changed.':'Your gun changes are not in the model yet.'}</strong><p className="hint">{needsInspection?'The new gun file is loaded when the model is prepared again.':'Apply them to prepare the model again with your gun (about a minute); the preview then shows the result on your character.'}</p></div>
-      {needsInspection?<button className="prep-primary" disabled={busy} onClick={openPreparation}>Prepare again with this gun file</button>:<button className="prep-primary" disabled={busy} onClick={()=>void apply()}>Apply gun changes</button>}</div>}
+    {/* The apply card sits under the gun summary, beside the fit preview (the shared panel's `actions`). */}
+    <div className="prep-workspace"><WeaponPanel project={project} analysis={analysis} options={shown} change={change} busy={busy} operate={operate} reinspect={openPreparation} separate={separate?{...separate,updateProject:value=>updateRef.current(value)}:undefined}
+      actions={(pending||needsInspection)&&<div className="prep-gun-apply" role="status"><div><strong>{needsInspection?'Your gun file changed.':'Your gun changes are not in the model yet.'}</strong><p className="studio-note">{needsInspection?'The new gun file is loaded when the model is prepared again.':'Apply them to prepare the model again with your gun (about a minute); the preview then shows the result on your character.'}</p></div>
+        {needsInspection?<button className="prep-primary" disabled={busy} onClick={openPreparation}>Prepare again with this gun file</button>:<button className="prep-primary" disabled={busy} onClick={()=>void apply()}>Apply gun changes</button>}</div>}/>
     </div>
   </section>;
 }

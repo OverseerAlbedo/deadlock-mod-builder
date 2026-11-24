@@ -85,7 +85,7 @@ export function OnboardingPage(props: Props) {
       <FlowMap/>
       <dl className="summary-list"><dt>Original character</dt><dd><PathValue path={project.original_model}/></dd><dt>Replacement model</dt><dd><PathValue path={project.dmx || project.preparation_source}/></dd></dl>
       <div className="row"><button className="prep-primary" disabled={busy} onClick={() => go('project')}>Choose character<PrepIcon name="arrow" size={18}/></button><button className="prep-secondary" disabled={busy} onClick={props.chooseModel}>Choose replacement model…</button><button className="prep-secondary" disabled={busy} onClick={() => go('appearance')}>Review textures and materials</button></div>
-      <p className="hint">Use the exact hero from the game archive. Blender, GLB, glTF and FBX files are prepared for the hero automatically; a prepared DMX goes straight to the build.</p>
+      <p className="hint">Use the exact hero from the game archive. Blender, GLB, glTF, FBX and MMD (.pmx, .pmd) files are prepared for the hero automatically (MMD files need the MMD Tools add-on in Blender); a prepared DMX goes straight to the build.</p>
     </Section>}
     {step === 3 && <Section title="Hair, cloth and movement" className="prep-card">
       <p className="prep-section-intro">Hair, skirts, cloth, tails, ears and gun charms get movement by themselves when the model is prepared. Nothing here is required for a first build.</p>

@@ -501,9 +501,10 @@ impl ClothAuthoringService<'_, '_> {
             if let Some(physics)=&mut draft.customization.physics{physics.enabled=Some(false);}
             if let Some(motion)=&mut draft.customization.secondary_motion{motion.enabled=Some(false);}
             let mut excluded=BTreeMap::new();
-            for (kind,rows) in [("icons",&mut draft.customization.icons),("animations",&mut draft.customization.animations),("effects",&mut draft.customization.effects),("audio",&mut draft.customization.audio)]{
+            for (kind,rows) in [("icons",&mut draft.customization.icons),("item_icons",&mut draft.customization.item_icons),("animations",&mut draft.customization.animations),("effects",&mut draft.customization.effects),("audio",&mut draft.customization.audio)]{
                 let count=if project.customization.active(){rows.as_deref().unwrap_or_default().iter().filter(|v|v.enabled.unwrap_or(true)).count()}else{0};excluded.insert(kind.to_string(),count);*rows=Some(vec![]);
             }
+            excluded.insert("effect_edits".to_string(),project.customization.enabled_effect_edits());draft.customization.effect_edits=None;
             draft.imported_source=self.model.sources().ensure_base(project)?.to_str().ok_or_else(||invalid("Original source path is not Unicode."))?.to_string();
             draft.original_compiled=original_path.to_str().ok_or_else(||invalid("Original snapshot path is not Unicode."))?.to_string();
             let root=self.model.root(&draft)?;let _draft_lease=WorkspaceLease::acquire_for_runner(&root, self.model.runner)?;let report_path=root.join("cloth-authoring.json");

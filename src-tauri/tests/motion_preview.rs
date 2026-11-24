@@ -7,10 +7,10 @@ fn a_prepared_project_gets_idle_run_and_jump_clips() {
     let settings: deadlock_project::Settings = serde_json::from_str(&std::fs::read_to_string(settings).unwrap()).unwrap();
     let project = deadlock_project::Project::load(std::path::Path::new(&project)).unwrap();
     let packet = deadlock_pipeline::motion_preview::build(&settings, &project, &deadlock_core::CancellationToken::new()).unwrap();
-    let length = u32::from_le_bytes(packet[..4].try_into().unwrap()) as usize;
-    let header: serde_json::Value = serde_json::from_slice(&packet[4..4 + length]).unwrap();
+    // The stored layout, played as every frame of every clip for every bone.
+    let (header, data) = deadlock_pipeline::motion_preview::expand(&packet).unwrap();
     let bones = header["bones"].as_array().unwrap().len();
-    let floats = (packet.len() - (4 + length).div_ceil(4) * 4) / 4;
+    let floats = data.len();
     println!("{bones} bones, {} MB", packet.len() / 1_000_000);
     let mut total = 0;
     for clip in header["clips"].as_array().unwrap() {
@@ -19,7 +19,7 @@ fn a_prepared_project_gets_idle_run_and_jump_clips() {
     }
     assert_eq!(floats, total * bones * 12);
     let names: Vec<&str> = header["clips"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["idle", "run", "jump"]);
+    assert_eq!(names[..3], ["idle", "run", "jump"]);
 }
 
 /// Data for viewing the movement preview outside the app (run with --ignored):

@@ -1,7 +1,7 @@
-//! Body colliders for automatic motion (legs, arms, neck, hips and head; the
-//! arms since October 24, 2026). Leg colliders: one capsule along each thigh and shin of
+//! Body colliders for automatic motion (legs, arms, neck, hips and head).
+//! Leg colliders: one capsule along each thigh and shin of
 //! the hero skeleton, so long skirts, tails and coat tails stop at the legs
-//! instead of passing through the body (SiViolet's skirt when walking
+//! instead of passing through the body (a test model's skirt when walking
 //! backwards). Valve's heroes protect their own cloth the same way
 //! (`ClothShapeCapsule` on the legs), but those capsules are sized for the
 //! hero's body; these are sized to the character's own leg: the 95th
@@ -21,8 +21,8 @@
 //! a collider that would become thinner than [`MIN_RADIUS`] is left out.
 //!
 //! Nor does it hold a fixed node deeper than the cloth around it can reach
-//! (issue #4: a chibi's head capsule over the roots of its hair, janeVen's shin
-//! capsules over her boot flaps). A rod from a fixed node to a cloth node
+//! (issue #4: a chibi's head capsule over the roots of its hair, another model's
+//! shin capsules over its boot flaps). A rod from a fixed node to a cloth node
 //! compiles with its rest length as its maximum, so when a fixed node sits
 //! deeper inside a capsule than that length, the rod's cloth end has no place
 //! outside it, and the compiled check refuses the model ("static-anchor rod
@@ -43,7 +43,7 @@ pub const LEGS: [(&str, &str, f64); 4] = [
 ];
 /// Upper arm and forearm of each arm, measured like the legs, so cloth hanging
 /// from the shoulder stops at the arm instead of passing through it
-/// (arcaneVin's R_capeC/D once they moved like streamers). Valve's Vindicta,
+/// (one model's shoulder capes R_capeC/D once they moved like streamers). Valve's Vindicta,
 /// Violet, Haze, Lash, Werewolf and Wraith protect their own cloth with arm
 /// capsules too. The upper arm starts a little below the shoulder joint,
 /// where straps and capes are attached.
@@ -150,14 +150,15 @@ pub fn leg_colliders(d: &Dmx, clear: &Clearance, cancel: &CancellationToken) -> 
     Ok(out)
 }
 
-/// The head capsule (SiViolet's bangs and short hair swung into her face). A
+/// The head capsule (a test model's bangs and short hair swung into its face). A
 /// short upright capsule (`HEAD_HALF_LENGTH` above and below its centre) as
 /// large as the hair allows: its radius is the distance to the nearest moving
 /// node less [`CLEARANCE`], at most the median distance of the head's own
 /// vertices (those weighted at least 90% to the head, which includes hair that
 /// does not move). The centre is the best of a grid around those vertices'
 /// centre, up to 2 in up or down and 1.5 in forward or back, so a helper node
-/// near the middle of the head (SiViolet's strandA weights) does not shrink it.
+/// near the middle of the head (the weights of a strand such as `strandA`)
+/// does not shrink it.
 pub const HEAD_HALF_LENGTH: f64 = 1.0;
 fn head_collider(
     d: &Dmx,

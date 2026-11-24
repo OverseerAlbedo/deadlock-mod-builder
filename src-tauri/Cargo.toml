@@ -5,11 +5,11 @@ resolver = "2"
 [package]
 name = "deadlock-desktop"
 default-run = "deadlock-mod-builder"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 publish = false
 description = "Native character mod preparation, validation and packaging"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 
 [features]
 default = []
@@ -42,6 +42,9 @@ tauri-build = { version = "2", optional = true , features = [] }
 
 [dev-dependencies]
 tempfile = "3"
+# Test builds only: lets tests open switched-off kinds (never in the app's own build).
+deadlock-components = { path = "crates/deadlock-components", features = ["object-test-switches"] }
+deadlock-materials = { path = "crates/deadlock-materials", features = ["color-test-switches"] }
 
 [[bin]]
 name = "deadlock-mod-builder"

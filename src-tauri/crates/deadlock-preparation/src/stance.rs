@@ -78,6 +78,56 @@ fn clip_document(clip: &Path) -> Option<ClipDocument> {
     Some(ClipDocument { source, range })
 }
 
+/// Whether a clip is a `.vnmclip` clip document of Source 2 Viewer 21.1 or
+/// later whose take was found (`clip_document`). That layout writes
+/// `m_additiveType` for every additive clip, so such a document without the
+/// field is a pose of its own; `additive_authoring` still says None for it.
+pub fn is_clip_document(clip: &Path) -> bool {
+    is_clip_file(clip) && clip_document(clip).is_some()
+}
+
+/// How a clip's `.vnmclip` says it is authored (`m_additiveType`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Additive {
+    /// "None": a pose of its own.
+    Pose,
+    /// "RelativeToFrame": the change from one frame of the same take
+    /// (`m_additiveBaseFrame` "FirstFrame" = 0, "UserSpecifiedFrame" =
+    /// `m_nAdditiveBaseFrameIdx`), frames counted from the take's start.
+    Frame(usize),
+    /// "RelativeToSkeleton", "RelativeToAnimation" or a kind not known here:
+    /// a layer whose reference the preview cannot rebuild.
+    Other(String),
+}
+
+/// What the `.vnmclip` of a clip says about additive authoring. Both Source 2
+/// Viewer layouts write `m_additiveType` in the `.vnmclip` (21.1 in the clip
+/// document itself, older versions beside the clip's own `.dmx`); clips that
+/// are not additive have no such field. None when there is no `.vnmclip` or
+/// it has no `m_additiveType` (then only the pose itself can tell).
+pub fn additive_authoring(clip: &Path) -> Option<Additive> {
+    let document = if is_clip_file(clip) { clip.to_path_buf() } else { clip.with_extension("vnmclip") };
+    additive_from_text(&std::fs::read_to_string(document).ok()?)
+}
+
+fn additive_from_text(text: &str) -> Option<Additive> {
+    let document = deadlock_resource::text::Document::parse(text.to_string()).ok()?;
+    let scalar = |key: &str| document.root.get(key).and_then(|n| n.scalar()).map(str::trim);
+    let kind = scalar("m_additiveType")?;
+    Some(match kind {
+        "" | "None" => Additive::Pose,
+        "RelativeToFrame" => match scalar("m_additiveBaseFrame") {
+            Some("FirstFrame") => Additive::Frame(0),
+            Some("UserSpecifiedFrame") => match scalar("m_nAdditiveBaseFrameIdx").and_then(|v| v.parse::<usize>().ok()) {
+                Some(index) => Additive::Frame(index),
+                None => Additive::Other(format!("{kind} without a frame")),
+            },
+            other => Additive::Other(format!("{kind} {}", other.unwrap_or("(no base frame)"))),
+        },
+        other => Additive::Other(other.to_string()),
+    })
+}
+
 fn collect_animation_files(root: &Path, depth: usize, dmx: &mut Vec<PathBuf>, clips: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(root) else { return };
     for path in entries.filter_map(|e| e.ok()).map(|e| e.path()) {
@@ -218,6 +268,8 @@ struct ClipTracks {
     /// Seconds into the take where the clip starts (a newer `.vnmclip`'s
     /// `m_nStartFrame`); 0 for a DMX of its own.
     offset: f64,
+    /// Frames per second of the take.
+    rate: f64,
 }
 impl ClipTracks {
     /// A clip's `.dmx`, or a newer `.vnmclip`: its take, from its start frame
@@ -235,7 +287,7 @@ impl ClipTracks {
             Some(Value::Float(r)) if *r > 0. => Some(f64::from(*r)),
             _ => None,
         }).unwrap_or(30.);
-        let mut this = Self { dmx, positions: BTreeMap::new(), rotations: BTreeMap::new(), length: 0., offset: 0. };
+        let mut this = Self { dmx, positions: BTreeMap::new(), rotations: BTreeMap::new(), length: 0., offset: 0., rate };
         fn track<const N: usize>(times: Vec<f64>, values: Vec<f64>, rate: f64) -> Option<Track<N>> {
             let values: Vec<[f64; N]> = values.chunks_exact(N).map(|c| std::array::from_fn(|k| c[k])).collect();
             if values.is_empty() {
@@ -344,8 +396,167 @@ pub fn frames(clip: &Path, fps: f64, limit: usize) -> Option<(f64, Vec<BTreeMap<
 /// joint, as the game plays a landing impact over the stand. The length is the
 /// additive clip's; the base loops under it.
 pub fn frames_layered(clip: &Path, additive: Option<&Path>, fps: f64, limit: usize) -> Option<(f64, Vec<BTreeMap<String, Matrix4>>)> {
+    sample(clip, additive.map(|a| (a, None)), fps, limit)
+}
+
+/// `frames` of `clip` with a "RelativeToFrame" additive clip played on top:
+/// each joint's change from frame `reference` of the layer's own take
+/// (positions as differences, rotations as reference⁻¹ · rotation) is applied
+/// to the base clip's local transform. The decompiled take of such a clip
+/// already holds the change from its base frame for most joints, but
+/// `root_motion` and the `pelvis` under it carry constant rotations (the axis
+/// turn and its inverse) that are not part of the change; taking the change
+/// from the reference frame leaves exactly the authored motion. None when the
+/// layer cannot be read.
+pub fn frames_relative(clip: &Path, layer: &Path, reference: usize, fps: f64, limit: usize) -> Option<(f64, Vec<BTreeMap<String, Matrix4>>)> {
+    sample(clip, Some((layer, Some(reference))), fps, limit)
+}
+
+/// The time (seconds into the layer clip) at which a "RelativeToFrame"
+/// additive clip leans the body most when played on `over` (the clip it
+/// will be held on): the largest turn of the pelvis-to-head line of `over`'s
+/// first frame with the layer on top, against that frame without it (a lean
+/// clip is a one-shot curve that rises to its full lean and eases back).
+/// Without a pelvis and a head, the largest sum over the layer's joints of the
+/// rotation from frame `reference`. None when a clip cannot be read.
+pub fn layer_peak(layer: &Path, reference: usize, over: &Path) -> Option<f64> {
+    let tracks = ClipTracks::load(layer)?;
+    let steps = (tracks.length * tracks.rate).round().max(0.) as usize;
+    let times: Vec<f64> = (0..=steps).map(|f| f as f64 / tracks.rate).collect();
+    let line = |pose: &BTreeMap<String, Matrix4>| {
+        let find = |name: &str| pose.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, m)| [m[0][3], m[1][3], m[2][3]]);
+        let (p, h) = (find("pelvis")?, find("head")?);
+        let d = [h[0] - p[0], h[1] - p[1], h[2] - p[2]];
+        let l = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+        (l > 1e-6).then(|| d.map(|v| v / l))
+    };
+    let plain = frames(over, 30., 1).and_then(|(_, p)| p.into_iter().next());
+    if let Some(rest) = plain.as_ref().and_then(line) {
+        let mut best: Option<(f64, f64)> = None;
+        for &t in &times {
+            let Some(d) = frames_held(over, layer, reference, t, 1., 30., 1).and_then(|(_, p)| p.first().and_then(line)) else { continue };
+            let angle = (d[0] * rest[0] + d[1] * rest[1] + d[2] * rest[2]).clamp(-1., 1.).acos();
+            if best.is_none_or(|(_, b)| angle > b) {
+                best = Some((t, angle));
+            }
+        }
+        if best.is_some() {
+            return best.map(|(t, _)| t);
+        }
+    }
+    let transforms = tracks.transforms();
+    let at_reference = reference as f64 / tracks.rate - tracks.offset;
+    let mut best: Option<(f64, f64)> = None;
+    for &t in &times {
+        let total: f64 = transforms.values().filter_map(|&tr| {
+            let (_, q) = tracks.animated(tr, t);
+            let (_, r) = tracks.animated(tr, at_reference);
+            let ([x, y, z, w], q) = (r?, q?);
+            let d = quaternion_product([-x, -y, -z, w], q);
+            let n = d.iter().map(|v| v * v).sum::<f64>().sqrt().max(1e-12);
+            Some(2. * (d[3].abs() / n).min(1.).acos())
+        }).sum();
+        if best.is_none_or(|(_, b)| total > b) {
+            best = Some((t, total));
+        }
+    }
+    best.map(|(t, _)| t)
+}
+
+/// `frames` of `clip` (its whole length) with a "RelativeToFrame" additive
+/// clip held at `held` seconds of its own time and scaled by `weight` (0 plays
+/// the clip as it is, 1 the layer's full change): each joint's change from
+/// frame `reference` of the layer's take, positions as differences scaled by
+/// `weight`, rotations as reference⁻¹ · rotation taken `weight` of the way from
+/// no turn. The jump's landing layer goes through `frames_relative`, not here.
+pub fn frames_held(clip: &Path, layer: &Path, reference: usize, held: f64, weight: f64, fps: f64, limit: usize) -> Option<(f64, Vec<BTreeMap<String, Matrix4>>)> {
     let base = ClipTracks::load(clip)?;
-    let layer = additive.and_then(ClipTracks::load);
+    let layer = ClipTracks::load(layer)?;
+    let names = layer.transforms();
+    let at_reference = reference as f64 / layer.rate - layer.offset;
+    let count = ((base.length * fps).floor() as usize + 1).min(limit.max(1));
+    let roots = base.roots()?;
+    let mut out = vec![];
+    for frame in 0..count {
+        let t = frame as f64 / fps;
+        let mut pose = BTreeMap::new();
+        let mut seen = BTreeSet::new();
+        let mut stack: Vec<(i32, Matrix4)> = roots.iter().map(|&c| (c, identity())).collect();
+        while let Some((index, parent)) = stack.pop() {
+            if !seen.insert(index) {
+                continue;
+            }
+            let Some(joint) = base.element(index) else { continue };
+            let transform = joint.get("transform").and_then(Value::as_ref_index);
+            let (mut position, mut rotation) = base.local(transform, t);
+            if let Some(&tr) = names.get(&joint.name) {
+                (position, rotation) = weighted_local((position, rotation), layer.animated(tr, held), layer.animated(tr, at_reference), weight);
+            }
+            let world = multiply(&parent, &local(position, rotation, 1.));
+            if joint.kind == "DmeJoint" {
+                pose.insert(joint.name.clone(), world);
+            }
+            stack.extend(base.refs(joint.get("children")).into_iter().map(|c| (c, world)));
+        }
+        if pose.is_empty() {
+            return None;
+        }
+        out.push(pose);
+    }
+    Some((base.length, out))
+}
+
+/// A base joint's local transform with `weight` of a layer's change from its
+/// reference values on top (see `frames_held`).
+fn weighted_local(base: ([f64; 3], [f64; 4]), at: (Option<[f64; 3]>, Option<[f64; 4]>), reference: (Option<[f64; 3]>, Option<[f64; 4]>), weight: f64) -> ([f64; 3], [f64; 4]) {
+    let (mut position, mut rotation) = base;
+    if let Some(p) = at.0 {
+        let r = reference.0.unwrap_or([0.; 3]);
+        position = std::array::from_fn(|k| position[k] + (p[k] - r[k]) * weight);
+    }
+    if let Some(q) = at.1 {
+        let mut delta = match reference.1 {
+            Some([x, y, z, w]) => quaternion_product([-x, -y, -z, w], q),
+            None => q,
+        };
+        if delta[3] < 0. {
+            delta = delta.map(|v| -v);
+        }
+        let mixed: [f64; 4] = std::array::from_fn(|k| (if k == 3 { 1. } else { 0. }) * (1. - weight) + delta[k] * weight);
+        let n = mixed.iter().map(|v| v * v).sum::<f64>().sqrt().max(1e-12);
+        rotation = quaternion_product(rotation, mixed.map(|v| v / n));
+    }
+    (position, rotation)
+}
+
+/// The local transform of a base joint with an additive layer's values at `t`
+/// on top: `reference` (the layer's values at its reference frame) given, the
+/// change from it; without, the layer's values themselves (positions added,
+/// rotations composed after the base rotation).
+fn layered_local(base: ([f64; 3], [f64; 4]), at: (Option<[f64; 3]>, Option<[f64; 4]>), reference: Option<(Option<[f64; 3]>, Option<[f64; 4]>)>) -> ([f64; 3], [f64; 4]) {
+    let (mut position, mut rotation) = base;
+    let (reference_position, reference_rotation) = reference.unwrap_or((None, None));
+    if let Some(p) = at.0 {
+        let r = reference_position.unwrap_or([0.; 3]);
+        position = std::array::from_fn(|k| position[k] + p[k] - r[k]);
+    }
+    if let Some(q) = at.1 {
+        let delta = match reference_rotation {
+            Some([x, y, z, w]) => quaternion_product([-x, -y, -z, w], q),
+            None => q,
+        };
+        rotation = quaternion_product(rotation, delta);
+    }
+    (position, rotation)
+}
+
+fn sample(clip: &Path, additive: Option<(&Path, Option<usize>)>, fps: f64, limit: usize) -> Option<(f64, Vec<BTreeMap<String, Matrix4>>)> {
+    let base = ClipTracks::load(clip)?;
+    let reference = additive.and_then(|(_, r)| r);
+    let layer = additive.and_then(|(a, _)| ClipTracks::load(a));
+    if reference.is_some() && layer.is_none() {
+        return None;
+    }
     let layer_transforms = layer.as_ref().map(|l| l.transforms());
     let length = layer.as_ref().map_or(base.length, |l| l.length);
     let count = ((length * fps).floor() as usize + 1).min(limit.max(1));
@@ -366,13 +577,9 @@ pub fn frames_layered(clip: &Path, additive: Option<&Path>, fps: f64, limit: usi
             let (mut position, mut rotation) = base.local(transform, base_t);
             if let (Some(layer), Some(names)) = (&layer, &layer_transforms) {
                 if let Some(&tr) = names.get(&joint.name) {
-                    let (dp, dq) = layer.animated(tr, t);
-                    if let Some(dp) = dp {
-                        position = [position[0] + dp[0], position[1] + dp[1], position[2] + dp[2]];
-                    }
-                    if let Some(dq) = dq {
-                        rotation = quaternion_product(rotation, dq);
-                    }
+                    // The reference frame counts from the take's start, not the clip's.
+                    let at_reference = reference.map(|r| layer.animated(tr, r as f64 / layer.rate - layer.offset));
+                    (position, rotation) = layered_local((position, rotation), layer.animated(tr, t), at_reference);
                 }
             }
             let world = multiply(&parent, &local(position, rotation, 1.));
@@ -444,6 +651,21 @@ pub fn skin_matrices(target: &[PreparedBone], held: &BTreeMap<String, Matrix4>) 
         posed.insert(&bone.name, posed_world);
     }
     out
+}
+
+/// Model-space transform of every bone of `target` in a pose, as
+/// `skin_matrices` places it: a joint of the pose where the pose has it, any
+/// other bone following its parent at its rest offset (`target` lists parents
+/// first).
+pub fn posed_joints(target: &[PreparedBone], held: &BTreeMap<String, Matrix4>) -> BTreeMap<String, Matrix4> {
+    let mut posed: BTreeMap<String, Matrix4> = BTreeMap::new();
+    for bone in target {
+        let bind = local(bone.local_position, bone.local_rotation, bone.local_scale);
+        let parent_posed = bone.parent.as_deref().and_then(|p| posed.get(p)).copied();
+        let world = held.get(&bone.name).copied().unwrap_or_else(|| parent_posed.map_or(bind, |p| multiply(&p, &bind)));
+        posed.insert(bone.name.clone(), world);
+    }
+    posed
 }
 
 /// Cloth-simulated bones (coats, skirts, straps) take the skin matrix of their
@@ -637,6 +859,119 @@ mod tests {
         std::fs::write(wraith.join("weapon_stand_idle.vnmclip"), "{\n\tm_sourceFilename = \"models/heroes_wip/wraith/dmx/animation/primary_idle.dmx\"\n}\n").unwrap();
         assert!(clip_document(&wraith.join("weapon_stand_idle.vnmclip")).is_none());
         assert_eq!(find_clip(old.path(), &old.path().join("models/heroes_wip/wraith")).unwrap(), wraith.join("weapon_stand_idle.dmx"));
+    }
+    #[test]
+    fn the_clip_document_says_whether_a_clip_is_additive() {
+        let temp = tempfile::tempdir().unwrap();
+        let clips = temp.path().join("models/heroes_staging/ghost/clips");
+        let document = |name: &str, fields: &str, class: bool| {
+            std::fs::create_dir_all(&clips).unwrap();
+            let class = if class { "\t_class = \"CNmClipDocument\"\n" } else { "" };
+            let text = format!("<!-- kv3 encoding:text:version{{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}} format:generic:version{{7412167c-06e9-4698-aff2-e63eb59037e7}} -->\n{{\n{class}\tm_sourceFilename = \"models/heroes_staging/ghost/dmx/animation/{name}.dmx\"\n{fields}\tm_eventTracks = [  ]\n}}\n");
+            let path = clips.join(format!("{name}.vnmclip"));
+            std::fs::write(&path, text).unwrap();
+            path
+        };
+        let frame = |base: &str, index: i32| format!("\tm_additiveType = \"RelativeToFrame\"\n\tm_additiveBaseFilename = \"\"\n\tm_additiveBaseFrame = \"{base}\"\n\tm_nAdditiveBaseFrameIdx = {index}\n");
+        // Lady Geist's landing (21.1): the change from a chosen frame.
+        assert_eq!(additive_authoring(&document("jump_impact", &frame("UserSpecifiedFrame", 0), true)), Some(Additive::Frame(0)));
+        assert_eq!(additive_authoring(&document("aim_weapon_idle", &frame("UserSpecifiedFrame", 30), true)), Some(Additive::Frame(30)));
+        assert_eq!(additive_authoring(&document("landing_impact_idle", &frame("FirstFrame", 0), true)), Some(Additive::Frame(0)));
+        assert!(matches!(additive_authoring(&document("bad_index", &frame("UserSpecifiedFrame", -1), true)), Some(Additive::Other(_))));
+        assert!(matches!(additive_authoring(&document("bad_base", &frame("LastFrame", 0), true)), Some(Additive::Other(_))));
+        // Other references cannot be rebuilt by the preview.
+        let kind = |k: &str| format!("\tm_additiveType = \"{k}\"\n\tm_additiveBaseFilename = \"models/heroes_staging/haze/dmx/animation/idle_hideout.dmx\"\n\tm_additiveBaseFrame = \"FirstFrame\"\n\tm_nAdditiveBaseFrameIdx = -1\n");
+        assert_eq!(additive_authoring(&document("aim_hideout_idle_up", &kind("RelativeToAnimation"), true)), Some(Additive::Other("RelativeToAnimation".into())));
+        assert_eq!(additive_authoring(&document("corner_lean_idle", &kind("RelativeToSkeleton"), true)), Some(Additive::Other("RelativeToSkeleton".into())));
+        assert_eq!(additive_authoring(&document("posed", "\tm_additiveType = \"None\"\n", true)), Some(Additive::Pose));
+        // Clips that are not additive have no such field: the pose decides.
+        assert_eq!(additive_authoring(&document("jump_ground", "", true)), None);
+        // Such a document is still known as one (its take found), so the preview
+        // can play it as a pose of its own.
+        let take = temp.path().join("models/heroes_staging/ghost/dmx/animation/jump_ground.dmx");
+        std::fs::create_dir_all(take.parent().unwrap()).unwrap();
+        std::fs::write(&take, b"").unwrap();
+        assert!(is_clip_document(&clips.join("jump_ground.vnmclip")));
+        assert!(!is_clip_document(&take));
+        // Older Source 2 Viewer: no _class, the clip is the .dmx beside its .vnmclip.
+        document("jump_impact_old", &frame("FirstFrame", 0), false);
+        assert!(!is_clip_document(&clips.join("jump_impact_old.vnmclip")));
+        assert_eq!(additive_authoring(&clips.join("jump_impact_old.dmx")), Some(Additive::Frame(0)));
+        // An older-style animation without a .vnmclip, or a missing file.
+        assert_eq!(additive_authoring(&clips.join("geist_hard_landing.dmx")), None);
+        assert_eq!(additive_authoring(&temp.path().join("none.vnmclip")), None);
+    }
+    /// Quaternion of a turn about an axis.
+    fn turn(axis: [f64; 3], angle: f64) -> [f64; 4] {
+        let n = axis.iter().map(|v| v * v).sum::<f64>().sqrt();
+        let s = (angle / 2.).sin() / n;
+        [axis[0] * s, axis[1] * s, axis[2] * s, (angle / 2.).cos()]
+    }
+    fn close(a: &Matrix4, b: &Matrix4) -> bool {
+        (0..3).all(|i| (0..4).all(|j| (a[i][j] - b[i][j]).abs() < 1e-9))
+    }
+    #[test]
+    fn a_relative_to_frame_layer_adds_only_the_change_from_its_reference_frame() {
+        // As decompiled: root_motion carries the axis turn C, the pelvis under
+        // it the inverse turn (a root in game), in the base clip and in the
+        // additive take alike; the take's other joints hold the change.
+        let c = [0.5, 0.5, 0.5, 0.5];
+        let c_inverse = [-0.5, -0.5, -0.5, 0.5];
+        let pose = turn([0., 0., 1.], 0.4); // the stand's pelvis, in game
+        let dip = turn([0., 1., 0.], 0.3); // the landing's pelvis change
+        let bend = turn([1., 0., 0.], 0.5); // the landing's spine change
+        let base_root = ([0.; 3], c);
+        let base_pelvis = ([0.6, 60., 2.5], quaternion_product(c_inverse, pose));
+        let base_spine = ([4.7, 0., 0.], turn([0., 0., 1.], 0.1));
+        // The take: frame 0 is the reference (no change), frame 1 the dip.
+        let take = |f: usize| {
+            let (d, b, drop) = if f == 0 { ([0., 0., 0., 1.], [0., 0., 0., 1.], 0.) } else { (dip, bend, -2.) };
+            [(Some([0.; 3]), Some(c)), (Some([0., drop, 0.]), Some(quaternion_product(c_inverse, d))), (Some([0.; 3]), Some(b))]
+        };
+        let world = |locals: [([f64; 3], [f64; 4]); 3]| {
+            let root = local(locals[0].0, locals[0].1, 1.);
+            let pelvis = multiply(&root, &local(locals[1].0, locals[1].1, 1.));
+            (root, pelvis, multiply(&pelvis, &local(locals[2].0, locals[2].1, 1.)))
+        };
+        let bases = [base_root, base_pelvis, base_spine];
+        let layered = |f: usize, reference: Option<usize>| {
+            let (at, refs) = (take(f), reference.map(take));
+            world(std::array::from_fn(|k| layered_local(bases[k], at[k], refs.map(|r| r[k]))))
+        };
+        let (root, pelvis, spine) = world(bases);
+        // At the reference frame the stand stays exactly as it is.
+        let (r0, p0, s0) = layered(0, Some(0));
+        assert!(close(&r0, &root) && close(&p0, &pelvis) && close(&s0, &spine));
+        // Later frames: the root keeps its turn, the pelvis dips and turns by
+        // the change in its own frame, the spine bends on top of the stand.
+        let (r1, p1, s1) = layered(1, Some(0));
+        assert!(close(&r1, &root));
+        let expected_pelvis = multiply(&root, &local([0.6, 58., 2.5], quaternion_product(base_pelvis.1, dip), 1.));
+        assert!(close(&p1, &expected_pelvis), "{p1:?}");
+        assert!(close(&s1, &multiply(&expected_pelvis, &local(base_spine.0, quaternion_product(base_spine.1, bend), 1.))));
+        // The take's values added as they are turn the whole body over (the
+        // root's turn twice): what the preview played before.
+        let (raw_root, raw_pelvis, _) = layered(0, None);
+        assert!(!close(&raw_root, &root));
+        assert!((raw_pelvis[2][3] - pelvis[2][3]).abs() > 30., "{raw_pelvis:?}");
+    }
+    #[test]
+    fn a_held_layer_adds_its_weight_of_the_change_from_the_reference_frame() {
+        let base = ([0.6, 60., 2.5], turn([0., 0., 1.], 0.4));
+        let reference = (Some([0., 1., 0.]), Some(turn([1., 0., 0.], 0.2)));
+        let lean = turn([0., 1., 0.], 0.6);
+        let at = (Some([0., -5., 0.]), Some(quaternion_product(turn([1., 0., 0.], 0.2), lean)));
+        let m = |(p, q): ([f64; 3], [f64; 4])| local(p, q, 1.);
+        // Weight 0: the clip as it is, exactly.
+        assert_eq!(weighted_local(base, at, reference, 0.), base);
+        // Weight 1: the same as the jump's layering with that reference.
+        assert!(close(&m(weighted_local(base, at, reference, 1.)), &m(layered_local(base, at, Some(reference)))));
+        // Half the weight: half the drop and half the turn.
+        let half = weighted_local(base, at, reference, 0.5);
+        assert!((half.0[1] - 57.).abs() < 1e-12);
+        assert!(close(&m(half), &m(([0.6, 57., 2.5], quaternion_product(base.1, turn([0., 1., 0.], 0.3))))));
+        // A joint the layer does not animate keeps the clip's values.
+        assert_eq!(weighted_local(base, (None, None), (None, None), 1.), base);
     }
     #[test]
     fn a_turned_shoulder_moves_the_hand_and_its_gun_with_it() {

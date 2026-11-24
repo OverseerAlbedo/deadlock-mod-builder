@@ -81,6 +81,8 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             .unwrap()
             .unwrap();
         assert_eq!(setup.parts[0].kind, Kind::parse(kind).unwrap());
+        // The fixture's chain is straight and level: chosen as a tail, it hangs.
+        assert_eq!(setup.parts[0].level_rest.is_some(), kind == "tail");
         assert_eq!(
             setup.roll_lock_chains.len(),
             usize::from(["streamer", "hair", "tail"].contains(&kind))
@@ -91,6 +93,10 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
             surface::binds(&d).unwrap().skeleton
         );
         let enable = stream(&proxy, "cloth_enable$0");
+        // Only a breast writes collision layer maps; every other part type's
+        // proxy has none (as before).
+        let has_layers = proxy.elements.iter().any(|e| e.kind == "DmeVertexData" && e.get("cloth_collision_layer_0$0").is_some());
+        assert_eq!(has_layers, kind == "breast", "{kind}");
         let goals = stream(&proxy, "cloth_goal_strength$0");
         let gravity = stream(&proxy, "cloth_gravity$0");
         assert_eq!(enable.len(), goals.len());
@@ -126,19 +132,33 @@ fn automatic_parts_have_distinct_motion_and_streamers_have_three_point_ribbon_fi
                 assert!(radius[i] as f64 <= setup.parts[0].chain_length_inches*0.60+0.451);
             }}
         }
+        if kind == "tail" {
+            assert!(setup.parts[0].reason.ends_with("straight, level tail in the rest pose: it hangs under gravity"));
+            let tethers = stream(&proxy, "cloth_suspenders$0");
+            let radius = stream(&proxy, "cloth_stray_radius$0");
+            assert!((0..enable.len()).filter(|&i| enable[i] > 0.).all(|i| tethers[i] == 1. && radius[i] > 0.));
+            assert!(setup.preview_nodes.iter().all(|n| n.travel > 0.));
+        }
         if kind == "breast" {
-            // One breast-sized ring (a springy, lightly damped bounce with bounded
-            // travel, no sag); every other bone of the group, such as a ribbon
-            // hanging from the breast, still gets its own moving nodes.
+            // One breast-sized ring (a slow, soft bounce with bounded travel, no
+            // sag); every other bone of the group, such as a ribbon hanging
+            // from the breast, still gets its own moving nodes.
             assert_eq!(setup.dynamic_positions, 3 * setup.groups[0].bones.len());
             let drag = stream(&proxy, "cloth_drag$0");
             let radius = stream(&proxy, "cloth_stray_radius$0");
             let breast = (0..enable.len())
-                .filter(|i| enable[*i] > 0. && (goals[*i] - 0.45).abs() < 1e-6)
+                .filter(|i| enable[*i] > 0. && (goals[*i] - 0.14).abs() < 1e-6)
                 .collect::<Vec<_>>();
             assert_eq!(breast.len(), 3);
+            // The breast ring collides with no body collider (0 on every
+            // layer); every other point keeps every layer.
+            for layer in 0..4 {
+                let layers = stream(&proxy, &format!("cloth_collision_layer_{layer}$0"));
+                assert_eq!(layers.len(), enable.len());
+                assert!((0..enable.len()).all(|i| layers[i] == if breast.contains(&i) { 0. } else { 1. }));
+            }
             for &i in &breast {
-                assert!(drag[i] <= 0.1 + 1e-6 && gravity[i] == 0. && radius[i] >= 0.4 && radius[i] <= 1.5);
+                assert!((drag[i] - 0.24).abs() < 1e-6 && gravity[i] == 0. && radius[i] >= 0.38 && radius[i] <= 1.5);
             }
             // Pieces hanging from the breast swing like charms: no gravity (a strip
             // on the chest must not sag through the body) and a bounded swing.
@@ -338,6 +358,59 @@ fn fine_tuning_a_part_type_changes_only_its_moving_nodes() {
             assert!((travel2[i] - travel[i] * 0.25).abs() < 1e-4, "{i}");
         } else {
             assert_eq!((goal2[i], gravity2[i], travel2[i]), (goal[i], gravity[i], travel[i]));
+        }
+    }
+}
+#[test]
+fn swing_range_never_scales_a_held_root_or_lengthens_held_hair_upper_joints() {
+    let d = Dmx::parse(fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/secondary/chain.dmx")).unwrap()).unwrap();
+    let source = binding(&d, b"test authority");
+    for kind in ["ear", "hair"] {
+        let mut p = project(vec!["garment_root".into()]);
+        p.customization.secondary_motion.as_mut().unwrap().part_kinds = Some(BTreeMap::from([("garment_root".into(), kind.into())]));
+        let run = |p: &Project| {
+            let setup = secondary::setup(p, &d, Some(&source), &CancellationToken::new()).unwrap().unwrap();
+            let proxy = Dmx::parse(setup.proxy.clone()).unwrap();
+            (setup, ["cloth_enable$0", "cloth_stray_radius$0"].map(|k| stream(&proxy, k)))
+        };
+        let (setup, [enable, travel]) = run(&p);
+        assert!(setup.parts[0].weighted_chain.len() >= 3);
+        let root = &setup.groups[0].root;
+        // The held hair strand's two joints below the root: a cap at their
+        // automatic travel (the movement preview applies it with `capTravel`).
+        let upper: Vec<f32> = setup.preview_nodes.iter().filter(|n| &n.bone != root).filter_map(|n| n.max_travel.map(|m| { assert_eq!(m, n.travel); m as f32 })).collect();
+        let is_upper = |v: f32| upper.iter().any(|u| (u - v).abs() < 1e-6);
+        for swing in [-1., 1.] {
+            let tuned = deadlock_project::customization::MotionTuning { swing: Some(swing), ..Default::default() };
+            p.customization.secondary_motion.as_mut().unwrap().tuning = Some(BTreeMap::from([(kind.into(), tuned)]));
+            let (_, [enable2, travel2]) = run(&p);
+            assert_eq!(enable, enable2);
+            let scale = if swing > 0. { 2.5 } else { 0.25 };
+            for i in (0..enable.len()).filter(|&i| enable[i] > 0.) {
+                if travel[i] == 0.03 {
+                    assert_eq!(travel2[i], 0.03, "{kind} {i}: the held root keeps its limit");
+                } else if is_upper(travel[i]) && swing > 0. {
+                    assert_eq!(travel2[i], travel[i], "{kind} {i}: never further than automatic");
+                } else {
+                    assert!((travel2[i] - travel[i] * scale).abs() < 1e-4, "{kind} {i}: {} {}", travel[i], travel2[i]);
+                }
+            }
+        }
+        let held = (0..enable.len()).filter(|&i| enable[i] > 0. && travel[i] == 0.03).count();
+        // The root ring (three points) is held, in the build and the preview.
+        assert_eq!(held, 3, "{kind}");
+        let base = setup.preview_nodes.iter().find(|n| &n.bone == root).unwrap();
+        assert_eq!((base.travel, base.max_travel), (0.03, Some(0.03)));
+        if kind == "ear" {
+            // The rest of the ear swings freely.
+            assert!((0..enable.len()).filter(|&i| enable[i] > 0. && travel[i] != 0.03).all(|i| travel[i] == 0.));
+            assert!(upper.is_empty());
+            assert!(setup.preview_nodes.iter().filter(|n| &n.bone != root).all(|n| n.max_travel.is_none() && n.travel == 0.));
+        } else {
+            // Automatic hair has a travel limit everywhere, so Swing range acts on it.
+            assert!((0..enable.len()).filter(|&i| enable[i] > 0.).all(|i| travel[i] > 0.));
+            assert!(setup.preview_nodes.iter().all(|n| n.travel > 0.));
+            assert_eq!(setup.preview_nodes.iter().filter(|n| n.max_travel.is_some() && &n.bone != root).count(), 2);
         }
     }
 }

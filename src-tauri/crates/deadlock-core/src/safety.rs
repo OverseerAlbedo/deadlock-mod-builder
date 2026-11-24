@@ -186,6 +186,21 @@ pub fn long_path(path: &Path) -> PathBuf {
     }
 }
 
+/// A path the way the user knows it, for messages: without the Windows verbatim
+/// prefix `long_path` adds (`\\?\C:\…` → `C:\…`, `\\?\UNC\server\share` →
+/// `\\server\share`). Any other path is returned as it is.
+pub fn plain_path(path: &Path) -> PathBuf {
+    if let Some(text) = path.to_str() {
+        if let Some(tail) = text.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{tail}"));
+        }
+        if let Some(tail) = text.strip_prefix(r"\\?\") {
+            return PathBuf::from(tail);
+        }
+    }
+    path.to_path_buf()
+}
+
 /// tempfile names the temporary file in some of its errors; show that path the
 /// way the user knows it, without the `long_path` prefix. Errors with an OS
 /// code carry no path and are returned as they are.

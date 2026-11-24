@@ -226,6 +226,7 @@ fn current_component_selection(project: &Project) -> Result<BTreeMap<String, Vec
     let mut output = BTreeMap::new();
     for (kind, rows) in [
         ("icons", &project.customization.icons),
+        ("item_icons", &project.customization.item_icons),
         ("animations", &project.customization.animations),
         ("effects", &project.customization.effects),
         ("audio", &project.customization.audio),
@@ -238,10 +239,12 @@ fn current_component_selection(project: &Project) -> Result<BTreeMap<String, Vec
                 .iter()
                 .filter(|r| r.enabled.unwrap_or(true))
             {
+                let target = casefold(&safety::relative_asset(
+                    row.target.as_deref().unwrap_or_default(),
+                )?);
+                // A silenced sound and a replaced one of the same file differ.
                 selected.push((
-                    casefold(&safety::relative_asset(
-                        row.target.as_deref().unwrap_or_default(),
-                    )?),
+                    if row.silenced() { format!("{target}|silence") } else { target },
                     row.allow_shared.unwrap_or(false),
                 ));
             }
@@ -249,6 +252,23 @@ fn current_component_selection(project: &Project) -> Result<BTreeMap<String, Vec
         selected.sort();
         output.insert(kind.into(), selected);
     }
+    // Effect edits: each enabled row's target and edit, in project order (order decides collisions).
+    let mut edits = vec![];
+    if project.customization.active() {
+        for row in project.customization.effect_edits.as_deref().unwrap_or_default().iter().filter(|r| r.enabled) {
+            edits.push((format!("{}|{}", casefold(&row.target), serde_json::to_string(&row.edit).map_err(|e| invalid(e.to_string()))?), false));
+        }
+    }
+    output.insert("effect_edits".into(), edits);
+    // Ability objects: each enabled row's target, source and fit.
+    let mut objects = vec![];
+    if project.customization.active() {
+        for row in project.customization.ability_objects.as_deref().unwrap_or_default().iter().filter(|r| r.enabled) {
+            objects.push((format!("{}|{}|{}", casefold(&row.target), row.source, serde_json::to_string(&row.fit).map_err(|e| invalid(e.to_string()))?), false));
+        }
+    }
+    objects.sort();
+    output.insert("ability_objects".into(), objects);
     Ok(output)
 }
 struct PrivateTree<'a>(PathBuf, &'a dyn ToolExecutor);
@@ -1058,5 +1078,31 @@ impl<B: BundleMemberBuilder> ResourceValidator for BundleGate<'_, '_, B> {
             self.files,
             ValidationPhase::Install,
         )
+    }
+}
+#[cfg(test)]
+mod silence_tests {
+    use deadlock_project::{customization::ResourceReplacement, Project};
+    #[test]
+    fn a_form_whose_sound_turned_silent_differs_from_its_replacement() {
+        let row = |silence: Option<bool>, source: &str| ResourceReplacement {
+            enabled: Some(true),
+            target: Some("sounds/abilities/haze/a.vsnd_c".into()),
+            source: Some(source.into()),
+            silence,
+            ..Default::default()
+        };
+        let form = |rows: Vec<ResourceReplacement>| {
+            let mut project = Project::default();
+            project.customization.enabled = Some(true);
+            project.customization.audio = Some(rows);
+            super::current_component_selection(&project).unwrap()
+        };
+        let replaced = form(vec![row(None, "a.wav")]);
+        // Without silence the value is as before: the casefolded target.
+        assert_eq!(replaced["audio"], vec![("sounds/abilities/haze/a.vsnd_c".to_string(), false)]);
+        assert_ne!(form(vec![row(Some(true), "")]), replaced);
+        // A file wins over silence (the row is a replacement).
+        assert_eq!(form(vec![row(Some(true), "a.wav")]), replaced);
     }
 }

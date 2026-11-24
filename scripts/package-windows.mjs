@@ -36,8 +36,18 @@ function applicationImports(file) {
   }
   throw new Error('Import table did not terminate');
 }
-export function packageWindows(binary, installer, output) {
+// The effect player is a build output (scripts/publish-effect-player.ps1); its bundle entry is in
+// a separate configuration that the build passes to Tauri only when the player was staged.
+export const EFFECT_PLAYER = 'resources/native/effect-player/win-x64/Dmb.EffectPlayer.exe';
+export const EFFECT_PLAYER_CONFIG = 'src-tauri/tauri.effect-player.conf.json';
+export function packageWindows(binary, installer, output, withEffectPlayer = false) {
   const version = checkRepository();
+  // Release builds (with an installer) always carry the effect player.
+  assert.ok(withEffectPlayer || !installer, 'A release package must include the effect player.');
+  if (withEffectPlayer) {
+    assert.ok(existsSync(join(root, EFFECT_PLAYER)), `The effect player is missing: ${EFFECT_PLAYER}`);
+    requireWindowsX64(join(root, EFFECT_PLAYER));
+  }
   const imports = applicationImports(binary);
   assert.ok(!imports.some(dll => /^(libgcc|libstdc\+\+|libwinpthread|vcruntime|msvcp)/i.test(dll)),
     `Application has an unbundled compiler/loader runtime: ${imports.join(', ')}`);
@@ -61,7 +71,8 @@ export function packageWindows(binary, installer, output) {
     requireWindowsX64(loader);
     copy(loader, 'WebView2Loader.dll');
   }
-  for (const [source, destination] of Object.entries(config.bundle.resources)) {
+  const resources = {...config.bundle.resources, ...(withEffectPlayer ? readJson(EFFECT_PLAYER_CONFIG).bundle.resources : {})};
+  for (const [source, destination] of Object.entries(resources)) {
     const full = resolve(root, 'src-tauri', source);
     if (statSync(full).isDirectory()) {
       for (const file of walk(full)) copy(file, join(destination, relative(full, file)));
@@ -73,7 +84,14 @@ export function packageWindows(binary, installer, output) {
   for (const [name, hash] of Object.entries(manifest.platforms['win-x64'].files)) {
     assert.equal(sha256(join(portable, 'native/cloth-reader', name)), hash);
   }
-  writeFileSync(join(portable, 'README.txt'), `Deadlock Mod Builder ${version}\n\nExtract this entire folder, then run deadlock-mod-builder.exe.\nKeep native, physics-references and licenses beside the application.\nWindows x64 and Microsoft Edge WebView2 Runtime are required.\nSettings and workspaces use the normal Windows user profile, even in this ZIP build.\nBlender, Deadlock and Source 2 compilation tools are configured separately in Settings.\nSee LICENSE and licenses/ for notices.\n`);
+  const player = join(portable, 'native/effect-player/win-x64/Dmb.EffectPlayer.exe');
+  if (withEffectPlayer) {
+    requireWindowsX64(player);
+    assert.equal(sha256(player), sha256(join(root, EFFECT_PLAYER)));
+    assert.ok(existsSync(join(portable, 'licenses/effect-player/DEPENDENCIES.json')), 'The effect player notices are missing');
+  } else assert.ok(!existsSync(join(portable, 'native/effect-player')), 'The effect player was packaged although this build does not include it');
+  assert.ok(!records.some(r => /\.pdb$/i.test(r.path)), 'Debug symbol files must not ship');
+  writeFileSync(join(portable, 'README.txt'), `Deadlock Mod Builder ${version}\n\nExtract this entire folder, then run deadlock-mod-builder.exe.\nKeep native, physics-references and licenses beside the application.\nWindows x64 and Microsoft Edge WebView2 Runtime are required.\nSettings and workspaces use the normal Windows user profile, even in this ZIP build.\nBlender, Deadlock and Source 2 compilation tools are configured separately in Settings.\n${withEffectPlayer ? '' : 'This build does not include the effect player: effect previews show the colour strips only.\n'}Deadlock Mod Builder is licensed under the GNU Affero General Public License v3.0 or later; see LICENSE and NOTICE.\nSource code of this version: https://github.com/OverseerAlbedo/deadlock-mod-builder/tree/v${version}\nThird-party notices are in licenses/.\n`);
   writeFileSync(join(portable, 'package-manifest.json'), JSON.stringify({version, target:'windows-x64', files:records}, null, 2)+'\n');
   const release = join(output, 'release');
   mkdirSync(release, {recursive:true});
@@ -87,11 +105,12 @@ export function packageWindows(binary, installer, output) {
   }
   const validation = join(output, 'validation');
   mkdirSync(validation, {recursive:true});
-  writeFileSync(join(validation, 'package-checks.json'), JSON.stringify({version, payload_files:records.length, application_imports:imports, installer_sha256:setup ? sha256(setup) : null, portable_resources_verified:true, windows_execution_verified:false}, null, 2)+'\n');
+  writeFileSync(join(validation, 'package-checks.json'), JSON.stringify({version, payload_files:records.length, application_imports:imports, installer_sha256:setup ? sha256(setup) : null, effect_player:withEffectPlayer, portable_resources_verified:true, windows_execution_verified:false}, null, 2)+'\n');
   console.log(`Packaged ${records.length} verified payload files into ${portable}`);
   return {portable, setup, version};
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert.equal(process.argv.length, 5, 'Usage: node scripts/package-windows.mjs BINARY INSTALLER OUTPUT');
-  packageWindows(resolve(process.argv[2]), process.argv[3] === '--no-installer' ? null : resolve(process.argv[3]), resolve(process.argv[4]));
+  const usage = 'Usage: node scripts/package-windows.mjs BINARY INSTALLER|--no-installer OUTPUT [--with-effect-player]';
+  assert.ok(process.argv.length === 5 || (process.argv.length === 6 && process.argv[5] === '--with-effect-player'), usage);
+  packageWindows(resolve(process.argv[2]), process.argv[3] === '--no-installer' ? null : resolve(process.argv[3]), resolve(process.argv[4]), process.argv[5] === '--with-effect-player');
 }

@@ -28,6 +28,26 @@ def _receipt(status, reason=None, **values):
     return receipt
 
 
+def _body_bones(request):
+    """The bones whose skin is chest surface: the torso bones and, when the rig
+    has them, its own unrecognised bones hanging on the chest in a left/right
+    pair (`carried`, chosen by secondary_bones.rs chest_carried_bones: never a
+    shoulder, an arm, the neck or head, a named part or a single bone such as a
+    bow in the middle). Without `carried` (requests saved before it existed and
+    rigs without such bones) this is the torso alone, as before."""
+    return set(request['torso']) | set(request.get('carried') or ())
+
+
+def _flat_reason(request):
+    """Why the chest counts as flat, in plain words. A rig with its own bones on
+    the chest gets a pointer to what usually goes wrong there."""
+    reason = 'The chest is too flat for breast motion.'
+    if request.get('carried'):
+        reason += (' The rig has its own bones on the chest that are not named as breast bones. If the character'
+                   ' has breasts, check the body roles, especially the feet: they tell which way the character faces.')
+    return reason
+
+
 def _torso_rows(rig, meshes, torso, low, high):
     """Vertices skinned mostly to torso bones between the two heights."""
     bones = rig.data.bones
@@ -71,7 +91,7 @@ def find_breasts(rig, meshes, request):
     up = np.array([0., 0., 1.])
     left = np.cross(up, forward)
     high = float(pos(request['high'])[2])
-    rows = _torso_rows(rig, meshes, set(request['torso']), chest[2] - 0.3 * torso_length, high)
+    rows = _torso_rows(rig, meshes, _body_bones(request), chest[2] - 0.3 * torso_length, high)
     if len(rows) < 30:
         return None, _receipt('flat', 'Too few chest vertices are skinned to the torso.')
     points = np.array([r[2] for r in rows])
@@ -139,7 +159,7 @@ def find_breasts(rig, meshes, request):
     breasts = all(rise >= 0.06 * t or (rise >= MIN_PROTRUSION * t and s[4] >= 0.015 * t)
                   for rise, s in zip(rises, (lft, rgt)))
     if not breasts:
-        return None, _receipt('flat', 'The chest is too flat for breast motion.',
+        return None, _receipt('flat', _flat_reason(request),
                               protrusion_ratio=round(min(rises) / t, 4), measured=_measured(sides, t))
     if (abs(lft[0] - rgt[0]) > 0.045 * t or abs(lft[1] + rgt[1]) > 0.045 * t
             or abs(lft[2] - rgt[2]) > 0.03 * t):
@@ -187,7 +207,9 @@ def add_breast_bones(rig, meshes, request):
     plan, failure = find_breasts(rig, meshes, request)
     if failure:
         return failure
-    torso = set(request['torso'])
+    # Skin on the rig's own chest bones (`carried`) moves to the new bones as
+    # well: those bones stay on the chest, so without this the breast would not move.
+    torso = _body_bones(request)
     inverse = rig.matrix_world.inverted()
     bpy.context.view_layer.objects.active = rig
     for obj in bpy.context.view_layer.objects:

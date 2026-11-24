@@ -26,7 +26,7 @@ def distinct_name(name):
 def exported_names(names):
     """The prepared names of kept moving-part bones: PREFIX and the source name,
     or distinct_name when the compiler would write two of them the same way
-    (arcaneVin's skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0). Keep in sync with
+    (skirt panels such as 侧裙_0_0, 前裙_0_0 and 后裙_0_0). Keep in sync with
     secondary_bones.rs exported_names."""
     counts = {}
     for name in names:
@@ -51,12 +51,31 @@ RIGID_HINTS = ('halo','hat','cap','pin','pins','clip','clips','crown','tiara','c
                'accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪')
 # Breast bones move only when breast motion is turned on.
 BREAST_HINTS = ('breast','bust','boob','pectoral','oppai','おっぱい','乳')
+# Breast names in pinyin, spelled by whole name parts in a row (XiongBu.L,
+# xiong_bu_l, Xiongbu_R; never inside another word). 乳房 (rufang) is a breast on
+# its own; 胸 and 胸部 (xiong, xiongbu) also name the chest, so like 胸 they count
+# only with a side, which must follow them directly (xiong_L_01, Xiongbu.R; not
+# XiongMao_L) or come directly before them when they end the name (L_XiongBu,
+# R_Xiong_Bu_01; not L_XiongMao, L_Xiong_Spine). Keep in sync with
+# secondary_bones.rs and src/preparation/secondary-bones.ts.
+PINYIN_BREAST_HINTS = ('rufang',)
+PINYIN_SIDED_BREAST_HINTS = ('xiong', 'xiongbu')
+SIDE_WORDS = ('l', 'r', 'left', 'right')
+# A named breast bone may carry a larger branch (a base bone and a ring of
+# surface bones): at most this many bones, all within NAMED_BREAST_REACH torso
+# lengths of it, none named as another part. Same as secondary_bones.rs.
+NAMED_BREAST_BONES = 24
+NAMED_BREAST_REACH = 0.4
 # Butt bones move only when butt motion is turned on (off by default). ASCII
 # words match whole name parts (Butt_L, glute_r; not Button); 尻 also counts on
 # its own, but never inside 尻尾 (tail). Keep in sync with secondary_bones.rs
 # and src/preparation/secondary-bones.ts.
 BUTT_HINTS = ('butt','buttock','buttocks','glute','glutes','gluteus','booty','bum','ass','pigu','tunbu',
               '臀','屁股','お尻','おしり','ケツ')
+# The pinyin butt words also match as whole name parts in a row, so joined
+# syllables count (PiGu_L, Tun_Bu_R; not PiGuan). Only these two: a run of the
+# English words would find "bum" in XiongBu_M. Same as secondary_bones.rs.
+PINYIN_BUTT_HINTS = ('pigu', 'tunbu')
 # Charms and other small hanging pieces, matched without separators (Key_Chain
 # is keychain). They move anywhere and override the rigid accessory words (a
 # dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and
@@ -162,13 +181,34 @@ def named_secondary(name):
 def named_breast(name):
     n = name.lower()
     return not named_butt(name) and (any(h in n for h in BREAST_HINTS)
-            or ('胸' in n and ('左' in n or '右' in n or any(t in ('l','r','left','right') for t in tokens(name)))))
+            or ('胸' in n and ('左' in n or '右' in n or any(t in SIDE_WORDS for t in tokens(name))))
+            or pinyin_breast(name))
+
+
+def pinyin_breast(name):
+    """PINYIN_BREAST_HINTS anywhere as whole name parts in a row, or
+    PINYIN_SIDED_BREAST_HINTS followed directly by a side (or 左/右 in the name
+    with the hint at its end), or ending the name directly after a side. Same
+    as secondary_bones.rs pinyin_breast."""
+    words, sided = tokens(name), '左' in name or '右' in name
+    for i in range(len(words)):
+        for j in range(i + 1, len(words) + 1):
+            run = ''.join(words[i:j])
+            if run in PINYIN_BREAST_HINTS:
+                return True
+            if run in PINYIN_SIDED_BREAST_HINTS and (
+                    ((words[j] in SIDE_WORDS or words[j][0] in '左右') if j < len(words) else sided)
+                    or (j == len(words) and i > 0 and words[i - 1] in SIDE_WORDS)):
+                return True
+    return False
 
 
 def named_butt(name):
     words, n = tokens(name), name.lower()
     return (any(h in words if h.isascii() else h in n for h in BUTT_HINTS)
-            or ('尻' in n and '尻尾' not in n))
+            or ('尻' in n and '尻尾' not in n)
+            or any(''.join(words[i:j]) in PINYIN_BUTT_HINTS
+                   for i in range(len(words)) for j in range(i + 1, len(words) + 1)))
 
 
 def ring_chain(bone, byname, children, source_roles):
@@ -277,6 +317,40 @@ def mirrored_pairs(options, byname, children, source_roles, torso, keep):
     return output
 
 
+def breast_word(name):
+    """A breast word anywhere in the name, side or not: BREAST_HINTS, 胸, or a
+    pinyin breast word as whole name parts in a row. Same as secondary_bones.rs."""
+    n, words = name.lower(), tokens(name)
+    return (any(h in n for h in BREAST_HINTS) or '胸' in n
+            or any(''.join(words[i:j]) in PINYIN_BREAST_HINTS + PINYIN_SIDED_BREAST_HINTS
+                   for i in range(len(words)) for j in range(i + 1, len(words) + 1)))
+
+
+def branched_breasts(bones, byname, children, weighted, source_roles, torso):
+    """Named breast bones that carry a larger branch (a base bone and a ring of
+    surface bones): at most NAMED_BREAST_BONES bones, all within
+    NAMED_BREAST_REACH torso lengths, none a role, every bone below the root
+    named with a breast word and not as another part. A breast bone carrying
+    anything else stays as it was. Same as secondary_bones.rs branched_breasts."""
+    role_names = set(source_roles.values())
+    parents = torso_chain(byname, source_roles)
+    distance = lambda a, b: math.sqrt(sum((a[k]-b[k])**2 for k in range(3)))
+
+    def compact(bone):
+        branch, at = [bone['name']], 0
+        while at < len(branch):
+            if len(branch) > NAMED_BREAST_BONES:
+                return False
+            branch.extend(children.get(branch[at], []))
+            at += 1
+        return (len(branch) <= NAMED_BREAST_BONES
+                and all(n not in role_names and n in byname
+                        and distance(byname[n]['position'], bone['position']) <= NAMED_BREAST_REACH*torso for n in branch)
+                and all(breast_word(n) and not named_secondary(n) and not rigid_named(n) and not named_butt(n) for n in branch[1:]))
+    return {b['name'] for b in bones if b.get('parent') in parents and b['name'] not in role_names
+            and b['name'] in weighted and named_breast(b['name']) and compact(b)}
+
+
 def breast_roots(bones, byname, children, weighted, source_roles):
     """Breast bones: weighted, short, non-role children of a torso bone that are
     named as breasts, or form a mirrored pair in front of the chest in the upper
@@ -289,6 +363,7 @@ def breast_roots(bones, byname, children, weighted, source_roles):
     low = spine['position'][2] if spine is not None else pelvis
     floor = max(low, pelvis + 0.35*(high - pelvis))
     output = {b['name'] for b in options if named_breast(b['name'])}
+    output |= branched_breasts(bones, byname, children, weighted, source_roles, torso)
     # An unnamed pair whose own name says it is another moving part (chest
     # ribbons over the breasts, hair, a cape) is never a breast.
     above = [b for b in options if b.get('parent') != source_roles.get('pelvis') and not named_butt(b['name']) and not named_secondary(b['name'])]
@@ -489,7 +564,7 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
             return None
     choices = {g['root']: g for g in physics_groups(bones, weighted, source_roles, target_roles, breasts, butts)}
     if any(root not in choices for root in roots):
-        raise ValueError('Saved physics groups are stale or unsupported. Inspect the original source again.')
+        raise ValueError('Some saved moving parts are no longer found in your model. On the Moving parts tab, press Use the detected groups (or Load and check only if you changed the model file).')
     groups = [choices[n] for n in sorted(roots)]
     # Each fitted gun carries its own charms (a copied gun's charms stay on the original gun).
     for hand in gun_hands(gun):

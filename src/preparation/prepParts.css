@@ -1,0 +1,94 @@
+/* Parts shared by the restyled Prepare model tabs and the gun panel, which Appearance & weapons
+   shows too (so this file is imported by the components themselves, not only by the page). Theme
+   tokens only: accents --accent*, success --ok*, warnings --warn-*. */
+
+/* A tab's card and the small headings inside it */
+.prep-workspace .prep-tab-card, .prep-workspace .prep-gun-settings { padding: 14px 16px; }
+.prep-tab-card-title { margin: 0; font-size: 15px; font-weight: 650; }
+.prep-card-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 16px 0 8px; }
+.prep-card-heading h3, .prep-section-heading { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.prep-section-heading { margin: 16px 0 8px; }
+.prep-card-heading-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.prep-workspace .prep-card-heading-actions button { min-height: 30px; padding: 3px 10px; font-size: 12px; }
+.prep-tab-card .studio-note, .prep-gun-settings .studio-note { line-height: 1.5; }
+
+/* Callouts: a warning (amber), a good change on offer (green), or plain */
+.prep-callout { display: grid; gap: 8px; justify-items: start; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); font-size: 12.5px; }
+.prep-callout p, .prep-callout ul { margin: 0; }
+.prep-callout ul { padding-left: 18px; }
+.prep-callout.warn { border-color: rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .08); }
+.prep-callout.warn > p:first-child { color: var(--warn-text); }
+.prep-callout.ok { border-color: var(--ok-border); background: var(--ok-faint); }
+.prep-callout-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.prep-workspace .prep-callout button { min-height: 32px; padding: 4px 12px; font-size: 12.5px; }
+
+/* Switches: checkboxes drawn as toggles (their role and names are unchanged) */
+.prep-switches { display: grid; gap: 4px; margin-top: 10px; }
+.prep-switch-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 2px; }
+.prep-workspace input[type=checkbox].prep-switch { appearance: none; flex: none; position: relative; width: 36px; height: 20px; min-height: 0; margin: 1px 0 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.prep-workspace input[type=checkbox].prep-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--secondary); }
+.prep-workspace input[type=checkbox].prep-switch:checked { border-color: var(--accent); background: var(--accent); }
+.prep-workspace input[type=checkbox].prep-switch:checked::after { left: 18px; background: var(--accent-text, #fff); }
+.prep-workspace input[type=checkbox].prep-switch:disabled { opacity: .55; cursor: default; }
+.prep-workspace input[type=checkbox].prep-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.prep-switch-text { display: grid; gap: 3px; min-width: 0; font-size: 13px; line-height: 1.45; }
+.prep-switch-text > label { font-weight: 600; cursor: pointer; }
+label.prep-switch-row .prep-switch-text { font-weight: 600; cursor: pointer; }
+.prep-switch-hint { color: var(--secondary); font-size: 12.5px; }
+.prep-switch-hint p { margin: 0; }
+.prep-switch-hint .prep-physics-stats { margin: 2px 0 0; padding: 0; border: 0; background: none; color: var(--accent-strong); font-size: 12.5px; }
+.prep-workspace .prep-inline-action { min-height: 30px; margin-top: 6px; padding: 3px 10px; font-size: 12px; }
+
+/* The gun panel: the fit preview and its buttons on the left, the settings on the right */
+.prep-gun { container: prep-gun / inline-size; min-width: 0; }
+.prep-gun-grid { display: grid; gap: 14px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+@container prep-gun (min-width: 900px) { .prep-gun.with-fit .prep-gun-grid { grid-template-columns: minmax(0, 1.3fr) minmax(380px, 1fr); } .prep-gun-fitcol { position: sticky; top: 0; } }
+.prep-gun-fitcol { min-width: 0; z-index: 1; }
+.prep-gun-view .studio-view-stage { min-height: 0; }
+.prep-gun-view .prep-weapon-viewport { height: auto; border: 0; border-radius: 0; }
+.prep-gun-view .prep-weapon-canvas { flex: none; height: clamp(240px, calc(100dvh - 640px), 560px); }
+.prep-gun-view .prep-weapon-viewport > p.hint { font-size: 11.5px; max-width: none; }
+.prep-gun-view .prep-weapon-loading { height: clamp(240px, calc(100dvh - 640px), 560px); }
+.prep-gun-view .prep-gun-error { margin: 0; padding: 40px 16px; text-align: center; }
+.prep-gun-adjust-area { display: grid; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--border-subtle); }
+.prep-gun-adjust-area .hint { margin: 0; font-size: 12px; max-width: none; }
+.prep-gun-adjust-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.prep-workspace .prep-gun-adjust-row button { min-height: 32px; padding: 4px 10px; font-size: 12.5px; }
+.prep-gun-adjust-end { margin-left: auto; }
+.prep-workspace .prep-gun-view .studio-view-bar button { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.prep-gun-view .studio-view-group > button { border: 0; border-radius: 0; background: transparent; color: var(--secondary); font-weight: 600; }
+.prep-gun-view .studio-view-group > button + button { border-left: 1px solid var(--border-subtle); }
+.prep-gun-view .studio-view-group > button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent-strong); }
+.prep-gun-settings { min-width: 0; }
+.prep-gun-settings .prep-gun-summary { color: var(--secondary); }
+.prep-gun-settings .prep-gun-summary p { font-size: 12.5px; }
+.prep-gun-settings .prep-gun-hero { color: var(--text); }
+.prep-gun-settings .prep-gun-result { color: var(--text); }
+.prep-gun-settings .prep-gun-also, .prep-gun-settings .prep-gun-charm { font-size: 12px; }
+.prep-gun-file { margin-top: 6px; }
+.prep-gun-file .studio-note { margin: 4px 0 0; font-size: 12px; }
+.prep-gun-file .path-control { max-width: none; }
+.prep-workspace .prep-gun-settings .prep-weapon-actions { margin: 16px 0 0; padding: 0; border: 0; display: block; }
+.prep-gun-settings .prep-weapon-actions legend { padding: 0; margin-bottom: 8px; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.prep-workspace .prep-gun-settings .studio-option input[type=radio] { width: 17px; height: 17px; min-height: 0; margin: 2px 0 0; }
+.prep-gun-section .prep-gun-hands { margin: 0; }
+.prep-gun-section .prep-gun-hands .field { margin: 0; }
+.prep-workspace .prep-swap { min-height: 42px; }
+.prep-gun-section > .studio-note { margin: 6px 0 0; font-size: 12px; }
+.prep-gun-selects { display: grid; gap: 8px; }
+.prep-gun-selects .field { display: grid; grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); align-items: center; gap: 10px; margin: 0; }
+.prep-gun-selects .field select { width: 100%; max-width: none; }
+.prep-gun-selects .field label { margin: 0; color: var(--secondary); font-size: 12.5px; text-transform: none; letter-spacing: 0; }
+.prep-gun-settings .prep-switch-row { margin-top: 6px; }
+.prep-gun-exact { display: grid; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+.prep-workspace .prep-gun-exact .checkbox-line { min-height: 34px; margin: 0; padding: 5px 10px; font-size: 12.5px; }
+.prep-workspace .prep-gun-exact input[type=checkbox] { width: 18px; height: 18px; }
+.prep-gun-numbers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; }
+.prep-gun-numbers .number-field { display: grid; grid-template-columns: minmax(0, 1fr); max-width: none; gap: 3px; margin: 0; font-size: 12px; color: var(--secondary); }
+.prep-workspace .prep-gun-numbers input { min-height: 32px; padding: 3px 8px; }
+.prep-gun-parts { margin-top: 8px; font-size: 12px; }
+.prep-workspace .prep-gun-parts > summary { min-height: 30px; padding: 4px 0; }
+.prep-gun-settings .prep-gun-apply { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 0 10px; padding: 10px 12px; border: 1px solid rgba(var(--warn-rgb), .45); border-radius: 9px; background: rgba(var(--warn-rgb), .08); }
+.prep-gun-settings .prep-gun-apply p { margin: 3px 0 0; }
+@container prep-gun (max-width: 520px) { .prep-gun-settings .prep-gun-apply { grid-template-columns: minmax(0, 1fr); } .prep-gun-selects .field { grid-template-columns: minmax(0, 1fr); } }
+.prep-separate-gun { margin-top: 10px; }

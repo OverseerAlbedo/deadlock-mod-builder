@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>OpenTK.redist.glfw</id>
+    <version>3.4.0.44</version>
+    <authors>Team OpenTK</authors>
+    <license type="file">COPYING.md</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>opentk.png</icon>
+    <projectUrl>https://www.glfw.org/</projectUrl>
+    <description>GLFW redistributables for OpenTK.</description>
+    <repository type="git" commit="9d40a19a64652353c8f67b1c10d3622b07987da9" />
+    <dependencies>
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+</package>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../api";
 import type { ExtraMedia, ExtraPreviewRequest } from "./models";
+import { isNotAPicture, markPicture } from "./pictureChecks";
 
 export function parseExtraMedia(data: ArrayBuffer): ExtraMedia {
   if (data.byteLength < 4) throw new Error("Incomplete asset preview.");
@@ -96,6 +97,8 @@ export function useExtraMedia(
   }>({ key: "", media: null, url: "", loading: false, error: "" });
   const serialized = JSON.stringify(request);
   const key = `${serialized}:${identity}`;
+  // A replacement picture (icons, item icons): whether its file reads as a picture.
+  const picture = request?.source && (request.kind === "icons" || request.kind === "items") ? request.source : "";
   useEffect(() => {
     const controller = new AbortController();
     let url = "";
@@ -114,17 +117,19 @@ export function useExtraMedia(
             url = URL.createObjectURL(
               new Blob([media.bytes], { type: media.mime_type }),
             );
+          if (picture) markPicture(picture, true);
           setState({ key, media, url, loading: false, error: "" });
         })
         .catch((error) => {
-          if (!controller.signal.aborted)
-            setState({
-              key,
-              media: null,
-              url: "",
-              loading: false,
-              error: previewError(error),
-            });
+          if (controller.signal.aborted) return;
+          if (picture && isNotAPicture(previewError(error))) markPicture(picture, false);
+          setState({
+            key,
+            media: null,
+            url: "",
+            loading: false,
+            error: previewError(error),
+          });
         });
     return () => {
       controller.abort();

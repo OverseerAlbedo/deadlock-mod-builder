@@ -50,7 +50,7 @@ describe('existing physics rig choices',()=>{
   it('asks older inspections to refresh without inventing physics from bone names',()=>{
     render(<PhysicsBoneChoices groups={[]} options={{}} change={vi.fn()} busy={false}/>);
     expect(screen.getByLabelText('Keep existing physics bones (rig only)')).toBeDisabled();
-    expect(screen.getByText(/press Inspect source again/)).toBeVisible();
+    expect(screen.getByText(/press Load and check only again/)).toBeVisible();
   });
 });
 
@@ -172,5 +172,30 @@ describe('optional breast motion',()=>{
     const bones=[...hanging.bones as Bone[],{name:'DMB_Breast_L',parent:'Bip001_Spine1',position:[0.05,-0.03,1.23]},{name:'DMB_Breast_R',parent:'Bip001_Spine1',position:[-0.05,-0.03,1.23]}] as Bone[];
     const off=breastMotionOptions(bones,[...hanging.weighted,'DMB_Breast_L','DMB_Breast_R'],{...base,target_roles:{chest:'spine_3'}},false);
     expect(off.mapping).toMatchObject({DMB_Breast_L:'spine_3',DMB_Breast_R:'spine_3'});
+  });
+});
+
+describe('breasts named in pinyin with a branch of surface bones',()=>{
+  const rig=hanging.branched_breasts,roles=rig.roles as PreparationOptions['source_roles'],source=rig.bones as Bone[];
+  it('matches the native rule: pinyin names, eight-bone breast groups, never a carrier of other parts',()=>{
+    for(const name of hanging.breast_names.breast){expect(namedBreast(name)).toBe(true);expect(namedButt(name)).toBe(false);}
+    for(const name of hanging.breast_names.not_breast)expect(namedBreast(name)).toBe(false);
+    expect(breastBones(source,rig.weighted,roles!)).toEqual(rig.breast_bones);
+    expect(physicsGroups(source,rig.weighted,{source_roles:roles,target_roles:roles}).map(g=>g.root)).toEqual(rig.expected_roots);
+    expect(physicsGroups(source,rig.weighted,{source_roles:roles,target_roles:roles,breast_motion:false}).map(g=>g.root)).toEqual(rig.expected_roots);
+    const moving=physicsGroups(source,rig.weighted,{source_roles:roles,target_roles:roles,breast_motion:true});
+    expect(moving.map(g=>g.root)).toEqual(rig.expected_roots_with_breast_motion);
+    expect(moving.every(g=>g.source_anchor==='chest'&&g.source_bones.length===rig.branch_bones&&g.weighted_bones.length===rig.branch_bones)).toBe(true);
+    const renamed=(map:Record<string,string>)=>{const r=(n:string)=>map[n]??n;return breastBones(source.map(b=>({...b,name:r(b.name),parent:b.parent===null?null:r(b.parent)})),rig.weighted.map(r),roles!);};
+    expect(renamed(rig.decorated)).toEqual(rig.decorated_breast_bones);
+    expect(renamed(rig.foreign)).toEqual(rig.foreign_breast_bones);
+    expect(renamed(rig.unnamed)).toEqual(rig.unnamed_breast_bones);
+  });
+  it('keeps them with the breast part type when breast motion is turned on, and adds them to a project that already had it on',()=>{
+    const on=breastMotionOptions(source,rig.weighted,{source_roles:roles,target_roles:roles},true);
+    expect(on).toMatchObject({breast_motion:true,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:rig.breast_bones,physics_kinds:{"Xiongbu.L":'breast',"Xiongbu.R":'breast'}});
+    // A project saved before the names were recognised: breast motion on, the earlier groups offered and kept.
+    const saved:PreparationOptions={source_roles:roles,target_roles:roles,breast_motion:true,preserve_physics_bones:true,automatic_secondary_motion:true,physics_roots:[],physics_offered:[]};
+    expect(automaticPhysicsOptions(source,rig.weighted,saved).physics_roots).toEqual(rig.breast_bones);
   });
 });

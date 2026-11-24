@@ -149,6 +149,8 @@ pub struct Application {
     current_timings: Mutex<Option<TimingRecorder>>,
     last_timings: Mutex<Option<TimingReport>>,
     pub(crate) extras_catalog: Mutex<Option<crate::catalogs::PreviewCatalog>>,
+    /// Extras → Effects: the effect player helper (started on demand).
+    pub(crate) effect_player: crate::effect_player::EffectPlayer,
 }
 
 /// A game model with what the installed game does with it.
@@ -214,6 +216,7 @@ impl Application {
             current_timings: Mutex::new(None),
             last_timings: Mutex::new(None),
             extras_catalog: Mutex::new(None),
+            effect_player: crate::effect_player::EffectPlayer::default(),
         })
     }
     pub fn set_log_sink(&self, sink: LogSink) {
@@ -443,11 +446,18 @@ impl Application {
     /// The Physics page's movement preview: the prepared skeleton and the
     /// hero's idle, run and jump clips (see `deadlock_pipeline::motion_preview`).
     pub fn motion_preview(&self, project: Project) -> Result<Vec<u8>> {
-        self.operation("Load movement preview", |_, token| {
+        self.waiting_operation("Load movement preview", |_, token| {
             let settings = self.settings()?;
             deadlock_pipeline::motion_preview::build(&settings, &project, token).map_err(AppError::from)
         })
         .map(|(packet, _)| packet)
+    }
+    /// The movement preview's cloth packet the last Analyze wrote (JSON), when
+    /// it was made for `proxy_sha256`. Reads one workspace file; it never takes
+    /// the operation lease.
+    pub fn preview_cloth(&self, project: Project, proxy_sha256: String) -> Result<Option<String>> {
+        let settings = self.settings()?;
+        deadlock_pipeline::preview_cloth::read(&settings, &project, &proxy_sha256).map_err(AppError::from)
     }
     pub fn new_project(&self) -> Result<ProjectDocument> {
         let _lease = self.lease()?;
@@ -556,7 +566,7 @@ impl Application {
                 .extension()
                 .and_then(|value| value.to_str())
                 .is_some_and(|value| {
-                    value.eq_ignore_ascii_case("blend") || value.eq_ignore_ascii_case("fbx")
+                    ["blend", "fbx", "pmx", "pmd"].iter().any(|s| value.eq_ignore_ascii_case(s))
                 })
             {
                 deadlock_preparation::blender::check_executable(Path::new(&settings.blender))
@@ -634,6 +644,23 @@ impl Application {
             .map_err(|e| AppError::validation("Project could not be updated", e))?;
         Ok(project)
     }
+    /// "Make a copy for another hero": a new, unsaved project for the hero `path` with the
+    /// character's choices carried over (`deadlock_project::hero_copy`). The original project
+    /// and its files are not changed.
+    pub fn copy_for_hero(&self, project: Project, path: &str) -> Result<deadlock_project::hero_copy::HeroCopy> {
+        if project.original_model == path {
+            return Err(AppError::validation("Choose another hero", "The copy is for a hero other than this project's."));
+        }
+        let models = self.heroes(true)?;
+        let selected = models.iter().find(|record| record.model.path == path).ok_or_else(|| {
+            AppError::validation("Select an existing game model", "The selected model is not in the configured archive.")
+        })?;
+        let name = selected.hero.clone().unwrap_or_else(|| selected.model.name.clone());
+        let original = deadlock_preparation::service::original_source(&project);
+        let copy = deadlock_project::hero_copy::copy_for_hero(&project, &name, &selected.model.path, original);
+        copy.project.validate_draft().map_err(|e| AppError::validation("The copy could not be made", e))?;
+        Ok(copy)
+    }
     pub fn included_physics(&self, hero_path: &str) -> Result<IncludedPhysics> {
         const HERO: &str = "models/heroes_staging/hornet_v3/hornet.vmdl";
         const SHA: &str = "27dd44ea4db29f671cff53d0dd8ad171792fe5f12f45b05aca5db65e0a6b5b0c";
@@ -703,15 +730,7 @@ impl Application {
     pub fn prebuild_warnings(&self) -> Result<Vec<String>> {
         Ok(deadlock_tools::setup_checks::prebuild_warnings(&self.settings()?))
     }
-    /// Every VPK in the game's addons folder with the state of its hero models
-    /// after the game's October 16, 2026 attachment change.
-    pub fn installed_mods(&self) -> Result<Vec<deadlock_pipeline::mod_update::InstalledMod>> {
-        self.operation("Check installed mods", |_, token| {
-            let settings = self.settings()?;
-            deadlock_pipeline::mod_update::scan(&settings, token).map_err(AppError::from)
-        })
-        .map(|(mods, _)| mods)
-    }
+    // `installed_mods` (the scan with labels and projects) is in installed_mods.rs.
     /// Rewrites the hero models of these installed VPKs to the game's current
     /// attachment convention; the previous files are kept under the workspace.
     pub fn update_installed_mods(&self, paths: Vec<PathBuf>) -> Result<Vec<deadlock_pipeline::mod_update::UpdateReport>> {
@@ -727,8 +746,12 @@ impl Application {
             paths
                 .iter()
                 .map(|path| {
-                    deadlock_pipeline::mod_update::update(&settings, path, &backups, settings.keep_backups as usize, token, &log)
-                        .map_err(AppError::from)
+                    // The label and install record follow the rewritten contents.
+                    let before = deadlock_pipeline::mod_update::identity_of(path).unwrap_or_default();
+                    let report = deadlock_pipeline::mod_update::update(&settings, path, &backups, settings.keep_backups as usize, token, &log)
+                        .map_err(AppError::from)?;
+                    self.carry_identity(&before, &deadlock_pipeline::mod_update::identity_of(path).unwrap_or_default());
+                    Ok(report)
                 })
                 .collect()
         })
@@ -749,6 +772,9 @@ impl Application {
     }
     pub fn append_log(&self, level: &str, message: &str) -> Result<()> {
         append_shared(&self.log, &self.sink, level, message)
+    }
+    pub(crate) fn resource_directory(&self) -> PathBuf {
+        self.resource_directory.clone()
     }
     pub(crate) fn native_reader_root(&self) -> PathBuf {
         let packaged = self.resource_directory.join("native/cloth-reader");
@@ -786,11 +812,20 @@ impl Application {
         let observer = ToolLogObserver::start(&runner, self.log.clone(), self.sink.clone());
         Ok((runner, observer))
     }
+    /// Polls of 50 ms an operation waits for the one before it: two seconds.
+    const LEASE_POLLS: u32 = 40;
+    /// Polls a preview load waits: one minute. A preview is asked for while
+    /// the character, its images or an analysis are still loading; it takes
+    /// its turn instead of failing as "Another operation is running".
+    const PATIENT_POLLS: u32 = 1200;
     fn lease(&self) -> Result<OperationLease<'_>> {
+        self.lease_within(Self::LEASE_POLLS)
+    }
+    fn lease_within(&self, polls: u32) -> Result<OperationLease<'_>> {
         // A short operation that is just finishing (a slot scan, a save) should
-        // not make the next one fail: wait up to two seconds for the lock.
+        // not make the next one fail: wait for the lock, 50 ms at a time.
         let mut active = lock(&self.active);
-        for _ in 0..40 {
+        for _ in 0..polls {
             if active.is_none() {
                 break;
             }
@@ -840,7 +875,24 @@ impl Application {
         name: &str,
         work: impl FnOnce(&TimingRecorder, &CancellationToken) -> Result<T>,
     ) -> Result<(T, TimingReport)> {
-        let lease = self.lease()?;
+        self.operation_within(name, Self::LEASE_POLLS, work)
+    }
+    /// An operation that takes its turn behind a running one for up to a
+    /// minute: preview loads (the movement clips, a texture image).
+    pub(crate) fn waiting_operation<T>(
+        &self,
+        name: &str,
+        work: impl FnOnce(&TimingRecorder, &CancellationToken) -> Result<T>,
+    ) -> Result<(T, TimingReport)> {
+        self.operation_within(name, Self::PATIENT_POLLS, work)
+    }
+    fn operation_within<T>(
+        &self,
+        name: &str,
+        polls: u32,
+        work: impl FnOnce(&TimingRecorder, &CancellationToken) -> Result<T>,
+    ) -> Result<(T, TimingReport)> {
+        let lease = self.lease_within(polls)?;
         let clock = TimingRecorder::new(name);
         *lock(&self.current_timings) = Some(clock.clone());
         let directory = self
@@ -1297,6 +1349,24 @@ mod log_tests {
         });
         wait.recv().unwrap();
         assert!(app.operation("next", |_, _| Ok(())).is_ok());
+        running.join().unwrap().unwrap();
+    }
+    /// A preview load asked for while something longer runs (the character,
+    /// its images, an analysis) takes its turn; an ordinary operation still
+    /// gives up after two seconds.
+    #[test]
+    fn a_preview_load_waits_its_turn_behind_a_longer_operation() {
+        let folder = tempfile::tempdir().unwrap();
+        let app = Arc::new(Application::new(folder.path().into()).unwrap());
+        let holder = app.clone();
+        let (started, wait) = std::sync::mpsc::channel();
+        let running = std::thread::spawn(move || {
+            holder.operation("long", |_, _| { started.send(()).unwrap(); std::thread::sleep(std::time::Duration::from_millis(2600)); Ok(()) }).map(|_| ())
+        });
+        wait.recv().unwrap();
+        let refused = app.operation("ordinary", |_, _| Ok(())).unwrap_err();
+        assert_eq!((refused.kind.as_str(), refused.message.as_str()), ("busy", "Another operation is running"));
+        assert!(app.waiting_operation("preview", |_, _| Ok(())).is_ok());
         running.join().unwrap().unwrap();
     }
     #[test]

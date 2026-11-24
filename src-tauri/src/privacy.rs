@@ -33,7 +33,7 @@ pub fn scrub_with(text: &str, profile: &str) -> String {
         while let Some(found) = lower[from_here..].find(&needle) {
             let start = from_here + found;
             let end = start + needle.len();
-            // Only the whole folder name (jayde, not jaydenmore).
+            // Only the whole folder name (sample, not samplemore).
             if lower.as_bytes().get(end).is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-' | b'.')) {
                 from_here = start + 1;
                 continue;
@@ -62,14 +62,14 @@ mod tests {
     use super::*;
     #[test]
     fn the_profile_folder_is_hidden_in_every_spelling_and_case() {
-        let profile = r"C:\Users\jayde";
-        let text = r#"Full tool output: C:\Users\jayde\AppData\Roaming\x; \\?\c:\users\JAYDE\Documents; C:/Users/jayde/Desktop; {"path":"C:\\Users\\jayde\\a"}"#;
+        let profile = r"C:\Users\sample";
+        let text = r#"Full tool output: C:\Users\sample\AppData\Roaming\x; \\?\c:\users\SAMPLE\Documents; C:/Users/sample/Desktop; {"path":"C:\\Users\\sample\\a"}"#;
         let scrubbed = scrub_with(text, profile);
-        assert!(!scrubbed.to_ascii_lowercase().contains("jayde"), "{scrubbed}");
+        assert!(!scrubbed.to_ascii_lowercase().contains("sample"), "{scrubbed}");
         assert!(scrubbed.contains(r"C:\Users\<you>\AppData"));
         assert!(scrubbed.contains("C:/Users/<you>/Desktop"));
         assert!(scrubbed.contains(r#""C:\\Users\\<you>\\a""#));
         // Other users' folders and unrelated text stay.
-        assert_eq!(scrub_with(r"C:\Users\jaydenmore\x and D:\Games", profile), r"C:\Users\jaydenmore\x and D:\Games");
+        assert_eq!(scrub_with(r"C:\Users\samplemore\x and D:\Games", profile), r"C:\Users\samplemore\x and D:\Games");
     }
 }

@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
-import {open} from '@tauri-apps/plugin-dialog';
+import {openFor} from '../dialogs';
 import type {Project,Settings} from '../models';
 import {PageTitle,Section,Field} from '../components/Primitives';
 import {SelectField} from '../components/CustomizationPages';
@@ -17,7 +17,7 @@ type Props={settings:Settings;project:Project;updateSettings:(settings:Settings)
 const bytes=(n:number)=>n<1024?`${n} B`:`${(n/1024**(Math.min(4,Math.floor(Math.log(n)/Math.log(1024))))).toFixed(2)} ${['B','KiB','MiB','GiB','TiB'][Math.min(4,Math.floor(Math.log(n)/Math.log(1024)))]}`;
 function joined(root:string,child:string){return `${root.replace(/[\\/]+$/,'')}${root.includes('\\')?'\\':'/'}${child}`;}
 function SetupPath({label,value,onChange,directory=true,busy,operate,example}: {label:string;value:string;onChange:(v:string)=>void;directory?:boolean;busy:boolean;operate:Props['operate'];example?:string}){
-  return <CompactPathField fullPath label={label} value={value} update={onChange} disabled={busy} placeholder={example?`Example: ${example}`:undefined} browse={async()=>{await operate(`Choose ${label.toLowerCase()}`,async()=>{const path=await open({title:label,directory,multiple:false});if(typeof path==='string')onChange(path);});}}/>;
+  return <CompactPathField fullPath label={label} value={value} update={onChange} disabled={busy} placeholder={example?`Example: ${example}`:undefined} browse={async()=>{await operate(`Choose ${label.toLowerCase()}`,async()=>{const path=await openFor('tools-folder',{title:label,directory,multiple:false});if(typeof path==='string')onChange(path);});}}/>;
 }
 /** What is wrong with a DepotDownloader choice, before running anything. */
 export function depotDownloaderHint(path:string):string|null{

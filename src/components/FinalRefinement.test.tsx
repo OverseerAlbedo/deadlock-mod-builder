@@ -93,12 +93,17 @@ describe('Compact workflow and honest build decisions',()=>{
   it('keeps unanalysed mesh processing neutral and shows an actual reported failure',()=>{
     const openPreparation=vi.fn();const props={document:{path:null,project:{...reviewedProject,auto_split:false}},summary:null,choose:vi.fn(),analyze:vi.fn(),busy:false,drag:null,update:vi.fn(),fail:vi.fn(),preview:null,loadPreview:vi.fn(),importPackage:vi.fn(),analyzeMaterials:vi.fn(),openPreparation};
     const view=render(<Appearance {...props}/>);
-    expect(screen.getByText('Automatic splitting disabled').closest('.state-label')).toHaveClass('state-neutral');
     expect(screen.queryByText(/must be resolved before compilation/)).not.toBeInTheDocument();
-    revealSection('model-processing');
+    // Mesh processing is the top bar's Mesh options menu now (it was the "Configure mesh processing"
+    // disclosure); Build & install's link (revealSection) opens it.
+    act(()=>revealSection('model-processing'));
+    expect(screen.getByRole('button',{name:/^Mesh options/})).toHaveAttribute('aria-expanded','true');
+    expect(screen.getByText('Automatic splitting disabled').closest('.state-label')).toHaveClass('state-neutral');
     expect(screen.getByRole('checkbox',{name:'Automatically split oversized meshes'})).toBeVisible();
-    expect(screen.getByText('Configure mesh processing',{selector:'summary > span'}).closest('details')).toHaveAttribute('open');
+    // The link to Model preparation is in the Model menu.
+    fireEvent.click(screen.getByRole('button',{name:/^Model/}));
     fireEvent.click(screen.getByRole('button',{name:'Open Model preparation →'}));expect(openPreparation).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button',{name:/^Mesh options/}));
     view.rerender(<Appearance {...props} report={{...inspected,needs_review:true,vertex_preflight:{...inspected.vertex_preflight,errors:['Native mesh exceeds capacity']}}} fresh/>);
     expect(screen.getByText('Mesh processing needs attention').closest('.state-label')).toHaveClass('state-attention');
     expect(screen.getByText('Native mesh exceeds capacity')).toBeInTheDocument();
@@ -108,7 +113,7 @@ describe('Compact workflow and honest build decisions',()=>{
     render(<Appearance {...props}/>);
     expect(screen.getByRole('button',{name:'Analyze materials'})).toBeDisabled();
     expect(screen.getByText('Choose a character and replacement model first to analyze materials.')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Manage material assignments',{selector:'summary'}));
+    // The list is always open now (it was under "Manage material assignments").
     expect(screen.getByRole('textbox',{name:'Search materials'})).toBeVisible();
   });
   it('does not promote Vindicta cloth from a hero name or a saved reference alone',()=>{
@@ -119,7 +124,7 @@ describe('Compact workflow and honest build decisions',()=>{
     expect(qualifiedIncludedCloth(project,inspected,true)).toBe(false);
     const view=render(<PhysicsPage project={project} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null}/>);
     expect(screen.queryByText(/source binding checked/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Configure replacement cloth',{selector:'summary > span'}));
+    fireEvent.click(screen.getByRole('tab',{name:/^Tested cloth setup/}));
     expect(screen.getByRole('button',{name:'Use included Vindicta cloth setup'})).toBeEnabled();
     view.rerender(<PhysicsPage project={{...project,original_model:'models/heroes_staging/bebop/bebop.vmdl'}} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null}/>);
     expect(screen.queryByRole('button',{name:'Use included Vindicta cloth setup'})).not.toBeInTheDocument();

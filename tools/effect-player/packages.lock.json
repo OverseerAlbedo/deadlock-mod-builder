@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "gK2aq4XvChj5kvozpPHrkfKkr7zc5Z4xoTrJb4GPZzDEPMlCk0TX632bwY3LsWcX2UVcVRQBBGzsBGC2lq6YhA=="
+      },
+      "OpenTK.Windowing.Desktop": {
+        "type": "Direct",
+        "requested": "[4.9.4, 4.9.4]",
+        "resolved": "4.9.4",
+        "contentHash": "LBX4jwCneISIBST2vWYLI8cdR8tLwHNcswK1decElbTAXMB+H6uFIoF41ld+af4q3TsHpjR5fyP2ilbTK3T0rA==",
+        "dependencies": {
+          "OpenTK.Core": "[4.9.4, 4.10.0)",
+          "OpenTK.Mathematics": "[4.9.4, 4.10.0)",
+          "OpenTK.Windowing.Common": "[4.9.4, 4.10.0)",
+          "OpenTK.Windowing.GraphicsLibraryFramework": "[4.9.4, 4.10.0)"
+        }
+      },
+      "ValveResourceFormat": {
+        "type": "Direct",
+        "requested": "[21.1.7798, 21.1.7798]",
+        "resolved": "21.1.7798",
+        "contentHash": "1/S647OLmq3jPf9mF2MYTJOtb8Z9YHlAe9nI9jZ3PCLz4Wekt8E/OmGZwXsu/6ftkH3YKgoaH/TwV0CgRIAGLw==",
+        "dependencies": {
+          "K4os.Compression.LZ4": "1.3.8",
+          "KeyValues2": "2.0.0-rc2",
+          "SharpGLTF.Core": "1.0.7",
+          "SkiaSharp": "4.153.1",
+          "SkiaSharp.NativeAssets.Linux.NoDependencies": "4.153.1",
+          "System.IO.Hashing": "11.0.0",
+          "System.Numerics.Tensors": "11.0.0",
+          "TinyBCSharp": "0.1.2",
+          "ValveKeyValue": "0.80.0.542",
+          "ValvePak": "7.2.0.221",
+          "Vortice.SpirvCross": "1.6.0"
+        }
+      },
+      "ValveResourceFormat.Renderer": {
+        "type": "Direct",
+        "requested": "[21.1.7798, 21.1.7798]",
+        "resolved": "21.1.7798",
+        "contentHash": "S+OGNvQ9q4WGSwUl8kxLGGClPzD09ell9W8sThy9EKV20eIqAhuSJuIqeDGj4mE2ODxZcd+Wf2LRXNvJDTyATg==",
+        "dependencies": {
+          "NLayer": "3.0.0",
+          "OpenTK.Graphics": "4.9.4",
+          "System.Numerics.Tensors": "11.0.0",
+          "ValveResourceFormat": "21.1.7798"
+        }
+      },
+      "Blake3": {
+        "type": "Transitive",
+        "resolved": "3.0.2",
+        "contentHash": "THvWhdj8ErSdrGamTqjshCU1ImANfr7ieKY6eFqeMsRenvXEKut9qGm5/MA4SUk8IYvAahf67jSh0yVj9jTPzg=="
+      },
+      "K4os.Compression.LZ4": {
+        "type": "Transitive",
+        "resolved": "1.3.8",
+        "contentHash": "LhwlPa7c1zs1OV2XadMtAWdImjLIsqFJPoRcIWAadSRn0Ri1DepK65UbWLPmt4riLqx2d40xjXRk0ogpqNtK7g=="
+      },
+      "KeyValues2": {
+        "type": "Transitive",
+        "resolved": "2.0.0-rc2",
+        "contentHash": "HM9ih9tsF7Lz8V57Rl5DtQIGfrkDfjv6/P8S3I+VOelxwPGczGDok9D4qA54Go/dLIyKIna8fZyshQRDu4XifQ=="
+      },
+      "NLayer": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "aQrCT93NjIrJNXA7wiTSHMp9OUhGNb8YTJAwnsx2FtaNdAe74vwfguFExf6QFNU72XhNPb/bLAcdMbxvaNZgWg=="
+      },
+      "OpenTK.Core": {
+        "type": "Transitive",
+        "resolved": "4.9.4",
+        "contentHash": "/4Mn3ABf1xNfHMzDFUapVY2K4PG3oP/oWTQJlK0JacT20HwsNe/HPIAhnAJWz27EM3ukOJDtqyQRukvQKqkcLw=="
+      },
+      "OpenTK.Graphics": {
+        "type": "Transitive",
+        "resolved": "4.9.4",
+        "contentHash": "yZeq5swIsRnNzifVA9fLtl+qMAQvmYiF1b7U/XQLARmmU4PYQ23lPNahqAdD22XzA21ew7eG3yDyPLkYw+hDBA==",
+        "dependencies": {
+          "OpenTK.Core": "[4.9.4, 4.10.0)",
+          "OpenTK.Mathematics": "[4.9.4, 4.10.0)"
+        }
+      },
+      "OpenTK.Mathematics": {
+        "type": "Transitive",
+        "resolved": "4.9.4",
+        "contentHash": "2ucF25RVJzdSLXUHgjAgB058gVfSgerrR5pLCn9J+Bnyqi45NrBfPu9wyTT35ZCjYwLJCu/HJMnzKFLjq+uFIA=="
+      },
+      "OpenTK.redist.glfw": {
+        "type": "Transitive",
+        "resolved": "3.4.0.44",
+        "contentHash": "HEjbdk0wWxSRrXHl3DSmrA8trecndgJpAHHloJJ1vPseNfeu/ynmrH/LturU1KguRn4r3IzZ81UIp5xRjnyahg=="
+      },
+      "OpenTK.Windowing.Common": {
+        "type": "Transitive",
+        "resolved": "4.9.4",
+        "contentHash": "xNjvKjoptAh6w5/YYIx/9sNv3/A2VVlTahlekTlLP+qfNyig+0jBuLHO4bWELWZ7Ta3Y1m/2Pvk0Z1KCG8VZOA==",
+        "dependencies": {
+          "OpenTK.Core": "[4.9.4, 4.10.0)",
+          "OpenTK.Mathematics": "[4.9.4, 4.10.0)"
+        }
+      },
+      "OpenTK.Windowing.GraphicsLibraryFramework": {
+        "type": "Transitive",
+        "resolved": "4.9.4",
+        "contentHash": "wNlxnPrD7veMV8EGTTi/sCDeg5V8w/18vC0aw0Ao69eNneD7YSq9Ad+C389rVA957eHNR6Xieu/5qzHQeEOyxQ==",
+        "dependencies": {
+          "OpenTK.Core": "[4.9.4, 4.10.0)",
+          "OpenTK.redist.glfw": "3.4.0.44"
+        }
+      },
+      "SharpGLTF.Core": {
+        "type": "Transitive",
+        "resolved": "1.0.7",
+        "contentHash": "dZHCUl2jH1ViiLbAwyYbVfZnFqsF1e/9OhZAfLBoggOpqnsbgKQghldK3LnobmtNRp6GNZMyaNkPceqERkqmsQ=="
+      },
+      "SkiaSharp": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "TghYLOUaP3q6rTjQw7U9uQaaXh8lEs9rfA1U7/VtmyAptVDtj/SmjtcWzFWmcC/VMWxe3QgbV9uyvqDL7ySFtQ==",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "4.153.1",
+          "SkiaSharp.NativeAssets.macOS": "4.153.1"
+        }
+      },
+      "SkiaSharp.NativeAssets.Linux.NoDependencies": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "NrnPjcxjcRau4GMOY0BTpUdMey+MnmLU3jC5AuExEFHPS2NkX1tdkXW0n/c5nQMMHBTAMpHnt7qEOpXs2FNfIQ=="
+      },
+      "SkiaSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "YTojWeWIhnpF7uC8vpMxB5wRONKkDB2t3r/nNPA3DL2pgj9fqMXRevA/rIanYazWnco4jo1ufgp3HkXuh1Tz8A=="
+      },
+      "SkiaSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
+      },
+      "System.Numerics.Tensors": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "thx6y1hMzB6LumB/aLcZoLHWq8wr+dbldk/FiNghyT+4ynxo9u2oCTFfb5iDMDG6hykDXLorXuaf4EPEij2BBg=="
+      },
+      "TinyBCSharp": {
+        "type": "Transitive",
+        "resolved": "0.1.2",
+        "contentHash": "XNqUm7oBpYlxQyUNjpNHk+pEBSlmGsl+wkK2mJU+WNTchwke7kfzdnUQCk0H4ANnIjggz6CKIJz5i/wEFAWJRQ=="
+      },
+      "ValveKeyValue": {
+        "type": "Transitive",
+        "resolved": "0.80.0.542",
+        "contentHash": "tuM+//7kpcWQIQ5I/I5WoB0mSHmqY2ExicD/pzQUQHH2vAm+5FUMBoVzsUtRPe7Mo1Hi+LZTOGSnLPBP8S94/Q=="
+      },
+      "ValvePak": {
+        "type": "Transitive",
+        "resolved": "7.2.0.221",
+        "contentHash": "Ee86dj0pwto3zDg8jw/3TQcF+DgMR5XqIKANKlWma5F7UjTkgR4scV3bvGQsSgvezQ12fom5YCNHuTkhJ4lw6w==",
+        "dependencies": {
+          "Blake3": "3.0.2",
+          "System.IO.Hashing": "10.0.10"
+        }
+      },
+      "Vortice.SPIRV": {
+        "type": "Transitive",
+        "resolved": "1.0.6",
+        "contentHash": "2T/lYZmypc01JYxFegnyR3B2KFr7bO8leSAnWxqjDygdmCw1VIOb6d/9tQinCRxTxFFcA1DPodZyAYEgy+YvQw=="
+      },
+      "Vortice.SpirvCross": {
+        "type": "Transitive",
+        "resolved": "1.6.0",
+        "contentHash": "4cDghlTgRKdwTPUAh8Iy2MHm767rJOKJFFRntCCy1jgrFEG1E1H0U3SsCEhecx3qh0WDetyfBMK25qKPk2ZEvw==",
+        "dependencies": {
+          "Vortice.SPIRV": "1.0.6"
+        }
+      }
+    },
+    "net11.0/win-x64": {
+      "OpenTK.redist.glfw": {
+        "type": "Transitive",
+        "resolved": "3.4.0.44",
+        "contentHash": "HEjbdk0wWxSRrXHl3DSmrA8trecndgJpAHHloJJ1vPseNfeu/ynmrH/LturU1KguRn4r3IzZ81UIp5xRjnyahg=="
+      },
+      "SkiaSharp.NativeAssets.Linux.NoDependencies": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "NrnPjcxjcRau4GMOY0BTpUdMey+MnmLU3jC5AuExEFHPS2NkX1tdkXW0n/c5nQMMHBTAMpHnt7qEOpXs2FNfIQ=="
+      },
+      "SkiaSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "YTojWeWIhnpF7uC8vpMxB5wRONKkDB2t3r/nNPA3DL2pgj9fqMXRevA/rIanYazWnco4jo1ufgp3HkXuh1Tz8A=="
+      },
+      "SkiaSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "4.153.1",
+        "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
+      },
+      "Vortice.SpirvCross": {
+        "type": "Transitive",
+        "resolved": "1.6.0",
+        "contentHash": "4cDghlTgRKdwTPUAh8Iy2MHm767rJOKJFFRntCCy1jgrFEG1E1H0U3SsCEhecx3qh0WDetyfBMK25qKPk2ZEvw==",
+        "dependencies": {
+          "Vortice.SPIRV": "1.0.6"
+        }
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ mod common;
 
 type V = [f64; 3];
 
-/// The hero captured with the Daki rig (private assets), or `None` when it is not checked out.
+/// The hero that goes with the Daki rig (optional data), or `None` when that data is not there.
 fn hero() -> Option<(Skeleton, Vec<PreparedBone>)> {
     let value: Value = serde_json::from_str(&common::private_text("fixtures/daki-rig.json")?).unwrap();
     let target: Vec<PreparedBone> = serde_json::from_value(value["target"].clone()).unwrap();

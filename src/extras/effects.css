@@ -1,0 +1,221 @@
+/* Extras → Effects (Effects.tsx). Built on the Colors page's studio: the root also carries
+   .colors-studio, so the list, the three-column grid (stacking at 940px and 700px of the
+   studio), the segmented switches, the color picker and the gradient sliders look the same.
+   Strips and swatches show game colors (data); every chrome color is a theme token. */
+.effects-studio {
+  --sound-tag-hero: var(--accent);
+  --sound-tag-ability: hsl(193 68% 60%);
+  --sound-tag-weapon: hsl(28 84% 63%);
+  --checker-a: hsl(calc(var(--hue) + 0) 8% 22%);
+  --checker-b: hsl(calc(var(--hue) + 0) 8% 13%);
+}
+.effects-studio .colors-head h2 { margin-right: 4px; }
+
+/* Edit colors | Replace a file */
+.effects-view-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.extras-shell .effects-view-switch button { min-height: 32px; padding: 4px 13px; border: 0; border-radius: 0; background: transparent; color: var(--secondary); font-size: 13px; font-weight: 600; }
+.extras-shell .effects-view-switch button + button { border-left: 1px solid var(--border-subtle); }
+.extras-shell .effects-view-switch button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-strong); }
+.extras-shell .effects-view-switch button:hover:not([aria-checked="true"]) { color: var(--text); }
+.effects-replace-bar { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.effects-replace-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.effects-replace-bar-row p { margin: 0; font-size: 12.5px; color: var(--secondary); }
+.effects-replace-bar + .extras-layout { margin-top: 12px; }
+.effects-conflict { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid rgba(var(--warn-rgb), 0.45); border-radius: 9px; background: rgba(var(--warn-rgb), 0.08); color: var(--text); font-size: 12.5px; }
+.effects-conflict > svg { flex: none; margin-top: 2px; color: var(--warn-text); }
+.effects-conflict strong { display: block; color: var(--warn-text); margin-bottom: 2px; }
+.effects-conflict ul { margin: 0; padding-left: 16px; }
+.effects-conflict li { margin: 2px 0; }
+
+.effects-warnings { margin: -4px 0 14px; font-size: 12.5px; color: var(--secondary); }
+.effects-warnings summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
+.effects-warnings p { margin: 6px 0 0 21px; }
+
+/* The list */
+.effects-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
+.extras-shell .effects-tags .sounds-filter { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.effects-studio .color-list-group-name em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; }
+/* What the list is, one line above it; group notes and the folded group of other files. */
+.effects-list-note { margin: 2px 2px 6px; font-size: 12px; color: var(--muted); }
+.effects-group-note { margin: 0 7px 5px; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.effects-group-fold { padding: 5px 2px 0; }
+.effects-group-fold button { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 0; padding: 3px 5px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; white-space: normal; cursor: pointer; }
+.effects-group-fold .effects-fold-caret { flex: none; }
+.effects-group-fold button:hover { background: var(--hover); color: var(--text); }
+.effects-group-fold button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.effects-fold-caret { width: 0; height: 0; border-left: 5px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform 0.12s; }
+.effects-group-fold button[aria-expanded="true"] .effects-fold-caret { transform: rotate(90deg); }
+.effects-group-more { margin: 2px 7px 6px; font-size: 12px; }
+.effects-row-swatch { flex: none; display: flex; width: 36px; height: 36px; border-radius: 9px; overflow: hidden; box-shadow: inset 0 0 0 1px hsl(0 0% 0% / 0.45), 0 0 0 1px var(--border-subtle); }
+.effects-row-swatch i { flex: 1 1 0; }
+.effects-row-swatch i.none { background: repeating-conic-gradient(var(--checker-a) 0% 25%, var(--checker-b) 0% 50%) 0 0 / 8px 8px; }
+.effects-row .color-pill { font-size: 10.5px; padding: 1px 7px; }
+
+/* When the columns stack, the editor comes before the (long) list of parts. */
+@container colors-studio (max-width: 940px) { .effects-studio .colors-grid { grid-template-areas: "list editor" "list view"; } }
+@container colors-studio (max-width: 700px) { .effects-studio .colors-grid { grid-template-areas: "list" "editor" "view"; } }
+
+/* The middle: the effect and its parts */
+.effects-studio .effects-view { position: static; container: effects-view / inline-size; padding: 14px 14px 12px; }
+.effects-studio .effects-stage-empty { position: static; min-height: 240px; }
+.effects-details { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.effects-details-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.effects-details-head h3 { margin: 0; font-size: 16px; color: var(--text); overflow-wrap: anywhere; }
+.effects-note { margin: 0; font-size: 12.5px; color: var(--secondary); overflow-wrap: anywhere; }
+.effects-by-name { font-size: 12px; color: var(--muted); }
+.effects-parts-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border-subtle); }
+.effects-parts-head h4 { margin: 0; font-size: 13.5px; color: var(--text); }
+.effects-parts-head small { font-size: 12px; color: var(--secondary); }
+.effects-updating { margin-left: auto; font-size: 12px; color: var(--secondary); }
+.effects-parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.effects-part { display: grid; grid-template-columns: minmax(130px, 32%) minmax(0, 1fr); gap: 6px 14px; padding: 10px 2px 10px calc(2px + var(--depth, 0) * 14px); border-bottom: 1px solid var(--border-subtle); }
+.effects-part:last-child { border-bottom: 0; }
+.effects-part-name { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.effects-part-name > div { min-width: 0; }
+.effects-part-name strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.effects-part-name small { display: block; margin-top: 1px; font-size: 11.5px; color: var(--secondary); }
+.effects-part-name input[type="checkbox"] { flex: none; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--accent); }
+.effects-part-nobox { flex: none; width: 16px; }
+.effects-part.quiet { padding-top: 7px; padding-bottom: 7px; }
+.effects-part.quiet .effects-part-name strong { color: var(--secondary); font-weight: 500; }
+.effects-part-strips { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.effects-strip-pair { display: flex; flex-direction: column; gap: 3px; }
+.effects-strip-role { font-size: 11.5px; color: var(--secondary); }
+.effects-strip-row { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 8px; }
+.effects-strip-label { font-size: 11px; font-weight: 600; color: var(--secondary); }
+.effects-strip { position: relative; height: 15px; border-radius: 5px; background: var(--strip), repeating-conic-gradient(var(--checker-a) 0% 25%, var(--checker-b) 0% 50%) 0 0 / 10px 10px; box-shadow: inset 0 0 0 1px hsl(0 0% 0% / 0.45), 0 0 0 1px var(--border-subtle); }
+.effects-strip.dim { opacity: 0.75; }
+.effects-strip-tick { position: absolute; bottom: -4px; width: 1px; height: 4px; margin-left: -0.5px; background: var(--secondary); }
+.effects-part-notes { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0 0 0 24px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--secondary); }
+.effects-part-notes li { position: relative; overflow-wrap: anywhere; }
+.effects-part-notes li::before { content: ""; position: absolute; left: -12px; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.effects-part-notes li.fixed::before { background: var(--warn-text); }
+.effects-part-notes li.kept { color: var(--accent-strong); }
+.effects-part-notes li.kept::before { background: var(--accent); }
+@container effects-view (max-width: 520px) {
+  .effects-part { grid-template-columns: minmax(0, 1fr); }
+  .effects-part-strips { padding-left: 24px; }
+  .effects-part-notes { padding-left: 24px; }
+}
+
+/* The editor */
+.effects-studio .effects-inspector .color-editor { gap: 12px; }
+.effects-advanced-line { margin: 0; padding: 8px 10px; border: 1px solid var(--accent-soft-border); border-radius: 8px; background: var(--accent-soft); font-size: 12.5px; color: var(--text); }
+.effects-studio .effects-advanced-line .extra-text-button { min-height: 0; padding: 0; color: var(--accent-strong); font-weight: 600; text-decoration: underline; }
+.effects-presets { display: flex; flex-wrap: wrap; gap: 9px; }
+.effects-studio .effects-preset { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; border: 1px solid hsl(0 0% 0% / 0.45); box-shadow: 0 0 0 1px var(--border-subtle); }
+.effects-studio .effects-preset[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface-secondary), 0 0 0 4px var(--text); }
+.effects-studio .effects-preset:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.effects-studio .effects-preset:disabled { opacity: 0.45; }
+.effects-chip { display: inline-block; padding: 2px 8px; border-radius: 6px; font: 600 12px/1.5 "Cascadia Mono", Consolas, monospace; box-shadow: inset 0 0 0 1px hsl(0 0% 0% / 0.35); white-space: nowrap; }
+.effects-main-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.effects-main-row small { font-size: 12px; color: var(--secondary); }
+.effects-main-choose { display: flex; flex-direction: column; gap: 8px; }
+.effects-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.effects-studio .effects-swatch { position: relative; width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 8px; border: 1px solid hsl(0 0% 0% / 0.45); box-shadow: 0 0 0 1px var(--border); }
+.effects-studio .effects-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface-secondary), 0 0 0 4px var(--text); }
+.effects-studio .effects-swatch:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.effects-swatch u { position: absolute; right: -5px; bottom: -5px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--surface-secondary); box-shadow: 0 0 0 1px hsl(0 0% 0% / 0.5); }
+.effects-swatch b { position: absolute; left: -5px; top: -6px; min-width: 15px; padding: 0 3px; border-radius: 6px; background: var(--elevated); color: var(--text); font-size: 9.5px; line-height: 14px; box-shadow: 0 0 0 1px var(--border); }
+.effects-one-color { display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.effects-one-head { margin: 0; font-size: 12.5px; color: var(--secondary); overflow-wrap: anywhere; }
+.effects-one-head strong { color: var(--text); font-family: "Cascadia Mono", Consolas, monospace; margin-right: 4px; }
+.effects-one-color .hero-color-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text); }
+.effects-multiplier { display: flex; flex-direction: column; gap: 2px; }
+.effects-reach { padding-left: 88px; font-size: 11.5px; color: var(--secondary); }
+.effects-reach.none { color: var(--secondary); font-style: italic; }
+.effects-pick { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text); }
+.effects-pick p { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.effects-warning { color: var(--warn-text); }
+.effects-error-line { margin: 0; font-size: 12.5px; color: var(--problem-text); overflow-wrap: anywhere; }
+.color-list-empty .effects-error-line strong { color: var(--problem-text); }
+.effects-conflict-line { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; color: var(--warn-text); }
+.effects-conflict-line svg { flex: none; margin-top: 2px; }
+.effects-actions { margin: 2px 0 0; padding: 12px 0 0; border-top: 1px solid var(--border-subtle); }
+.effects-foot { margin: 0; }
+
+/* The moving preview (EffectPlayer.tsx). The stage background is the chosen view colour
+   (data, not chrome); everything around it uses theme tokens. */
+.effects-player { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.effects-player-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 7px 10px; }
+.effects-player-bar.view { gap: 6px 12px; }
+.effects-player-actions { display: inline-flex; gap: 6px; margin-left: auto; }
+.effects-player-bar.view { border-top: 1px solid var(--border-subtle); }
+.extras-shell .effects-player-button,
+.extras-shell .effects-player-group button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--text); font-size: 12.5px; font-weight: 600; }
+.extras-shell .effects-player-button[aria-pressed="true"],
+.extras-shell .effects-player-group button[aria-checked="true"] { border-color: var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); }
+.extras-shell .effects-player-button:disabled,
+.extras-shell .effects-player-group button:disabled { opacity: 0.55; }
+.effects-player-group { display: inline-flex; align-items: center; gap: 4px; }
+.effects-player-group > span,
+.effects-player-brightness > span,
+.effects-player-fps > span { font-size: 12.5px; color: var(--secondary); margin-right: 2px; }
+.extras-shell .effects-player-group .effects-player-swatch { width: 22px; min-height: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
+.extras-shell .effects-player-group .effects-player-swatch[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--focus); background-clip: padding-box; }
+.effects-player-compare strong { font-size: 12.5px; }
+.effects-player-brightness,
+.effects-player-fps { display: inline-flex; align-items: center; gap: 6px; }
+.effects-player-brightness input { width: 84px; accent-color: var(--accent); }
+.effects-player-brightness small { min-width: 18px; font-size: 12px; color: var(--secondary); font-variant-numeric: tabular-nums; }
+.effects-player-fps select { min-height: 28px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-secondary); color: var(--text); font-size: 12.5px; }
+.extras-shell .effects-player-bar .extra-secondary.small,
+.extras-shell .effects-player-off .extra-secondary.small { min-height: 28px; padding: 3px 10px; font-size: 12.5px; }
+.effects-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 180px; max-height: 62vh; overflow: hidden; }
+.effects-player-stage canvas { display: block; width: 100%; height: 100%; object-fit: contain; cursor: grab; touch-action: none; }
+.effects-player-stage canvas:active { cursor: grabbing; }
+.effects-player-stage canvas:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.effects-player-stage canvas.hidden { visibility: hidden; }
+.effects-player-tag { position: absolute; top: 10px; padding: 2px 9px; border-radius: 999px; background: hsl(0 0% 0% / 0.6); color: hsl(0 0% 96%); font-size: 11.5px; font-weight: 700; pointer-events: none; }
+.effects-player-tag.left { left: 10px; }
+.effects-player-tag.right { left: calc(50% + 10px); }
+.effects-player-time,
+.effects-player-updating { position: absolute; bottom: 8px; padding: 1px 7px; border-radius: 5px; background: hsl(0 0% 0% / 0.55); color: hsl(0 0% 92%); font-size: 11.5px; font-family: ui-monospace, monospace; pointer-events: none; }
+.effects-player-time { right: 10px; }
+.effects-player-updating { left: 10px; font-family: inherit; }
+.effects-player-wait,
+.effects-player-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; text-align: center; color: hsl(0 0% 88%); font-size: 13px; }
+.effects-player-empty strong { color: hsl(0 0% 96%); font-size: 14px; }
+.effects-player-empty span { max-width: 460px; color: hsl(0 0% 78%); }
+.effects-player-line { margin: 0; padding: 6px 10px 0; font-size: 12.5px; color: var(--warn-text); }
+.effects-player-notes { margin: 0; padding: 8px 10px 10px 26px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--secondary); }
+.effects-player-off { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 9px 12px; border: 1px dashed var(--border); border-radius: 9px; font-size: 12.5px; color: var(--secondary); }
+
+/* Advanced: each part's kind, its Shown / Hidden switch and a 3D part's own settings
+   ("This part"). The Simple view never renders these. */
+.effects-hidden-count { margin-left: auto; font-size: 12px; color: var(--secondary); }
+.effects-part.advanced-row { grid-template-columns: minmax(0, 1fr) auto; }
+.effects-part.advanced-row > .effects-part-strips,
+.effects-part.advanced-row > .effects-part-lines,
+.effects-part.advanced-row > .effects-part-panel { grid-column: 1 / -1; margin-left: 24px; }
+.effects-kind { display: inline-block; margin-left: 7px; padding: 0 6px; border: 1px solid var(--border); border-radius: 5px; font-size: 10.5px; font-weight: 500; line-height: 17px; color: var(--secondary); vertical-align: 1px; white-space: nowrap; }
+.effects-part-switches { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: 6px; }
+.extras-shell .effects-shown,
+.extras-shell .effects-this-part { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 2px 9px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--text); font-size: 12px; font-weight: 600; }
+.extras-shell .effects-shown[aria-pressed="true"] { border-color: var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); }
+.extras-shell .effects-this-part { border-color: var(--accent-soft-border); color: var(--accent-strong); }
+.extras-shell .effects-this-part[aria-expanded="true"] { background: var(--accent-soft); }
+.extras-shell .effects-shown:disabled,
+.extras-shell .effects-this-part:disabled { opacity: 0.55; }
+.effects-shown i { width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid currentColor; }
+.effects-shown i.on { background: currentColor; }
+.effects-this-part .effects-fold-caret { transform: rotate(90deg); }
+.effects-this-part[aria-expanded="true"] .effects-fold-caret { transform: rotate(-90deg); }
+.effects-part-lines { display: flex; flex-direction: column; gap: 2px; }
+.effects-part-lines p { margin: 0; font-size: 12px; color: var(--secondary); overflow-wrap: anywhere; }
+.effects-hidden-line { color: var(--text); }
+.effects-part-strips.dimmed { opacity: 0.45; }
+.effects-part-panel { display: flex; flex-direction: column; gap: 9px; padding: 11px 12px; border: 1px solid var(--accent-soft-border); border-radius: 10px; background: var(--surface-secondary); }
+.effects-part-panel-head { display: flex; align-items: center; gap: 8px; }
+.effects-part-panel-head strong { font-size: 13px; color: var(--text); }
+.effects-part-panel .hint { margin: 0; font-size: 12px; }
+.effects-part-panel .effects-reach { padding-left: 88px; }
+.effects-part-tint { display: flex; flex-direction: column; gap: 6px; }
+.effects-player-gap { font-size: 11.5px; color: var(--muted); padding-left: 88px; }
+@container effects-view (max-width: 520px) {
+  .effects-part.advanced-row > .effects-part-strips,
+  .effects-part.advanced-row > .effects-part-lines,
+  .effects-part.advanced-row > .effects-part-panel { margin-left: 0; }
+  .effects-part-panel .effects-reach, .effects-player-gap { padding-left: 0; }
+}
+.effects-part-tint .effects-player-gap, .effects-part-tint .effects-reach { padding-left: 0; }

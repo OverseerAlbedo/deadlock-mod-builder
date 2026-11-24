@@ -902,7 +902,12 @@
    "尻_L",
    "Ass_R",
    "pigu_L",
-   "tunbu_R"
+   "tunbu_R",
+   "PiGu_L",
+   "PiGu_R",
+   "Pi_Gu_L",
+   "TunBu_R",
+   "XiongBu_PiGu_L"
   ],
   "not_butt": [
    "尻尾_01",
@@ -911,7 +916,61 @@
    "Pelvis",
    "Bass_Guitar",
    "Bust_L",
-   "Bumper"
+   "Bumper",
+   "PiGuan_L",
+   "XiongBu_M",
+   "Spi_Gun_L",
+   "TunBuckle_R"
   ]
+ },
+ "breast_names": {
+  "breast": ["Xiongbu.L", "Xiongbu_R", "xiong_bu_l", "XIONGBU_R", "Bone_Xiongbu.L", "xiong_L_01", "Xiong.R", "xiongbu_左", "RuFang_L", "rufang", "Breast_L", "L_XiongBu", "R_XiongBu", "R_Xiong_Bu_01", "Left_Xiongbu", "l_xiong", "LeftXiongBu"],
+  "not_breast": ["XiongBu", "Xiong_Spine", "XiongMao_L", "Xiong_Mao_R", "Xiongbuhou_L", "Rufa_L", "Pigu_L", "XiongBu_PiGu_L", "L_XiongMao", "L_Xiong_Spine", "L_XiongBu_Mid", "LXiongBu", "L_Xiongbuhou", "Spine_L_Xiong_Mao", "LeftXiongMao"]
+ },
+ "branched_breasts": {
+  "_comment": "A rig whose breasts are named in pinyin (XiongBu) and carry a branch: each breast bone on the chest has one base bone with six surface bones, eight bones per side reaching 0.22 torso lengths. Named, each side is one breast group of eight bones moving only with breast motion on; with a ribbon among the surface bones (decorated), or a bone without a breast word (foreign, like a cape piece named in a way no hint knows), that side is not a breast; renamed without a breast word the branch is too large for an unnamed pair.",
+  "bones": [
+   {"name": "pelvis", "parent": null, "position": [0, 0, 0.92]},
+   {"name": "spine", "parent": "pelvis", "position": [0, 0, 1.05]},
+   {"name": "chest", "parent": "spine", "position": [0, 0, 1.19]},
+   {"name": "neck", "parent": "chest", "position": [0, 0, 1.38]},
+   {"name": "head", "parent": "neck", "position": [0, 0, 1.47]},
+   {"name": "thigh_L", "parent": "pelvis", "position": [0.1, 0, 0.88]},
+   {"name": "foot_L", "parent": "thigh_L", "position": [0.1, 0, 0.08]},
+   {"name": "toe_L", "parent": "foot_L", "position": [0.1, -0.12, 0.02]},
+   {"name": "thigh_R", "parent": "pelvis", "position": [-0.1, 0, 0.88]},
+   {"name": "foot_R", "parent": "thigh_R", "position": [-0.1, 0, 0.08]},
+   {"name": "toe_R", "parent": "foot_R", "position": [-0.1, -0.12, 0.02]},
+   {"name": "Xiongbu.L", "parent": "chest", "position": [0.045, -0.04, 1.26]},
+   {"name": "Xiongbu_Mid.L", "parent": "Xiongbu.L", "position": [0.06, -0.085, 1.23]},
+   {"name": "Xiongbu_Tip1.L", "parent": "Xiongbu_Mid.L", "position": [0.07, -0.13, 1.22]},
+   {"name": "Xiongbu_Tip2.L", "parent": "Xiongbu_Mid.L", "position": [0.07, -0.115, 1.27]},
+   {"name": "Xiongbu_Tip3.L", "parent": "Xiongbu_Mid.L", "position": [0.07, -0.115, 1.17]},
+   {"name": "Xiongbu_Tip4.L", "parent": "Xiongbu_Mid.L", "position": [0.11, -0.09, 1.22]},
+   {"name": "Xiongbu_Tip5.L", "parent": "Xiongbu_Mid.L", "position": [0.03, -0.11, 1.22]},
+   {"name": "Xiongbu_Tip6.L", "parent": "Xiongbu_Mid.L", "position": [0.095, -0.115, 1.255]},
+   {"name": "Xiongbu.R", "parent": "chest", "position": [-0.045, -0.04, 1.26]},
+   {"name": "Xiongbu_Mid.R", "parent": "Xiongbu.R", "position": [-0.06, -0.085, 1.23]},
+   {"name": "Xiongbu_Tip1.R", "parent": "Xiongbu_Mid.R", "position": [-0.07, -0.13, 1.22]},
+   {"name": "Xiongbu_Tip2.R", "parent": "Xiongbu_Mid.R", "position": [-0.07, -0.115, 1.27]},
+   {"name": "Xiongbu_Tip3.R", "parent": "Xiongbu_Mid.R", "position": [-0.07, -0.115, 1.17]},
+   {"name": "Xiongbu_Tip4.R", "parent": "Xiongbu_Mid.R", "position": [-0.11, -0.09, 1.22]},
+   {"name": "Xiongbu_Tip5.R", "parent": "Xiongbu_Mid.R", "position": [-0.03, -0.11, 1.22]},
+   {"name": "Xiongbu_Tip6.R", "parent": "Xiongbu_Mid.R", "position": [-0.095, -0.115, 1.255]}
+  ],
+  "weighted": ["pelvis", "spine", "chest", "neck", "head", "thigh_L", "foot_L", "thigh_R", "foot_R",
+   "Xiongbu.L", "Xiongbu_Mid.L", "Xiongbu_Tip1.L", "Xiongbu_Tip2.L", "Xiongbu_Tip3.L", "Xiongbu_Tip4.L", "Xiongbu_Tip5.L", "Xiongbu_Tip6.L",
+   "Xiongbu.R", "Xiongbu_Mid.R", "Xiongbu_Tip1.R", "Xiongbu_Tip2.R", "Xiongbu_Tip3.R", "Xiongbu_Tip4.R", "Xiongbu_Tip5.R", "Xiongbu_Tip6.R"],
+  "roles": {"pelvis": "pelvis", "spine": "spine", "chest": "chest", "neck": "neck", "head": "head", "thigh_L": "thigh_L", "foot_L": "foot_L", "thigh_R": "thigh_R", "foot_R": "foot_R"},
+  "breast_bones": ["Xiongbu.L", "Xiongbu.R"],
+  "expected_roots": [],
+  "expected_roots_with_breast_motion": ["Xiongbu.L", "Xiongbu.R"],
+  "branch_bones": 8,
+  "decorated": {"Xiongbu_Tip4.L": "Xiongbu_Ribbon.L"},
+  "decorated_breast_bones": ["Xiongbu.R"],
+  "foreign": {"Xiongbu_Tip4.L": "Piece_4.L"},
+  "foreign_breast_bones": ["Xiongbu.R"],
+  "unnamed": {"Xiongbu.L": "Bone_P.L", "Xiongbu.R": "Bone_P.R"},
+  "unnamed_breast_bones": []
  }
 }

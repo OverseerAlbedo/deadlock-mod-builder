@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: App version
-      description: Settings → About this build (for example 0.13.0-beta.3).
+      description: The number at the bottom of the app's sidebar (for example 0.14.0).
     validations:
       required: true
   - type: input
@@ -18,7 +18,7 @@ body:
     id: error
     attributes:
       label: What happened
-      description: The exact error text, and which step (Inspect, Convert, Analyze, Build, Install, in game).
+      description: The exact error text, and which step or page (Prepare model, Analyze, Build, Install, Extras, Motion, in game).
       render: text
     validations:
       required: true
@@ -28,7 +28,7 @@ body:
       label: Steps to reproduce
       placeholder: |
         1. Open project ...
-        2. Model preparation → ...
+        2. Prepare model → ...
         3. Build
     validations:
       required: true

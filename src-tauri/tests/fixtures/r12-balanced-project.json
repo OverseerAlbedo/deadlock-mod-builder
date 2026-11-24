@@ -17,7 +17,7 @@
     },
     "physics": {
       "enabled": true,
-      "source": "../../../../../Downloads/Vindicta-R12-Skirt-Balanced-Test2/cloth_supported_hair_skirt_balanced_test2.vmdl_c",
+      "source": "../../../../../Characters/Sample-Cloth-Reference/cloth_reference_balanced.vmdl_c",
       "hero_path": "models/heroes_staging/hornet_v3/hornet.vmdl_c"
     }
   },
@@ -26,12 +26,12 @@
   "name": "vin",
   "hero_name": "Hornet",
   "original_model": "models/heroes_staging/hornet_v3/hornet.vmdl_c",
-  "dmx": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/Collection.dmx",
-  "textures": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/source_materials",
-  "source_root": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update",
+  "dmx": "../../../../../Characters/Sample_Character/Sample_Character/Collection.dmx",
+  "textures": "../../../../../Characters/Sample_Character/Sample_Character/source_materials",
+  "source_root": "../../../../../Characters/Sample_Character/Sample_Character",
   "imported_source": "",
   "original_compiled": "",
-  "source_overlay": "../../../../../Downloads/Vindicta_V26_Skirt_Update/Vindicta_V26_Skirt_Update/source_materials",
+  "source_overlay": "../../../../../Characters/Sample_Character/Sample_Character/source_materials",
   "mesh_template": "",
   "material_mapping": "",
   "material_remap": "",

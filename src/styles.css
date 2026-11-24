@@ -25,6 +25,8 @@
   --accent-selected: #2a3e36; --accent-selected-border: #5b7b6d; --accent-selected-text: #cbefde;
   --accent-outline: #73b992; --accent-outline-faint: #73b99222; --accent-faint: #9fe4c530;
   --ok: #48c08a; --ok-dark: #2c7a58; --ok-text: #7fe0b0; --ok-soft: rgba(72, 192, 138, .18); --ok-border: rgba(72, 192, 138, .35); --ok-faint: rgba(72, 192, 138, .06);
+  /* Text on a filled --ok or --ok-text button (Accept all): 8.2:1 and 11.8:1. */
+  --ok-on: #08140e;
   /* Warning (yellow) and problem (red) are not themed either: field checks and the sidebar's notification badges. */
   --warn-text: #ecd28f; --warn-rgb: 214, 170, 64; --problem-text: #f2b8bc; --problem-rgb: 214, 84, 96;
   --good-text: #9fd4b0; --good-fill: rgba(76, 160, 104, .18); --good-soft: rgba(76, 160, 104, .08); --good-border: rgba(76, 160, 104, .22);
@@ -83,6 +85,8 @@ strong { font-weight: 600; }
 .nav-step-number { display: inline-grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 50%; font-size: 11.5px; font-weight: 600; color: var(--secondary); }
 .nav-item.selected .nav-step-number { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .nav-item.nav-done .nav-step-number { border-color: var(--accent-dim); color: var(--accent); }
+/* The open step when it is also done: its tick must stay readable on the filled marker. */
+.nav-item.selected.nav-done .nav-step-number { border-color: var(--accent); color: var(--accent-text); }
 .sidebar-bottom { margin-top: auto; padding: 24px 10px 0; flex-shrink: 0; }
 /* The navigation is never squeezed; Notifications takes the height left between it and the
    bottom block and scrolls inside itself. Only below brand + navigation + the list's minimum
@@ -147,6 +151,20 @@ strong { font-weight: 600; }
 .project-identity { display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap; font-size: 13px; }
 .project-identity > span:first-child { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .dirty-indicator { font-size: 10px; color: #c6b583; }
+/* Undo and Redo beside the project's name (history/useProjectHistory.tsx). */
+.history-controls { display: inline-flex; gap: 4px; flex: none; }
+.topbar .history-button { min-width: 30px; min-height: 28px; padding: 2px 7px; font-size: 15px; line-height: 1; }
+.topbar .history-button:disabled { opacity: .45; }
+/* Make a copy for another hero (components/HeroCopyNotice.tsx). */
+.hero-copy-picker { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.hero-copy-notice { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--surface); }
+.hero-copy-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.hero-copy-head h2 { margin: 0 0 4px; font-size: 15px; }
+.hero-copy-head .hint { margin: 0; }
+.hero-copy-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
+.hero-copy-column h3 { margin: 0 0 6px; font-size: 13px; }
+.hero-copy-column ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55; }
+.hero-copy-count { color: var(--muted); font-weight: 400; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .topbar > .row { flex-wrap: nowrap; }
 .workspace { padding: 28px 32px 48px; flex: 1; min-width: 0; overflow: auto; background: var(--surface); }
@@ -546,6 +564,13 @@ tr:hover td { background: var(--surface-secondary); }
 .build-action-panel .review-issues { margin-top: 8px; }
 .build-action-panel .review-issues li { padding: 5px 0; }
 .issue-symbol { display: inline-block; width: 20px; color: #e0c794; }
+/* The kept list of the last analysis: done and changed items stay visible with a written state. */
+.review-state { display: inline-block; margin-left: 8px; padding: 0 8px; border: 1px solid transparent; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.review-item-done > span { color: var(--secondary); }
+.review-item-done .issue-symbol, .review-item-done .review-state { color: var(--good-text); }
+.review-item-done .review-state { background: var(--good-soft); border-color: var(--good-border); }
+.review-item-changed .issue-symbol, .review-item-analyze .issue-symbol { color: var(--secondary); }
+.review-item-changed .review-state { color: var(--secondary); border-color: hsl(calc(var(--hue) + 6) 14% 34%); }
 .output-summary { display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 16px; row-gap: 3px; padding: 4px 0 18px; margin-bottom: 6px; }
 .output-summary .eyebrow, .output-summary strong, .output-summary .muted { grid-column: 1; }
 .output-summary strong { font-size: 13px; font-weight: 500; }
@@ -691,15 +716,24 @@ tr:hover td { background: var(--surface-secondary); }
 .topbar .topbar-button:hover:not(:disabled) { border-color: var(--muted); }
 .topbar .topbar-mode button { padding: 5px 12px; font-size: 12.5px; }
 .topbar .topbar-mode { margin-right: 6px; }
+/* Accept all (Materials): the green "go ahead" button while something can be accepted, from the
+   success tokens (not themed); disabled and ordinary when nothing is left. */
+button.accept-all, .studio-workspace button.accept-all { background: var(--ok); border-color: var(--ok); color: var(--ok-on); font-weight: 650; }
+button.accept-all:hover:not(:disabled), .studio-workspace button.accept-all:hover:not(:disabled) { background: var(--ok-text); border-color: var(--ok-text); color: var(--ok-on); }
+button.accept-all:active:not(:disabled), .studio-workspace button.accept-all:active:not(:disabled) { background: var(--ok); border-color: var(--ok-text); }
 .materials-accept-callout { margin: 8px 0; padding: 8px 12px; border: 1px solid hsl(calc(var(--hue) - 13) 36% 46% / .35); border-radius: 8px; background: hsl(calc(var(--hue) - 13) 36% 46% / .08); font-size: 13.5px; }
 .prep-source-gun { margin-top: 10px; }
 
 /* Physics → Your character → Movement */
 .movement-preview { display: flex; flex-direction: column; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; background: var(--surface); }
-.movement-preview .prep-weapon-view .checkbox { margin-left: 10px; font-size: 12px; color: var(--secondary); }
+/* Each control group (label and its buttons) wraps as a unit. */
+.movement-preview .prep-weapon-view { column-gap: 14px; row-gap: 6px; }
+.movement-preview .prep-weapon-view .movement-group { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: inherit; }
+.movement-preview .prep-weapon-view .movement-group > span { margin: 0 3px 0 0; }
+.movement-preview .prep-weapon-view .checkbox { margin: 0; font-size: 12px; color: var(--secondary); }
 .movement-canvas { height: 520px; }
 .movement-canvas canvas { display: block; }
-.movement-preview > .hint { margin: 0; padding: 6px 10px; background: var(--surface-secondary); }
+.movement-preview > .hint { margin: 0; padding: 6px 10px; background: var(--surface-secondary); max-width: none; }
 
 
 /* Settings → Appearance: theme cards and the theme editor with its live preview. */

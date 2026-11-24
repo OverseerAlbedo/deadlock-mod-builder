@@ -1,8 +1,9 @@
 [package]
 name = "deadlock-pipeline"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 publish = false
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 deadlock-core = { path = "../deadlock-core" }

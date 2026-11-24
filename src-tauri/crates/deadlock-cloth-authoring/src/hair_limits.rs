@@ -19,6 +19,9 @@ pub struct JumpProtection {
     pub up_axis_world: [f64; 3],
     pub ceiling_from_reference_inches: f64,
     pub stretch_tethers: bool,
+    /// Each bone's travel limit: the held root's exactly, every other bone's
+    /// as a maximum (the two joints below the root may be lower, held to their
+    /// distance from the body; Swing range scales the lower strand).
     pub travel_radius_by_bone: BTreeMap<String, f64>,
 }
 
@@ -61,15 +64,20 @@ pub(crate) fn plan(
         .fold(0_f64, f64::max);
     let ceiling = highest + radius + length.short_hair_limit_inches * 0.12;
     let coordinates = hair_motion::coordinates(group, part, sk, state)?
-        .ok_or_else(|| invalid("Long-hair travel protection needs a connected strand."))?;
+        .ok_or_else(|| invalid("Hair travel protection needs a connected strand."))?;
     let mut limits = BTreeMap::new();
     for name in &group.bones {
         let free_travel = part.chain_length_inches * coordinates[name] * 0.8
             + length.short_hair_limit_inches * 0.03;
         let height_travel = ceiling - dot(sub(pos(name), reference), up) - radius;
-        let travel = free_travel.min(height_travel);
+        // The root is held on the head (`secondary_auto::HELD_ROOT_TRAVEL`).
+        let travel = if coordinates[name] == 0. {
+            crate::secondary_auto::HELD_ROOT_TRAVEL
+        } else {
+            free_travel.min(height_travel)
+        };
         if !travel.is_finite() || travel <= 0. || !(travel as f32).is_finite() {
-            return Err(invalid("Long-hair travel limit is outside native float range."));
+            return Err(invalid("Hair travel limit is outside native float range."));
         }
         // Zero means *unbounded* to the native compiler, not pinned.
         limits.insert(name.clone(), travel);

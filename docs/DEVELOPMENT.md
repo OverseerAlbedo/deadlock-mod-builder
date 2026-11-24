@@ -15,7 +15,7 @@ npm run tauri -- dev
 
 `npm run dev` serves only the browser frontend; native operations need `npm run tauri -- dev`.
 
-The two lockfiles are required. Do not update dependencies while fixing a release unless the change requires it. A normal app build does not require Python or the .NET SDK; Blender supplies its own interpreter and the independent reader is self-contained.
+The two lockfiles are required. Do not update dependencies while fixing a release unless the change requires it. A normal app build does not require Python; Blender supplies its own interpreter and the independent reader is self-contained. The .NET SDK is needed only for the effect player (see [Effect player](#effect-player)): a local build without it goes on without the player, a release build stops.
 
 ## Project structure
 
@@ -28,10 +28,11 @@ The two lockfiles are required. Do not update dependencies while fixing a releas
 | `resources/` | Hero catalog, tool recipe and hash-pinned native readers |
 | `physics-references/` | Records of the Vindicta cloth references; the compiled models are optional data |
 | `tools/cloth-reader/` | Source of the independent cloth reader |
-| `scripts/` | Repository checks, Windows packaging, startup check and Blender test harnesses |
-| `legacy/python/` | Python reference modules and fixture helpers imported by some `scripts/test_blender*.py` probes and by `scripts/test_source_compatibility.py`; not used by the app |
+| `tools/effect-player/` | Source of the effect player (the moving preview on Extras → Effects) |
+| `scripts/` | Repository checks, Windows packaging, the effect player's publish script, startup check, third-party notices and the Unihan readings generator |
+| `site/` | The website (built by the Website workflow) |
 | `docs/` | Documentation |
-| `.github/workflows/` | CI: tests and portable build on every push; manual release workflow |
+| `.github/workflows/` | CI: tests and portable build on every push; manual release workflow; the website |
 | `licenses/` | Third-party notices |
 
 ## Distribution
@@ -50,7 +51,7 @@ Outputs land in `artifacts/portable/` (the portable app), `artifacts/release/` (
 
 The frontend tests/build and default non-desktop Rust workspace tests can run on Linux x64. The supplied Linux reader supports the independent native-format tests; it is excluded from Windows distributions. Native Windows launch and MSVC behavior still require Windows.
 
-Captured native/game tests marked `#[ignore]` require separately supplied inputs and are not silently treated as passing. Read the ignore reason and the test's required environment variables before running one. Default fixture tests require no Steam login, proprietary compiler installation, Blender install, or live game.
+Native and game-file tests marked `#[ignore]` require separately supplied inputs and are not silently treated as passing. Read the ignore reason and the test's required environment variables before running one. Default fixture tests require no Steam login, proprietary compiler installation, Blender install, or live game.
 
 ## Byte-sensitive fixtures
 
@@ -65,22 +66,19 @@ cargo clean --manifest-path src-tauri/Cargo.toml -p deadlock-cloth-authoring   #
 node scripts/sync-private-assets.mjs   # copies the Vindicta references into physics-references/ (build-windows.ps1 does this itself)
 ```
 
-Without the folder everything builds and tests. The Physics page then offers only Automatic movement and hides the included Vindicta reference, and a project saved with a TangTang preset fails Analyze with "not included in this build". Tests that need the data print `skipped: private asset …` on stderr and pass; run them with `-- --nocapture` to see the notes. Some Blender harness scripts (`test_blender_any_humanoid.py`, `test_blender_rig_recovery.py`, `test_blender_secondary_bones.py`) need the folder and say so. GitHub Actions adds the folder when the `PRIVATE_ASSETS_TOKEN` secret is set.
+Without the folder everything builds and tests. The Physics page then offers only Automatic movement and hides the included Vindicta reference, and a project saved with a TangTang preset fails Analyze with "not included in this build". Tests that need the data print a `skipped:` note on stderr and pass; run them with `-- --nocapture` to see the notes. The workflows (`windows.yml` and the Release workflow) build without the folder, so their builds and published releases never contain the optional data.
 
 ## Runtime resources
 
 Tauri's `bundle.resources` is the source of truth for both installer and portable staging. The portable app must retain the folder layout next to its executable. `scripts/package-windows.mjs` rejects missing sources, wrong architecture, stale version names, or a mixed existing output folder. Production model and cloth algorithms are independent of these packaging scripts.
 
-## Optional live-Blender probes
+After changing Rust or npm dependencies, run `node scripts/generate-third-party-notices.mjs` (offline; needs `npm ci` and the crates in the local Cargo registry) to rewrite the shipped notices `licenses/THIRD-PARTY-RUST.txt` and `licenses/THIRD-PARTY-WEB.txt`; `scripts/check-repository.mjs` fails when they are missing, when the web list differs from `package-lock.json`, or when a listed crate version is no longer in `Cargo.lock` (a newly added crate is not detected).
 
-The `scripts/test_blender*.py` scripts exercise the active embedded bridge. Their small reference/fixture dependency set is in `legacy/python/`; it is development-only. Read the script before running it: some require a supplied character or target/options capture. For the generated pose-control fixture, a PowerShell example is:
+### Effect player
 
-```powershell
-$env:DMB_PREP_TEST_OUTPUT = 'C:\DMB-tests\pose-controls'
-& 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' --background --factory-startup --python-exit-code 23 --python scripts/test_blender_pose_controls.py
-```
+`scripts/build-windows.ps1` publishes `tools/effect-player` with `scripts/publish-effect-player.ps1` before the app build. The script can also be run alone (`pwsh -NoProfile -File scripts/publish-effect-player.ps1`). It needs the .NET SDK named in `tools/effect-player/global.json` (11.0.100): set `DMB_DOTNET` to its `dotnet.exe`, or have it on PATH. The restore is locked (`packages.lock.json`, nuget.org only). The script checks the single file, its contents against `licenses/effect-player/DEPENDENCIES.json` and a few smoke runs, then stages `resources/native/effect-player/win-x64/Dmb.EffectPlayer.exe` (git-ignored).
 
-Use your actual supported Blender path and a fresh output folder. Use Blender 5.2 LTS or 5.3: Blender 5.0's FBX importer crashes in one harness case. These probes are outside default CI because Blender and some character inputs are separate requirements.
+Without the SDK a local build goes on without the player, and effect previews show the color strips only. `-Release` builds, and builds with `DMB_REQUIRE_EFFECT_PLAYER=true`, fail without it. The bundle entry is `src-tauri/tauri.effect-player.conf.json`, passed to `tauri build --config` only when the player was staged; pass it to `tauri dev` too to run the player in development. After changing the helper's packages, publish it and run `node scripts/generate-effect-player-notices.mjs`; `check-repository` fails when `licenses/effect-player/` no longer matches the lock file.
 
 ## End-to-end build of a project copy
 
@@ -89,7 +87,7 @@ Use your actual supported Blender path and a fresh output folder. Use Blender 5.
 ```powershell
 $env:DMB_E2E_SETTINGS = "$env:APPDATA\com.deadlockmodbuilder.migration\settings.json"   # only read
 $env:DMB_E2E_PROJECT  = 'C:\Path\To\Project.dmb.json'                                  # only read
-$env:DMB_E2E_SCRATCH  = 'C:\DMB-tests\e2e\run-1'                                       # new or empty
+$env:DMB_E2E_SCRATCH  = 'C:\Temp\e2e\run-1'                                            # new or empty
 $env:DMB_E2E_OVERRIDES = '{"cswin":"","cswin_resourcecompiler":"","model_game":"","model_backend":"auto"}'  # optional
 $env:DMB_E2E_PREPARE  = '1'   # optional: Prepare again first (needed after a game update changed the hero)
 cargo test --manifest-path src-tauri/Cargo.toml --locked --test e2e_build -- --ignored --nocapture
@@ -105,21 +103,8 @@ The runner's default `TEMP` is an 8.3 short path (`C:\Users\RUNNER~1\...`). The 
 
 References: [Tauri Windows build prerequisites](https://v2.tauri.app/start/prerequisites/), [Tauri Windows distribution](https://v2.tauri.app/distribute/windows-installer/), [Microsoft WebView2 runtime distribution](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution).
 
-## Rest-skeleton recovery regressions
+## Rest-skeleton recovery
 
-`python scripts/test_source_compatibility.py` covers deterministic planning, healthy rigs, two-spine Biped layouts, unnamed intermediate joints, ambiguous pivots and conflicting parents. The planner changes no Blender datablocks. `describe` emits the verified effective parents and role hints; native mapping, review and Blender conversion still validate them. Retarget attachment ancestry uses that same effective hierarchy with the original source matrices.
-
-For a private model, inspect with the Blender worker, run the Rust `mapping_report` example against a source/weighted/target JSON, then run `scripts/test_blender_rig_recovery.py` in Blender with `DMB_RECOVERY_SOURCE`, `DMB_RECOVERY_MAPPING` and `DMB_PREP_TEST_OUTPUT`. The script checks exact inspection preservation, save/reopen, both fit modes, preserved hair and correction re-export. Its positional Haze target and disposable generated material colors are explicit test fixtures, not live game/texture validation.
+The rest-skeleton planner (`source_compatibility.py` in the embedded Blender scripts) changes no Blender datablocks. `describe` emits the verified effective parents and role hints; native mapping, review and Blender conversion still validate them. Retarget attachment ancestry uses that same effective hierarchy with the original source matrices.
 
 Biped digit aliases follow Autodesk's [MotionBuilder Biped template](https://help.autodesk.com/cloudhelp/2026/ENU/MOBU-PYTHON-API-REF/_tasks_0c3ds_max_biped_template_8py-example.html). Finger mapping still requires matching chain lengths and hand ancestry.
-
-## Any-humanoid and gun probe
-
-`scripts/test_blender_any_humanoid.py` builds awkward synthetic sources with `scripts/blender_fixtures.py` (generic, Rigify, DAZ, Character Creator and hand-named rigs; cluttered scenes; posed rigs with constraint-attached guns; Y-up exports; shape keys under subdivision; curve hair; collection instances; multiple scenes; FBX/GLB round trips; a gun-only weapon model; a gun in a second file, unrigged and without weapon words, used by a character project and as a weapon project's source; a rigged two-part gun file with a curve strap; a pistol carrying a hanging two-link charm, replaced and kept in the hand with moving parts kept; an unrigged statue) and runs each through the embedded worker, the native `e2e_probe` planner and the native DMX validator against a hero rig from the optional data (above). It does not use `legacy/python`.
-
-```powershell
-cargo build --manifest-path src-tauri/Cargo.toml -p deadlock-preparation --example e2e_probe
-& 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' --background --factory-startup --python scripts/test_blender_any_humanoid.py -- C:\DMB-tests\any-humanoid
-```
-
-The gun reference used there is synthetic; production measures the decompiled original gun meshes. See [model preparation](MODEL_PREPARATION.md).

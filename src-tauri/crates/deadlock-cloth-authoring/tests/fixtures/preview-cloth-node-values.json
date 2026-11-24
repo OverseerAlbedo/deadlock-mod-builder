@@ -1,0 +1,914 @@
+[
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 1.0,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.03,
+      "caps": [
+        {
+          "cap": "held"
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.5,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.029999999329447746
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.9,
+      "drag": 0.0,
+      "gravity": 0.3333333333333333,
+      "travel": 2.4,
+      "caps": [
+        {
+          "cap": "at_most",
+          "inches": 1.6
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.4475137990551739,
+      "damping": 0.0,
+      "gravity": 120.0,
+      "travel": 1.600000023841858
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.45,
+      "drag": 0.0,
+      "gravity": 0.3333333333333333,
+      "travel": 1.1
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.16839916097953517,
+      "damping": 0.0,
+      "gravity": 120.0,
+      "travel": 1.100000023841858
+    }
+  },
+  {
+    "motion": {
+      "kind": "ear",
+      "goal": 1.0,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.03,
+      "caps": [
+        {
+          "cap": "held"
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.5,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.029999999329447746
+    }
+  },
+  {
+    "motion": {
+      "kind": "ear",
+      "goal": 0.85,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.4194484897128741,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.35,
+      "drag": 0.2,
+      "gravity": 1.0,
+      "travel": 3.25
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.10913139980668737,
+      "damping": 6.000000089406967,
+      "gravity": 360.0,
+      "travel": 3.25
+    }
+  },
+  {
+    "motion": {
+      "kind": "streamer",
+      "goal": 0.2,
+      "drag": 0.15,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.038461539563695364,
+      "damping": 4.500000178813934,
+      "gravity": 360.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "breast",
+      "goal": 0.14,
+      "drag": 0.24,
+      "gravity": 0.0,
+      "travel": 0.9,
+      "caps": [
+        {
+          "cap": "at_most",
+          "inches": 1.2
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.01922322495457511,
+      "damping": 7.199999839067459,
+      "gravity": 0.0,
+      "travel": 0.8999999761581421
+    }
+  },
+  {
+    "motion": {
+      "kind": "tail",
+      "goal": 0.05,
+      "drag": 0.3,
+      "gravity": 0.5,
+      "travel": 4.0
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.0024937656601695824,
+      "damping": 9.000000357627869,
+      "gravity": 180.0,
+      "travel": 4.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "charm",
+      "goal": 0.4,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.1379310380264355,
+      "damping": 3.0000000447034836,
+      "gravity": 360.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": null,
+      "goal": 0.5,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.5
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.2,
+      "damping": 3.0000000447034836,
+      "gravity": 360.0,
+      "travel": 0.5
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.3,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": 0.4,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.5,
+      "damping": 11.4,
+      "gravity": 360.0,
+      "travel": 0.4000000059604645
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.3,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 2.0
+    },
+    "attachment": 3.0,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.5,
+      "damping": 11.4,
+      "gravity": 360.0,
+      "travel": 2.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.6,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.02
+    },
+    "attachment": null,
+    "tuning": {},
+    "expected": {
+      "attraction": 0.26470589782127457,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 1.0,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.03,
+      "caps": [
+        {
+          "cap": "held"
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.32885905288532025,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.029999999329447746
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.9,
+      "drag": 0.0,
+      "gravity": 0.3333333333333333,
+      "travel": 2.4,
+      "caps": [
+        {
+          "cap": "at_most",
+          "inches": 1.6
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.2841291400235821,
+      "damping": 0.0,
+      "gravity": 120.0,
+      "travel": 1.600000023841858
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.45,
+      "drag": 0.0,
+      "gravity": 0.3333333333333333,
+      "travel": 1.1
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.09026814222160982,
+      "damping": 0.0,
+      "gravity": 120.0,
+      "travel": 2.4200000762939453
+    }
+  },
+  {
+    "motion": {
+      "kind": "ear",
+      "goal": 1.0,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.03,
+      "caps": [
+        {
+          "cap": "held"
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.5,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.029999999329447746
+    }
+  },
+  {
+    "motion": {
+      "kind": "ear",
+      "goal": 0.85,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.4847751190669084,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.35,
+      "drag": 0.2,
+      "gravity": 1.0,
+      "travel": 3.25
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.10913139980668737,
+      "damping": 9.599999785423279,
+      "gravity": 180.0,
+      "travel": 8.125
+    }
+  },
+  {
+    "motion": {
+      "kind": "streamer",
+      "goal": 0.2,
+      "drag": 0.15,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.1621983899482425,
+      "damping": 4.500000178813934,
+      "gravity": 360.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "breast",
+      "goal": 0.14,
+      "drag": 0.24,
+      "gravity": 0.0,
+      "travel": 0.9,
+      "caps": [
+        {
+          "cap": "at_most",
+          "inches": 1.2
+        }
+      ]
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.001223501221421809,
+      "damping": 15.0,
+      "gravity": 540.0,
+      "travel": 1.2000000476837158
+    }
+  },
+  {
+    "motion": {
+      "kind": "tail",
+      "goal": 0.05,
+      "drag": 0.3,
+      "gravity": 0.5,
+      "travel": 4.0
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.0024937656601695824,
+      "damping": 9.000000357627869,
+      "gravity": 180.0,
+      "travel": 4.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "charm",
+      "goal": 0.4,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.1379310380264355,
+      "damping": 3.0000000447034836,
+      "gravity": 360.0,
+      "travel": 0.0
+    }
+  },
+  {
+    "motion": {
+      "kind": null,
+      "goal": 0.5,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.5
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.2,
+      "damping": 3.0000000447034836,
+      "gravity": 360.0,
+      "travel": 0.5
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.3,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 0.0
+    },
+    "attachment": 0.4,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.5,
+      "damping": 11.4,
+      "gravity": 180.0,
+      "travel": 0.4000000059604645
+    }
+  },
+  {
+    "motion": {
+      "kind": "cloth",
+      "goal": 0.3,
+      "drag": 0.1,
+      "gravity": 1.0,
+      "travel": 2.0
+    },
+    "attachment": 3.0,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.5,
+      "damping": 11.4,
+      "gravity": 180.0,
+      "travel": 3.0
+    }
+  },
+  {
+    "motion": {
+      "kind": "hair",
+      "goal": 0.6,
+      "drag": 0.0,
+      "gravity": 0.0,
+      "travel": 0.02
+    },
+    "attachment": null,
+    "tuning": {
+      "hair": {
+        "stiffness": -0.4,
+        "swing": 0.8
+      },
+      "ear": {
+        "stiffness": 0.8,
+        "swing": -0.6
+      },
+      "cloth": {
+        "gravity": -0.5,
+        "damping": 0.4,
+        "swing": 1.0
+      },
+      "streamer": {
+        "stiffness": 0.3,
+        "swing": -0.5
+      },
+      "breast": {
+        "stiffness": -1.0,
+        "damping": 1.0,
+        "gravity": 1.0,
+        "swing": 1.0
+      },
+      "tail": {
+        "stiffness": 0.0,
+        "swing": 0.0
+      }
+    },
+    "expected": {
+      "attraction": 0.1499489889805684,
+      "damping": 0.0,
+      "gravity": 0.0,
+      "travel": 0.04399999976158142
+    }
+  }
+]

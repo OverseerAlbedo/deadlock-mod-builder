@@ -2,6 +2,7 @@
 name = "deadlock-preparation"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-or-later"
 [dependencies]
 deadlock-core = { path = "../deadlock-core" }
 deadlock-project = { path = "../deadlock-project" }

@@ -2,7 +2,7 @@
 name = "deadlock-dmx"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 description = "Bounded, lossless DMX binary 4/5/9 codec and source analysis"
 
 [dependencies]

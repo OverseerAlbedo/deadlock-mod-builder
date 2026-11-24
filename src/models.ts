@@ -56,6 +56,8 @@ export interface Project {
   allow_unskinned: boolean;
   auto_split: boolean;
   split_target: number;
+  /** A copy made for another hero: the original's preparation report, read once by the copy's first preparation (absent otherwise). */
+  copied_report?: string;
 }
 export interface ProjectDocument { path: string | null; project: Project }
 export interface Settings {
@@ -85,7 +87,14 @@ export interface Settings {
   theme?: string;
   /** Themes made in Settings → Appearance → Customize (tokens by name). */
   custom_themes?: ThemePreset[];
+  /** Model fitting a model checked for the first time in a project gets (absent: Preserve source proportions). Saved at once. */
+  default_fit_mode?: string;
+  /** Load the 3D previews by themselves when their page is shown (absent: off). Saved at once. */
+  auto_previews?: boolean;
 }
+export type DefaultFit = 'preserve_proportions' | 'match_target';
+/** Settings → Appearance → Default fit for new models, read like Rust `Settings::default_fit`. */
+export const defaultFit = (settings: Pick<Settings, 'default_fit_mode'> | null | undefined): DefaultFit => settings?.default_fit_mode === 'match_target' ? 'match_target' : 'preserve_proportions';
 export interface ThemePreset { id: string; name: string; icon?: string; base?: Record<string, string> | null; tokens: Record<string, string> }
 export type StorageKind = 'preparation' | 'originals' | 'backups' | 'output' | 'build_data' | 'compiler' | 'temporary' | 'records';
 export interface StorageUsage { kind: StorageKind; bytes: number; reclaimable: number }
@@ -112,7 +121,24 @@ export interface Capabilities { tangtang_presets: boolean; vindicta_reference: b
 /** Installed mods after a game update (backend mod_update.rs): a VPK in the game's addons folder and its hero models. */
 export type AttachmentConvention = 'current' | 'previous' | 'unknown' | 'no_attachments';
 export interface ModModel { path: string; hero?: string | null; convention: AttachmentConvention }
-export interface InstalledMod { path: string; file: string; bytes: number; models: ModModel[]; status: 'up_to_date' | 'needs_update' | 'no_hero_model' | 'unknown' | 'cannot_update'; note: string }
+/** The kind of change a file in a VPK makes, from its path (backend vpk_contents.rs `Kind`). */
+export type VpkKind = 'character_model' | 'gun' | 'ability_object' | 'other_model' | 'model_data' | 'material' | 'texture' | 'sound' | 'sound_event' | 'icon' | 'item_icon' | 'item_names' | 'effect' | 'animation' | 'game_data' | 'map' | 'menu' | 'text' | 'other';
+export interface VpkContents {
+  files: number; kinds: Partial<Record<VpkKind, number>>; heroes: { name: string; files: number }[];
+  every_hero: number; unattributed: number;
+  ability_objects: { path: string; heroes: string[]; every_hero: boolean; known: boolean }[];
+  samples: Partial<Record<VpkKind, string[]>>;
+}
+/** Game files another scanned VPK also holds with other contents (which one the game uses is not decided). */
+export interface VpkSharedFiles { file: string; path: string; count: number; paths: string[] }
+/** The project of this app that made the file, only when certain (install record or output-folder match). */
+export interface VpkMadeHere { project_id: string; project_name: string; hero: string; project_file?: string | null; source: 'install' | 'output'; several?: boolean }
+export interface InstalledMod {
+  path: string; file: string; bytes: number; models: ModModel[]; status: 'up_to_date' | 'needs_update' | 'no_hero_model' | 'unknown' | 'cannot_update'; note: string;
+  /** Content identity of the VPK's directory; empty when unreadable. Labels are kept against it. */
+  identity?: string; unreadable?: string | null; contents?: VpkContents; shared?: VpkSharedFiles[];
+  label?: string | null; made?: VpkMadeHere | null;
+}
 export interface ModUpdateReport { path: string; file: string; updated: string[]; converted: string[]; backup: string }
 export interface SetupStatus { files_found: Record<string,boolean>; model_status: string; model_files_found?: boolean; fields?: FieldCheck[] }
 /** What went wrong and what to do (backend troubleshooting.rs). */
@@ -183,6 +209,9 @@ export interface AnalysisResult { summary: ModelSummary; timings: TimingReport }
 
 /** What the installed game does with a model, from its hero definitions (m_strModelName). */
 export type GameTarget = {state:'active';heroes:string[]}|{state:'pre_release';heroes:string[]}|{state:'unused';model:string}|{state:'ambiguous';models:string[]}|{state:'disabled';heroes:string[]};
+/** What "Make a copy for another hero" carried over, did not carry and makes again. */
+export interface CopyReport { carried: string[]; not_carried: string[]; remade: string[]; from_hero: string }
+export interface HeroCopy { project: Project; report: CopyReport }
 export interface HeroRecord { name: string; path: string; likely_hero: boolean; hero?: string; game?: GameTarget }
 export type AssetKind = 'icons' | 'animations' | 'effects' | 'audio';
 export type PathKind = 'texture_directory' | 'texture' | 'physics' | 'garment' | 'icon' | 'animation' | 'effect' | 'audio' | 'prop' | 'variant_project' | 'weapon';
@@ -190,6 +219,15 @@ export interface ResourceReplacement {
   enabled?: boolean; source?: string; target?: string; allow_shared?: boolean;
   original_sha256?: string; fit?: 'contain' | 'cover' | 'stretch';
   volume_percent?: number; audio_fit?: 'exact' | 'pad' | 'trim';
+  /** Sounds only: the game plays nothing for `target`; the row has no source. */
+  silence?: boolean;
+  /** Sound edit (sounds with a file only; absent unless set): where in the file the
+   * game's fixed length starts (s), volume in dB, fade in and fade out (s). */
+  start_seconds?: number; volume_db?: number; fade_in_seconds?: number; fade_out_seconds?: number;
+  /** A clip made from an animation (animation rows only; `source` is the .blend; absent unless set). */
+  made?: import('./motion/makeTypes').MadeClip;
+  /** A clip taken from another hero's clip (animation rows only; no `source`; never beside `made`; absent unless set). */
+  taken?: import('./motion/takenTypes').TakenClip;
   [key: string]: JsonValue | undefined;
 }
 export interface SecondaryMotionChoices { enabled?: boolean; preset?: 'automatic'|'tangtang_r2'|'tangtang_reference'; roots?: string[]; profiles?: Record<string,'automatic'|'balanced'|'stiff'|'soft'>; part_kinds?:Record<string,'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'butt'|'charm'|'rigid'>; /** Fine-tuning per part type (hair, tail …): stiffness, damping, gravity, swing from -1 to 1, 0 = automatic. */tuning?:Record<string,Record<string,number>>;/** Start each moving part from the source rig's own MMD/VRM spring settings (preparation_options.physics_springs). */use_source_springs?:boolean; [key:string]: JsonValue|undefined }
@@ -203,7 +241,10 @@ export interface AppearanceMaterial {
   enabled?: boolean; target?: string; color?: [number,number,number]; roughness?: number;
   metalness?: number; opacity?: number; emission?: number;
   /** Experimental color editor: hue shift in degrees (-180–180); saturation and brightness factors (0–2, 1 keeps the original). */
-  hue?: number; saturation?: number; brightness?: number; [key: string]: JsonValue | undefined;
+  hue?: number; saturation?: number; brightness?: number;
+  /** Color ranges (at most 8, like a hero color's), applied to the base color before hue, saturation and brightness. */
+  ranges?: HeroColorRange[];
+  [key: string]: unknown;
 }
 /** Hero colors: one of the hero's own compiled game materials (target `.vmat_c`) recolored in place, without a replacement model. */
 export interface HeroMaterial {
@@ -225,6 +266,9 @@ export interface HeroColorRange {
   enabled?: boolean; hue?: number; hue_width?: number;
   saturation_range?: [number, number]; brightness_range?: [number, number]; softness?: number;
   hue_shift?: number; saturation?: number; brightness?: number;
+  /** Behind the color switches: a new hue (0–360) and saturation (0–1) instead of the shift, a
+   * brightness lift (-1–1), and the spot of the one part it changes. Absent unless set. */
+  set_hue?: number; set_saturation?: number; lift?: number; part?: { u: number; v: number };
   [key: string]: unknown;
 }
 export interface EquipmentMesh {
@@ -236,6 +280,8 @@ export interface VariantChoices { enabled?: boolean; model?: string; project?: s
 export interface Customization {
   schema?: number; enabled?: boolean; model_enabled?: boolean; hero_path?: string;
   icons?: ResourceReplacement[]; animations?: ResourceReplacement[]; effects?: ResourceReplacement[]; audio?: ResourceReplacement[];
+  /** Extras → Items: the game's item icons, the same for every hero (kept when the hero changes). */
+  item_icons?: ResourceReplacement[];
   secondary_motion?: SecondaryMotionChoices; physics?: PhysicsChoices; clothing?: ClothingChoices; cloth_setup?: ClothSetupChoices;
   appearance?: { enabled?: boolean; materials?: AppearanceMaterial[]; [key: string]: unknown };
   equipment?: { enabled?: boolean; meshes?: EquipmentMesh[]; props?: PropChoices[]; variants?: VariantChoices[]; [key: string]: unknown };
@@ -243,5 +289,10 @@ export interface Customization {
   /** Shown face layers; unset or false keeps a kind hidden. */
   face_layers?: { blush?: boolean; tears?: boolean; other?: boolean; [key: string]: unknown };
   hero_materials?: { enabled?: boolean; materials?: HeroMaterial[]; [key: string]: unknown };
+  effect_edits?: import('./extras/effectTypes').EffectEditRow[];
+  /** Extras → Objects: replaced ability objects (absent unless set; cleared when the hero changes). */
+  ability_objects?: import('./extras/objectTypes').AbilityObjectRow[];
+  /** Extras → Items: renamed shop items, the same for every hero (absent unless set; kept when the hero changes). */
+  item_names?: import('./extras/itemNames').ItemNameRow[];
   [key: string]: unknown;
 }

@@ -24,7 +24,7 @@ export function setupReadiness(settings: Settings, status: SetupStatus | null, d
   missing.push(...wrong.map(label => `${label} (wrong path)`));
   const ready = Boolean(status && !dirty && missing.length === 0);
   // Blender never blocks setup (a prepared DMX builds without it), but most models need it.
-  const blender = settings.blender?.trim() ? '' : ' Blender is not set yet: it is needed to prepare Blender, FBX and glTF models.';
+  const blender = settings.blender?.trim() ? '' : ' Blender is not set yet: it is needed to prepare Blender, FBX, glTF and MMD models.';
   return {
     ready, missing,
     title: dirty ? 'Save your settings to finish this stage' : !status ? 'Check your tool locations' : ready ? 'Tool locations checked · settings saved' : 'Some tools still need attention',

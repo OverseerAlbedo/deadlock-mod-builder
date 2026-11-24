@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../resources/native/effect-player/win-x64/Dmb.EffectPlayer.exe": "native/effect-player/win-x64/Dmb.EffectPlayer.exe"
+    }
+  }
+}

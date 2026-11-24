@@ -409,6 +409,13 @@ fn read_v1(input: &mut Cursor) -> Result<Context> {
 /// reference: ValveResourceFormat BinaryKV3.ReadBuffer (see audio fix evidence).
 /// Unlike v5, strings follow the scalar lanes and Zstd may cover a second,
 /// consecutive blob frame. Keep all length, footer and consumption checks.
+/// Whether a compiled KV3 block is the v4 layout with LZ4 binary blobs whose frame
+/// table size is stated as 0 (the table follows the footer all the same; `decode`
+/// reads it as everything left there). Read from the header alone.
+pub fn unstated_frame_table(payload: &[u8]) -> bool {
+    let word = |at: usize| payload.get(at..at + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+    payload.starts_with(&[4, b'3', b'V', b'K']) && word(20) == Some(1) && word(56).is_some_and(|n| n > 0) && word(60).is_some_and(|n| n > 0) && word(68) == Some(0)
+}
 fn read_v4(input: &mut Cursor) -> Result<Context> {
     let method = input.u32()?;
     let dictionary = input.u16()?;
@@ -467,7 +474,19 @@ fn read_v4(input: &mut Cursor) -> Result<Context> {
     if actual != block_size || raw.u32()? != FOOTER {
         return Err(invalid("invalid v4 blob total or footer"));
     }
-    let mut frames = Cursor::new(raw.take(frame_bytes)?);
+    // The LZ4 frame table (one u16 compressed length per frame) follows the footer.
+    // Some compiled physics blocks state its size as 0 and still store it: then it is
+    // everything left in the buffer, and every entry must be used by the blobs below.
+    let table = if method == 1 && block_count > 0 && block_size > 0 && frame_bytes == 0 {
+        let rest = raw.remaining();
+        if rest == 0 || rest % 2 != 0 || rest / 2 > MAX_COUNT {
+            return Err(invalid("invalid v4 LZ4 frame table"));
+        }
+        rest
+    } else {
+        frame_bytes
+    };
+    let mut frames = Cursor::new(raw.take(table)?);
     raw.finished()?;
     let blob_data = match method {
         0 => input.take(block_size)?,

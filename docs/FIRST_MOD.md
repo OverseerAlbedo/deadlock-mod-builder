@@ -11,7 +11,7 @@ explains every step in detail.
 
 ## What you need
 
-- Windows 11 x64. Windows 10 x64 should work, but it is untested.
+- Windows 11 x64. Windows 10 x64 should also work.
 - [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
   The installer adds it if it is missing.
 - These four tools:
@@ -19,15 +19,19 @@ explains every step in detail.
   | Tool | Used for |
   | --- | --- |
   | Deadlock, installed through Steam | Choosing heroes, building and installing |
-  | [Blender](https://www.blender.org/) 4.2–4.5, 5.0, 5.2 LTS (recommended) or 5.3 | Preparing Blender, FBX and glTF models |
+  | [Blender](https://www.blender.org/) 4.2–4.5, 5.0, 5.2 LTS (recommended) or 5.3 | Preparing Blender, FBX, glTF and MMD models |
   | [Source 2 Viewer CLI](https://github.com/ValveResourceFormat/ValveResourceFormat/releases) | Extracting and decompiling game assets |
   | [Reduced CSDK 13](https://deadlockmodding.pages.dev/modding-tools/csdk-13) | Compiling the materials and the hero model |
 
-- A rigged humanoid character model: a Blender, FBX, glTF/GLB or prepared DMX
-  file. Rigs with Mixamo, Rigify, DAZ, Character Creator, MMD or ValveBiped
-  naming work, and so do unusual bone names. Bodies that are not humanoid,
-  such as quadrupeds, still need a manual source copy (see
-  [Limits](MODEL_PREPARATION.md#limits)).
+- A rigged humanoid character model: a Blender, FBX, glTF/GLB, MikuMikuDance
+  (.pmx, .pmd) or prepared DMX file. Rigs with Mixamo, Rigify, DAZ, Character
+  Creator, MMD or ValveBiped naming work, and so do unusual bone names. Bodies
+  that are not humanoid, such as quadrupeds, still need a manual source copy
+  (see [Limits](MODEL_PREPARATION.md#limits)).
+- For a MikuMikuDance model only: the free
+  [MMD Tools](https://extensions.blender.org/add-ons/mmd-tools/) add-on in the
+  Blender the app uses. In Blender, open Edit → Preferences → Get Extensions,
+  search for MMD Tools and click Install.
 
 The app does not include Valve tools, game files or third-party character
 models: you bring your own model. The app runs Blender and the game's resource
@@ -57,7 +61,7 @@ an alternate variant.
 If your gun is in a separate file, you can also choose an optional **Gun from
 another file** here.
 
-A Blender, FBX or glTF model goes straight to step 2 and is prepared
+A Blender, FBX, glTF or MMD model goes straight to step 2 and is prepared
 automatically.
 
 ![Character & model step](images/character-and-model.png)
@@ -72,33 +76,55 @@ Your own file is never written.
 
 Preparation usually finishes on its own. If it stops, it names what to decide,
 such as a joint match or a shape-key choice, with a button to each spot. When
-your model has shape keys, **Shape key handling** is a required choice.
+your model has shape keys, **Shape key handling** is a required choice (Fit &
+review → Shape keys).
+
+After the check, the bar at the top of the page names your file and holds its
+menus: **Model file & orientation** (to choose another file or check it again),
+the preparation mode, **Scene objects** and **Notes**. The 3D view stays on the
+left while you go through the tabs **Body roles**, **Moving parts**, **Joint
+matches**, **Gun** and **Fit & review**; each tab shows a short status. Load
+*Joint check* to see labels on the character: click a joint's label on
+**Body roles** to select it, and the part of your model that its bone moves
+lights up. On **Gun**, the gun's fit preview and its adjust buttons take the
+place of the 3D view.
 
 ## Step 3: Appearance & weapons
 
 Check the gun fit in the 3D preview, review the materials and textures, and
-accept them.
+accept them. The page has four tabs (**Materials**, **Face**, **Gun**,
+**Accessories & props**) beside the 3D view, and four menus in its top bar:
+**Model** (replace or analyze the model, import a source package), **Mesh
+options**, **Texture folder** and **Saved inputs**.
 
-- The gun: if your model contains a gun, the **Weapon** tab offers to fit it
+- The gun: if your model contains a gun, the **Gun** tab offers to fit it
   onto the hero's gun, leave it out, or keep it in the hand. Using your gun
   instead of the hero's is recommended and preselected. The preview shows your
   gun over the hero's own. If the gun points backwards, use **Flip direction**;
   other buttons turn, tilt and move it. **Apply gun changes** prepares the model
   again in one click.
-- Materials: textures are found in your model's materials. The app has a
-  color editor, texture replacement and a review list before building.
+- Materials: textures are found in your model's materials. On the
+  **Materials** tab, click a material in the list or a part of the character
+  in the 3D view, check its images, then tick **I have reviewed this material
+  choice**; **Next to review** goes to the next one, and **Accept all** takes
+  every resolved choice at once. Colors are changed in **Extras → Colors**.
 
 ![Gun fit preview](images/gun-fit.png)
 *Appearance & weapons: the fit preview shows your gun over the hero's own, with buttons to turn, tilt and move it.*
 
 ## Step 4: Physics & preview
 
-Hair, tails, ears, skirts, cloth and streamers can move on their own. On the
-**Physics** tab, switch moving parts on or off and fine-tune their movement.
+Hair, tails, ears, skirts, cloth and streamers can move on their own. Choose
+**Automatic secondary motion** on the **Physics mode** tab, then fine-tune their
+movement on **Fine-tune** and switch parts on or off on **Moving parts**. The
+character preview stays beside every tab; click a label on the character to
+fine-tune that part type.
 
-**Physics → Your character → Movement** plays the hero's own idle, run and jump
-clips on your character. It approximates the game's cloth solver, for tuning by
-eye.
+**Movement**, in the bar above the preview, plays the hero's own clips on your
+character: stand, run (forward, back and to each side), stop, jump and fall.
+With Automatic secondary motion it simulates the game's own cloth model, so the
+moving parts move much closer to what you see in game; still check them in a
+match.
 
 ![Physics & preview step](images/physics-and-preview.png)
 *Physics & preview: look at your prepared character in 3D and choose how its moving parts move.*
@@ -110,9 +136,12 @@ and materials, packs the VPK and installs it.
 
 Before you build, look at the mesh mapping on this page. Your meshes are named
 after your source (Body, Face), not after the hero's render nodes, so the page
-offers a **suggested mapping**. Nothing is applied until you choose it. Source
-meshes that no render node uses would be missing in game; a warning names them,
-with a button that adds them to the main node.
+offers a **suggested mapping**: **Apply suggested mapping** puts every mesh no
+render node uses on the body in one click, keeps the hero's weapon parts and the
+things the hero carries, and switches off the hero's other parts. Nothing is
+applied until you click it. Source meshes that no render node uses would be
+missing in game; a warning names them, with a button that adds them to the
+main node.
 
 If a check blocks the build, fix the reported input. Bypassing a check produces
 a broken or unchanged mod. Analyze also reports a VPK slot another mod uses.
@@ -149,8 +178,8 @@ character in a match. Look at:
 - **Wrong model in game:** check the hero's model path, the VPK slot and
   conflicting mods. See [Guns](TROUBLESHOOTING.md#guns), which also covers
   choosing the hero's main model.
-- **Movement differs in game:** the preview approximates the game's cloth;
-  adjust the Fine-tune sliders, analyze and build again. See
+- **Movement differs in game:** the preview comes close to the game's cloth
+  but is not exact; adjust the Fine-tune sliders, analyze and build again. See
   [Physics](TROUBLESHOOTING.md#physics).
 - **You need help:** use **Logs** and **Step timings** to find the failing
   stage, then report it with the text from **Copy for support**. See
@@ -165,7 +194,17 @@ character in a match. Look at:
 - [Moving parts](MODEL_PREPARATION.md#moving-parts) and
   [the movement preview](MODEL_PREPARATION.md#fine-tune-and-the-movement-preview):
   part types, Fine-tune sliders and saved presets.
-- [Hero colors](MODEL_PREPARATION.md#hero-colors): recolor the hero's own
-  clothes without a replacement model.
+- [Colors](MODEL_PREPARATION.md#colors): recolor the hero's own clothes, or
+  your replacement model's materials, by clicking a color on the character.
+- The other Extras: [sounds](MODEL_PREPARATION.md#hero-sounds),
+  [effects](MODEL_PREPARATION.md#hero-effects),
+  [item icons](MODEL_PREPARATION.md#item-icons),
+  [item names](MODEL_PREPARATION.md#item-names) and
+  [ability objects](MODEL_PREPARATION.md#ability-objects).
+- [Motion](MOTION.md): play the hero's animations on your character and
+  replace a clip, also with your own animation or with another hero's
+  animation from the game.
+- [Projects and installed mods](PROJECTS.md): Undo and Redo, a copy of your
+  project for another hero, and the list of installed mods.
 - [Troubleshooting](TROUBLESHOOTING.md): compatibility limits and fixes for
   common failures.

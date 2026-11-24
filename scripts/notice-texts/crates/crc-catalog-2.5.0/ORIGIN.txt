@@ -1,0 +1,3 @@
+crc-catalog 2.5.0 keeps its license texts in a LICENSES folder (MIT.txt, Apache-2.0.txt),
+which the notice generator does not read. These are those two files, copied unchanged
+from the published crate.

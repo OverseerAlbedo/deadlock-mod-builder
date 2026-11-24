@@ -339,22 +339,34 @@ pub fn plan_with_bindings(
                 }
             }
         }
+        let confirmed = if added
+            && (material.contains("/materials/prepared/") || bindings.contains_key(&material))
+        {
+            false
+        } else {
+            current.confirmed.unwrap_or(exists)
+        };
+        // A channel with a chosen image is never offered a copy of it: a
+        // candidate holding the same bytes as the chosen image is left out (as
+        // `refreshed_material` does after preparing again), so the page does
+        // not offer "another image" that is the same picture once the material
+        // is reviewed (now or later through Accept all). The chosen path itself
+        // stays listed, as before (the page never offers it).
+        for (channel, path) in &chosen {
+            if path.is_empty() {
+                continue;
+            }
+            if let Some(paths) = candidates.get_mut(channel) {
+                paths.retain(|p| p == path || !same_bytes(p, path));
+            }
+        }
         result.insert(
             material.clone(),
             MaterialChoices {
                 preset: Some(current.preset.unwrap_or_else(|| "generic".into())),
                 textures: Some(chosen),
                 color: Some(current.color.unwrap_or([0.5; 3])),
-                confirmed: Some(
-                    if added
-                        && (material.contains("/materials/prepared/")
-                            || bindings.contains_key(&material))
-                    {
-                        false
-                    } else {
-                        current.confirmed.unwrap_or(exists)
-                    },
-                ),
+                confirmed: Some(confirmed),
                 mode: Some(current.mode.unwrap_or_else(|| {
                     if exists {
                         "keep".into()
@@ -372,6 +384,15 @@ pub fn plan_with_bindings(
         );
     }
     Ok(result)
+}
+/// Whether two image files hold the same bytes (false when either cannot be
+/// read); the same test as deadlock-preparation `service.rs same_bytes`.
+fn same_bytes(a: &str, b: &str) -> bool {
+    let (Ok(x), Ok(y)) = (std::fs::metadata(a), std::fs::metadata(b)) else { return false };
+    x.is_file()
+        && y.is_file()
+        && x.len() == y.len()
+        && matches!((std::fs::read(a), std::fs::read(b)), (Ok(p), Ok(q)) if p == q)
 }
 fn rgba(value: &[f64; 3]) -> String {
     format!("[{:.6} {:.6} {:.6} 1.000000]", value[0], value[1], value[2])

@@ -1,6 +1,7 @@
-import { open } from '@tauri-apps/plugin-dialog';
+import { openFor } from '../dialogs';
 import { Fragment, useEffect, useState } from 'react';
 import type { FieldCheck, Settings, SetupStatus, SetupTest, ThemePreset } from '../models';
+import { defaultFit } from '../models';
 import { api, errorHelp, errorText, isDesktop } from '../api';
 import { ErrorNotice, PageTitle, Section, StateLabel } from './Primitives';
 import { CompactPathField } from './Paths';
@@ -17,7 +18,7 @@ const pathFields: PathField[] = [
   {key: 'workspace', label: 'Workspace folder', directory: true, example: String.raw`C:\Users\<you>\AppData\Local\DeadlockModBuilder\workspaces`, hint: 'Where the app keeps project files and builds. Detect tools fills in a default.'},
   {key: 'deadlock', label: 'Deadlock installation', directory: true, download: 'deadlock', example: String.raw`C:\Program Files (x86)\Steam\steamapps\common\Deadlock`, hint: 'The Deadlock folder itself (it contains a folder called game). In Steam: right-click Deadlock → Manage → Browse local files.'},
   {key: 'pak', label: 'Deadlock game archive', directory: false, example: String.raw`...\steamapps\common\Deadlock\game\citadel\pak01_dir.vpk`, hint: 'The file pak01_dir.vpk inside game\\citadel. Not one of the numbered pak01_000.vpk files.'},
-  {key: 'blender', label: 'Blender executable', directory: false, download: 'blender', example: String.raw`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`, hint: 'Needed to prepare Blender, FBX and glTF models. Supported: Blender 4.2–4.5, 5.0, 5.2 LTS (recommended) and 5.3.'},
+  {key: 'blender', label: 'Blender executable', directory: false, download: 'blender', example: String.raw`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`, hint: 'Needed to prepare Blender, FBX, glTF and MMD models. Supported: Blender 4.2–4.5, 5.0, 5.2 LTS (recommended) and 5.3. MMD models (.pmx, .pmd) also need the MMD Tools add-on in this Blender.'},
   {key: 'source2viewer', label: 'Source 2 Viewer CLI', directory: false, download: 'source2viewer', example: String.raw`C:\Tools\Source2Viewer\Source2Viewer-CLI.exe`, hint: 'From the cli-windows-x64 download: Source2Viewer-CLI.exe. Source2Viewer.exe (the viewer app) does not work here.'},
   {key: 'csdk', label: 'Community SDK', directory: true, download: 'csdk', example: String.raw`C:\CSDK13`, hint: 'The extracted Reduced_CSDK_13 folder, the one that directly contains game and content. It compiles the materials and the hero model. A short path such as C:\\CSDK13 avoids long-path errors.'},
   {key: 'resourcecompiler', label: 'Resource compiler', directory: false, example: String.raw`C:\CSDK13\game\bin\win64\resourcecompiler.exe`, hint: 'The Community SDK’s own resourcecompiler.exe (in game\\bin\\win64, not the bin_server copy). Detect tools or the suggested path fills it in.'},
@@ -47,6 +48,14 @@ function FieldStatus({check, apply, busy}: {check?: FieldCheck; apply: (value: s
   </div>;
 }
 
+/** MMD Tools for the chosen Blender: a note under Blender (only MMD models
+ * need it), never a warning or a problem. */
+function MmdToolsNote({check, busy}: {check?: FieldCheck; busy: boolean}) {
+  if (!check) return null;
+  // The add-on's page explains installing it; not one of the four installs.
+  return <p className="hint mmd-tools-note" aria-label="MMD Tools">{check.state === 'ok' ? '✓ ' : ''}{check.message}{check.state !== 'ok' && <> <ToolLink id="mmdtools" disabled={busy}/></>}</p>;
+}
+
 /** Test my setup: runs the three checks and shows each result with its fix. */
 export function SetupTestPanel({ test, busy, go }: { test: () => Promise<SetupTest | undefined>; busy: boolean; go?: (page: string) => void }) {
   const [result, setResult] = useState<SetupTest | null>(null);
@@ -62,7 +71,8 @@ export function SetupTestPanel({ test, busy, go }: { test: () => Promise<SetupTe
   </div>;
 }
 
-export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go, theme = 'original', chooseTheme, guideShown, setGuideShown, customThemes = [], saveCustomThemes, fields: liftedFields, ignoredNotifications = 0, showIgnoredNotifications }: {
+export function SettingsPage({ settings, update, persist, busy, dirty, fail, detect, status, check, onboarding, modelSetup, embedded = false, verify, expert = true, testSetup, go, theme = 'original', chooseTheme, guideShown, setGuideShown, customThemes = [], saveCustomThemes, fields: liftedFields, ignoredNotifications = 0, showIgnoredNotifications, savePreference }: {
+  /** Saves Default fit for new models or Load 3D previews automatically at once (shown when given). */ savePreference?: (values: Pick<Settings, 'default_fit_mode' | 'auto_previews'>) => void;
   /** The live field checks when the app runs them (undefined: this page runs its own; null: not read yet). */ fields?: FieldCheck[] | null;
   /** How many sidebar notifications are ignored for good, and how to show them again. */ ignoredNotifications?: number; showIgnoredNotifications?: () => void;
   /** Opens a page from an error's fix button. */ go?: (page: string) => void;
@@ -94,7 +104,7 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
   const problems = (checks ?? []).filter(item => item.state === 'problem');
   async function choose(field: PathField) {
     try {
-      const path = await open({title: field.label, directory: field.directory, multiple: false});
+      const path = await openFor('tools-folder', {title: field.label, directory: field.directory, multiple: false});
       if (typeof path === 'string' && settings) update({...settings, [field.key]: path});
     } catch (error) { fail('Could not choose a path', error); }
   }
@@ -106,6 +116,7 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
     <CompactPathField fullPath label={field.label} value={settings?.[field.key] ?? ''} disabled={busy} update={value => settings && update({...settings, [field.key]: value})} browse={() => choose(field)} placeholder={`Example: ${field.example}`} />
     <FieldStatus check={checkFor(field.key)} busy={busy} apply={value => settings && update({...settings, [field.key]: value})}/>
     {(field.download || field.hint) && <p className="hint tool-field-help">{field.hint && <span>{field.hint} </span>}<span className="field-example">Example: <code>{field.example}</code> </span>{field.download && <ToolLink id={field.download} disabled={busy}/>}</p>}
+    {field.key === 'blender' && <MmdToolsNote check={checkFor('mmd_tools')} busy={busy}/>}
   </div>);
   const modelCheck = checkFor('cswin');
   return <>
@@ -118,6 +129,16 @@ export function SettingsPage({ settings, update, persist, busy, dirty, fail, det
         {editor && <ThemeCustomizer start={editor.start} editing={editor.editing} customs={customThemes} disabled={busy} onCancel={() => setEditor(null)} onSave={preset => { saveCustomThemes?.([...customThemes.filter(t => t.id !== preset.id), preset]); chooseTheme(preset.id); setEditor(null); }}/>}
         <p className="hint">A theme changes at once and is kept with your settings, so it survives restarts and reinstalls. The mark in the sidebar and the window icon (title bar and taskbar) follow it. Customize… makes your own from any theme: a color picker or a hex code for each color, with a live preview.</p>
         {setGuideShown && <><Check label="Show New-user setup in the sidebar (Getting started)" value={guideShown !== false} onChange={setGuideShown} disabled={busy}/><p className="hint">Hide it once you know the five steps; Done on the guide's last step hides it as well. It stays available from Open new-user setup below.</p></>}
+        {savePreference && <div className="settings-preferences">
+          <div className="field"><label htmlFor="settings-default-fit">Default fit for new models</label>
+            <select id="settings-default-fit" disabled={busy} value={defaultFit(settings)} onChange={event => savePreference({default_fit_mode: event.target.value})}>
+              <option value="preserve_proportions">Preserve source proportions</option>
+              <option value="match_target">Match hero proportions</option>
+            </select></div>
+          <p className="hint">Model fitting for a model checked for the first time in a project (Prepare model → Fit & review, where you can still change it). Projects checked before keep their own fit.</p>
+          <Check label="Load 3D previews automatically" value={settings.auto_previews ?? false} onChange={auto_previews => savePreference({auto_previews})} disabled={busy}/>
+          <p className="hint">Prepare model, Appearance & weapons and Physics & preview then load their 3D view by themselves when the page is shown: once per model, and only when nothing else is running. Previews of Blender, FBX and MMD files start Blender, which takes a while on slower PCs. Off: each view loads with its button.</p>
+        </div>}
         {ignoredNotifications > 0 && showIgnoredNotifications && <div className="row"><button disabled={busy} onClick={showIgnoredNotifications}>Show ignored notifications again</button><span className="hint">{ignoredNotifications === 1 ? 'One notification is' : `${ignoredNotifications} notifications are`} ignored in the sidebar's Notifications.</span></div>}
       </Section>}
       <Section title="Folders and tools" actions={<div className="row"><button disabled={busy} onClick={()=>detect()}>Detect tools</button><button disabled={busy} onClick={()=>detect(true)}>Search a folder…</button>{fixable.length > 0 && <button disabled={busy} onClick={() => void fixAll()}>Fix {fixable.length === 1 ? 'the marked path' : `all ${fixable.length} marked paths`}</button>}{embedded && verify ? <button className="primary" disabled={busy} onClick={verify}>Save and check tools</button> : <button disabled={busy} onClick={check}>Check paths</button>}</div>}>

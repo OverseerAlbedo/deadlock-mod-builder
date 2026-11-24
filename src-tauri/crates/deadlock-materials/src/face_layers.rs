@@ -3,8 +3,8 @@
 //! material's `face_layer` (blush, tears or other); a game build has no
 //! expressions, so each kind is hidden (fully transparent) unless the user
 //! shows it (Appearance > Face details, `Customization.face_layers`). A shown
-//! layer is drawn with soft edges from its own image's alpha. SiViolet's blush
-//! (赤面, 照れ) and tears (涙) were drawn solid and turned her face red.
+//! layer is drawn with soft edges from its own image's alpha. One model's blush
+//! (赤面, 照れ) and tears (涙) were drawn solid and turned the face red.
 use crate::*;
 use deadlock_project::customization::Customization;
 use std::io::Cursor;

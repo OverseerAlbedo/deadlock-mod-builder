@@ -7,11 +7,19 @@ base color, also through a color mix/tint with a single image input. Complex
 graphs use explicit image channel suffixes; a single remaining unsuffixed image
 is the base color. Multiple images remain candidates for review rather than an
 arbitrary choice.
+
+An image the model names under another extension (staged_images.py stand-ins)
+is used like any connected image, with a note; several such files are offered
+as candidates. A material the model gives no base-color image takes an image
+beside the model whose file name matches its name (chosen at staging,
+texture_names.rs) only when that image fits no other such material; otherwise
+the matches are candidates. These picks stay unconfirmed, like every other.
 """
 import hashlib
 from pathlib import Path
 import re
 from readable_names import readable
+import staged_images
 
 
 # Readable characters of a prepared material's name. The native compiler names
@@ -49,8 +57,8 @@ MMD_SHADING_NODE = re.compile(r'mmd_(?:toon|sphere)_tex(?:\.\d+)?')
 # Face layers an MMD model keeps fully transparent until an expression fades
 # them in (blush, tears ...): a game build has no expressions, so they are
 # hidden unless the user shows them (Appearance > Face details). Recorded as
-# the material's 'face_layer'. SiViolet's 赤面/照れ blush and 涙 tears were drawn
-# solid and turned her face red.
+# the material's 'face_layer'. One model's 赤面/照れ blush and 涙 tears were drawn
+# solid and turned the face red.
 FACE_LAYER_WORDS = (('blush', ('赤面','照れ','頬','チーク','blush','cheek','紅潮')),
                     ('tears', ('涙','泪','tear','namida')))
 
@@ -170,6 +178,44 @@ def copy_image(image, folder, slug, channel):
     return str(dest)
 
 
+FILE_EXTENSIONS = {'.png':'.png','.jpg':'.jpg','.jpeg':'.jpg','.tga':'.tga','.tif':'.tif','.tiff':'.tif'}
+# texture_match_sources label of a base color picked by file name.
+NAME_MATCH = 'Image file name beside the model'
+
+
+def copy_file(source, folder, slug, channel):
+    """A staged image file copied like copy_image, for images no Blender
+    material holds (stand-in choices, name matches)."""
+    ext=FILE_EXTENSIONS.get(Path(source).suffix.lower())
+    if not ext:return None
+    try:data=Path(source).read_bytes()
+    except OSError:return None
+    if not data:return None
+    dest=folder/(slug+'_'+channel+'_'+hashlib.sha256(data).hexdigest()[:12]+ext)
+    dest.write_bytes(data)
+    return str(dest)
+
+
+SUFFIXES = {'PNG':('.png',),'JPEG':('.jpg','.jpeg'),'TARGA':('.tga',),'TARGA_RAW':('.tga',),
+            'TIFF':('.tif','.tiff'),'OPEN_EXR':('.exr',)}
+
+
+def packed_stand_in(image):
+    """Whether a packed image asks for a file of another format: a stand-in
+    as a prepared .blend keeps it (Analyze materials reads that file, where
+    staged_images has no record of the stand-ins)."""
+    if not (image.packed_file and image.filepath):return False
+    suffix=Path(image.filepath.replace('\\','/')).suffix.lower()
+    return bool(suffix) and image.file_format in SUFFIXES and suffix not in SUFFIXES[image.file_format]
+
+
+def asked_name(image):
+    """The file name the model asks for, and Blender's image name when it differs."""
+    if not image.filepath:return image.name
+    name=image.filepath.replace('\\','/').rsplit('/',1)[-1]
+    return name if name==image.name else name+' ('+image.name+')'
+
+
 def recover_material(mat, folder, slug):
     cfg={'preset':'generic','mode':'generate','confirmed':False,'textures':{},
          'color':list(mat.diffuse_color[:3]),'source_material_name':mat.name}
@@ -224,18 +270,33 @@ def recover_material(mat, folder, slug):
     candidates={};sources={}
     for channel in channels:
         images=direct.get(channel) or fallback[channel]
-        paths=set()
+        paths=set();offered=False
         for image in {i.as_pointer():i for i in images}.values():
+            used=staged_images.stand_in(image)
+            if channel=='opacity' and image.file_format=='JPEG' and (used or packed_stand_in(image)):
+                # A JPEG has no transparency to stand in for the image asked for.
+                warnings.append(mat.name+': the model asks for '+(used[0] if used else asked_name(image))+' for its opacity; '+(used[1] if used else 'the JPEG used for it')+' has no transparency, so no opacity image was taken.')
+                continue
             path=copy_image(image,folder,slug,channel)
-            if path:paths.add(path)
-            elif EXTENSIONS.get(image.file_format):warnings.append(mat.name+': texture '+image.name+' is missing or empty; choose an image for this material in Appearance.')
+            if path:
+                paths.add(path)
+                if used:warnings.append('The model asks for '+used[0]+'; '+used[1]+' was used.')
+                continue
+            options=[p for p in (copy_file(c,folder,slug,channel) for c in staged_images.choices(image)) if p]
+            if options:
+                paths.update(options);offered=True
+                names=sorted({staged_images.found_name(c) for c in staged_images.choices(image)})
+                warnings.append(mat.name+': the model asks for '+asked_name(image)+', which is missing; '+str(len(names))+' files have its name with another extension ('+', '.join(names)+'). Choose one in Materials.')
+            elif EXTENSIONS.get(image.file_format):warnings.append(mat.name+': texture '+asked_name(image)+' is missing or empty; choose an image for this material in Appearance.')
             else:warnings.append(mat.name+': unsupported texture format '+image.file_format)
         candidates[channel]=sorted(paths)
         if len(paths)==1:
             cfg['textures'][channel]=next(iter(paths))
-        elif len(paths)>1:
+        elif len(paths)>1 and not offered:
             warnings.append(mat.name+': multiple '+channel+' images; choose the intended image in Materials.')
-        sources[channel]='Blender image connection' if channel in direct else 'Image filename in connected Blender material'
+        # Only an image found is labelled; the page shows the label beside
+        # whatever image the user picks for the channel later.
+        if paths:sources[channel]='Blender image connection' if channel in direct else 'Image filename in connected Blender material'
     cfg['candidates']=candidates
     # Blender ignores a connected Base Color's own value (often the material's
     # earlier flat colour), so a base-color image is not tinted with it.
@@ -262,4 +323,39 @@ def texture_and_materials(meshes,folder,hero_root):
         result[rel]=cfg;warnings.extend(notes)
     if any(not o.material_slots or any(not s.material for s in o.material_slots) for o in meshes):
         raise ValueError('Every polygon must have a named material slot; assign missing slots in a source copy.')
-    return result,lookup,warnings
+    warnings.extend(name_matched(materials,result,lookup,folder))
+    # One note per image, however many materials use it.
+    return result,lookup,list(dict.fromkeys(warnings))
+
+
+def name_matched(materials, result, lookup, folder):
+    """Base colors for materials without one, from the images staging matched
+    to them by file name. A material with no base-color image link takes its
+    image when exactly one fits it and that image fits no other such
+    material; a material whose linked image is missing, or with several
+    fits, gets them as candidates only. A link that exists is never replaced."""
+    matches=staged_images.name_matches();warnings=[];wanting={}
+    for name in materials:
+        cfg=result[lookup[name]]
+        if cfg['textures'].get('color') or cfg.get('candidates',{}).get('color'):continue
+        fits=sorted({p for p in matches.get(name,[]) if Path(p).is_file()})
+        if fits:wanting[name]=(cfg,fits,'color' not in cfg.get('candidates',{}))
+    uses={}
+    for _,fits,_ in wanting.values():
+        for path in fits:uses[path]=uses.get(path,0)+1
+    for name,(cfg,fits,unlinked) in wanting.items():
+        copies=sorted({c for c in (copy_file(p,folder,prepared_slug(name),'color') for p in fits) if c})
+        if not copies:continue
+        cfg.setdefault('candidates',{})['color']=copies
+        cfg.setdefault('texture_match_sources',{})['color']=NAME_MATCH
+        shown=', '.join(sorted({Path(p).name for p in fits}))
+        if unlinked and len(copies)==1 and all(uses[p]==1 for p in fits):
+            cfg['textures']['color']=copies[0]
+            # The image is the base color; the flat colour was the stand-in for it.
+            cfg['color']=[1.0,1.0,1.0]
+            warnings.append(name+': the model links no image to it; '+shown+' beside the model has a matching file name and was picked. Check it in Materials.')
+        else:
+            if len(copies)>1 and 'color' not in cfg.setdefault('ambiguous',[]):cfg['ambiguous'].append('color')
+            why='the model links no image to it' if unlinked else 'the image the model links to it is missing'
+            warnings.append(name+': '+why+'; '+shown+' beside the model '+('has' if len(fits)==1 else 'have')+' a matching file name. Choose an image in Materials.')
+    return warnings

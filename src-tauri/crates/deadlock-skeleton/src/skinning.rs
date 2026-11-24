@@ -147,3 +147,56 @@ pub fn skinning(d: &Dmx) -> Result<SkinningAudit> {
         meshes,
     })
 }
+/// Skin weight per bone name of every skinned `DmeMesh` (summed over its
+/// vertices), and each bone's parent, of a DMX with one joint palette.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct BoneWeights {
+    pub meshes: std::collections::BTreeMap<String, std::collections::BTreeMap<String, f64>>,
+    pub parents: std::collections::BTreeMap<String, Option<String>>,
+}
+pub fn bone_weights(d: &Dmx) -> Result<BoneWeights> {
+    let palettes = palettes(d)?;
+    if palettes.len() != 1 {
+        return Err(invalid("Expected one joint palette"));
+    }
+    let palette = palettes.first().unwrap();
+    let mut out = BoneWeights::default();
+    let joint = |at: usize| d.elements.get(at).filter(|e| e.kind == "DmeJoint");
+    for (i, e) in d.elements.iter().enumerate().filter(|(_, e)| e.kind == "DmeJoint") {
+        out.parents.entry(e.name.clone()).or_insert(None);
+        for child in ints(d, e.get("children"))?.into_iter().filter_map(|c| usize::try_from(c).ok()) {
+            if let Some(c) = joint(child).filter(|_| child != i) {
+                out.parents.insert(c.name.clone(), Some(e.name.clone()));
+            }
+        }
+    }
+    let names: Vec<Option<&str>> = palette
+        .iter()
+        .map(|r| usize::try_from(*r).ok().and_then(joint).map(|e| e.name.as_str()))
+        .collect();
+    // Decompiled game meshes carry `bindState` as a null reference beside
+    // their `currentState`.
+    let valid = |key: &str, mesh: &Element| {
+        mesh.get(key)
+            .and_then(Value::as_ref_index)
+            .and_then(|i| usize::try_from(i).ok())
+            .and_then(|i| d.elements.get(i))
+    };
+    for mesh in d.elements.iter().filter(|e| e.kind == "DmeMesh") {
+        let Some(st) = valid("bindState", mesh).or_else(|| valid("currentState", mesh)) else { continue };
+        let weights = floats(d, st.get("blendweights$0").or_else(|| st.get("jointWeights")))?;
+        let indices = ints(d, st.get("blendindices$0").or_else(|| st.get("jointIndices")))?;
+        if weights.is_empty() || weights.len() != indices.len() {
+            continue;
+        }
+        let totals = out.meshes.entry(mesh.name.clone()).or_default();
+        for (index, weight) in indices.iter().zip(&weights) {
+            if *weight > 0. {
+                if let Some(Some(name)) = usize::try_from(*index).ok().and_then(|i| names.get(i)) {
+                    *totals.entry((*name).to_owned()).or_default() += weight;
+                }
+            }
+        }
+    }
+    Ok(out)
+}

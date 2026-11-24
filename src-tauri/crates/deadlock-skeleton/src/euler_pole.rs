@@ -2,8 +2,8 @@
 //! conversion. The model compiler stores each bone's local rotation through
 //! Euler angles (MatrixAngles). When a bone's local x axis lies close to its
 //! parent's z axis (`xy`, the length of that axis in the parent's x-y plane, is
-//! small) the conversion loses about 4e-5°/xy: SiViolet's character on Nurse
-//! Harrow (October 20, 2026) had three chest cloth roots at xy 0.00116 that
+//! small) the conversion loses about 4e-5°/xy: a test character on Nurse
+//! Harrow had three chest cloth roots at xy 0.00116 that
 //! compiled 0.031–0.041° off, three times the strict transfer budget
 //! (quaternion component 1e-4); the same bones on Violet, at xy 0.006, came out
 //! 0.004–0.008° off and passed. A float32 round trip does not reproduce the
@@ -31,7 +31,7 @@ use std::collections::BTreeSet;
 pub const POLICY: &str = "near-pole-euler-snap-v1";
 /// Bones closer to the pole than this are snapped onto it (about 0.008° after
 /// compiling at this distance, under the budget; Violet's bones at 0.006 pass
-/// unchanged, measured October 20, 2026).
+/// unchanged).
 pub const SNAP_BELOW: f64 = 0.0055;
 /// Already on the pole within float noise: left as it is.
 const ON_POLE: f64 = 1e-9;

@@ -1,15 +1,17 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, basename, errorText } from '../api';
 import { changeCustomization } from '../components/customization';
 import { weaponLike } from '../components/WeaponModels';
 import type { Project } from '../models';
 import { Check, SelectField } from '../components/CustomizationPages';
 import { NumberField } from '../components/MaterialEditor';
-import { Section } from '../components/Primitives';
 import { FilePathInput } from '../components/FilePathInput';
 import type { Hand, PreparationAnalysis, PreparationOptions, Vec3, WeaponCandidate, WeaponChoice, WeaponFit, WeaponPreview } from './models';
 import { adjusted, adjustments, fittedHands, gunName, handGun, heroGun, leftMode, nudge, previewShapes, replaceable, sameObjects as same, withAdjustments, yourGuns, type HeroGun, type Nudge } from './gun';
 import { SeparateGun, type SeparateGunProps } from './SeparateGun';
+import '../studio/studio.css';
+import '../studio/studioChoices.css';
+import './prepParts.css';
 const WeaponViewport=lazy(()=>import('./WeaponViewport'));
 type Operate=(label:string,operation:()=>Promise<void>,cancel?:boolean)=>Promise<unknown>;
 
@@ -55,12 +57,20 @@ function GunSummary({kind,hero,project,analysis,choice,gunFile}:{kind:HeroGun;he
     :action==='keep'?`Your gun stays in the hand as an accessory, and ${hero}'s gun stays too.`:'';
   const charm=analysis.analysis.weapon_file?.charm_bones?.length;
   return <div className="prep-gun-summary" role="status">
-    <p><strong>{heroLine}</strong></p>
+    <p className="prep-gun-hero">{heroLine}</p>
     {kind!=='weapon_model'&&<p>{yours}</p>}
-    {alsoOwn&&<p className="hint">{alsoOwn}</p>}
+    {alsoOwn&&<p className="prep-gun-also">{alsoOwn}</p>}
     {result&&<p className="prep-gun-result">{result}</p>}
-    {Boolean(charm)&&action==='replace'&&<p className="hint">The charm on your gun keeps its own bones, so it will swing. Turn it on or off under Physics → Gun charm motion.</p>}
+    {Boolean(charm)&&action==='replace'&&<p className="prep-gun-charm">The charm on your gun keeps its own bones, so it will swing. Turn it on or off under Physics → Gun charm motion.</p>}
   </div>;
+}
+
+/** One "what should your character hold" card: a radio with its title, an optional badge and a line of help. */
+function HoldCard({checked,disabled,onChange,title,badge,help}:{checked:boolean;disabled?:boolean;onChange:()=>void;title:string;badge?:string;help:ReactNode}){
+  return <label className={`studio-option ${checked?'selected':''} ${disabled?'disabled':''}`}>
+    <input type="radio" name="weapon-action" checked={checked} disabled={disabled} onChange={onChange}/>
+    <span className="studio-option-text"><span className="studio-option-title"><strong>{title}</strong>{badge&&<small className="studio-option-badge ok">{badge}</small>}</span><span className="studio-option-help">{help}</span></span>
+  </label>;
 }
 
 /** Beginner controls for one hand: flip, turn, tilt, aim, size and small moves. */
@@ -69,9 +79,9 @@ export function AdjustControls({choice,hand,set,busy}:{choice:WeaponChoice;hand:
   const apply=(change:Nudge)=>set((hand==='both'?['right','left'] as Hand[]:[hand]).reduce((next,h)=>withAdjustments(next,h,nudge(adjustments(next,h),change)),choice));
   const button=(label:string,change:Nudge,title?:string)=><button type="button" className="prep-secondary" disabled={busy} title={title} onClick={()=>apply(change)}>{label}</button>;
   return <div className="prep-gun-adjust" role="group" aria-label={hand==='both'?'Adjust both guns':`Adjust the ${hand}-hand gun`}>
-    <div className="prep-gun-adjust-row">{button('Flip direction',{kind:'flip'},'Point the barrel the other way')}{button('Turn ⟲ 90°',{kind:'turn',degrees:-90},'Roll around the barrel')}{button('Turn ⟳ 90°',{kind:'turn',degrees:90},'Roll around the barrel')}{button('Smaller',{kind:'size',factor:1/1.1})}{button('Bigger',{kind:'size',factor:1.1})}</div>
+    <div className="prep-gun-adjust-row">{button('Flip direction',{kind:'flip'},'Point the barrel the other way')}{button('Turn ⟲ 90°',{kind:'turn',degrees:-90},'Roll around the barrel')}{button('Turn ⟳ 90°',{kind:'turn',degrees:90},'Roll around the barrel')}{button('Smaller',{kind:'size',factor:1/1.1})}{button('Bigger',{kind:'size',factor:1.1})}<span className="prep-gun-adjust-end">{button('Reset',{kind:'reset'},hand==='both'?'Undo all adjustments of both guns':'Undo all adjustments of this hand')}</span></div>
     <div className="prep-gun-adjust-row">{button('Tilt up 5°',{kind:'tilt',degrees:5},'Pitch: raise the muzzle around the grip')}{button('Tilt down 5°',{kind:'tilt',degrees:-5},'Pitch: lower the muzzle around the grip')}{button('Aim left 5°',{kind:'aim',degrees:-5},'Yaw: turn the muzzle left around the grip')}{button('Aim right 5°',{kind:'aim',degrees:5},'Yaw: turn the muzzle right around the grip')}{button('Roll ⟲ 5°',{kind:'turn',degrees:-5},'Roll around the barrel')}{button('Roll ⟳ 5°',{kind:'turn',degrees:5},'Roll around the barrel')}</div>
-    <div className="prep-gun-adjust-row">{button('◀ Back',{kind:'move',axis:0,inches:-.25})}{button('Forward ▶',{kind:'move',axis:0,inches:.25})}{button('▲ Up',{kind:'move',axis:1,inches:.25})}{button('▼ Down',{kind:'move',axis:1,inches:-.25})}{button('Left',{kind:'move',axis:2,inches:-.25})}{button('Right',{kind:'move',axis:2,inches:.25})}{button('Reset',{kind:'reset'},hand==='both'?'Undo all adjustments of both guns':'Undo all adjustments of this hand')}</div>
+    <div className="prep-gun-adjust-row">{button('◀ Back',{kind:'move',axis:0,inches:-.25})}{button('Forward ▶',{kind:'move',axis:0,inches:.25})}{button('▲ Up',{kind:'move',axis:1,inches:.25})}{button('▼ Down',{kind:'move',axis:1,inches:-.25})}{button('Left',{kind:'move',axis:2,inches:-.25})}{button('Right',{kind:'move',axis:2,inches:.25})}</div>
   </div>;
 }
 
@@ -79,15 +89,15 @@ export function AdjustControls({choice,hand,set,busy}:{choice:WeaponChoice;hand:
 function ExactNumbers({choice,hand,set,busy}:{choice:WeaponChoice;hand:Hand;set:(next:WeaponChoice)=>void;busy:boolean}){
   const current=adjustments(choice,hand),put=(values:Partial<typeof current>)=>set(withAdjustments(choice,hand,{...current,...values}));
   const prefix=hand==='left'?'Left gun: ':'';
-  return <div className="prep-gun-exact">
+  return <div className="prep-gun-exact" role="group" aria-label={hand==='left'?'Exact numbers, left gun':'Exact numbers'}>
     <Check label={`${prefix}Flip barrel direction`} value={current.flip} disabled={busy} onChange={flip=>put({flip})}/>
-    <div className="override-grid">
+    <div className="prep-gun-numbers">
       <NumberField label={`${prefix}Roll around barrel (degrees)`} value={current.roll} min={-180} max={180} step={15} disabled={busy} update={roll=>put({roll})}/>
       <NumberField label={`${prefix}Pitch, muzzle up (degrees)`} value={current.pitch} min={-180} max={180} step={1} disabled={busy} update={pitch=>put({pitch})}/>
       <NumberField label={`${prefix}Yaw, muzzle right (degrees)`} value={current.yaw} min={-180} max={180} step={1} disabled={busy} update={yaw=>put({yaw})}/>
       <NumberField label={`${prefix}Scale multiplier`} value={current.scale} min={.1} max={10} step={.05} disabled={busy} update={scale=>put({scale})}/>
     </div>
-    <div className="vector-fields">{(['Forward','Up','Right'] as const).map((axis,index)=><NumberField key={axis} label={`${prefix}Move ${axis.toLowerCase()} (inches)`} value={current.offset[index]} min={-50} max={50} step={.25} disabled={busy} update={value=>{const offset=[...current.offset] as Vec3;offset[index]=value;put({offset});}}/>)}</div>
+    <div className="prep-gun-numbers">{(['Forward','Up','Right'] as const).map((axis,index)=><NumberField key={axis} label={`${prefix}Move ${axis.toLowerCase()} (inches)`} value={current.offset[index]} min={-50} max={50} step={.25} disabled={busy} update={value=>{const offset=[...current.offset] as Vec3;offset[index]=value;put({offset});}}/>)}</div>
   </div>;
 }
 
@@ -101,7 +111,12 @@ function FitLine({fit,choice,hand,hero}:{fit:WeaponFit;choice:WeaponChoice;hand:
   return <p className="hint prep-gun-fit-line">Size: {size} · {muzzle}{direction?` · ${direction}`:''}</p>;
 }
 
-export function WeaponPanel({project,analysis,options,change,busy,operate,reinspect,separate}:{project:Project;analysis:PreparationAnalysis;options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;operate:Operate;reinspect?:()=>void;separate?:Omit<SeparateGunProps,'project'|'analysis'|'options'|'busy'|'operate'|'change'>}){
+/** The gun panel, shared by Prepare model's Gun tab and the Gun tab of Appearance & weapons: the
+ * fit preview with the hand switch and every adjust button on the left (only while your gun replaces
+ * the hero's), and on the right the summary, the gun file, what the character holds, the hands and
+ * the advanced settings. `actions` (optional) sit under the summary (Appearance's Apply gun changes). */
+export function WeaponPanel({project,analysis,options,change,busy,operate,reinspect,separate,actions}:{project:Project;analysis:PreparationAnalysis;options:PreparationOptions;change:(values:Partial<PreparationOptions>)=>void;busy:boolean;operate:Operate;reinspect?:()=>void;separate?:Omit<SeparateGunProps,'project'|'analysis'|'options'|'busy'|'operate'|'change'>;actions?:ReactNode}){
+  const headingId=useId();
   const weaponModel=project.model_input_mode==='weapon';
   const kind=heroGun(analysis.weapon_reference,weaponModel),hero=heroLabel(project);
   const {all:candidates,file:fileGuns}=yourGuns(analysis);
@@ -145,53 +160,76 @@ export function WeaponPanel({project,analysis,options,change,busy,operate,reinsp
   const shapes=useMemo(()=>previewShapes(analysis,shownChoice,kind),[analysis,kind,shapesKey]);// eslint-disable-line react-hooks/exhaustive-deps
   // Separate weapon models this project builds (only wanted for heroes whose gun is its own model).
   const stale=(project.customization.equipment?.variants??[]).filter(v=>v.enabled!==false&&weaponLike(v.model??''));
-  return <Section title={weaponModel?'Weapon model':'Gun'} className="prep-card prep-weapon-card">
-    <GunSummary kind={kind} hero={hero} project={project} analysis={analysis} choice={choice} gunFile={inspectedFile||gunFile}/>
-    {(kind==='single'||kind==='dual')&&stale.length>0&&<div className="prep-gun-file-status" role="alert"><p>This project also builds a separate weapon model ({stale.map(v=>basename(v.model??'')).join(', ')}). {hero}'s gun is part of {hero}'s model, so that weapon project is not needed and would replace something else in the game.</p>{separate&&<button className="prep-primary" disabled={busy} onClick={()=>{const equipment=project.customization.equipment??{};separate.updateProject(changeCustomization(project,{equipment:{...equipment,variants:(equipment.variants??[]).filter(v=>!stale.includes(v))}}));}}>Stop building it</button>}</div>}
-    {!weaponModel&&<div className="prep-gun-file">
-      <FilePathInput label="Gun from another file (optional)" kind="weapon" value={gunFile} disabled={busy} fail={fail} update={path=>change({weapon_source:path||undefined,weapon:undefined,reviewed:false})}/>
-      <p className="hint">Use a gun saved in another Blender, FBX or glTF file. A file with two guns gives one for each hand. It is put in your character's hand automatically; the file itself is never changed.</p>
-      {gunFilePending&&<div className="prep-gun-file-status" role="status"><p>{gunFile?'Loading the gun from this file needs a new inspection.':'Removing the gun file\'s gun needs a new inspection.'}</p>{reinspect&&<button className="prep-primary" disabled={busy} onClick={reinspect}>{gunFile?'Load the gun from this file':'Inspect again without it'}</button>}</div>}
-    </div>}
-    {kind==='separate'&&!weaponModel&&separate&&(candidates.length>0||project.customization.equipment?.variants?.some(v=>v.project))?<SeparateGun project={project} analysis={analysis} options={options} busy={busy} operate={operate} change={change} {...separate}/>
-    :!candidates.length?<p className="hint">{weaponModel?'No gun was found in the source. Check Scene objects: the gun must be a visible mesh. To use a gun from another file, choose that file as the source path and inspect again.':'Choose a gun file above to use a gun from another file.'}</p>
-    :<>
-      {!weaponModel&&<fieldset className="prep-weapon-actions" disabled={busy}><legend>What should your character hold?</legend>
-        <label className="checkbox checkbox-line"><input type="radio" name="weapon-action" checked={action==='replace'} disabled={!replaceable(kind)} onChange={()=>set({...choice,objects:choice.objects?.length?choice.objects:candidates[0].objects,action:'replace'})}/>
-          <span>Use my gun{kind==='dual'?'s':''} instead of {hero}'s <em className="prep-recommended">recommended</em>{!replaceable(kind)&&<small className="hint"> Not available: {kind==='unreadable'?`${hero}'s gun could not be read`:kind==='separate'?`${hero}'s gun is a separate model`:'the original gun was not found'}.</small>}</span></label>
-        <label className="checkbox checkbox-line"><input type="radio" name="weapon-action" checked={action==='remove'} onChange={()=>set({...choice,objects:choice.objects?.length?choice.objects:candidates[0].objects,action:'remove'})}/><span>Keep {hero}'s gun{kind==='dual'?'s':''}<small className="hint"> Your gun is left out of the character.</small></span></label>
-        <details className="prep-option-help" open={action==='keep'}><summary>More options</summary>
-          <label className="checkbox checkbox-line"><input type="radio" name="weapon-action" checked={action==='keep'} onChange={()=>set({...choice,objects:choice.objects?.length?choice.objects:candidates[0].objects,action:'keep'})}/><span>Keep my gun in the hand as an accessory<small className="hint"> {hero}'s gun stays too, so the character holds both.</small></span></label>
-        </details>
-      </fieldset>}
-      {(action==='replace'||weaponModel)&&<div className="prep-gun-hands">
-        {kind==='dual'&&!weaponModel?<>
-          <SelectField label="Right hand" value={right?.id??''} values={options_(candidates)} disabled={busy} onChange={id=>set({...choice,objects:pick(id)})}/>
-          <SelectField label="Left hand" value={left==='own'?handGun(choice,candidates,'left')?.id??'':left==='copy'?'copy':'keep'} values={[...options_(candidates),['copy','A copy of the right-hand gun'],['keep',`${hero}'s own left gun`]]} disabled={busy}
-            onChange={id=>set({...choice,left:{...choice.left,keep:id==='keep',objects:id==='copy'||id==='keep'?[]:pick(id)}})}/>
-          {left==='own'&&<button type="button" className="prep-secondary" disabled={busy} onClick={swap}>Swap hands</button>}
-        </>:candidates.length>1||fileGuns.length>1?<SelectField label="Your gun" value={right?.id??''} values={options_(candidates)} disabled={busy} onChange={id=>set({...choice,objects:pick(id)})}/>:null}
-      </div>}
-      {fitting&&<div className="prep-weapon-fit">
-        {hands.length>1&&<div className="prep-role-filter" role="group" aria-label="Hand to adjust">{hands.map(h=><button key={h} type="button" aria-pressed={!both&&shownHand===h} onClick={()=>setHand(h)}>{h==='right'?'Right-hand gun':'Left-hand gun'}</button>)}<button type="button" aria-pressed={both} onClick={()=>setHand('both')}>Both guns</button></div>}
-        {shown?.error?<p className="hint" role="alert">The fit could not be previewed: {shown.error}</p>
-          :shownValue?<Suspense fallback={<p>Loading the 3D preview…</p>}><WeaponViewport preview={shownValue} shapes={shapes} focus={both?'both':shownHand}/></Suspense>
+  const plural=kind==='dual'?'s':'';
+  const hold=(next:WeaponChoice['action'])=>()=>set({...choice,objects:choice.objects?.length?choice.objects:candidates[0].objects,action:next});
+  const fitView=fitting&&<div className="prep-gun-fitcol">
+    <section className="studio-view prep-gun-view" aria-label="Gun fit">
+      <div className="studio-view-bar"><strong className="prep-view-title">Gun fit</strong>
+        {hands.length>1&&<span className="studio-view-bar-end"><span className="studio-view-group" role="group" aria-label="Hand to adjust">{hands.map(h=><button key={h} type="button" aria-pressed={!both&&shownHand===h} onClick={()=>setHand(h)}>{h==='right'?'Right-hand gun':'Left-hand gun'}</button>)}<button type="button" aria-pressed={both} onClick={()=>setHand('both')}>Both guns</button></span></span>}
+      </div>
+      <div className="studio-view-stage">
+        {shown?.error?<p className="hint prep-gun-error" role="alert">The fit could not be previewed: {shown.error}</p>
+          :shownValue?<Suspense fallback={<p className="studio-view-wait">Loading the 3D preview…</p>}><WeaponViewport preview={shownValue} shapes={shapes} focus={both?'both':shownHand}/></Suspense>
           :<div className="prep-weapon-viewport prep-weapon-loading"><p>Fitting your gun…</p></div>}
+      </div>
+      <div className="prep-gun-adjust-area">
         <AdjustControls choice={choice} hand={both?'both':shownHand} set={set} busy={busy}/>
         {fit&&<FitLine fit={fit} choice={choice} hand={shownHand} hero={hero}/>}
         {adjusted(choice)&&<p className="hint">Adjustments are kept for the next conversion.</p>}
+      </div>
+    </section>
+  </div>;
+  const notes=[...(shown?.value?.fit.notes??[]),...(shown?.value?.fit.source.notes??[]).map(n=>`Your gun: ${n}`),...(shown?.value?.fit.target.notes??[]).map(n=>`Original: ${n}`)];
+  return <section className={`prep-gun ${fitting?'with-fit':''}`} aria-labelledby={headingId}><div className="prep-gun-grid">
+    {fitView}
+    <div className="studio-card prep-gun-settings">
+      <div className="studio-card-head"><h2 id={headingId} className="prep-tab-card-title">{weaponModel?'Weapon model':'Gun'}</h2></div>
+      <GunSummary kind={kind} hero={hero} project={project} analysis={analysis} choice={choice} gunFile={inspectedFile||gunFile}/>
+      {actions}
+      {(kind==='single'||kind==='dual')&&stale.length>0&&<div className="prep-gun-file-status prep-callout warn" role="alert"><p>This project also builds a separate weapon model ({stale.map(v=>basename(v.model??'')).join(', ')}). {hero}'s gun is part of {hero}'s model, so that weapon project is not needed and would replace something else in the game.</p>{separate&&<button className="prep-primary" disabled={busy} onClick={()=>{const equipment=project.customization.equipment??{};separate.updateProject(changeCustomization(project,{equipment:{...equipment,variants:(equipment.variants??[]).filter(v=>!stale.includes(v))}}));}}>Stop building it</button>}</div>}
+      {!weaponModel&&<div className="prep-gun-file">
+        <FilePathInput label="Gun from another file (optional)" kind="weapon" value={gunFile} disabled={busy} fail={fail} update={path=>change({weapon_source:path||undefined,weapon:undefined,reviewed:false})}/>
+        <p className="studio-note">Use a gun saved in another Blender, FBX, glTF or MMD (.pmx, .pmd) file. A file with two guns gives one for each hand. It is put in your character's hand automatically; the file itself is never changed.</p>
+        {gunFilePending&&<div className="prep-gun-file-status prep-callout" role="status"><p>{gunFile?'Loading the gun from this file needs a new inspection.':'Removing the gun file\'s gun needs a new inspection.'}</p>{reinspect&&<button className="prep-primary" disabled={busy} onClick={reinspect}>{gunFile?'Load the gun from this file':'Inspect again without it'}</button>}</div>}
       </div>}
-      <details className="prep-advanced"><summary>Advanced gun settings</summary>
-        {fitting&&<>
-          <SelectField label="Gun size" value={choice.fit??'match'} values={[["match","Match the original gun's size (recommended)"],["keep_size","Keep my gun's size relative to my character"]]} disabled={busy} onChange={value=>set({...choice,fit:value as WeaponChoice['fit']})}/>
-          <SelectField label="Gun skinning" value={choice.bone?'bone':choice.skin??'auto'} values={[["auto","Copy the original gun's bone weights (moving parts follow)"],["rigid","Rigid on the main weapon bone"],["bone","Rigid on a bone I choose"]]} disabled={busy} onChange={value=>set(value==='bone'?{...choice,skin:'rigid',bone:bones[0]??''}:{...choice,skin:value as WeaponChoice['skin'],bone:''})}/>
-          {Boolean(choice.bone)&&<SelectField label="Weapon bone" value={choice.bone!} values={bones.map(b=>[b,b] as const)} disabled={busy} onChange={bone=>set({...choice,bone})}/>}
-          <Check label="Join each gun's parts into one mesh (recommended: faster builds and better in-game performance; materials and bone weights stay)" value={choice.merge??true} disabled={busy} onChange={merge=>set({...choice,merge})}/>
-          {hands.map(h=><ExactNumbers key={h} choice={choice} hand={h} set={set} busy={busy}/>)}
-        </>}
-        {candidates.map(c=><details key={c.id} className="technical"><summary>Parts of {gunName(c,gunFile)}</summary><p className="hint mono">{c.objects.join(', ')}</p>{c.attach_bone&&<p className="hint">Held by {c.attach_bone}.</p>}</details>)}
-        {[...(shown?.value?.fit.notes??[]),...(shown?.value?.fit.source.notes??[]).map(n=>`Your gun: ${n}`),...(shown?.value?.fit.target.notes??[]).map(n=>`Original: ${n}`)].map((note,i)=><p key={i} className="hint">{note}</p>)}
-      </details>
-    </>}
-  </Section>;
+      {kind==='separate'&&!weaponModel&&separate&&(candidates.length>0||project.customization.equipment?.variants?.some(v=>v.project))?<SeparateGun project={project} analysis={analysis} options={options} busy={busy} operate={operate} change={change} {...separate}/>
+      :!candidates.length?<p className="studio-note">{weaponModel?'No gun was found in the source. Check Scene objects: the gun must be a visible mesh. To use a gun from another file, choose that file as the source path and inspect again.':'Choose a gun file above to use a gun from another file.'}</p>
+      :<>
+        {!weaponModel&&<fieldset className="prep-weapon-actions" disabled={busy}><legend>What should your character hold?</legend>
+          <div className="studio-options">
+            <HoldCard checked={action==='replace'} disabled={!replaceable(kind)} onChange={hold('replace')} title={`Use my gun${plural} instead of ${hero}'s`} badge="recommended"
+              help={replaceable(kind)?`Your gun${plural} ${kind==='dual'?'are':'is'} fitted to ${hero}'s grip, barrel and size.`:`Not available: ${kind==='unreadable'?`${hero}'s gun could not be read`:kind==='separate'?`${hero}'s gun is a separate model`:'the original gun was not found'}.`}/>
+            <HoldCard checked={action==='remove'} onChange={hold('remove')} title={`Keep ${hero}'s gun${plural}`} help="Your gun is left out of the character."/>
+            <HoldCard checked={action==='keep'} onChange={hold('keep')} title="Keep my gun in the hand as an accessory" help={`${hero}'s gun stays too, so the character holds both.`}/>
+          </div>
+        </fieldset>}
+        {(action==='replace'||weaponModel)&&(kind==='dual'&&!weaponModel||candidates.length>1||fileGuns.length>1)&&<div className="prep-gun-section">
+          <h3 className="prep-section-heading">Hands</h3>
+          <div className="prep-gun-hands">
+            {kind==='dual'&&!weaponModel?<>
+              <SelectField label="Right hand" value={right?.id??''} values={options_(candidates)} disabled={busy} onChange={id=>set({...choice,objects:pick(id)})}/>
+              <SelectField label="Left hand" value={left==='own'?handGun(choice,candidates,'left')?.id??'':left==='copy'?'copy':'keep'} values={[...options_(candidates),['copy','A copy of the right-hand gun'],['keep',`${hero}'s own left gun`]]} disabled={busy}
+                onChange={id=>set({...choice,left:{...choice.left,keep:id==='keep',objects:id==='copy'||id==='keep'?[]:pick(id)}})}/>
+              {left==='own'&&<button type="button" className="prep-secondary prep-swap" disabled={busy} onClick={swap}>Swap hands</button>}
+            </>:<SelectField label="Your gun" value={right?.id??''} values={options_(candidates)} disabled={busy} onChange={id=>set({...choice,objects:pick(id)})}/>}
+          </div>
+          {kind==='dual'&&!weaponModel&&<p className="studio-note">The left hand can have its own gun, a copy of the right-hand gun, or {hero}'s own left gun.</p>}
+        </div>}
+        <div className="prep-gun-section prep-advanced">
+          <h3 className="prep-section-heading">Advanced gun settings</h3>
+          {fitting&&<>
+            <div className="prep-gun-selects">
+              <SelectField label="Gun size" value={choice.fit??'match'} values={[["match","Match the original gun's size (recommended)"],["keep_size","Keep my gun's size relative to my character"]]} disabled={busy} onChange={value=>set({...choice,fit:value as WeaponChoice['fit']})}/>
+              <SelectField label="Gun skinning" value={choice.bone?'bone':choice.skin??'auto'} values={[["auto","Copy the original gun's bone weights (moving parts follow)"],["rigid","Rigid on the main weapon bone"],["bone","Rigid on a bone I choose"]]} disabled={busy} onChange={value=>set(value==='bone'?{...choice,skin:'rigid',bone:bones[0]??''}:{...choice,skin:value as WeaponChoice['skin'],bone:''})}/>
+              {Boolean(choice.bone)&&<SelectField label="Weapon bone" value={choice.bone!} values={bones.map(b=>[b,b] as const)} disabled={busy} onChange={bone=>set({...choice,bone})}/>}
+            </div>
+            <label className={`prep-switch-row ${choice.merge??true?'on':''}`}><input type="checkbox" className="prep-switch" checked={choice.merge??true} disabled={busy} onChange={event=>set({...choice,merge:event.target.checked})}/><span className="prep-switch-text">Join each gun's parts into one mesh (recommended: faster builds and better in-game performance; materials and bone weights stay)</span></label>
+            {hands.map(h=><ExactNumbers key={h} choice={choice} hand={h} set={set} busy={busy}/>)}
+          </>}
+          {candidates.map(c=><details key={c.id} className="technical prep-gun-parts"><summary>Parts of {gunName(c,gunFile)}</summary><p className="hint mono">{c.objects.join(', ')}</p>{c.attach_bone&&<p className="hint">Held by {c.attach_bone}.</p>}</details>)}
+          {notes.map((note,i)=><p key={i} className="studio-note">{note}</p>)}
+        </div>
+      </>}
+    </div>
+  </div></section>;
 }

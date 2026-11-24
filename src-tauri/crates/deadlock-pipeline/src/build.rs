@@ -83,6 +83,7 @@ impl BuildService<'_> {
         let clock = self.model.clock;
         let cancel = self.model.cancel;
         p.validate_action().map_err(|e| invalid(e.to_string()))?;
+
         if crate::bundle::active(p) {
             return self.build_bundle_owned(p, overwrite_output, overwrite_install);
         }
@@ -251,7 +252,16 @@ impl BuildService<'_> {
             (content, game, false)
         };
         let extras = if p.customization.active() {
-            components.compile(p, &game)?
+            let objects = crate::ability_objects::ObjectBuild {
+                settings: self.model.settings,
+                runner: self.model.runner,
+                cancel,
+                clock,
+                log: self.model.log,
+            };
+            // Color ranges for one part read the hero's own meshes (only when there are some).
+            let meshes = crate::hero_meshes::HeroPartMeshes::new(self.model.sources());
+            components.compile_full(p, &game, Some(&objects), Some(&meshes))?
         } else {
             clock.skip_step("Build optional components", None, "No components selected")?;
             None
@@ -511,6 +521,91 @@ impl ResourceValidator for BuildGate<'_, '_> {
     }
 }
 
+/// Whether a packaged path (casefolded) is a character extra rather than part
+/// of the replacement model: `hero_model` is the project's own compiled model,
+/// `colors_folder` the recolored hero textures' folder (with its slash).
+fn is_component_path(path: &str, model_enabled: bool, hero_model: &str, colors_folder: &str) -> bool {
+    path.ends_with(".vnmclip_c")
+        || path.ends_with(".vpcf_c")
+        || path.ends_with(".vsnd_c")
+        || (path.starts_with("panorama/images/") && path.ends_with(".vtex_c"))
+        // Hero colors exist only without a replacement model, whose own
+        // compiled materials are never extras.
+        || (!model_enabled && path.ends_with(".vmat_c"))
+        || (!model_enabled && path.starts_with(colors_folder) && path.ends_with(".vtex_c"))
+        // Ability objects: the replaced game models and their own files, in both modes.
+        || (path.ends_with(".vmdl_c") && path != hero_model)
+        || deadlock_components::ability_objects::own_file(path)
+        // Renamed items: the game's names files (text, the same in both modes).
+        || deadlock_components::item_names::is_names_file(path)
+}
+#[cfg(test)]
+mod component_path_tests {
+    #[test]
+    fn ability_objects_count_as_extras_next_to_a_model_build_and_the_model_does_not() {
+        let hero = "models/heroes_staging/haze/haze.vmdl_c";
+        let colors = "materials/dmb_hero_colors/";
+        let object = "models/abilities/haze_dagger_model.vmdl_c";
+        let own = "models/dmb_objects/haze_dagger_model_7296bf4f/materials/prepared/a_12345678.vmat_c";
+        let own_texture = "models/dmb_objects/haze_dagger_model_7296bf4f/textures/builder/a_png_1.vtex_c";
+        let model_material = "models/heroes_staging/haze/materials/prepared/skin_0ae57f18.vmat_c";
+        for model_enabled in [true, false] {
+            assert!(!super::is_component_path(hero, model_enabled, hero, colors), "the project's own model");
+            assert!(super::is_component_path(object, model_enabled, hero, colors));
+            assert!(super::is_component_path(own, model_enabled, hero, colors));
+            assert!(super::is_component_path(own_texture, model_enabled, hero, colors));
+        }
+        assert!(!super::is_component_path(model_material, true, hero, colors), "the replacement's own materials");
+        // A weapon-model project: its own compiled model is the weapon, never an extra.
+        let weapon = "models/weapons/sample_gun.vmdl_c";
+        assert!(!super::is_component_path(weapon, true, weapon, colors));
+    }
+    /// An asset-only package of renamed items: its names files must be exactly the
+    /// receipt's, for exactly the project's enabled rows.
+    #[test]
+    fn a_names_only_package_is_bound_to_its_receipt_and_rows() {
+        let english = "resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_english.txt";
+        let hero = "models/heroes_staging/haze/haze.vmdl";
+        let receipt: deadlock_components::service::ComponentReceipt = serde_json::from_value(serde_json::json!({
+            "schema": 1, "hero_path": hero, "model_enabled": false,
+            "icons": {"version": 1, "entries": [], "native_validated": false, "in_game_validated": false},
+            "animations": {"files": [], "compile_sources": [], "replacements": []},
+            "effects": {"schema": 1, "kind": "effects", "hero_path": hero, "entries": [], "native_validated": false, "in_game_validated": false},
+            "audio": {"schema": 1, "kind": "audio", "hero_path": hero, "entries": [], "native_validated": false, "in_game_validated": false},
+            "item_names": {"rows": [{"item": "upgrade_sample", "enabled": true, "name": "New Name"}],
+                "files": [{"language": "english", "path": english, "game_sha256": "a", "sha256": "b", "changed": 2}]},
+            "files": {english: "b"}, "original_resources": {}, "prepared_content": "", "clothing": null,
+            "native_validated": false, "in_game_validated": false
+        }))
+        .unwrap();
+        let mut project = deadlock_project::Project::default();
+        project.original_model = hero.into();
+        project.customization.enabled = Some(true);
+        project.customization.model_enabled = Some(false);
+        project.customization.item_names = Some(vec![deadlock_project::item_names::ItemNameRow { item: "upgrade_sample".into(), enabled: true, name: "New Name".into() }]);
+        let files: deadlock_vpk::Hashes = [(english.to_owned(), "b".to_owned())].into_iter().collect();
+        super::validate_component_receipt(&project, Some(&receipt), &files).unwrap();
+        // Another name since the build.
+        let mut renamed = project.clone();
+        renamed.customization.item_names.as_mut().unwrap()[0].name = "Other".into();
+        let message = super::validate_component_receipt(&renamed, Some(&receipt), &files).unwrap_err().to_string();
+        assert!(message.contains(deadlock_components::item_names::ITEM_NAMES_CHANGED), "{message}");
+        // No receipt, or a package with another names file.
+        assert!(super::validate_component_receipt(&project, None, &files).is_err());
+        let other: deadlock_vpk::Hashes = [(english.replace("english", "german"), "b".to_owned())].into_iter().collect();
+        assert!(super::validate_component_receipt(&project, Some(&receipt), &other).is_err());
+    }
+    #[test]
+    fn item_names_files_count_as_extras_in_both_modes_and_other_text_does_not() {
+        let hero = "models/heroes_staging/haze/haze.vmdl_c";
+        let colors = "materials/dmb_hero_colors/";
+        for model_enabled in [true, false] {
+            assert!(super::is_component_path("resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_english.txt", model_enabled, hero, colors));
+            assert!(!super::is_component_path("resource/localization/citadel_mods/citadel_mods_english.txt", model_enabled, hero, colors));
+            assert!(!super::is_component_path("resource/localization/citadel_gc_mod_names/notes.txt", model_enabled, hero, colors));
+        }
+    }
+}
 /// A receipt is mandatory authority, not an optional UI detail. Bind it to the
 /// live project before any model reader or component validator is invoked.
 fn validate_component_receipt(
@@ -524,6 +619,7 @@ fn validate_component_receipt(
     if choices.active() {
         for rows in [
             &choices.icons,
+            &choices.item_icons,
             &choices.animations,
             &choices.effects,
             &choices.audio,
@@ -568,6 +664,39 @@ fn validate_component_receipt(
                 }
             }
         }
+        // Effect edits package the edited parts of the enabled rows' trees,
+        // which the receipt names (and the component service checked).
+        if let Some(receipt) = receipt {
+            let rows: BTreeSet<String> = choices.effect_edits.as_deref().unwrap_or_default().iter().filter(|r| r.enabled).map(|r| casefold(&r.target)).collect();
+            if receipt.effect_edits.trees.len() != rows.len() || receipt.effect_edits.trees.iter().any(|t| !rows.contains(&casefold(&t.target))) {
+                return Err(invalid("Character component receipt differs from the current project's effect edits. Rebuild first."));
+            }
+            for entry in &receipt.effect_edits.entries {
+                if !rows.contains(&casefold(&entry.tree)) {
+                    return Err(invalid("Character component receipt differs from the current project's effect edits. Rebuild first."));
+                }
+                safety::relative_asset(&entry.target)?;
+                if !selected.insert(casefold(&entry.target)) {
+                    return Err(invalid("Selected component targets are duplicated."));
+                }
+            }
+        }
+        // Ability objects package the replaced game model and their own files
+        // (materials, textures), which the receipt names under their folder.
+        for row in choices.ability_objects.as_deref().unwrap_or_default().iter().filter(|r| r.enabled) {
+            let target = row.compiled_target().map_err(|e| invalid(e.to_string()))?;
+            if !selected.insert(casefold(&target)) {
+                return Err(invalid("Selected component targets are duplicated."));
+            }
+        }
+        if let Some(receipt) = receipt {
+            for file in receipt.ability_objects.own_files() {
+                safety::relative_asset(&file)?;
+                if !deadlock_components::ability_objects::own_file(&file) || !selected.insert(casefold(&file)) {
+                    return Err(invalid("Character component receipt differs from the current project's ability objects. Rebuild first."));
+                }
+            }
+        }
         // Hero colors with color ranges also package their recolored texture,
         // a new file the receipt names for one of the selected materials.
         if let Some(receipt) = receipt {
@@ -582,8 +711,27 @@ fn validate_component_receipt(
                 }
             }
         }
+        // Renamed items package whole language files of the game's names, which
+        // the receipt names for exactly the project's enabled rows.
+        let rows: Vec<_> = choices.item_names.as_deref().unwrap_or_default().iter().filter(|r| r.enabled).cloned().collect();
+        if receipt.is_none() && !rows.is_empty() {
+            return Err(invalid("Selected character components require their verified build receipt. Rebuild first."));
+        }
+        if let Some(receipt) = receipt {
+            if !receipt.item_names.same_rows(&rows) {
+                return Err(invalid(deadlock_components::item_names::ITEM_NAMES_CHANGED));
+            }
+            for file in receipt.item_names.packaged() {
+                safety::relative_asset(&file)?;
+                if !deadlock_components::item_names::is_names_file(&file) || !selected.insert(casefold(&file)) {
+                    return Err(invalid("Character component receipt differs from the current project's renamed items. Rebuild first."));
+                }
+            }
+        }
     }
     let colors_folder = format!("{}/", deadlock_components::texture_recolor::TEXTURE_FOLDER);
+    // The replacement model's own compiled model is never an extra; any other model is an ability object.
+    let hero_model = casefold(&format!("{}_c", project.source_model()));
     let package_files = files
         .keys()
         .map(|path| casefold(path))
@@ -593,16 +741,7 @@ fn validate_component_receipt(
             "Package files have duplicate or case-colliding targets.",
         ));
     }
-    let component_path = |path: &str| {
-        path.ends_with(".vnmclip_c")
-            || path.ends_with(".vpcf_c")
-            || path.ends_with(".vsnd_c")
-            || (path.starts_with("panorama/images/") && path.ends_with(".vtex_c"))
-            // Hero colors exist only without a replacement model, whose own
-            // compiled materials are never extras.
-            || (!choices.model_enabled() && path.ends_with(".vmat_c"))
-            || (!choices.model_enabled() && path.starts_with(&colors_folder) && path.ends_with(".vtex_c"))
-    };
+    let component_path = |path: &str| is_component_path(path, choices.model_enabled(), &hero_model, &colors_folder);
     let packaged_components = package_files
         .iter()
         .filter(|p| component_path(p))

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Project } from '../models';
 import { basename, type VpkSlots } from '../api';
 import type { BuildResult, ProjectInspection, OriginalValidation, PreparedModel } from './models';
-import { projectReadiness, modelEnabled, type ReviewDestination, type ReviewIssue } from './readiness';
+import { projectReadiness, modelEnabled, type PreviousAnalysis, type ReviewDestination, type ReviewIssue } from './readiness';
 import { Check, SelectField } from '../components/CustomizationPages';
 import { NumberField } from '../components/MaterialEditor';
 import { Disclosure, PageTitle, Section, StateLabel } from '../components/Primitives';
@@ -11,6 +11,8 @@ import { revealSection } from '../components/workflowNavigation';
 import { MeshMapping } from './MeshMapping';
 import { changesSince, loadBuildRecord } from './changes';
 import { InstalledMods } from './InstalledMods';
+import { includedExtras } from './includedExtras';
+import { changeCustomization } from '../components/customization';
 
 /** How often the slot status reads the folders again while this page is open (ms). */
 export const SLOT_RESCAN_MS=3000;
@@ -32,8 +34,11 @@ function SlotStatus({project,slots,scan}:{project:Project;slots:VpkSlots|null;sc
   return <StateLabel tone={slots.configured_slot_occupied?'attention':'ready'}>{slots.configured_slot_occupied?'In use by another VPK in the game\u2019s addons folder':slots.configured_slot_own_install?'Your installed build of this project \u00b7 Install replaces it':own?'Free \u00b7 your earlier build of this project uses it':'Free'}</StateLabel>;
 }
 
-export function BuildPage({project,update,report,fresh,prepared,original,busy,inspect,prepare,validateOriginal,build,result,install,installed,openOutput,chooseFreeSlot,go,analyzing=false,expert=true,slots=null,scanSlots}: {
+export function BuildPage({project,update,report,fresh,prepared,original,busy,inspect,prepare,validateOriginal,build,result,install,installed,openOutput,chooseFreeSlot,go,analyzing=false,expert=true,slots=null,scanSlots,previous=null,openProjectFile}: {
   /** Expert shows the developer tools and raw receipts. */expert?:boolean;
+  /** Opens a saved project file (Installed mods → Open its project), as Open… does, unsaved-changes question included. */openProjectFile?:(path:string)=>void;
+  /** The project as last analyzed (and whether a build checked the live project since): a
+   * report that is not current stays the working list while it is for the same model, hero and mode. */previous?:PreviousAnalysis|null;
   /** The last VPK slot scan (refreshed at Analyze and by `scanSlots`), for the checklist and the slot status. */slots?:VpkSlots|null;scanSlots?:()=>void;
   project:Project;update:(project:Project)=>void;report:ProjectInspection|null;fresh:boolean;
   prepared:PreparedModel|null;original:OriginalValidation|null;busy:boolean;
@@ -46,14 +51,26 @@ export function BuildPage({project,update,report,fresh,prepared,original,busy,in
   // another mod's VPK in the addons folder still needs the box below.
   const ownInstall=Boolean(slots&&slots.configured_slot===project.vpk_number&&slots.configured_slot_own_install);
   const runBuild=()=>build(true,overwriteInstall||ownInstall);
-  const state=projectReadiness(project,report,fresh,slots,overwriteInstall);
+  const state=projectReadiness(project,report,fresh,slots,overwriteInstall,previous);
   const modelReport=report&&'dmx' in report?report:null;
   const componentReport=report&&'model_enabled' in report?report:null;
   const blockers: (ReviewIssue & {analyze?:boolean})[] = [...state.issues];
-  if (!state.current && state.hasInputs) blockers.push({text:report?'Project changed. Analyze the current inputs again.':'Analyze the project to check compatibility, materials and mappings.',action:'Analyze project',analyze:true});
+  if (!state.current && !state.kept && state.hasInputs) blockers.push({text:report?'Project changed. Analyze the current inputs again.':'Analyze the project to check compatibility, materials and mappings.',action:'Analyze project',analyze:true});
   function act(page?:ReviewDestination,section?:string){if(page&&page!=='build')go?.(page,section);else if(section)revealSection(section);}
   function rowAction(key:string,page?:ReviewDestination,section?:string){if(key==='skeleton'||(key==='mapping'&&!modelReport))inspect();else act(page,section);}
-  const pipelineSteps = state.hasInputs && !state.ready ? 'Resolve the items above before building.' : 'Current files and compiled outputs are rechecked before publication.';
+  function issueAction(issue:ReviewIssue){if(issue.action==='Choose free slot'&&chooseFreeSlot)chooseFreeSlot();else act(issue.page,issue.section);}
+  const pipelineSteps = state.refused ? 'Analyze to see what the last build found, then build again.' : state.hasInputs && !state.ready ? 'Resolve the items above before building.' : state.kept ? state.verified ? 'The last build checked this project. Build checks it again and validates outputs before publishing.' : 'The project changed since the last analysis: Build checks it again before it starts and validates outputs before publishing.' : 'Current files and compiled outputs are rechecked before publication.';
+  // What the project's own rows ask the build to include; the model's analysis does not list them.
+  const extras = includedExtras(project, modelEnabled(project));
+  // The list of the last analysis, kept after project edits until Analyze runs again.
+  const keptList = state.kept&&<div className="build-blockers kept-review">
+    <h2 id="build-requirements">{state.refused?'The last build found something that still needs a choice':state.items.length?state.open?`${state.open} of ${state.items.length} left on the list from the last analysis`:state.verified?'The last build checked this project':'Everything on the list from the last analysis is handled':state.open?`${state.open} ${state.open===1?'issue':'issues'} blocking build`:'Project changed since the last analysis'}</h2>
+    <ul className="review-issues">{state.items.map(item=><li key={item.key} className={`review-item review-item-${item.state}`}>
+      <span><span className="issue-symbol" aria-hidden="true">{item.state==='done'?'✓':item.state==='changed'?'↻':'!'}</span>{item.text}{item.state!=='open'&&<span className="review-state">{item.state==='done'?'Done':'Changed · checked again by Build or Analyze'}</span>}</span>
+      {item.state!=='done'&&<button className="tertiary" disabled={busy} onClick={()=>issueAction(item)}>{item.action??'View details'}</button>}
+    </li>)}
+    <li className="review-item review-item-analyze"><span><span className="issue-symbol" aria-hidden="true">{'—'}</span>{state.refused?'Analyze to see what is left.':state.open?'Analyze again to refresh the whole list.':state.verified?'Analyze again to refresh the analysis details (optional).':state.items.length?'Everything on the list is handled. Build checks the project again before it starts; Analyze again is optional.':'Build checks the project again before it starts; Analyze again is optional.'}</span><button className={state.refused?'primary':undefined} disabled={busy} onClick={inspect}>{analyzing?'Analyzing…':'Analyze project'}</button></li></ul>
+  </div>;
   const output = state.rows.find(row=>row.key==='output')!;
   const record = loadBuildRecord(project.id), changed = record ? changesSince(record.project, project) : null;
   // Ctrl+B opens this page and builds when nothing blocks it.
@@ -61,11 +78,11 @@ export function BuildPage({project,update,report,fresh,prepared,original,busy,in
   return <>
     <PageTitle eyebrow="Step 5 of 5" title="Build & install" subtitle="Check your project, make the mod and add it to the game. Anything that needs a choice is listed here." action={<div className="title-actions">
       {result&&<div className="last-build" role="status" aria-label="Last completed build"><span className="build-completed">{result.compiled?'Build completed':'Build finished'}</span><span className="muted">{result.vpk?basename(result.vpk):'No VPK'}{result.installed?' · installed':result.vpk?' · not installed':''}{record?` · ${new Date(record.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`:''}</span>{openOutput&&<button className="tertiary" disabled={busy} onClick={openOutput}>Open output folder</button>}<button className="tertiary" onClick={()=>revealSection('last-build')}>Check in game</button></div>}
-      {state.current&&<button disabled={busy} onClick={inspect} aria-label="Re-analyze project">{analyzing?'Analyzing…':'Re-analyze'}</button>}
+      {report&&<button disabled={busy} onClick={inspect} aria-label="Re-analyze project">{analyzing?'Analyzing…':state.current?'Re-analyze':'Analyze again'}</button>}
     </div>}/>
     <div className="review-layout">
     <section className="review-validation" aria-label="Build readiness">
-      <div className="section-heading"><h2>Project checklist</h2><span className="muted">{state.current?'Current analysis':'Analysis required'}</span></div>
+      <div className="section-heading"><h2>Project checklist</h2><span className="muted">{state.current?'Current analysis':state.kept?'Last analysis · project changed since':'Analysis required'}</span></div>
       <div className="table-scroll"><table className="validation-table"><caption className="sr-only">Current project validation</caption><thead><tr><th scope="col">Item</th><th scope="col">Status</th><th scope="col">Details</th><th scope="col">Action</th></tr></thead><tbody>{state.rows.map(row=>{
         const needsAnalysis=row.key==='skeleton'||(row.key==='mapping'&&!modelReport);
         const action=row.key==='mapping'&&!modelReport?'Analyze':row.action;
@@ -75,24 +92,24 @@ export function BuildPage({project,update,report,fresh,prepared,original,busy,in
       })}</tbody></table></div>
     </section>
     <div className="review-controls">
-    <section className={`build-action-panel ${blockers.length?'has-blockers':''}`} aria-label="Build decision">
-      {blockers.length>0?<div className="build-blockers"><h2 id="build-requirements">{blockers.length} {blockers.length===1?'issue':'issues'} blocking build</h2><ul className="review-issues">{blockers.map((issue,index)=><li key={index}><span><span className="issue-symbol" aria-hidden="true">{issue.analyze?'—':'!'}</span>{issue.text}</span><button className={issue.analyze?'primary':'tertiary'} disabled={busy} onClick={()=>issue.analyze?inspect():issue.action==='Choose free slot'&&chooseFreeSlot?chooseFreeSlot():act(issue.page,issue.section)}>{issue.analyze&&analyzing?'Analyzing…':issue.action??'View details'}</button></li>)}</ul></div>:<div className="build-ready"><StateLabel tone={state.ready?'ready':'neutral'}>{state.title}</StateLabel></div>}
+    <section className={`build-action-panel ${(state.kept?state.open||state.refused:blockers.length)?'has-blockers':''}`} aria-label="Build decision">
+      {keptList||(blockers.length>0?<div className="build-blockers"><h2 id="build-requirements">{blockers.length} {blockers.length===1?'issue':'issues'} blocking build</h2><ul className="review-issues">{blockers.map((issue,index)=><li key={index}><span><span className="issue-symbol" aria-hidden="true">{issue.analyze?'—':'!'}</span>{issue.text}</span><button className={issue.analyze?'primary':'tertiary'} disabled={busy} onClick={()=>issue.analyze?inspect():issueAction(issue)}>{issue.analyze&&analyzing?'Analyzing…':issue.action??'View details'}</button>{issue.withoutModel&&<button className="tertiary" disabled={busy} onClick={()=>update(changeCustomization(project,{model_enabled:false}))}>{issue.withoutModel}</button>}</li>)}</ul></div>:<div className="build-ready"><StateLabel tone={state.ready?'ready':'neutral'}>{state.title}</StateLabel></div>)}
       <div className="build-decision"><p id="build-explanation">{!state.hasInputs?'Choose the required inputs above to enable analysis.':pipelineSteps}</p><button className="primary build-primary" disabled={busy||!state.ready} aria-describedby="build-explanation" onClick={runBuild}>Build mod</button></div>
     </section>
     {changed&&<div className="build-changes" aria-label="Changes since the last build"><span className="eyebrow">Since the last build · {new Date(record!.time).toLocaleString()}</span>{changed.length?<ul>{changed.map(item=><li key={item}>{item}</li>)}</ul>:<p className="muted">Nothing changed.</p>}</div>}
-    <div className="output-summary"><span className="eyebrow">Output</span><strong>{output.value}{result&&(result.compiled||result.vpk)&&<span className="build-completed" style={{marginLeft:10}}>Completed</span>}</strong><span className="muted">{!project.compile_model&&modelEnabled(project)?'Prepare source files only':`${modelEnabled(project)?'Compile model':'Build extra assets'}${project.build_vpk?' · Package after validation':''}${project.build_vpk&&project.install?' · Install after success':''}`}</span></div>
+    <div className="output-summary"><span className="eyebrow">Output</span><strong>{output.value}{result&&(result.compiled||result.vpk)&&<span className="build-completed" style={{marginLeft:10}}>Completed</span>}</strong><span className="muted">{!project.compile_model&&modelEnabled(project)?'Prepare source files only':`${modelEnabled(project)?'Compile model':'Build extra assets'}${project.build_vpk?' · Package after validation':''}${project.build_vpk&&project.install?' · Install after success':''}`}</span>{extras&&<span className="muted">Extras included: {extras}</span>}</div>
     </div>
     </div>
     {result&&<Section title="Last completed build" id="last-build" actions={openOutput&&<button disabled={busy} onClick={openOutput}>Open output folder</button>}><dl className="summary-list"><dt>Model compilation</dt><dd>{result.compiled?<span className="build-completed">Completed</span>:'Not performed'}</dd><dt>VPK</dt><dd><PathValue path={result.vpk} empty="Not packaged"/></dd><dt>Installation</dt><dd><PathValue path={result.installed} empty="Not installed"/></dd><dt>Receipt</dt><dd><PathValue path={result.manifest} empty="No package manifest"/></dd>{result.prepared&&<><dt>Prepared workspace</dt><dd><PathValue path={result.prepared}/></dd></>}</dl>{result.vpk&&!result.installed&&<button disabled={busy} onClick={()=>install(result.vpk,overwriteInstall)}>Validate and install this VPK</button>}
-      <div className="check-in-game"><strong>Check in game</strong><ul><li>The character in the hero select screen and in a match</li><li>Arms and elbows while running, aiming and using abilities</li><li>The gun in the hand, and the fingers around it</li><li>Hair, cloth, tails and other moving parts{project.preparation_options.breast_motion===true||project.preparation_options.butt_motion===true?', breast and butt bounce':''}</li><li>Clipping through the body</li></ul></div></Section>}
-    {report&&<Disclosure title="Analysis details" hint={fresh?`${report.warnings.length} review notes · full inspection available`:'Previous analysis · run Analyze project to refresh'} id="analysis-details">
+      <div className="check-in-game"><strong>Check in game</strong>{!modelEnabled(project)?<ul><li>{extras?`What you replaced (${extras}) in the hero select screen and in a match`:'Your extras in the hero select screen and in a match'}</li></ul>:<ul><li>The character in the hero select screen and in a match</li><li>Arms and elbows while running, aiming and using abilities</li><li>The gun in the hand, and the fingers around it</li><li>Hair, cloth, tails and other moving parts{project.preparation_options.breast_motion===true||project.preparation_options.butt_motion===true?', breast and butt bounce':''}</li><li>Clipping through the body</li></ul>}</div></Section>}
+    {report&&<Disclosure title="Analysis details" hint={fresh?`${report.warnings.length} ${report.warnings.length===1?'review note':'review notes'} · full inspection available`:'Previous analysis · run Analyze project to refresh'} id="analysis-details">
       {modelReport?<>
-        <p className={`status ${!fresh||modelReport.needs_review||modelReport.vertex_preflight.errors.length?'status-skipped':'status-succeeded'}`}>{!fresh?'Project changed · analyze again':modelReport.vertex_preflight.errors.length?'Blocking problems found':modelReport.needs_review?'Analysis needs review':'Analysis passed · compilation still required'}</p>
+        <p className={`status ${!fresh||modelReport.needs_review||modelReport.vertex_preflight.errors.length?'status-skipped':'status-succeeded'}`}>{!fresh?state.kept?'Project changed since this analysis · Build checks it again':'Project changed · analyze again':modelReport.vertex_preflight.errors.length?'Blocking problems found':modelReport.needs_review?'Analysis needs review':'Analysis passed · compilation still required'}</p>
         <div className="inline-stats"><span><strong>{modelReport.dmx.bones.length.toLocaleString()}</strong> bones</span><span><strong>{modelReport.dmx.meshes.length.toLocaleString()}</strong> source meshes</span><span><strong>{modelReport.geometry.source_triangles.toLocaleString()}</strong> source triangles</span></div>
         {modelReport.vertex_preflight.errors.length>0&&<ul className="issue-list">{modelReport.vertex_preflight.errors.map((value,index)=><li key={index}>{value}</li>)}</ul>}
         {modelReport.warnings.length>0&&<ul className="issue-list">{modelReport.warnings.map((value,index)=><li key={index}>{value}</li>)}</ul>}
         <p className="hint">{modelReport.vertex_preflight.count_scope}</p>
-      </>:<><p className="status">{fresh?'Extra assets inspected · compilation still required':'Project changed · analyze again'}</p><p>{componentReport?.icons.length??0} icons · {componentReport?.animations.length??0} animations · {componentReport?.effects.length??0} effects · {componentReport?.audio.length??0} audio replacements{componentReport?.materials?.length?` · ${componentReport.materials.length} hero color${componentReport.materials.length===1?"":"s"}`:""}</p>{report.warnings.length>0&&<ul>{report.warnings.map((warning,index)=><li key={index}>{warning}</li>)}</ul>}</>}
+      </>:<><p className="status">{fresh?'Extra assets inspected · compilation still required':state.kept?'Project changed since this analysis · Build checks it again':'Project changed · analyze again'}</p><p>{componentReport?.icons.length??0} icons · {componentReport?.item_icons?.length?`${componentReport.item_icons.length} item icon${componentReport.item_icons.length===1?"":"s"} · `:""}{componentReport?.item_names?.rows?.length?`${componentReport.item_names.rows.length} item name${componentReport.item_names.rows.length===1?"":"s"} · `:""}{componentReport?.animations.length??0} animations · {componentReport?.effects.length??0} effects · {componentReport?.effect_edits?.length?`${componentReport.effect_edits.length} effect edit${componentReport.effect_edits.length===1?"":"s"} · `:""}{componentReport?.audio.length??0} audio replacements{componentReport?.ability_objects?.length?` · ${componentReport.ability_objects.length} ability object${componentReport.ability_objects.length===1?"":"s"}`:""}{componentReport?.materials?.length?` · ${componentReport.materials.length} hero color${componentReport.materials.length===1?"":"s"}`:""}</p>{report.warnings.length>0&&<ul>{report.warnings.map((warning,index)=><li key={index}>{warning}</li>)}</ul>}</>}
       {expert&&<details className="technical"><summary>{modelReport?'Complete native inspection receipt':'Extra asset inspection receipt'}</summary><pre>{JSON.stringify(report,null,2)}</pre></details>}
     </Disclosure>}
     {modelReport&&<Disclosure title="Mesh mapping" hint={`${modelReport.model.meshes.length} original render nodes · keep, replace or disable`} id="mesh-mapping">
@@ -104,12 +121,12 @@ export function BuildPage({project,update,report,fresh,prepared,original,busy,in
       <Check label="I have reviewed the LOD appearance and performance tradeoffs" value={project.review_lods} onChange={review_lods=>update({...project,review_lods})} disabled={busy}/><p className="hint">No simplified geometry is generated by changing this strategy. Original lower-detail meshes can restore the original appearance at a distance.</p>
     </Disclosure>
     <Disclosure title="Output settings" hint={`Slot ${project.vpk_number} · compilation, packaging and installation`} id="output-settings">
-      <NumberField label="VPK slot" value={project.vpk_number} min={2} max={99} step={1} update={vpk_number=>update({...project,vpk_number})} disabled={busy}/><div className="row">{chooseFreeSlot&&<button disabled={busy} onClick={chooseFreeSlot}>Choose free slot</button>}<p className="mono">pak{String(project.vpk_number).padStart(2,'0')}_dir.vpk</p><SlotStatus project={project} slots={slots} scan={scanSlots}/></div><p className="hint">The game\u2019s addons folder is checked again every time the slot changes, you come back to the app or the project is analyzed, so a VPK you deleted frees its slot at once.</p>
+      <NumberField label="VPK slot" value={project.vpk_number} min={2} max={99} step={1} update={vpk_number=>update({...project,vpk_number})} disabled={busy}/><div className="row">{chooseFreeSlot&&<button disabled={busy} onClick={chooseFreeSlot}>Choose free slot</button>}<p className="mono">pak{String(project.vpk_number).padStart(2,'0')}_dir.vpk</p><SlotStatus project={project} slots={slots} scan={scanSlots}/></div><p className="hint">The game’s addons folder is checked again every time the slot changes, you come back to the app or the project is analyzed, so a VPK you deleted frees its slot at once.</p>
       <Check label="Compile replacement model" value={project.compile_model} onChange={compile_model=>update({...project,compile_model})} disabled={busy}/><Check label="Package a VPK after validation" value={project.build_vpk} onChange={build_vpk=>update({...project,build_vpk})} disabled={busy}/><Check label="Install after successful validation and packaging" value={project.install} onChange={install=>update({...project,install})} disabled={busy}/>
       <details className="technical"><summary>Replace existing output</summary><Check label="Replace an existing installed VPK at the selected slot" value={overwriteInstall} onChange={setOverwriteInstall} disabled={busy}/></details>
     </Disclosure>
     </Disclosure>
-    <InstalledMods busy={busy}/>
+    <InstalledMods busy={busy} onOpenProject={openProjectFile}/>
     {expert&&<Disclosure title="Developer / compiler tools" hint="Source preparation, compiler tests and existing VPK installation">
       <Section title="Compiler preparation" actions={<button disabled={busy||!modelReport||!fresh||modelReport.needs_review||Boolean(modelReport.vertex_preflight.errors.length)} onClick={()=>prepare(offline)}>Prepare source files</button>}><Check label="Prepare offline source workspace" value={offline} onChange={setOffline} disabled={busy}/><p className="hint">Preparation writes compiler sources without compiling, packaging or installing.</p>{prepared&&<dl className="summary-list"><dt>Content</dt><dd><PathValue path={prepared.content}/></dd><dt>Compiled output directory</dt><dd><PathValue path={prepared.game}/></dd><dt>Model</dt><dd><PathValue path={prepared.model}/></dd><dt>Generated materials</dt><dd>{prepared.generated_materials.length}</dd></dl>}</Section>
       <Section title="Original model test" actions={<div className="row"><button disabled={busy||!project.original_model} onClick={()=>validateOriginal(false)}>Inspect compiler plan</button><button disabled={busy||!project.original_model} onClick={()=>validateOriginal(true)}>Compile original test</button></div>}><p className="hint">Test the original character with the selected toolchain. The result is not packaged or installed.</p>{original&&<><p className="status">{original.compiled?'Original test compiled':'Original compiler plan inspected'}</p>{original.compiled_model&&<PathValue path={original.compiled_model}/>}<details className="technical"><summary>Original test receipt</summary><pre>{JSON.stringify(original,null,2)}</pre></details></>}</Section>

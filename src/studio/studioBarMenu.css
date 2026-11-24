@@ -1,0 +1,18 @@
+/* Top-bar menus (src/studio/StudioBarMenu.tsx): buttons in the bar's tools, the open panel under the
+   bar. Theme tokens only. */
+.studio-barmenu-button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.studio-barmenu-button small { color: var(--secondary); font-size: 12px; font-weight: 500; }
+.studio-barmenu-button:hover:not(:disabled) { background: var(--hover); }
+.studio-barmenu-button[aria-expanded=true] { border-color: var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); }
+.studio-barmenu-button[aria-expanded=true] small { color: var(--accent-strong); }
+.studio-barmenu-button.attention { border-color: rgba(var(--warn-rgb), .55); }
+.studio-barmenu-button.attention small { color: var(--warn-text); }
+.studio-barmenu-mark { width: 7px; height: 7px; border-radius: 50%; background: var(--warn-text); }
+.studio-barmenu-caret { font-size: 10px; color: var(--secondary); transition: transform .12s; }
+.studio-barmenu-button[aria-expanded=true] .studio-barmenu-caret { transform: rotate(180deg); color: var(--accent-strong); }
+.studio-barmenu-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.studio-barmenu-panel { margin-top: 8px; padding: 12px 14px 14px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); min-width: 0; }
+.studio-barmenu-panel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.studio-barmenu-panel-head h3 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.studio-barmenu-panel-head .studio-barmenu-close { margin-left: auto; min-height: 28px; padding: 3px 10px; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .studio-barmenu-caret { transition: none; } }

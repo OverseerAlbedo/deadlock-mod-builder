@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { act, fireEvent,render,screen } from '@testing-library/react';
+import { act, fireEvent,render,screen,within } from '@testing-library/react';
 import { beforeEach,describe,expect,it,vi } from 'vitest';
 import { PreparationPage } from './PreparationPage';
 import type { PreparationAnalysis } from './models';
@@ -14,8 +14,17 @@ const output={dmx:'C:\\prepared.dmx',blend:'C:\\prepared.blend',report:'C:\\repo
 function Harness({start=initial,next,expert}:{start?:Project;next?:()=>void;expert?:boolean}){const[project,setProject]=useState(start);return <><PreparationPage project={project} update={setProject} busy={false} operate={async(_,task)=>task()} next={next} expert={expert}/><output data-testid="project">{JSON.stringify(project)}</output></>;}
 const current=()=>JSON.parse(screen.getByTestId('project').textContent!) as Project;
 const openPanel=(name:string)=>fireEvent.click(screen.getByRole('tab',{name:new RegExp(name)}));
-/** Inspect without preparing (the review tabs are then shown). */
-async function check(heading='What we found in your model'){fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByText(heading);}
+/** Opens a top-bar menu (Model file & orientation, Preparation mode, Scene objects, Notes). */
+const openMenu=(name:RegExp)=>fireEvent.click(screen.getByRole('button',{name}));
+/** Opens a Fit & review group by its chip (Proportions, Feet, Legs, Arms & hands, Shape keys). */
+const openGroup=(name:string)=>fireEvent.click(screen.getByRole('tab',{name:new RegExp(`^${name}`)}));
+/** The option cards of a radio group (what were drop-downs): their values and the checked one. */
+const radios=(group:string)=>within(screen.getByRole('radiogroup',{name:group})).getAllByRole('radio') as HTMLInputElement[];
+const chosen=(group:string)=>radios(group).find(radio=>radio.checked)?.value??'';
+const choose=(group:string,value:string)=>fireEvent.click(radios(group).find(radio=>radio.value===value)!);
+/** Inspect without preparing (the review tabs are then shown). After a check the button is in the
+ * Model file & orientation menu. */
+async function check(){if(!screen.queryByRole('button',{name:'Load and check only'}))openMenu(/Model file & orientation/);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByRole('tablist',{name:'Preparation review sections'});}
 beforeEach(()=>{vi.clearAllMocks();native.preparationInspect.mockResolvedValue(analysis);native.preparationSuggest.mockResolvedValue(analysis.suggestions);native.preparationReview.mockResolvedValue([]);
   native.preparationConvert.mockResolvedValue(output);native.validateAssetPath.mockImplementation(async(path:string)=>path);native.preparationWeaponPreview.mockReturnValue(new Promise(()=>undefined));native.preparationAccept.mockImplementation(async(project:Project,result:typeof output)=>({...project,dmx:result.dmx,preparation_report:result.report,preparation_blend:result.blend}));});
 describe('Native preparation review boundary',()=>{
@@ -23,7 +32,7 @@ describe('Native preparation review boundary',()=>{
     native.preparationInspect.mockResolvedValue({...analysis,suggestions:{...analysis.suggestions,
       source:{...analysis.suggestions.source,errors:['Assign humanoid roles: neck'],missing:['neck']},
       assistance:{policy:'test',labels:{},warnings:[],anchors:{},entries:[]}}});
-    render(<Harness/>);await check();openPanel('Bone mapping');
+    render(<Harness/>);await check();openPanel('Joint matches');
     expect(screen.getByRole('button',{name:'Follow pelvis, keep offset for all (0)'})).toBeDisabled();
     expect(screen.getByRole('button',{name:'Follow suggested joints, keep offsets for all (0)'})).toBeDisabled();
     expect(screen.getByText('Source: Assign humanoid roles: neck')).toBeVisible();
@@ -33,7 +42,7 @@ describe('Native preparation review boundary',()=>{
   it('refreshes follow suggestions with manual roles intact after a role edit',async()=>{
     render(<Harness/>);await check();
     const alternative=analysis.analysis.bones.find(b=>b.name!==analysis.suggestions.source!.roles.head)!;
-    fireEvent.change(screen.getByLabelText('Source head'),{target:{value:alternative.name}});openPanel('Bone mapping');
+    fireEvent.change(screen.getByLabelText('Source head'),{target:{value:alternative.name}});openPanel('Joint matches');
     expect(screen.getByText('Body roles changed. Refresh suggestions to use your current choices.')).toBeVisible();
     fireEvent.click(screen.getByRole('button',{name:'Refresh suggestions using my roles'}));
     await vi.waitFor(()=>expect(native.preparationSuggest).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({source_roles:expect.objectContaining({head:alternative.name}),target_roles:analysis.suggestions.target.roles})));
@@ -41,6 +50,7 @@ describe('Native preparation review boundary',()=>{
   it('re-detects body roles instead of pinning stale saved roles',async()=>{
     render(<Harness/>);await check();
     fireEvent.change(screen.getByLabelText('Target shin_R'),{target:{value:analysis.target[0].name}});
+    openMenu(/^Notes/);
     fireEvent.click(screen.getByRole('button',{name:'Re-detect body mapping'}));
     await vi.waitFor(()=>expect(native.preparationSuggest).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({source_roles:{},target_roles:{}})));
   });
@@ -51,17 +61,19 @@ describe('Native preparation review boundary',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Reopen the last preparation'}));await screen.findByText('Prepared output');
     await check();
     expect(native.preparationSuggest).toHaveBeenCalledWith(expect.anything(),expect.objectContaining(options));
-    expect(screen.getByLabelText('Model fitting')).toHaveValue('preserve_proportions');
+    openPanel('Fit & review');
+    expect(chosen('Model fitting')).toBe('preserve_proportions');
     fireEvent.click(screen.getByRole('button',{name:'Check for problems'}));await screen.findByText('No problems found.');
     expect(native.preparationReview.mock.calls.at(-1)![2]).toMatchObject({influence_limit:3,shape_key_mode:'current_static',preserve_physics_bones:true,physics_roots:['saved branch']});
   });
   it('prepares in one click with the chosen fit, then continues to the next step',async()=>{
     const next=vi.fn();
-    render(<Harness next={next}/>);await check();openPanel('Fit & review');
-    expect(screen.getByLabelText('Model fitting')).toHaveValue('match_target');
-    fireEvent.change(screen.getByLabelText('Model fitting'),{target:{value:'preserve_proportions'}});
-    fireEvent.click(screen.getByText('About model fitting',{selector:'summary'}));
+    // Starts from a saved Match hero proportions (new models start from Settings → Default fit, see prepDefaults.test).
+    render(<Harness start={{...initial,preparation_options:{fit_mode:'match_target'}}} next={next}/>);await check();openPanel('Fit & review');
+    expect(chosen('Model fitting')).toBe('match_target');
+    choose('Model fitting','preserve_proportions');
     expect(screen.getByText(/Keeps the source torso, neck, head and leg proportions/)).toBeVisible();
+    openGroup('Arms & hands');
     expect(screen.getByLabelText('Align arms to hero joints (recommended)')).toBeChecked();
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));
     await vi.waitFor(()=>expect(next).toHaveBeenCalledOnce());
@@ -73,21 +85,78 @@ describe('Native preparation review boundary',()=>{
     expect(await screen.findByText('Your prepared model is in use')).toBeVisible();
   });
   it('uses smooth twist weights for fresh inspection and sends a changed arm skinning',async()=>{
-    render(<Harness/>);await check();openPanel('Fit & review');
-    expect(screen.getByLabelText('Arm skinning')).toHaveValue('smooth_twist');
-    fireEvent.change(screen.getByLabelText('Arm skinning'),{target:{value:'source'}});
+    render(<Harness/>);await check();openPanel('Fit & review');openGroup('Arms & hands');
+    expect(chosen('Arm skinning')).toBe('smooth_twist');
+    choose('Arm skinning','source');
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
     expect(native.preparationConvert.mock.calls.at(-1)![2].arm_skinning).toBe('source');
   });
   it('lines up the ankles by default and sends a chosen Feet on the floor fit',async()=>{
-    render(<Harness/>);await check();openPanel('Fit & review');
-    expect(screen.getByLabelText('Feet on the floor')).toHaveValue('ankles');
-    expect(screen.getAllByRole('option').filter(o=>o.closest('select')===screen.getByLabelText('Feet on the floor')).map(o=>(o as HTMLOptionElement).value)).toEqual(['ankles','legs','lift']);
-    fireEvent.change(screen.getByLabelText('Feet on the floor'),{target:{value:'lift'}});
-    fireEvent.click(screen.getByText('About feet on the floor',{selector:'summary'}));
+    render(<Harness/>);await check();openPanel('Fit & review');openGroup('Feet');
+    expect(chosen('Feet on the floor')).toBe('ankles');
+    expect(radios('Feet on the floor').map(radio=>radio.value)).toEqual(['ankles','legs','lift']);
+    choose('Feet on the floor','lift');
     expect(screen.getByText(/Moves the whole model up or down so the soles touch the floor/)).toBeVisible();
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
     expect(native.preparationConvert.mock.calls.at(-1)![2].fit_floor).toBe('lift');
+  });
+  it('offers Leg joints only with Preserve source proportions, sends it and shows what the conversion measured',async()=>{
+    const legFit={policy:'leg-joint-fit-v1',mode:'joints',applied:true,ignored_reason:null,body_scale:1,length_scale:{thigh_L:0.9505,shin_L:0.8905,thigh_R:0.9505,shin_R:0.8905},lean_degrees:4.2,joint_offsets_inches:{hip_L:0,hip_R:0,knee_L:0,knee_R:0,ankle_L:0,ankle_R:0,spine:11.1,chest:12.3,neck:3.3,head:4.3},knee_gap_at_90_degrees_inches:0};
+    native.preparationConvert.mockResolvedValue({...output,leg_fit:legFit});
+    render(<Harness start={{...initial,preparation_options:{fit_mode:'match_target'}}}/>);await check();openPanel('Fit & review');
+    openGroup('Legs');
+    expect(screen.queryByLabelText('Leg joints')).toBeNull();
+    openGroup('Proportions');choose('Model fitting','preserve_proportions');openGroup('Legs');
+    expect(chosen('Leg joints')).toBe('pelvis');
+    const choices=()=>radios('Leg joints').map(radio=>radio.value);
+    // The default first, the recommended choice second, the two that resize the character last.
+    expect(choices()).toEqual(['pelvis','joints','hips','scaled','scaled_joints']);
+    expect(screen.getByRole('radio',{name:/legs on the hero’s joints \(no resizing\)\s*recommended/})).toBeInTheDocument();
+    expect(screen.getByRole('radio',{name:/pelvis bone\)\s*default/})).toBeInTheDocument();
+    choose('Leg joints','joints');
+    expect(current().preparation_options.fit_leg_joints).toBe('joints');
+    expect(screen.getByText(/without resizing the character. Thighs and shins are lengthened or shortened/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
+    expect(native.preparationConvert.mock.calls.at(-1)![2]).toMatchObject({fit_mode:'preserve_proportions',fit_leg_joints:'joints'});
+    expect(screen.getByLabelText('Leg joints measured')).toHaveTextContent('This conversion: knees 0.0 in from the hero’s knee joints. Character size 100%. Thighs 95%, shins 89% of their length.');
+    // A changed choice needs a new conversion: the result of the old one is put aside.
+    choose('Leg joints','hips');
+    expect(screen.queryByLabelText('Leg joints measured')).toBeNull();
+    expect(screen.queryByText('Prepared output')).toBeNull();
+    // Match hero proportions ignores the choice and does not show it.
+    openGroup('Proportions');choose('Model fitting','match_target');openGroup('Legs');
+    expect(screen.queryByLabelText('Leg joints')).toBeNull();
+  });
+  it('shows the measured knee stretch of the default leg placement',async()=>{
+    const legFit={policy:'leg-joint-fit-v1',mode:'pelvis',applied:true,body_scale:1,joint_offsets_inches:{knee_L:6.263,knee_R:6.263},knee_gap_at_90_degrees_inches:8.857};
+    native.preparationConvert.mockResolvedValue({...output,leg_fit:legFit});
+    render(<Harness start={{...initial,preparation_options:{fit_mode:'preserve_proportions'}}}/>);await check();openPanel('Fit & review');
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
+    expect(native.preparationConvert.mock.calls.at(-1)![2].fit_leg_joints).toBeUndefined();
+    expect(screen.getByLabelText('Leg joints measured')).toHaveTextContent('This conversion: knees 6.3 in from the hero’s knee joints, about 8.9 in of stretch in a 90° bend. Character size 100%.');
+  });
+  it('does not offer shortened legs with legs on the hero’s joints and sets Feet on the floor back visibly',async()=>{
+    render(<Harness start={{...initial,preparation_options:{fit_mode:'preserve_proportions'}}}/>);await check();openPanel('Fit & review');
+    const floorChoices=()=>{openGroup('Feet');return radios('Feet on the floor').map(radio=>radio.value);};
+    expect(floorChoices()).toEqual(['ankles','legs','lift']);
+    choose('Feet on the floor','legs');
+    openGroup('Legs');choose('Leg joints','scaled_joints');
+    expect(current().preparation_options).toMatchObject({fit_leg_joints:'scaled_joints',fit_floor:'ankles'});
+    expect(screen.getByText(/Feet on the floor was set back to Line up the ankles/)).toBeVisible();
+    expect(floorChoices()).toEqual(['ankles','lift']);
+    expect(chosen('Feet on the floor')).toBe('ankles');
+    expect(screen.getByText(/Shorten or lengthen the legs is not offered while Leg joints puts the legs on the hero’s joints/)).toBeVisible();
+    // Choices that keep the model's leg lengths offer it again.
+    openGroup('Legs');choose('Leg joints','scaled');
+    expect(floorChoices()).toEqual(['ankles','legs','lift']);
+    expect(screen.queryByText(/Feet on the floor was set back/)).toBeNull();
+  });
+  it('explains a saved combination of shortened legs and legs on the hero’s joints',async()=>{
+    const saved={mapping:analysis.suggestions.mapping,source_roles:analysis.suggestions.source!.roles,target_roles:analysis.suggestions.target.roles,fit_mode:'preserve_proportions',fit_floor:'legs',fit_leg_joints:'joints'};
+    render(<Harness start={{...initial,preparation_options:saved}}/>);await check();openPanel('Fit & review');
+    expect(screen.getByText(/Shorten or lengthen the legs cannot be used with this Leg joints choice/)).toHaveAttribute('role','alert');
+    openGroup('Legs');expect(chosen('Leg joints')).toBe('joints');
+    openGroup('Feet');expect(chosen('Feet on the floor')).toBe('legs');
   });
   it('follows all pelvis suggestions across pages and filters, then follows the other suggested joints',async()=>{
     const hips=analysis.suggestions.source!.roles.pelvis!,pelvis=analysis.suggestions.target.roles.pelvis!;
@@ -95,7 +164,7 @@ describe('Native preparation review boundary',()=>{
     const names=Array.from({length:65},(_,i)=>`pelvis_extra_${i}`);
     const entries=[...names.map(source=>({source,target:null,group:'Pelvis extras',label:source,reason:'Review required.',automatic:false,follow:{anchor:hips,target:pelvis,group:'Pelvis extras',automatic:false,reason:'No independent motion.'}})),{source:'hair_extra',target:null,group:'Hair',label:'Hair',reason:'Review required.',automatic:false,follow:{anchor:skull,target:head,group:'Hair',automatic:false,reason:'No independent motion.'}}];
     native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,weighted_bones:[...names,'hair_extra']},suggestions:{...analysis.suggestions,assistance:{policy:'test',labels:{},warnings:[],anchors:{},entries}}});
-    render(<Harness/>);await check('Humanoid roles');openPanel('Bone mapping');
+    render(<Harness/>);await check();openPanel('Joint matches');
     fireEvent.change(screen.getByPlaceholderText('Name or English label'),{target:{value:'pelvis_extra_0'}});
     fireEvent.click(screen.getByRole('button',{name:'Follow pelvis, keep offset for all (65)'}));
     fireEvent.click(screen.getByRole('button',{name:'Check for problems'}));await screen.findByText('No problems found.');
@@ -113,19 +182,39 @@ describe('Native preparation review boundary',()=>{
   it('stops at a missing shape key choice and prepares once it is made',async()=>{
     native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,morphs:[{name:'body/Smile',mesh:'body',shape:'Smile'}]},geometry_customization:{props:[],face:null}});
     native.preparationReview.mockImplementation(async(_project,_analysis,options)=>options.shape_key_mode?[]:[{tab:'shape keys',message:'Choose Shape key handling before conversion.'}]);
-    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByLabelText('Shape key handling');openPanel('Fit & review');
-    expect(screen.getByLabelText('Shape key handling')).toHaveValue('');
+    render(<Harness/>);await check();openPanel('Fit & review');
+    // The group that needs a choice is the one open.
+    expect(chosen('Shape key handling')).toBe('');
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText(/Choose Shape key handling before conversion/);
     expect(native.preparationConvert).not.toHaveBeenCalled();
     expect(screen.getByText('1 thing to fix before preparing')).toBeVisible();
-    fireEvent.change(screen.getByLabelText('Shape key handling'),{target:{value:'current_static'}});
+    choose('Shape key handling','current_static');
     fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText('Prepared output');
     expect(native.preparationConvert.mock.calls.at(-1)![2].shape_key_mode).toBe('current_static');
+  });
+  it('takes a shape key choice back to not chosen, so Prepare model asks again',async()=>{
+    native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,morphs:[{name:'body/Smile',mesh:'body',shape:'Smile'}]},geometry_customization:{props:[],face:null}});
+    native.preparationReview.mockImplementation(async(_project,_analysis,options)=>options.shape_key_mode?[]:[{tab:'shape keys',message:'Choose Shape key handling before conversion.'}]);
+    render(<Harness/>);await check();openPanel('Fit & review');
+    // Nothing chosen: nothing to clear.
+    expect(screen.queryByRole('button',{name:'Clear this choice'})).toBeNull();
+    choose('Shape key handling','basis_static');
+    expect(current().preparation_options.shape_key_mode).toBe('basis_static');
+    expect(screen.getByRole('tab',{name:/^Shape keys/})).toHaveTextContent('Base shape');
+    openGroup('Shape keys');
+    fireEvent.click(screen.getByRole('button',{name:'Clear this choice'}));
+    // The key is gone (not an empty string), no card is chosen and the chip asks again.
+    expect('shape_key_mode' in current().preparation_options).toBe(false);
+    expect(chosen('Shape key handling')).toBe('');
+    expect(screen.getByRole('tab',{name:/^Shape keys/})).toHaveTextContent('Needs your choice');
+    expect(screen.queryByRole('button',{name:'Clear this choice'})).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));await screen.findByText(/Choose Shape key handling before conversion/);
+    expect(native.preparationConvert).not.toHaveBeenCalled();
   });
   it('resolves a secondary group to follow a body joint and saves choices after a passed check',async()=>{
     const anchor=analysis.suggestions.source!.roles.head!,target=analysis.suggestions.target.roles.head!,names=['extra_hair_a','extra_hair_b'];
     native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,weighted_bones:names},suggestions:{...analysis.suggestions,assistance:{policy:'test',labels:{},warnings:[],anchors:{},entries:names.map(source=>({source,target:null,group:'Hair',label:source,reason:'Review required.',automatic:false,follow:{anchor,target,group:`Hair → ${target}`,automatic:false,reason:'No new simulation.'}}))}}});
-    render(<Harness/>);await check('Humanoid roles');openPanel('Bone mapping');
+    render(<Harness/>);await check();openPanel('Joint matches');
     fireEvent.click(screen.getByRole('button',{name:`Make 2 bones follow ${target}`}));
     openPanel('Fit & review');
     expect(screen.getByText(/2 small bones follow a body joint/)).toBeVisible();
@@ -135,7 +224,7 @@ describe('Native preparation review boundary',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Save mapping preset'}));await screen.findByText('Mapping preset saved for this rig pair.');expect(native.preparationSaveMappingPreset).toHaveBeenCalledWith(expect.anything(),choices);
   });
   it('fills supported roles on inspection and updates role mappings together',async()=>{
-    render(<Harness/>);await check('Humanoid roles');
+    render(<Harness/>);await check();
     expect(screen.getByLabelText('Source pelvis')).toHaveValue(analysis.suggestions.source!.roles.pelvis);
     const alternate=analysis.analysis.bones.find(b=>b.name!==analysis.suggestions.source!.roles.head)!;
     fireEvent.change(screen.getByLabelText('Source head'),{target:{value:alternate.name}});
@@ -146,10 +235,11 @@ describe('Native preparation review boundary',()=>{
   it('groups unresolved weights and assigns an explicit shared target without converting',async()=>{
     const bone=analysis.analysis.bones[0];
     native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,weighted_bones:[bone.name]},suggestions:{...analysis.suggestions,mapping:{},assistance:{policy:'test',labels:{},warnings:[],entries:[{source:bone.name,target:null,group:'Extra deformation bones',label:bone.name,reason:'Review required.',automatic:false}]}}});
-    render(<Harness/>);await check('Humanoid roles');openPanel('Bone mapping');
+    render(<Harness/>);await check();openPanel('Joint matches');
     expect(screen.getByText('1 joint still need a match below. Everything else was matched automatically.')).toBeVisible();
     fireEvent.click(screen.getByLabelText(`Select bone ${bone.name}`));
-    fireEvent.click(screen.getByText('Assign multiple bones',{selector:'summary'}));
+    // The bulk tools are always shown now (a group named Assign multiple bones, no disclosure).
+    expect(screen.getByRole('group',{name:'Assign multiple bones'})).toBeVisible();
     fireEvent.change(screen.getByLabelText('Target for selected bones'),{target:{value:analysis.target[0].name}});
     fireEvent.click(screen.getByRole('button',{name:`Assign ${analysis.target[0].name} to 1 selected bones`}));
     fireEvent.click(screen.getByRole('button',{name:'Check for problems'}));await screen.findByText('No problems found.');
@@ -159,7 +249,7 @@ describe('Native preparation review boundary',()=>{
   it('shows the helper exclusion note without converting',async()=>{
     const warning='Excluded 284 MMD collision helper meshes from character geometry. The source file is unchanged. MMD physics is not converted to Deadlock cloth.';
     native.preparationInspect.mockResolvedValue({...analysis,analysis:{...analysis.analysis,warnings:[warning]}});
-    render(<Harness/>);await check();fireEvent.click(screen.getByText('Inspection details & notes',{selector:'summary'}));
+    render(<Harness/>);await check();openMenu(/^Notes/);fireEvent.click(screen.getByText('Inspection details & notes',{selector:'summary'}));
     expect(await screen.findByText(warning)).toBeVisible();
     expect(native.preparationConvert).not.toHaveBeenCalled();
   });
@@ -176,7 +266,7 @@ describe('Native preparation review boundary',()=>{
   it('surfaces blocking native review issues without calling conversion',async()=>{
     native.preparationReview.mockResolvedValue([{tab:'Mapping',message:'Map weighted source bone mixamorig:Hips.'}]);
     render(<Harness/>);await check();fireEvent.click(screen.getByRole('button',{name:'Prepare model'}));
-    await screen.findByText(/Map weighted source bone/);fireEvent.click(screen.getByRole('button',{name:'Open section'}));expect(screen.getByRole('tab',{name:/Bone mapping/})).toHaveAttribute('aria-selected','true');expect(native.preparationConvert).not.toHaveBeenCalled();
+    await screen.findByText(/Map weighted source bone/);fireEvent.click(screen.getByRole('button',{name:'Open section'}));expect(screen.getByRole('tab',{name:/Joint matches/})).toHaveAttribute('aria-selected','true');expect(native.preparationConvert).not.toHaveBeenCalled();
     expect(screen.getByText('Something needs your choice')).toBeVisible();
   });
 });
@@ -202,7 +292,7 @@ describe('Automatic preparation',()=>{
   it('checks the model again by itself when the gun file changes',async()=>{
     render(<Harness/>);await check();
     expect(native.preparationInspect).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('tab',{name:/Weapon/}));
+    fireEvent.click(screen.getByRole('tab',{name:/Gun/}));
     fireEvent.change(screen.getByLabelText('Gun from another file (optional)'),{target:{value:'C:\\guns\\pair.blend'}});
     fireEvent.blur(screen.getByLabelText('Gun from another file (optional)'));
     await vi.waitFor(()=>expect(native.preparationInspect).toHaveBeenCalledTimes(2));
@@ -228,7 +318,8 @@ describe('Preparation workspace navigation',()=>{
     expect(screen.getByLabelText('Source shin_L')).toBeVisible();
     const roles=screen.getByRole('tab',{name:/Body roles/});roles.focus();fireEvent.keyDown(roles,{key:'End'});
     expect(screen.getByRole('tab',{name:/Fit & review/})).toHaveFocus();
-    expect(screen.getByLabelText('Arm skinning')).toBeVisible();
+    openGroup('Arms & hands');
+    expect(screen.getByRole('radiogroup',{name:'Arm skinning'})).toBeVisible();
     fireEvent.keyDown(screen.getByRole('tab',{name:/Fit & review/}),{key:'Home'});
     fireEvent.click(screen.getByRole('button',{name:'All joints'}));
     expect((screen.getByLabelText('Source pelvis') as HTMLSelectElement).value).toBe(original);
@@ -240,11 +331,13 @@ describe('Simple view',()=>{
   it('collapses joint matching when everything matched and opens it on request',async()=>{
     render(<Harness expert={false}/>);await check();
     expect(screen.queryByRole('tab',{name:/Body roles/})).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab',{name:/Bone mapping/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab',{name:/Joint matches/})).not.toBeInTheDocument();
     expect(screen.getByRole('tab',{name:/Fit & review/})).toHaveAttribute('aria-selected','true');
     expect(screen.getByText(/bones matched to/)).toBeVisible();
     expect(screen.queryByLabelText('Preparation mode')).not.toBeInTheDocument();
-    expect(screen.getByText('Customize fit',{exact:false,selector:'summary'})).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:/Preparation mode/})).not.toBeInTheDocument();
+    // Customize fit is the Arms & hands group, closed until its chip is chosen.
+    expect(screen.getByRole('tab',{name:/^Arms & hands/})).toHaveAttribute('aria-selected','false');
     fireEvent.click(screen.getByRole('button',{name:'Edit matches'}));
     expect(screen.getByRole('tab',{name:/Body roles/})).toHaveAttribute('aria-selected','true');
   });

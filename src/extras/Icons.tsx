@@ -58,6 +58,12 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   folder: <path d="M3 5h6l2 3h10v12H3Z" />,
+  cube: (
+    <>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z" />
+      <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
   settings: (
     <>
       <path d="M3 7h18M3 17h18" />
@@ -69,6 +75,18 @@ const paths: Record<string, ReactNode> = {
     <>
       <path d="M12 3 2 21h20Z" />
       <path d="M12 9v5m0 3v1" />
+    </>
+  ),
+  pencil: (
+    <>
+      <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
     </>
   ),
 };

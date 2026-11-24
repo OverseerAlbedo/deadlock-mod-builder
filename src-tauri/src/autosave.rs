@@ -106,7 +106,17 @@ impl Application {
         // Never two saves with one name, even within a millisecond.
         let stamp = now_ms().max(files(&folder).last().map_or(0, |(s, _)| s + 1));
         let file = folder.join(format!("{stamp}.json"));
-        deadlock_core::safety::write_json(&file, document)?;
+        // As a saved project: an older app must refuse color ranges it would build wrong.
+        let customization = &document.project.customization;
+        if customization.schema == Some(deadlock_project::customization::NEWER_RANGES_SCHEMA)
+            || customization.color_ranges().any(deadlock_project::customization::HeroColorRange::needs_newer_app)
+        {
+            let mut marked = document.clone();
+            marked.project.customization.mark_for_older_apps();
+            deadlock_core::safety::write_json(&file, &marked)?;
+        } else {
+            deadlock_core::safety::write_json(&file, document)?;
+        }
         let saved = files(&folder);
         for (_, old) in &saved[..saved.len().saturating_sub(KEEP)] {
             let _ = fs::remove_file(old);
@@ -182,7 +192,7 @@ mod tests {
         let mut project = Project::default();
         project.id = "0123456789abcdef0123456789abcdef".into();
         project.name = name.into();
-        ProjectDocument { path: Some(r"C:\Projects\yvonne.dmb.json".into()), project }
+        ProjectDocument { path: Some(r"C:\Projects\sample.dmb.json".into()), project }
     }
 
     #[test]
@@ -192,7 +202,7 @@ mod tests {
         app.begin_session();
         assert!(!app.recovery().unclean);
         for n in 0..7 {
-            app.autosave_project(&document(&format!("Yvonne {n}"))).unwrap();
+            app.autosave_project(&document(&format!("Sample {n}"))).unwrap();
         }
         let folder = app.autosave_root().join("0123456789abcdef0123456789abcdef");
         assert_eq!(files(&folder).len(), KEEP);
@@ -203,10 +213,10 @@ mod tests {
         assert!(recovery.unclean);
         assert_eq!(recovery.autosaves.len(), 1);
         let newest = &recovery.autosaves[0];
-        assert_eq!(newest.name, "Yvonne 6");
+        assert_eq!(newest.name, "Sample 6");
         let restored = next.restore_autosave(&newest.id, &newest.file).unwrap();
-        assert_eq!(restored.project.name, "Yvonne 6");
-        assert_eq!(restored.path.as_deref(), Some(r"C:\Projects\yvonne.dmb.json"));
+        assert_eq!(restored.project.name, "Sample 6");
+        assert_eq!(restored.path.as_deref(), Some(r"C:\Projects\sample.dmb.json"));
         next.dismiss_recovery();
         assert!(!next.recovery().unclean);
         // A normal close leaves no marker; a save clears the autosaves.

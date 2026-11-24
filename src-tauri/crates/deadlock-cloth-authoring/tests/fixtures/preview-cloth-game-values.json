@@ -1,0 +1,102 @@
+[
+  {
+    "goal": 1,
+    "drag": 0,
+    "gravity": 0,
+    "travel": 0.03,
+    "attraction": 0.5,
+    "damping": 0,
+    "game_gravity": 0,
+    "game_travel": 0.029999999329447746
+  },
+  {
+    "goal": 0.6,
+    "drag": 0,
+    "gravity": 0,
+    "travel": 0,
+    "attraction": 0.26470589782127457,
+    "damping": 0,
+    "game_gravity": 0,
+    "game_travel": 0
+  },
+  {
+    "goal": 0.4,
+    "drag": 0,
+    "gravity": 0.3333333333333333,
+    "travel": 1.2,
+    "attraction": 0.1379310380264355,
+    "damping": 0,
+    "game_gravity": 120,
+    "game_travel": 1.2000000476837158
+  },
+  {
+    "goal": 0.1425,
+    "drag": 0.236,
+    "gravity": 0,
+    "travel": 1,
+    "attraction": 0.01990211223397171,
+    "damping": 7.080000042915344,
+    "game_gravity": 0,
+    "game_travel": 1
+  },
+  {
+    "goal": 0.14,
+    "drag": 0.24,
+    "gravity": 0,
+    "travel": 0.9,
+    "attraction": 0.01922322495457511,
+    "damping": 7.199999839067459,
+    "game_gravity": 0,
+    "game_travel": 0.8999999761581421
+  },
+  {
+    "goal": 0.75,
+    "drag": 0.15,
+    "gravity": 1,
+    "travel": 0.005,
+    "attraction": 0.36,
+    "damping": 4.500000178813934,
+    "game_gravity": 360,
+    "game_travel": 0
+  },
+  {
+    "goal": 0.12,
+    "drag": 0.18,
+    "gravity": 1,
+    "travel": 0.01,
+    "attraction": 0.014195582970630885,
+    "damping": 5.400000214576721,
+    "game_gravity": 360,
+    "game_travel": 0
+  },
+  {
+    "goal": 0.9,
+    "drag": 0.38,
+    "gravity": 1.5,
+    "travel": 3.25,
+    "attraction": 0.4475137990551739,
+    "damping": 11.399999856948853,
+    "game_gravity": 540,
+    "game_travel": 3.25
+  },
+  {
+    "goal": 0.01,
+    "drag": 0.5,
+    "gravity": 0,
+    "travel": 31.944026947021484,
+    "attraction": 0.00009998999653044564,
+    "damping": 15,
+    "game_gravity": 0,
+    "game_travel": 31.944026947021484
+  },
+  {
+    "goal": 0.65,
+    "drag": 0.15,
+    "gravity": 1,
+    "travel": 0,
+    "attraction": 0.2970122869675271,
+    "damping": 4.500000178813934,
+    "game_gravity": 360,
+    "game_travel": 0
+  }
+]

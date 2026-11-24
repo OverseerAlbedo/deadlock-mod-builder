@@ -155,6 +155,10 @@ struct Tree<'a> {
     weighted: Vec<bool>,
     in_skin: Vec<bool>,
     deform: Vec<bool>,
+    /// Skin weight sum (vertex count when the inspection has no sums).
+    load: Vec<f64>,
+    /// Roles the names proved (bone index -> role), used as limb evidence.
+    hint: BTreeMap<usize, String>,
 }
 
 impl<'a> Tree<'a> {
@@ -198,7 +202,7 @@ impl<'a> Tree<'a> {
                 }
             }
         }
-        let skin = bones
+        let skin: Vec<f64> = bones
             .iter()
             .map(|b| {
                 b.details
@@ -215,7 +219,18 @@ impl<'a> Tree<'a> {
         if positions.iter().flatten().any(|v| !v.is_finite()) {
             return None;
         }
-        Some(Self { bones, parent, children, pos: positions, skin, weighted: weighted_flags, in_skin, deform })
+        let load = bones
+            .iter()
+            .zip(&skin)
+            .map(|(b, vertices)| {
+                b.details.get("skin").and_then(|s| s.get("weight_sum")).and_then(|v| v.as_f64()).unwrap_or(*vertices)
+            })
+            .collect();
+        Some(Self { bones, parent, children, pos: positions, skin, weighted: weighted_flags, in_skin, deform, load, hint: BTreeMap::new() })
+    }
+    /// The role a bone's name proves: its own name, or the names pass's hint.
+    fn named_role(&self, i: usize) -> &str {
+        self.hint.get(&i).map(String::as_str).or_else(|| algorithms::name_role(self.name(i))).unwrap_or("")
     }
     fn name(&self, i: usize) -> &str {
         &self.bones[i].name
@@ -333,7 +348,7 @@ fn limb(tree: &Tree, path: &[usize], tip: usize, h: f64, leg: bool, origin: [f64
                     if !tree.deform[index] {
                         cost += 0.4;
                     }
-                    let name_role = algorithms::name_role(tree.name(index)).unwrap_or("");
+                    let name_role = tree.named_role(index);
                     let expected = if leg { ["thigh", "shin", "foot"][role] } else { ["upperarm", "forearm", "hand"][role] };
                     if name_role.starts_with(expected) {
                         cost -= 0.8;
@@ -353,6 +368,8 @@ fn limb(tree: &Tree, path: &[usize], tip: usize, h: f64, leg: bool, origin: [f64
 
 struct Hypothesis {
     cost: f64,
+    /// Skin carried by both legs' thigh, shin and foot joints.
+    leg_load: f64,
     roles: BTreeMap<String, String>,
     sides_from: String,
     notes: Vec<String>,
@@ -383,7 +400,7 @@ fn solve(tree: &Tree) -> Result<Hypothesis, String> {
     if tips.len() < 2 {
         return Err("fewer than two skin joints reach the floor".into());
     }
-    let mut best: Option<Hypothesis> = None;
+    let mut found_all: Vec<Hypothesis> = vec![];
     let mut reason = String::from("two separate legs reaching the floor were not found");
     for x in 0..tips.len() {
         for y in x + 1..tips.len() {
@@ -392,17 +409,49 @@ fn solve(tree: &Tree) -> Result<Hypothesis, String> {
                 continue;
             }
             match solve_feet(tree, floor, h, a, b) {
-                Ok(found) => {
-                    if best.as_ref().is_none_or(|current| found.cost < current.cost) {
-                        best = Some(found);
-                    }
-                }
+                Ok(found) => found_all.push(found),
                 Err(message) => reason = message,
             }
         }
     }
-    best.ok_or(reason)
+    // Legs carry the body's skin: ropes, ribbons and tails that reach the
+    // floor carry far less on the joints that would be thigh, shin and foot.
+    // Relative to the most loaded candidate, so rigs whose candidates carry
+    // the same skin rank exactly as before.
+    let most = found_all.iter().map(|f| f.leg_load).fold(0., f64::max);
+    if most > 0. {
+        for found in &mut found_all {
+            found.cost += LEG_LOAD_COST * (most / found.leg_load.max(most * 1e-3)).ln();
+        }
+    }
+    let Some(index) = (0..found_all.len()).min_by(|a, b| found_all[*a].cost.total_cmp(&found_all[*b].cost)) else {
+        return Err(reason);
+    };
+    let mut best = found_all.swap_remove(index);
+    // A different pair of legs that fits almost as well makes the guess doubtful
+    // (the same two thighs with the sides swapped is not a different pair).
+    let thighs = |f: &Hypothesis| -> BTreeSet<String> {
+        ["thigh_L", "thigh_R"].iter().filter_map(|r| f.roles.get(*r).cloned()).collect()
+    };
+    let chosen = thighs(&best);
+    if let Some(other) = found_all
+        .iter()
+        .filter(|f| thighs(f).is_disjoint(&chosen))
+        .min_by(|a, b| a.cost.total_cmp(&b.cost))
+    {
+        if other.cost - best.cost < CLOSE_LEGS {
+            best.notes.push(format!(
+                "Two pairs of chains could be the legs ({} / {} and {} / {}); the first was chosen. Check the legs in the mapping preview.",
+                best.roles["thigh_L"], best.roles["thigh_R"], other.roles["thigh_L"], other.roles["thigh_R"]
+            ));
+        }
+    }
+    Ok(best)
 }
+/// Cost per natural-log step of leg skin below the most loaded leg candidate.
+const LEG_LOAD_COST: f64 = 2.;
+/// Leg candidates closer than this in cost are reported as doubtful.
+const CLOSE_LEGS: f64 = 1.;
 
 fn solve_feet(tree: &Tree, floor: f64, h: f64, foot_a: usize, foot_b: usize) -> Result<Hypothesis, String> {
     let mut notes = vec![];
@@ -529,7 +578,7 @@ fn solve_feet(tree: &Tree, floor: f64, h: f64, foot_a: usize, foot_b: usize) -> 
                     if tree.pos[i][2] < tree.pos[chest][2] + 0.04 * h {
                         s += 1.;
                     }
-                    if algorithms::name_role(tree.name(i)) == Some("head") {
+                    if tree.named_role(i) == "head" {
                         s -= 2.;
                     }
                     s
@@ -631,8 +680,9 @@ fn solve_feet(tree: &Tree, floor: f64, h: f64, foot_a: usize, foot_b: usize) -> 
     // Symmetric limbs are more plausible than mismatched ones.
     let length = |r: [usize; 3]| norm(sub(tree.pos[r[1]], tree.pos[r[0]])) + norm(sub(tree.pos[r[2]], tree.pos[r[1]]));
     let asymmetry = ((length(leg_a_roles) - length(leg_b_roles)).abs() + (length(arm_a) - length(arm_b)).abs()) / h;
+    let leg_load = leg_a_roles.iter().chain(&leg_b_roles).map(|i| tree.load[*i]).sum();
     let cost = leg_a_cost + leg_b_cost + arm_a_cost + arm_b_cost + asymmetry * 10.;
-    Ok(Hypothesis { cost, roles, sides_from: sides_from.into(), notes })
+    Ok(Hypothesis { cost, leg_load, roles, sides_from: sides_from.into(), notes })
 }
 
 fn weighted_set(weighted: &[String]) -> BTreeSet<&str> {
@@ -643,13 +693,29 @@ fn weighted_set(weighted: &[String]) -> BTreeSet<&str> {
 
 /// Detect roles assuming the given source `up` direction.
 pub fn detect_with_up(bones: &[Bone], weighted: &[String], up: [f64; 3]) -> Option<Detection> {
+    detect_inner(bones, weighted, up, &BTreeMap::new())
+}
+
+/// Upright detection where roles the names already proved (role -> bone,
+/// for example a thigh found by name while its shin is misspelled) count as
+/// limb-joint evidence, like a bone named for that role.
+pub fn detect_with_hints(bones: &[Bone], weighted: &[String], hints: &BTreeMap<String, String>) -> Option<Detection> {
+    detect_inner(bones, weighted, [0., 0., 1.], hints)
+}
+
+fn detect_inner(bones: &[Bone], weighted: &[String], up: [f64; 3], hints: &BTreeMap<String, String>) -> Option<Detection> {
     let names = weighted_set(weighted);
     if names.is_empty() {
         return None;
     }
     let rotated_bones = rotated(bones, up);
     let positions = rotated_bones.iter().map(|b| b.position).collect();
-    let tree = Tree::new(bones, &names, positions)?;
+    let mut tree = Tree::new(bones, &names, positions)?;
+    for (role, name) in hints {
+        if let Some(i) = bones.iter().position(|b| b.name == *name) {
+            tree.hint.insert(i, role.clone());
+        }
+    }
     let found = solve(&tree).ok()?;
     let check = algorithms::identify(&rotated_bones, &found.roles).ok()?;
     if !check.errors.is_empty() {

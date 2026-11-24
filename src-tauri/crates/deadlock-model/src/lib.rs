@@ -63,6 +63,19 @@ pub struct MeshInfo {
     pub name: String,
     pub filename: Option<String>,
     pub lower_lod: bool,
+    /// A carried object: a part the game shows only while the hero carries
+    /// something, bound to bones of its own (`deadlock-pipeline carried.rs`,
+    /// set at Analyze). Written only when true.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub carried: bool,
+    /// A part of the hero's gun: nearly all of its skin weight on weapon bones
+    /// (`deadlock-pipeline carried.rs`, set at Analyze), whatever its name.
+    /// Written only when true.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub gun_part: bool,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AnimationNode {
@@ -93,6 +106,8 @@ pub fn analyze(text: &str) -> Result<Analysis> {
             name: name.into(),
             filename: get(node, "filename").map(str::to_owned),
             lower_lod: lod_base(name) != name,
+            carried: false,
+            gun_part: false,
         });
     }
     if meshes.is_empty() {
@@ -280,6 +295,34 @@ fn after_comma(text: &str, end: usize) -> usize {
     }
     end
 }
+/// Fields that never point at a render node, although their value can equal a
+/// render node's name: a node's own name, and the names of bones, physics
+/// bodies, body groups and body-group choices. Several heroes have a render
+/// node named like a bone (`head`, `weapon`, `umbrella`; GitHub issue 10), so
+/// `parent_bone = "head"` must not be read as a reference to the `head` mesh.
+/// Every other field whose value names an expanded or disabled render node is
+/// still refused.
+const NOT_MESH_REFERENCES: &[&str] = &[
+    // The object's own name (bones, hitboxes, hitbox sets, weight lists, body
+    // groups and their choices) and its class.
+    "name",
+    "_class",
+    // Bones: attachments, hitboxes, physics and cloth shapes, physics hulls,
+    // constraint inputs, and the entries of weight lists.
+    "parent_bone",
+    "bone",
+    // Physics bodies: the two ends of a physics joint, physics body markup.
+    "parent_body",
+    "child_body",
+    "target_body",
+    // Body groups: the body-group animation event and the game data that
+    // picks a body-group choice.
+    "bodygroup",
+    "m_BodygroupChoice",
+];
+fn names_no_mesh(key: &str) -> bool {
+    NOT_MESH_REFERENCES.contains(&key)
+}
 fn array_items(node: &Node, result: &mut BTreeSet<usize>) {
     match &node.kind {
         NodeKind::Array(values) => {
@@ -406,8 +449,7 @@ pub fn patch(
             continue;
         }
         for (key, value) in node.object().unwrap() {
-            if key == "name" && matches!(get(node, "_class"), Some("BodyGroup" | "BodyGroupChoice"))
-            {
+            if names_no_mesh(key) {
                 continue;
             }
             if get(node, "_class") == Some("BodyGroupChoice")
@@ -492,8 +534,11 @@ pub fn patch(
         let parsed = Document::parse(&result)?;
         for node in parsed.objects(None) {
             for (key, value) in node.object().unwrap() {
+                if names_no_mesh(key) {
+                    continue;
+                }
                 if let Some(name) = value.scalar() {
-                    if disabled.contains(name) && key != "name" && key != "_class" {
+                    if disabled.contains(name) {
                         return Err(invalid(format!(
                             "Disabling {name} leaves an unsupported {key} reference; keep it or use a custom source."
                         )));

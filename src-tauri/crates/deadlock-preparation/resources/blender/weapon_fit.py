@@ -331,7 +331,7 @@ def split(meshes, plan):
     missing = wanted - {m.name for m in found}
     if missing:
         raise ValueError('The selected gun objects are no longer in the source: ' + ', '.join(sorted(missing)) +
-                         '. Inspect the source again and choose the gun in the Weapon tab.')
+                         '. Inspect the source again and choose the gun in the Gun tab.')
     return [m for m in meshes if m.name not in wanted], found
 
 
@@ -358,7 +358,7 @@ def split_hands(bpy, meshes, plan):
     missing = wanted - set(by_name)
     if missing:
         raise ValueError('The selected gun objects are no longer in the source: ' + ', '.join(sorted(missing)) +
-                         '. Inspect the source again and choose the gun in the Weapon tab.')
+                         '. Inspect the source again and choose the gun in the Gun tab.')
     body = [m for m in meshes if m.name not in wanted]
     used = {name for hand in planned for name in hand.get('objects', [])}
     for name in sorted(dropped - used):

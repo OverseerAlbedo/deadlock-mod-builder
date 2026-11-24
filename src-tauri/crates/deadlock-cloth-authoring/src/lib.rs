@@ -51,8 +51,9 @@ mod hair_motion;
 pub mod hair_limits;
 pub mod long_skirt;
 pub mod attachments;
+pub mod preview_cloth;
 mod fabric_cohesion;
 mod skirt_surface;
 mod tangtang_fit;
-/// The private TangTang data behind the presets, when compiled in.
+/// The optional TangTang data behind the presets, when compiled in.
 pub mod tangtang_assets;

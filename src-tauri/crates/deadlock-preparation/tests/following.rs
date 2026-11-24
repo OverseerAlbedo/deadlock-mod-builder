@@ -134,8 +134,7 @@ fn presets_bind_to_rig_geometry_and_never_restore_approval() {
 }
 /// The fit policies the Blender retarget reports are the ones Rust accepts
 /// (`fitting::check_policy`). Match hero proportions with body-following
-/// mappings reported "-v1" against Rust's "-v2" and never converted (found
-/// preparing a character on Nurse Harrow, October 20, 2026).
+/// mappings once reported "-v1" against Rust's "-v2" and never converted.
 #[test]
 fn retarget_reports_the_fit_policies_rust_accepts() {
     let script = include_str!("../resources/blender/retarget.py");
@@ -174,4 +173,69 @@ fn feet_on_the_floor_choices_match_the_retarget() {
         options.values.insert("fit_floor".into(), wrong);
         assert!(fitting::mode(&options).unwrap_err().to_string().contains("Feet on the floor"));
     }
+}
+
+#[test]
+fn leg_joint_choices_match_the_retarget_and_the_page() {
+    use deadlock_preparation::fitting;
+    use serde_json::json;
+    let quoted = |list: &[&str], quote: char| list.iter().map(|m| format!("{quote}{m}{quote}")).collect::<Vec<_>>();
+    let script = include_str!("../resources/blender/retarget.py");
+    let modes = quoted(&fitting::LEG_JOINT_MODES, '\'').join(", ");
+    assert!(script.contains(&format!("\nLEG_JOINT_MODES = ({modes})")), "retarget.py LEG_JOINT_MODES is not ({modes})");
+    let on_joints = quoted(&fitting::LEGS_ON_HERO_JOINTS, '\'').join(", ");
+    assert!(script.contains(&format!("\nLEGS_ON_HERO_JOINTS = ({on_joints})")), "retarget.py LEGS_ON_HERO_JOINTS is not ({on_joints})");
+    let page = include_str!("../../../../src/preparation/models.ts");
+    let modes = quoted(&fitting::LEG_JOINT_MODES, '\'').join(",");
+    assert!(page.contains(&format!("export const LEG_JOINT_MODES = [{modes}] as const;")), "models.ts LEG_JOINT_MODES is not [{modes}]");
+    let on_joints = quoted(&fitting::LEGS_ON_HERO_JOINTS, '\'').join(",");
+    assert!(page.contains(&format!("export const LEGS_ON_HERO_JOINTS: readonly LegJointFit[] = [{on_joints}];")), "models.ts LEGS_ON_HERO_JOINTS is not [{on_joints}]");
+
+    let mut options = deadlock_project::PreparationOptions::default();
+    assert_eq!(fitting::leg_joints(&options).unwrap(), "pelvis");
+    options.values.insert("fit_mode".into(), json!("preserve_proportions"));
+    for mode in fitting::LEG_JOINT_MODES {
+        options.values.insert("fit_leg_joints".into(), mode.into());
+        assert_eq!(fitting::leg_joints(&options).unwrap(), mode);
+        assert_eq!(fitting::mode(&options).unwrap(), fitting::PRESERVE_PROPORTIONS);
+        for floor in fitting::FLOOR_MODES {
+            options.values.insert("fit_floor".into(), floor.into());
+            let refused = floor == "legs" && fitting::LEGS_ON_HERO_JOINTS.contains(&mode);
+            assert_eq!(fitting::mode(&options).is_err(), refused, "{mode} with {floor}");
+            if refused {
+                let message = fitting::mode(&options).unwrap_err().to_string();
+                assert!(message.contains("Leg joints") && message.contains("Feet on the floor"), "{message}");
+            }
+        }
+        options.values.remove("fit_floor");
+    }
+    // Match hero proportions ignores the choice, even next to shortened legs.
+    let mut matched = options.clone();
+    matched.values.insert("fit_mode".into(), json!("match_target"));
+    matched.values.insert("fit_floor".into(), json!("legs"));
+    matched.values.insert("fit_leg_joints".into(), json!("joints"));
+    assert_eq!(fitting::mode(&matched).unwrap(), fitting::MATCH_TARGET);
+    for wrong in [json!("knees"), json!("Pelvis"), json!(true), json!(null), json!(1)] {
+        options.values.insert("fit_leg_joints".into(), wrong);
+        assert!(fitting::mode(&options).unwrap_err().to_string().contains("Leg joints"));
+    }
+
+    // A changed choice needs a new conversion with Preserve source proportions only;
+    // unset and "pelvis" are the same fit.
+    let mut previous = deadlock_project::PreparationOptions::default();
+    previous.values.insert("fit_mode".into(), json!("preserve_proportions"));
+    let mut current = previous.clone();
+    current.values.insert("fit_leg_joints".into(), json!("pelvis"));
+    fitting::check_unchanged(&previous, &current).unwrap();
+    for mode in &fitting::LEG_JOINT_MODES[1..] {
+        current.values.insert("fit_leg_joints".into(), (*mode).into());
+        assert!(fitting::check_unchanged(&previous, &current).unwrap_err().to_string().contains("Model fitting changed"), "{mode}");
+    }
+    previous.values.insert("fit_leg_joints".into(), json!("joints"));
+    current.values.insert("fit_leg_joints".into(), json!("joints"));
+    fitting::check_unchanged(&previous, &current).unwrap();
+    previous.values.insert("fit_mode".into(), json!("match_target"));
+    current.values.insert("fit_mode".into(), json!("match_target"));
+    current.values.insert("fit_leg_joints".into(), json!("hips"));
+    fitting::check_unchanged(&previous, &current).unwrap();
 }

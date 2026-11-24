@@ -142,6 +142,99 @@ fn installed_mods_are_scanned_and_repaired_in_place_with_a_backup() {
     assert!(mod_update::update(&settings, &game_pak, &backups, 2, &cancel, &|_| {}).is_err());
 }
 
+#[test]
+fn the_scan_names_every_vpk_by_its_contents_and_never_drops_one() {
+    use deadlock_components::vpk_contents::Kind;
+    let temp = tempfile::tempdir().unwrap();
+    let game_root = temp.path().join("Deadlock");
+    let addons = game_root.join("game/citadel/addons");
+    std::fs::create_dir_all(&addons).unwrap();
+    let game_pak = vpk(temp.path(), "original_dir.vpk", &[(MODEL, &current())]);
+    let model = current();
+    // A character model with its materials; a sounds-and-icons file for two heroes; item
+    // pictures; menu files only; a copy of the first under a name a loader gave it; a broken file.
+    vpk(&addons, "pak02_dir.vpk", &[(MODEL, &model), ("materials/models/heroes/haze/body.vmat_c", b"m1"), ("materials/models/heroes/haze/body_color_png.vtex_c", b"t1")]);
+    vpk(&addons, "pak03_dir.vpk", &[
+        ("sounds/abilities/haze/haze_dagger_cast.vsnd_c", b"s1"),
+        ("sounds/vo/ghost/ghost_kill_01.vsnd_c", b"s2"),
+        ("panorama/images/heroes/haze_card_psd.vtex_c", b"i1"),
+        ("materials/models/heroes/haze/body.vmat_c", b"m2"),
+        ("materials/default/default_ao_tga_0123abcd.vtex_c", b"d2"),
+    ]);
+    vpk(&addons, "pak04_dir.vpk", &[("panorama/images/items/weapon/basic_magazine_psd.vtex_c", b"x"), ("panorama/images/items/spirit/mystic_burst_psd.vtex_c", b"y"), ("readme.txt", b"one"), ("materials/default/default_ao_tga_0123abcd.vtex_c", b"d1")]);
+    vpk(&addons, "pak05_dir.vpk", &[("panorama/layout/main_menu.vxml_c", b"l"), ("panorama/styles/main_menu.vcss_c", b"c"), ("readme.txt", b"two")]);
+    let renamed = vpk(&addons, "renamed_by_loader.vpk", &[(MODEL, &model), ("materials/models/heroes/haze/body.vmat_c", b"m1"), ("materials/models/heroes/haze/body_color_png.vtex_c", b"t1")]);
+    std::fs::write(addons.join("pak06_dir.vpk"), b"not a vpk at all").unwrap();
+    // A chunk beside its directory file is read through it; a "_001" name alone is a VPK of its own.
+    vpk(&addons, "pak08_dir.vpk", &[("sounds/abilities/haze/haze_other.vsnd_c", b"z")]);
+    std::fs::write(addons.join("pak08_000.vpk"), b"a chunk of a split vpk").unwrap();
+    std::fs::write(addons.join("standalone_001.vpk"), b"not a chunk").unwrap();
+    std::fs::create_dir_all(addons.join("folder.vpk")).unwrap();
+    let settings = Settings { deadlock: game_root.display().to_string(), pak: game_pak.display().to_string(), ..Settings::default() };
+    let cancel = CancellationToken::new();
+    let before: Vec<_> = std::fs::read_dir(&addons).unwrap().map(|e| e.unwrap().file_name()).collect();
+
+    let scan = mod_update::scan(&settings, &cancel).unwrap();
+    let files: Vec<&str> = scan.iter().map(|m| m.file.as_str()).collect();
+    assert_eq!(files, ["pak02_dir.vpk", "pak03_dir.vpk", "pak04_dir.vpk", "pak05_dir.vpk", "pak06_dir.vpk", "pak08_dir.vpk", "renamed_by_loader.vpk", "standalone_001.vpk"], "chunks and folders are not files of their own");
+    let by = |name: &str| scan.iter().find(|m| m.file == name).unwrap();
+    let heroes = |name: &str| by(name).contents.heroes.iter().map(|h| h.name.clone()).collect::<Vec<_>>();
+
+    let skin = by("pak02_dir.vpk");
+    assert_eq!(heroes("pak02_dir.vpk"), ["Haze"]);
+    assert_eq!(skin.status, Status::UpToDate);
+    assert_eq!((skin.contents.kinds[&Kind::CharacterModel], skin.contents.kinds[&Kind::Material], skin.contents.kinds[&Kind::Texture]), (1, 1, 1));
+    // Extras for two heroes, without a character model: not checked.
+    let extras = by("pak03_dir.vpk");
+    assert_eq!(heroes("pak03_dir.vpk"), ["Haze", "Lady Geist"]);
+    assert_eq!(extras.status, Status::NoHeroModel);
+    assert_eq!((extras.contents.kinds[&Kind::Sound], extras.contents.kinds[&Kind::Icon]), (2, 1));
+    // Item pictures belong to every hero; menu files to none.
+    assert_eq!((by("pak04_dir.vpk").contents.every_hero, by("pak04_dir.vpk").contents.heroes.len()), (2, 0));
+    assert_eq!((by("pak05_dir.vpk").contents.unattributed, by("pak05_dir.vpk").contents.kinds[&Kind::Menu]), (3, 2));
+    // The broken file is listed with its reason.
+    let broken = by("pak06_dir.vpk");
+    assert!(broken.unreadable.is_some() && broken.identity.is_empty() && broken.note.starts_with("Not readable as a VPK"), "{broken:?}");
+    // The renamed copy keeps the identity; the other files differ.
+    assert_eq!(by("renamed_by_loader.vpk").identity, skin.identity);
+    assert!(skin.identity.starts_with("vpk-tree-v1:"));
+    assert_ne!(extras.identity, skin.identity);
+    assert_eq!(mod_update::identity_of(&renamed).unwrap(), skin.identity);
+    // Game files two VPKs both hold with other contents are listed on both sides, without
+    // saying which one the game uses. The same bytes in both (the renamed copy) and files at
+    // the archive's root (a readme) and the compiler's default textures do not count.
+    let shared: Vec<(&str, usize)> = skin.shared.iter().map(|s| (s.file.as_str(), s.count)).collect();
+    assert_eq!(shared, [("pak03_dir.vpk", 1)]);
+    let shared: Vec<(&str, usize)> = extras.shared.iter().map(|s| (s.file.as_str(), s.count)).collect();
+    assert_eq!(shared, [("pak02_dir.vpk", 1), ("renamed_by_loader.vpk", 1)]);
+    assert_eq!(extras.shared[0].paths, ["materials/models/heroes/haze/body.vmat_c"]);
+    assert!(by("pak04_dir.vpk").shared.is_empty() && by("pak05_dir.vpk").shared.is_empty());
+    // Nothing in the addons folder changed.
+    let after: Vec<_> = std::fs::read_dir(&addons).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(before, after);
+}
+
+#[test]
+fn own_outputs_match_by_identity_and_name_their_project() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path().join("workspaces");
+    let id = "0123456789abcdef0123456789abcdef";
+    let output = workspace.join(id).join("output");
+    std::fs::create_dir_all(&output).unwrap();
+    let built = vpk(&output, "pak09_dir.vpk", &[("sounds/abilities/haze/a.vsnd_c", b"a")]);
+    // Not a project folder: ignored.
+    std::fs::create_dir_all(workspace.join("scratch/output")).unwrap();
+    vpk(&workspace.join("scratch/output"), "pak10_dir.vpk", &[("sounds/abilities/haze/a.vsnd_c", b"a")]);
+    std::fs::write(workspace.join(id).join("build-manifest.json"), format!(r#"{{"schema":1,"project":{{"id":"{id}","name":"Sample","hero_name":"Haze"}}}}"#)).unwrap();
+    let outputs = mod_update::own_outputs(&workspace, &CancellationToken::new()).unwrap();
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(outputs[0].project_id, id);
+    assert_eq!(outputs[0].identity, mod_update::identity_of(&built).unwrap());
+    assert_eq!(mod_update::project_summary(&workspace, id), Some(("Sample".to_owned(), "Haze".to_owned())));
+    assert_eq!(mod_update::project_summary(&workspace, "fedcba9876543210fedcba9876543210"), None);
+    assert_eq!(mod_update::project_summary(&workspace, "../outside"), None);
+}
+
 /// The compiled model of a build with an extra bone (as generated movement bones are).
 fn compiled_with_extra_bone(attachments_list: Vec<Value>) -> Vec<u8> {
     let base = model(attachments_list);
@@ -168,7 +261,7 @@ fn compiled_with_extra_bone(attachments_list: Vec<Value>) -> Vec<u8> {
 
 #[test]
 fn a_build_keeps_its_compiled_model_and_takes_only_the_game_attachments() {
-    // October 16, 2026: the build passed the two models the wrong way round and
+    // An earlier build passed the two models the wrong way round and
     // wrote the game's original model over the compiled one ("Missing or
     // ambiguous generated bone: dmb_secondary_L_bowB_01_jnt").
     let temp = tempfile::tempdir().unwrap();
@@ -187,4 +280,49 @@ fn a_build_keeps_its_compiled_model_and_takes_only_the_game_attachments() {
     assert_eq!(attachments::convention(&after, &game).unwrap(), Convention::Current);
     // Already current: nothing to write.
     assert_eq!(mod_update::take_game_attachments(&output, &game).unwrap(), 0);
+}
+
+/// A made-up names file in the game's format with these item tokens.
+fn names_file(items: &[(&str, &str)]) -> Vec<u8> {
+    let mut text = String::from("\u{feff}\"lang\"\r\n{\r\n\t\"Tokens\"\r\n\t{\r\n");
+    for (key, value) in items {
+        text.push_str(&format!("\t\t\"{key}\"\t\"{value}\"\r\n"));
+    }
+    text.push_str("\t}\r\n}\r\n");
+    text.into_bytes()
+}
+
+#[test]
+fn item_names_files_are_their_own_kind_and_say_when_the_game_has_more_names() {
+    use deadlock_components::vpk_contents::Kind;
+    let temp = tempfile::tempdir().unwrap();
+    let game_root = temp.path().join("Deadlock");
+    let addons = game_root.join("game/citadel/addons");
+    std::fs::create_dir_all(&addons).unwrap();
+    let game_pak = vpk(temp.path(), "original_dir.vpk", &[(MODEL, &current())]);
+    let folder = deadlock_components::item_names::folder(&game_pak);
+    std::fs::create_dir_all(&folder).unwrap();
+    let game_names = [("upgrade_one", "One"), ("upgrade_two", "Two"), ("upgrade_three", "Three")];
+    std::fs::write(folder.join("citadel_gc_mod_names_english.txt"), names_file(&game_names)).unwrap();
+    std::fs::write(folder.join("citadel_gc_mod_names_german.txt"), names_file(&game_names)).unwrap();
+    let path = |language: &str| format!("resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_{language}.txt");
+    // Made before the game added an item: one name missing in English.
+    vpk(&addons, "pak10_dir.vpk", &[(&path("english"), &names_file(&[("upgrade_one", "New One"), ("upgrade_two", "Two")]))]);
+    // Current in English, two missing in German.
+    vpk(&addons, "pak11_dir.vpk", &[(&path("english"), &names_file(&game_names)), (&path("german"), &names_file(&[("upgrade_one", "Eins")]))]);
+    // Current everywhere.
+    vpk(&addons, "pak12_dir.vpk", &[(&path("english"), &names_file(&[("upgrade_one", "New One"), ("upgrade_two", "Two"), ("upgrade_three", "Three")]))]);
+    let settings = Settings { deadlock: game_root.display().to_string(), pak: game_pak.display().to_string(), ..Settings::default() };
+    let cancel = CancellationToken::new();
+    let scan = mod_update::scan(&settings, &cancel).unwrap();
+    let by = |name: &str| scan.iter().find(|m| m.file == name).unwrap();
+    for file in ["pak10_dir.vpk", "pak11_dir.vpk", "pak12_dir.vpk"] {
+        let row = by(file);
+        assert_eq!(row.status, Status::NoHeroModel);
+        assert!(row.contents.kinds.contains_key(&Kind::ItemNames) && !row.contents.kinds.contains_key(&Kind::Text));
+        assert_eq!((row.contents.every_hero, row.contents.unattributed), (row.contents.files, 0), "every hero's, like item pictures");
+    }
+    assert_eq!(by("pak10_dir.vpk").note, "1 of the game's item names is missing from this file (english): those items show without a name until the mod is built again.");
+    assert_eq!(by("pak11_dir.vpk").note, "2 of the game's item names are missing from this file (german): those items show without a name until the mod is built again.");
+    assert_eq!(by("pak12_dir.vpk").note, "");
 }

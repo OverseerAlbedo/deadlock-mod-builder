@@ -107,3 +107,22 @@ fn extras_previews_are_real_read_only_and_bound_to_the_current_character_catalog
     let mut other=make(icon,"icons");other.hero_path="models/heroes_wip/wraith/wraith.vmdl".into();assert!(app.preview_extra(other).is_err());
     app.save_settings(&Settings{pak:temp.path().join("other_dir.vpk").display().to_string(),..settings}).unwrap();assert!(app.preview_extra(make(icon,"icons")).is_err());
 }
+
+#[test]
+fn file_stamps_follow_the_preview_image_path_rule() {
+    use deadlock_desktop::catalogs::file_stamps;
+    let temp = tempfile::tempdir().unwrap();
+    let image = temp.path().join("color.png");
+    std::fs::copy(fixture("source.png"), &image).unwrap();
+    let text = temp.path().join("notes.txt");
+    std::fs::write(&text, b"not an image").unwrap();
+    let stamps = file_stamps(&[image.clone(), temp.path().join("missing.png"), text, temp.path().to_path_buf()]);
+    let first = stamps[0].expect("a readable PNG has a stamp");
+    assert_eq!(first.len, std::fs::metadata(&image).unwrap().len());
+    assert!(first.modified_ms > 0);
+    // Paths preview_image would refuse have none: missing, not an image, a folder.
+    assert_eq!(&stamps[1..], &[None, None, None]);
+    // A rewritten file gets a different stamp.
+    std::fs::write(&image, b"\x89PNG\r\n\x1a\nchanged").unwrap();
+    assert_ne!(file_stamps(&[image])[0], Some(first));
+}

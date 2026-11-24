@@ -132,6 +132,76 @@ fn recovered_connections_outrank_names_but_keep_manual_choices_and_explicit_none
     assert!(planned[material].textures.as_ref().unwrap().is_empty());
     assert_eq!(planned[material].ambiguous.as_ref().unwrap(), &["color"]);
 }
+/// A chosen image is never offered a copy of itself (Analyze materials lists
+/// every image the prepared model links, and those are often copies of the
+/// user's pick), whether or not the material is reviewed yet; a different
+/// image is still offered, and a channel without a choice keeps every image.
+#[test]
+fn a_chosen_image_is_not_offered_a_copy_of_itself() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = |name: &str, bytes: &[u8]| {
+        let path = temp.path().join(name);
+        fs::write(&path, bytes).unwrap();
+        path.to_string_lossy().into_owned()
+    };
+    let mine = file("mine.png", b"the chosen picture");
+    let copy = file("prepared_copy.png", b"the chosen picture");
+    let other = file("different.png", b"another picture");
+    let material = "models/test/materials/prepared/body_1234abcd.vmat";
+    let bindings: Plans = serde_json::from_value(json!({material:{"textures":{"color":copy},"candidates":{"color":[copy,other]}}})).unwrap();
+    let plan_for = |current: serde_json::Value| {
+        let current: Plans = serde_json::from_value(json!({ material: current })).unwrap();
+        plan_with_bindings(&[material.into()], temp.path(), temp.path(), &current, &bindings, &CancellationToken::new())
+            .unwrap()
+            .remove(material)
+            .unwrap()
+    };
+    let reviewed = plan_for(json!({"textures":{"color":mine},"confirmed":true}));
+    assert_eq!(reviewed.textures.as_ref().unwrap()["color"], mine);
+    assert_eq!(reviewed.candidates.as_ref().unwrap()["color"], vec![other.clone()]);
+    assert_eq!(reviewed.confirmed, Some(true));
+    assert!(reviewed.ambiguous.as_ref().unwrap().is_empty());
+    // Only a copy: nothing is offered.
+    let only_copy: Plans = serde_json::from_value(json!({material:{"textures":{"color":copy}}})).unwrap();
+    let current: Plans = serde_json::from_value(json!({material:{"textures":{"color":mine},"confirmed":true}})).unwrap();
+    let planned = plan_with_bindings(&[material.into()], temp.path(), temp.path(), &current, &only_copy, &CancellationToken::new()).unwrap();
+    assert!(planned[material].candidates.as_ref().unwrap()["color"].is_empty());
+    // Not reviewed yet: the copy is left out too (Accept all would review it
+    // later), and nothing else changes.
+    let open = plan_for(json!({"textures":{"color":mine},"confirmed":false}));
+    assert_eq!(open.candidates.as_ref().unwrap()["color"], vec![other.clone()]);
+    assert_eq!(open.confirmed, Some(false));
+    assert!(open.ambiguous.as_ref().unwrap().is_empty());
+    // A channel without a chosen image keeps every image as a choice.
+    let empty = plan_for(json!({"confirmed":false}));
+    assert_eq!(empty.candidates.as_ref().unwrap()["color"], vec![other, copy]);
+    assert_eq!(empty.ambiguous.as_ref().unwrap(), &["color"]);
+}
+/// A texture folder holding one image per material, named `T_<model>_<part>`
+/// for materials named `MI_<part>`, plus a prop's image whose material is not
+/// in the build: the folder planner never hands one material's image to
+/// another (here it matches none of them; the images come from Blender).
+#[test]
+fn folder_images_of_other_materials_are_never_assigned() {
+    let temp = tempfile::tempdir().unwrap();
+    images(
+        temp.path(),
+        &["T_Sample_Body.jpg", "T_Sample_Face.jpg", "T_Sample_Hair.jpg", "T_Sample_Prop.jpg"],
+    );
+    let names = ["mi_body_1234abcd", "mi_face_2234abcd", "mi_hair_3234abcd", "mi_whites_4234abcd"];
+    let materials: Vec<String> = names
+        .iter()
+        .map(|n| format!("models/test/materials/prepared/{n}.vmat"))
+        .collect();
+    let planned = plan(&materials, temp.path(), temp.path(), &Plans::new(), &CancellationToken::new()).unwrap();
+    for material in &materials {
+        let textures = planned[material].textures.as_ref().unwrap();
+        assert!(!textures.values().any(|p| p.ends_with("T_Sample_Prop.jpg")), "{material}: {textures:?}");
+        if material.contains("mi_whites") {
+            assert!(textures.is_empty(), "{material}: {textures:?}");
+        }
+    }
+}
 #[test]
 fn exact_exported_texture_identity_wins_and_new_assignments_renew_review() {
     let temp = tempfile::tempdir().unwrap();

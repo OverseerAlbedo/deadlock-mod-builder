@@ -172,7 +172,7 @@ fn main() {
 
 /// `--factors OLD NEW`: per attachment, the left rotation factor new = q * old
 /// and whether the offsets follow it, next to the bone's rest rotations.
-pub fn factors(old: &Model, new: &Model) {
+fn factors(old: &Model, new: &Model) {
     let (names, world) = old.rest_world_rotations();
     let sk = old.skeleton();
     let locals: Vec<Quat> = sk.get("m_boneRotParent").unwrap().array().unwrap().iter().map(|q| { let n = numbers(q); [n[0], n[1], n[2], n[3]] }).collect();

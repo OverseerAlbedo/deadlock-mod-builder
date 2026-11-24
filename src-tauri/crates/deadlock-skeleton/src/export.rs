@@ -260,6 +260,12 @@ fn f32bytes(n: f64) -> Result<[u8; 4]> {
     Ok(f.to_le_bytes())
 }
 pub fn export_bytes(report: &PreparedReport, s: &Skeleton) -> Result<(Vec<u8>, ExportAudit)> {
+    export_bytes_with_axis(report, s, None)
+}
+/// `export_bytes` with a `DmeAxisSystem` on the model, copied from an original
+/// object's DMX (an ability object bound to its one bone); `None` writes
+/// exactly what `export_bytes` writes.
+pub fn export_bytes_with_axis(report: &PreparedReport, s: &Skeleton, axis: Option<AxisSystem>) -> Result<(Vec<u8>, ExportAudit)> {
     transforms::prepare_target(s)?;
     let mut b = Builder::default();
     let root = b.elem("DmElement", "root")?;
@@ -433,6 +439,13 @@ pub fn export_bytes(report: &PreparedReport, s: &Skeleton) -> Result<(Vec<u8>, E
     let bind = b.elem("DmeTransformList", "bind")?;
     b.elements(bind, "transforms", &trans)?;
     b.elements(model, "baseStates", &[bind])?;
+    if let Some((up, parity, system)) = axis {
+        let a = b.elem("DmeAxisSystem", "axisSystem")?;
+        b.attr(a, "upAxis", 2, up.to_le_bytes().to_vec())?;
+        b.attr(a, "forwardParity", 2, parity.to_le_bytes().to_vec())?;
+        b.attr(a, "coordSys", 2, system.to_le_bytes().to_vec())?;
+        b.reference(model, "axisSystem", a)?;
+    }
     let raw = b.finish()?;
     let parsed = Dmx::parse(raw.clone()).map_err(|e| invalid(e.to_string()))?;
     let skin = skinning::skinning(&parsed)?;
@@ -462,6 +475,143 @@ pub fn export_bytes(report: &PreparedReport, s: &Skeleton) -> Result<(Vec<u8>, E
         native_compiler_validated: false,
     };
     Ok((raw, audit))
+}
+/// A `DmeAxisSystem` (upAxis, forwardParity, coordSys) copied from an original model.
+pub type AxisSystem = (i32, i32, i32);
+/// An unskinned model-22 DMX for a rigid object with no bones (an ability
+/// object a particle draws whole): the layout `export_bytes` writes, without
+/// joints or blend streams. `axis` writes a `DmeAxisSystem` on the model,
+/// copied from the original object's DMX, so the compiler reads the new mesh
+/// in the same axes as the original's; `None` writes none.
+pub fn export_rigid_bytes(meshes: &[PreparedMesh], axis: Option<AxisSystem>) -> Result<Vec<u8>> {
+    let mut b = Builder::default();
+    let root = b.elem("DmElement", "root")?;
+    let model = b.elem("DmeModel", "prepared")?;
+    b.reference(root, "model", model)?;
+    b.reference(root, "skeleton", model)?;
+    let t = b.identity("prepared")?;
+    b.reference(model, "transform", t)?;
+    let mut children = vec![];
+    let mut trans = vec![];
+    let mut triangles = 0u64;
+    if meshes.is_empty() {
+        return Err(invalid("A rigid object needs at least one mesh"));
+    }
+    for m in meshes {
+        if m.positions.is_empty() || m.normals.is_empty() || m.faces.is_empty() {
+            return Err(invalid("A rigid mesh needs positions, normals and polygons"));
+        }
+        if !m.weights.is_empty() {
+            return Err(invalid("A rigid mesh has no skin weights"));
+        }
+        let corners: Vec<_> = m.faces.iter().flat_map(|f| f.vertices.iter().copied()).collect();
+        let loop_ids: Vec<_> = m.faces.iter().flat_map(|f| f.corners.iter().copied()).collect();
+        if loop_ids.len() != corners.len() || loop_ids.iter().copied().collect::<BTreeSet<_>>() != (0..loop_ids.len()).collect() {
+            return Err(invalid("Unsupported reused/missing polygon loop indices"));
+        }
+        for f in &m.faces {
+            if f.vertices.len() < 3 || f.vertices.len() != f.corners.len() || f.vertices.iter().any(|i| *i >= m.positions.len()) {
+                return Err(invalid("Invalid generated polygon"));
+            }
+            triangles += (f.vertices.len() - 2) as u64;
+        }
+        let dag = b.elem("DmeDag", &m.name)?;
+        let shape = b.elem("DmeMesh", &m.name)?;
+        let state = b.elem("DmeVertexData", "bind")?;
+        let tr = b.identity(&m.name)?;
+        children.push(dag);
+        trans.push(tr);
+        b.reference(dag, "transform", tr)?;
+        b.reference(dag, "shape", shape)?;
+        b.attr(dag, "visible", 4, vec![1])?;
+        b.reference(shape, "bindState", state)?;
+        b.reference(shape, "currentState", state)?;
+        b.elements(shape, "baseStates", &[state])?;
+        let mut streams = vec!["position$0".to_string(), "normal$0".to_string()];
+        if !m.tangents.is_empty() {
+            streams.push("tangent$0".into());
+        }
+        streams.extend((0..m.uvs.len()).map(|i| format!("texcoord${i}")));
+        b.strings(state, "vertexFormat", &streams)?;
+        b.attr(state, "flipVCoordinates", 4, vec![1])?;
+        b.attr(state, "jointCount", 2, 0_i32.to_le_bytes().to_vec())?;
+        let check = |n: usize, indices: &[usize]| -> Result<()> {
+            if indices.iter().any(|i| *i >= n) {
+                return Err(invalid("Generated attribute index outside stream"));
+            }
+            Ok(())
+        };
+        check(m.positions.len(), &corners)?;
+        b.vectors(state, "position$0", 10, &m.positions)?;
+        b.refs(state, "position$0Indices", &corners)?;
+        check(m.normals.len(), &loop_ids)?;
+        b.vectors(state, "normal$0", 10, &m.normals)?;
+        b.refs(state, "normal$0Indices", &loop_ids)?;
+        if !m.tangents.is_empty() {
+            check(m.tangents.len(), &loop_ids)?;
+            b.vectors(state, "tangent$0", 11, &m.tangents)?;
+            b.refs(state, "tangent$0Indices", &loop_ids)?;
+        }
+        for (i, v) in m.uvs.iter().enumerate() {
+            check(v.len(), &loop_ids)?;
+            b.vectors(state, &format!("texcoord${i}"), 9, v)?;
+            b.refs(state, &format!("texcoord${i}Indices"), &loop_ids)?;
+        }
+        let mut grouped: Vec<(String, Vec<i32>)> = vec![];
+        let mut offset = 0;
+        for f in &m.faces {
+            let at = grouped.iter().position(|(n, _)| n == &f.material).unwrap_or_else(|| {
+                grouped.push((f.material.clone(), vec![]));
+                grouped.len() - 1
+            });
+            for i in offset..offset + f.vertices.len() {
+                grouped[at].1.push(int(i)?);
+            }
+            grouped[at].1.push(-1);
+            offset += f.vertices.len();
+        }
+        let mut faces = vec![];
+        for (material, values) in grouped {
+            let mat = b.elem("DmeMaterial", &material)?;
+            let key = b.string("mtlName")?;
+            let value = b.string(&material)?;
+            b.elements[mat].attrs.push(Attr { key, kind: 5, raw: int(value)?.to_le_bytes().to_vec() });
+            let fs = b.elem("DmeFaceSet", &material)?;
+            b.reference(fs, "material", mat)?;
+            b.integers(fs, "faces", values)?;
+            faces.push(fs);
+        }
+        b.elements(shape, "faceSets", &faces)?;
+    }
+    b.elements(model, "children", &children)?;
+    b.elements(model, "jointList", &children)?;
+    let bind = b.elem("DmeTransformList", "bind")?;
+    b.elements(bind, "transforms", &trans)?;
+    b.elements(model, "baseStates", &[bind])?;
+    if let Some((up, parity, system)) = axis {
+        let a = b.elem("DmeAxisSystem", "axisSystem")?;
+        b.attr(a, "upAxis", 2, up.to_le_bytes().to_vec())?;
+        b.attr(a, "forwardParity", 2, parity.to_le_bytes().to_vec())?;
+        b.attr(a, "coordSys", 2, system.to_le_bytes().to_vec())?;
+        b.reference(model, "axisSystem", a)?;
+    }
+    let raw = b.finish()?;
+    let parsed = Dmx::parse(raw.clone()).map_err(|e| invalid(e.to_string()))?;
+    let geometry = parsed.geometry_counts().map_err(|e| invalid(e.to_string()))?;
+    if geometry.source_triangles != triangles {
+        return Err(invalid("Rigid topology changed during export"));
+    }
+    Ok(raw)
+}
+/// The `DmeAxisSystem` of a DMX (the first one), when it has one.
+pub fn axis_system(dmx: &Dmx) -> Option<AxisSystem> {
+    dmx.elements.iter().find(|e| e.kind == "DmeAxisSystem").map(|e| {
+        let get = |k: &str| match e.get(k) {
+            Some(deadlock_dmx::Value::Integer(i)) => *i,
+            _ => 0,
+        };
+        (get("upAxis"), get("forwardParity"), get("coordSys"))
+    })
 }
 pub fn export_dmx(
     report: &PreparedReport,

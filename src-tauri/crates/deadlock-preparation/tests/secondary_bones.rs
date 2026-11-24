@@ -153,7 +153,7 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     let generic_weighted: Vec<String> = weighted.iter().map(rename).collect();
     assert_eq!(secondary::breast_bones(&generic, &generic_weighted, &roles), breasts.iter().map(rename).collect::<Vec<_>>());
     // Ribbons on the chest are a mirrored pair in front of the chest too, but
-    // their names make them ribbons (SiViolet's L/R_ribbonG); renamed without
+    // their names make them ribbons (such as L/R_ribbonG); renamed without
     // a part word the same bones count as breasts.
     let ribbons: BTreeMap<String, String> = serde_json::from_value(data["chest_ribbons"].clone()).unwrap();
     assert!(ribbons.keys().all(|r| !breasts.contains(r)));
@@ -180,6 +180,78 @@ fn robes_and_unnamed_hanging_chains_on_the_torso_move_but_limb_and_short_chains_
     for name in data["butt_names"]["not_butt"].as_array().unwrap() {
         assert!(!secondary::named_butt(name.as_str().unwrap()), "{name}");
     }
+}
+
+#[test]
+fn pinyin_breast_names_and_branched_breasts_are_breasts() {
+    let data: Value = serde_json::from_str(include_str!("fixtures/hanging-chains.json")).unwrap();
+    for name in data["breast_names"]["breast"].as_array().unwrap() {
+        let name = name.as_str().unwrap();
+        assert!(secondary::named_breast(name) && !secondary::named_butt(name), "{name}");
+    }
+    for name in data["breast_names"]["not_breast"].as_array().unwrap() {
+        assert!(!secondary::named_breast(name.as_str().unwrap()), "{name}");
+    }
+    let rig = &data["branched_breasts"];
+    let source: Vec<Bone> = serde_json::from_value(rig["bones"].clone()).unwrap();
+    let weighted: Vec<String> = serde_json::from_value(rig["weighted"].clone()).unwrap();
+    let roles: BTreeMap<String, String> = serde_json::from_value(rig["roles"].clone()).unwrap();
+    let list = |key: &str| serde_json::from_value::<Vec<String>>(rig[key].clone()).unwrap();
+    assert_eq!(secondary::breast_bones(&source, &weighted, &roles), list("breast_bones"));
+    let roots = |breasts| secondary::candidates_with(&source, &weighted, &roles, &roles, breasts).unwrap();
+    assert_eq!(roots(None).iter().map(|g| g.root.clone()).collect::<Vec<_>>(), list("expected_roots"));
+    assert_eq!(roots(Some(false)).iter().map(|g| g.root.clone()).collect::<Vec<_>>(), list("expected_roots"));
+    let moving = roots(Some(true));
+    assert_eq!(moving.iter().map(|g| g.root.clone()).collect::<Vec<_>>(), list("expected_roots_with_breast_motion"));
+    let bones = rig["branch_bones"].as_u64().unwrap() as usize;
+    assert!(moving.iter().all(|g| g.source_anchor == "chest" && g.source_bones.len() == bones && g.weighted_bones.len() == bones), "{moving:?}");
+    // The rig has recognised breast bones, so none are ever added.
+    let named = secondary::breast_named_bones(&source, &weighted);
+    assert!(list("breast_bones").iter().all(|b| named.contains(b)), "{named:?}");
+    let renamed = |key: &str| {
+        let map: BTreeMap<String, String> = serde_json::from_value(rig[key].clone()).unwrap();
+        let rename = |n: &String| map.get(n).cloned().unwrap_or_else(|| n.clone());
+        let bones: Vec<Bone> = source.iter().map(|b| Bone { name: rename(&b.name), parent: b.parent.as_ref().map(rename), ..b.clone() }).collect();
+        secondary::breast_bones(&bones, &weighted.iter().map(rename).collect::<Vec<_>>(), &roles)
+    };
+    assert_eq!(renamed("decorated"), list("decorated_breast_bones"));
+    assert_eq!(renamed("foreign"), list("foreign_breast_bones"));
+    assert_eq!(renamed("unnamed"), list("unnamed_breast_bones"));
+}
+
+#[test]
+fn added_breast_bones_count_the_skin_of_unrecognised_chest_bone_pairs() {
+    // The branched breasts without a breast word: not found as breasts, so the
+    // request to add breast bones lists their branches as chest skin (`carried`).
+    // A bow in the middle, a shoulder carrying the arm and a named ribbon pair
+    // never count; a rig without such bones gets the request as before.
+    let data: Value = serde_json::from_str(include_str!("fixtures/hanging-chains.json")).unwrap();
+    let rig = &data["branched_breasts"];
+    let map: BTreeMap<String, String> = serde_json::from_value(rig["unnamed"].clone()).unwrap();
+    let rename = |n: &String| map.get(n).cloned().unwrap_or_else(|| n.clone());
+    let mut source: Vec<Bone> = serde_json::from_value::<Vec<Bone>>(rig["bones"].clone()).unwrap().into_iter()
+        .map(|b| Bone { name: rename(&b.name), parent: b.parent.as_ref().map(rename), ..b }).collect();
+    let mut roles: BTreeMap<String, String> = serde_json::from_value(rig["roles"].clone()).unwrap();
+    let extra: Vec<Bone> = serde_json::from_value(json!([
+        {"name":"Bow","parent":"chest","position":[0,-0.12,1.25]},
+        {"name":"shoulder_L","parent":"chest","position":[0.04,0,1.33]},
+        {"name":"upperarm_L","parent":"shoulder_L","position":[0.15,0,1.33]},
+        {"name":"shoulder_R","parent":"chest","position":[-0.04,0,1.33]},
+        {"name":"upperarm_R","parent":"shoulder_R","position":[-0.15,0,1.33]},
+        {"name":"Ribbon_L","parent":"spine","position":[0.05,-0.1,1.1]},
+        {"name":"Ribbon_R","parent":"spine","position":[-0.05,-0.1,1.1]}
+    ])).unwrap();
+    source.extend(extra);
+    roles.insert("upperarm_L".into(), "upperarm_L".into());
+    roles.insert("upperarm_R".into(), "upperarm_R".into());
+    let request = secondary::breast_request(&source, &roles).unwrap();
+    let carried: Vec<String> = serde_json::from_value(request["carried"].clone()).unwrap();
+    let mut expected: Vec<String> = source.iter().map(|b| b.name.clone()).filter(|n| n.starts_with("Bone_P") || n.starts_with("Xiongbu")).collect();
+    expected.sort();
+    assert_eq!(carried, expected);
+    assert_eq!(carried.len(), 2 * rig["branch_bones"].as_u64().unwrap() as usize);
+    let plain: Vec<Bone> = source.iter().filter(|b| !expected.contains(&b.name)).cloned().collect();
+    assert!(secondary::breast_request(&plain, &roles).unwrap().get("carried").is_none());
 }
 
 #[test]
@@ -285,7 +357,7 @@ fn inspection_marks_the_bones_of_offered_guns() {
 
 #[test]
 fn breast_bones_carrying_other_parts_still_count_as_existing_breasts() {
-    // MMD-style rig (as in Yvonne): 胸上2.L/R carry the breast skin and also
+    // MMD-style rig: 胸上2.L/R carry the breast skin and also
     // hold ribbon and cape strips, so they are not single breasts, but the rig
     // must never be given extra breast bones.
     let source: Vec<Bone> = serde_json::from_value(json!([
@@ -340,9 +412,9 @@ fn a_real_layout_keeps_breasts_on_the_chest_and_butts_on_the_hips() {
     assert_eq!(secondary::breast_bones(&source, &weighted, &roles), vec!["B2_L".to_string(), "B2_R".to_string()]);
     assert_eq!(secondary::butt_bones(&source, &weighted, &roles), ["U1_L", "U1_R", "U2_L", "U2_R"].map(String::from).to_vec());
 }
-/// arcaneVin's skirt panels 侧裙/前裙/后裙 (two Chinese characters each) would
+/// Skirt panels named 侧裙/前裙/后裙 (two Chinese characters each) would
 /// compile to one name; they keep their names with a suffix, every other name is
-/// unchanged. The same names are checked in scripts/test_blender_moving_parts.py.
+/// unchanged. Python `secondary_bones.exported_names` must give the same names.
 #[test]
 fn kept_bones_the_compiler_would_merge_get_distinct_names() {
     let names: Vec<String> = ["侧裙_0_0", "前裙_0_0", "后裙_0_0", "胸上2.L", "胸上2.R", "hair_01", "a.b", "a_b"].iter().map(|n| n.to_string()).collect();

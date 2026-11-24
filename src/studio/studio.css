@@ -1,0 +1,116 @@
+/* The studio frame (src/studio/Studio.tsx): top bar, tab strip with status words, the view card
+   beside the tab panels, the bottom action bar and labels on the model. Theme tokens only: accents
+   are --accent*, tinted greys come from --hue, success stays --ok* / --good*, warnings --warn-*. */
+.studio-frame { min-width: 0; padding: 14px 16px 16px; border: 1px solid var(--studio-border, var(--border)); border-radius: 12px; background: var(--studio-card, var(--surface-secondary)); }
+
+/* Top bar */
+.studio-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 9px 12px; margin-bottom: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.studio-topbar-id { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; flex: 1 1 320px; min-width: 0; }
+.studio-topbar-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.studio-topbar-status { color: var(--secondary); font-size: 12.5px; min-width: 0; }
+.studio-topbar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
+.studio-topbar-below { flex: 1 1 100%; min-width: 0; }
+.studio-badge { display: inline-flex; align-items: center; min-height: 22px; padding: 1px 9px; border-radius: 11px; border: 1px solid var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+
+/* Tab strip */
+.studio-tabs { display: flex; flex-wrap: wrap; gap: 2px 4px; margin: 0 0 14px; border-bottom: 1px solid var(--border-subtle); }
+.studio-workspace .studio-tabs button.studio-tab, .studio-tabs .studio-tab { display: inline-flex; align-items: baseline; gap: 7px; min-height: 40px; margin-bottom: -1px; padding: 9px 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--secondary); font-size: 13.5px; font-weight: 600; }
+.studio-workspace .studio-tabs button.studio-tab:hover:not(:disabled) { background: var(--hover); border-color: transparent; color: var(--text); }
+.studio-workspace .studio-tabs button.studio-tab[aria-selected=true], .studio-tabs .studio-tab[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
+.studio-tabs .studio-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.studio-tab-status { font-size: 11.5px; font-weight: 500; }
+.studio-tab-status.ok { color: var(--ok-text, var(--ok)); }
+.studio-tab-status.changed { color: var(--accent-strong); }
+.studio-tab-status.attention { color: var(--warn-text); }
+.studio-tab-status.quiet { color: var(--secondary); }
+.studio-tab-panel[hidden] { display: none; }
+
+/* Cards in a panel */
+.studio-card { min-width: 0; padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.studio-card + .studio-card { margin-top: 12px; }
+.studio-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 30px; }
+.studio-card-head h3 { margin: 0; font-size: 15px; }
+.studio-card-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.studio-card-sub { margin: 3px 0 0; color: var(--secondary); font-size: 12.5px; }
+.studio-card h4 { margin: 14px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.studio-note { margin: 8px 0 0; color: var(--secondary); font-size: 12.5px; }
+.studio-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.studio-cards > * { margin: 0; padding: 8px 10px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); font-size: 12.5px; color: var(--secondary); overflow-wrap: anywhere; }
+.studio-cards strong { display: block; color: var(--text); font-size: 13px; }
+
+/* View card */
+.studio-view { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.studio-view-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); }
+.studio-view-slot { display: contents; }
+.studio-view-bar-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.studio-view-stage { position: relative; min-width: 0; }
+.studio-view-foot { display: grid; gap: 4px; padding: 8px 12px; border-top: 1px solid var(--border-subtle); color: var(--secondary); font-size: 12.5px; }
+.studio-view-foot:not(:has(p, [role=status])) { display: none; }
+.studio-view-foot-slot { display: contents; }
+.studio-view-foot p, .studio-view-foot .hint { margin: 0; max-width: none; }
+/* What the views bring along, fitted into the card. */
+.studio-view .viewport, .studio-view .movement-canvas { position: relative; }
+.studio-workspace .studio-view .viewport { border: 0; border-radius: 0; }
+.studio-view .preview-shell { max-width: none; }
+.studio-view .viewport-toolbar { border-left: 0; border-right: 0; }
+.studio-view .preview-shell > .editor-fields, .studio-view .preview-shell > .hint, .studio-view .preview-shell > .mesh-inspector, .studio-view .preview-shell > details { margin-left: 12px; margin-right: 12px; }
+.studio-view .movement-preview { border: 0; border-radius: 0; }
+.studio-view-stage > .capability-notice { margin: 10px 12px; }
+.studio-view-stage > .studio-view-wait { margin: 0; padding: 40px 16px; text-align: center; }
+/* The bar's segmented choices (radios or pressed buttons) */
+.studio-workspace .studio-view-bar button { min-height: 30px; padding: 4px 11px; border-radius: 8px; font-size: 12.5px; }
+.studio-view-bar .segmented button { border-radius: 0; }
+.studio-workspace .studio-view-bar .segmented button[aria-checked=true] { background: var(--accent-soft); color: var(--accent-strong); }
+.studio-view-tools { display: contents; }
+.studio-view-group { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.studio-workspace .studio-view-group > button { min-height: 28px; padding: 3px 11px; border: 0; border-radius: 0; background: transparent; color: var(--secondary); font-weight: 600; }
+.studio-workspace .studio-view-group > button + button { border-left: 1px solid var(--border-subtle); }
+.studio-workspace .studio-view-group > button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent-strong); }
+.studio-view-label { color: var(--secondary); font-size: 12px; margin: 0 2px 0 4px; }
+.studio-view-check { display: inline-flex; align-items: center; gap: 6px; margin: 0 2px; font-size: 12.5px; color: var(--secondary); }
+.studio-view-push { margin-left: auto; }
+
+/* Action bar */
+.studio-action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; padding: 11px 14px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.studio-action-mark { flex: none; width: 22px; text-align: center; font-size: 18px; font-weight: 600; color: var(--muted); }
+.studio-action-bar.ok .studio-action-mark { color: var(--ok); }
+.studio-action-bar.changed .studio-action-mark { color: var(--accent-strong); }
+.studio-action-bar.attention .studio-action-mark { color: var(--warn-text); }
+.studio-action-text { flex: 1 1 320px; min-width: 0; }
+.studio-action-text strong { font-size: 14px; }
+.studio-action-text p { margin: 2px 0 0; color: var(--secondary); font-size: 12.5px; }
+.studio-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+
+/* Labels on the model: plain DOM buttons over the canvas, placed by ModelLabelTracker. */
+.model-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+.model-label-dot { position: absolute; left: 0; top: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); visibility: hidden; }
+.studio-workspace .model-labels button.model-label, .model-labels .model-label { position: absolute; left: 0; top: 0; display: inline-flex; align-items: baseline; gap: 6px; min-height: 0; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-secondary); color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: auto; visibility: hidden; box-shadow: 0 2px 8px rgb(0 0 0 / .35); }
+.studio-workspace .model-labels button.model-label:hover:not(:disabled) { background: var(--elevated); border-color: var(--accent-soft-border); }
+.studio-workspace .model-labels button.model-label[aria-pressed=true], .model-labels .model-label[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent-soft-border); color: var(--accent-strong); }
+.model-labels .model-label small { font-weight: 500; font-size: 11px; color: var(--secondary); }
+.model-labels .model-label[aria-pressed=true] small { color: var(--accent-strong); }
+.model-labels .model-label:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.model-labels-legend { position: absolute; left: 10px; bottom: 8px; display: flex; align-items: center; gap: 7px; padding: 2px 8px; border-radius: 6px; background: var(--surface-secondary); color: var(--secondary); font-size: 12px; pointer-events: none; }
+.model-labels-legend::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+/* The still view's toolbar in the card's bar (Viewport with a toolbar slot). */
+.studio-view-bar .viewport-toolbar.studio-view-tools { display: contents; }
+.studio-view-bar .viewport-toolbar > .muted { font-size: 12px; }
+.studio-workspace .studio-view-bar .viewport-toolbar select { min-height: 30px; padding: 3px 8px; font-size: 12.5px; width: auto; }
+.studio-view-bar .viewport-toolbar > .row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.studio-workspace .studio-view-bar .viewport-toolbar .checkbox-line { min-height: 30px; padding: 3px 8px; font-size: 12.5px; }
+.studio-view-foot .viewport-more > summary { font-size: 12.5px; }
+.studio-view-foot .viewport-more .editor-fields { margin: 8px 0 0; }
+
+/* Keep the bar to one row where it fits: compact buttons and a small tick. */
+.studio-workspace .studio-view-bar button, .studio-workspace .studio-view-bar .segmented button { min-height: 28px; padding: 3px 9px; font-size: 12px; }
+.studio-workspace .studio-view-group > button { min-height: 26px; padding: 2px 8px; font-size: 12px; }
+.studio-view-check .checkbox { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--secondary); }
+.studio-workspace .studio-view-bar input[type=checkbox] { width: 16px; height: 16px; min-height: 0; margin: 0; }
+.studio-workspace .studio-view-bar .viewport-toolbar .checkbox-line { min-height: 28px; padding: 2px 6px; font-size: 12px; gap: 6px; }
+.studio-workspace .studio-view-bar .viewport-toolbar select { min-height: 28px; font-size: 12px; }
+
+/* Top-bar badge tones (StudioTopBar badgeTone); without a tone the badge keeps the accent. */
+.studio-badge.ok { border-color: var(--ok-border); background: var(--ok-faint); color: var(--ok-text); }
+.studio-badge.attention { border-color: rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .1); color: var(--warn-text); }
+.studio-badge.quiet { border-color: var(--border); background: transparent; color: var(--secondary); }

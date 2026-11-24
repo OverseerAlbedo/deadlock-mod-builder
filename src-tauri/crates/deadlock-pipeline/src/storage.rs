@@ -890,6 +890,8 @@ mod tests {
         assert_eq!(classify("customization-build.json"), Kind::Records);
         assert_eq!(classify("runtime-motion"), Kind::Records);
         assert_eq!(classify("output"), Kind::Output);
+        // Prepared ability objects are the user's input to every later build: never cleared after a build.
+        assert_eq!(classify("ability-objects"), Kind::Records);
     }
 
     #[test]

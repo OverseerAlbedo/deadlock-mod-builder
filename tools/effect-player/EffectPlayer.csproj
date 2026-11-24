@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <RuntimeFrameworkVersion>11.0.0</RuntimeFrameworkVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <AssemblyName>Dmb.EffectPlayer</AssemblyName>
+    <Version>0.1.0</Version>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>none</DebugType>
+    <Deterministic>true</Deterministic>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <!-- The shipped form: one self-contained, trimmed, compressed file. These settings are
+       unconditional so that build and publish restore the same package graph (trimming adds
+       the SDK's Microsoft.NET.ILLink.Tasks package) and one packages.lock.json covers both.
+       scripts/publish-effect-player.ps1 publishes it for the app. -->
+  <PropertyGroup>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- No symbols from the trimmer: they would only name the build folder inside the assemblies. -->
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
+    <!-- OpenTK loads its GL bindings by reflection, and the player reads a few library
+         members by reflection, so these assemblies are kept whole. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ValveResourceFormat.Renderer" Version="[21.1.7798]" />
+    <PackageReference Include="ValveResourceFormat" Version="[21.1.7798]" />
+    <PackageReference Include="OpenTK.Windowing.Desktop" Version="[4.9.4]" />
+  </ItemGroup>
+  <ItemGroup>
+    <TrimmerRootAssembly Include="OpenTK.Graphics" />
+    <TrimmerRootAssembly Include="ValveResourceFormat" />
+    <TrimmerRootAssembly Include="Renderer" />
+  </ItemGroup>
+  <!-- Debug symbols never ship: SkiaSharp's native package carries libSkiaSharp.pdb, which
+       would otherwise be published beside the single file. -->
+  <Target Name="DmbDropSymbolFiles" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+  <!-- Records what goes into the single file (file, package, version) for the notice check
+       in scripts/publish-effect-player.ps1 and scripts/generate-effect-player-notices.mjs. -->
+  <Target Name="DmbRecordBundleContents" AfterTargets="PrepareForBundle">
+    <WriteLinesToFile File="$(IntermediateOutputPath)dmb-bundle-contents.txt"
+                      Lines="@(FilesToBundle->'%(RelativePath)|%(NuGetPackageId)|%(NuGetPackageVersion)')"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+</Project>

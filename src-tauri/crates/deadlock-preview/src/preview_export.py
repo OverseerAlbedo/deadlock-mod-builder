@@ -72,7 +72,17 @@ def main():
         bpy.ops.wm.open_mainfile(filepath=str(source), load_ui=False, use_scripts=False)
     elif source.suffix.lower() == '.fbx':
         bpy.ops.wm.read_factory_settings(use_empty=True)
-        bpy.ops.import_scene.fbx(filepath=str(source), use_anim=True)
+        # A staged copy may hold textures beside it under shorter names
+        # (deadlock-preparation staged_images.py); any other FBX imports as before.
+        import staged_images
+        staged_images.load(bpy, str(source), lambda: bpy.ops.import_scene.fbx(filepath=str(source), use_anim=True))
+    elif source.suffix.lower() in ('.pmx', '.pmd'):
+        # MMD models through the MMD Tools add-on in this Blender, with the
+        # same settings as preparation (deadlock-preparation mmd_source.py).
+        import mmd_source
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        mmd_source.enable(bpy, output.parent)
+        mmd_source.import_model(bpy, source)
     else:
         raise RuntimeError('Unsupported preview conversion source.')
     dependencies = {str(source): before}
@@ -123,4 +133,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        # The reason reaches the app (an MMD model without MMD Tools, say).
+        try:
+            receipt = json.loads(Path(sys.argv[sys.argv.index('--')+1]).read_text(encoding='utf-8'))['receipt']
+            Path(receipt).write_text(json.dumps({'status': 'error', 'error': str(error)}, ensure_ascii=False), encoding='utf-8')
+        except Exception:
+            pass
+        raise

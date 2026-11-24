@@ -1,4 +1,5 @@
-import { ask, open } from '@tauri-apps/plugin-dialog';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { openFor } from '../dialogs';
 import { Fragment, useState } from 'react';
 import { api, basename } from '../api';
 import type { Project, Settings, StorageClearRequest, StorageKind, StorageProject, StorageReport } from '../models';
@@ -53,7 +54,7 @@ export function StorageSection({ settings, update, project, busy, dirty, operate
     }, true);
   };
   const find = async () => {
-    const folder = await open({title: 'Folder with saved projects', directory: true, multiple: false});
+    const folder = await openFor('project', {title: 'Folder with saved projects', directory: true, multiple: false});
     if (typeof folder !== 'string') return;
     await operate('Could not search for projects', async () => {
       const found = await api.storageFindProjects(folder);

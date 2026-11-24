@@ -1,0 +1,726 @@
+{
+  "helper": "Dmb.EffectPlayer",
+  "version": "0.1.0",
+  "sdk": "11.0.100",
+  "rid": "win-x64",
+  "shipped_as": "native/effect-player/win-x64/Dmb.EffectPlayer.exe (self-contained, trimmed, compressed single file)",
+  "generated_by": "scripts/generate-effect-player-notices.mjs; do not edit by hand",
+  "runtime": {
+    "id": "Microsoft.NETCore.App.Runtime.win-x64",
+    "version": "11.0.0",
+    "license": "MIT",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": {
+      "url": "https://github.com/dotnet/dotnet",
+      "commit": "297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f"
+    },
+    "bundled_files": 32,
+    "notices": [
+      {
+        "file": "dotnet-runtime-win-x64/LICENSE.TXT",
+        "origin": "the runtime pack Microsoft.NETCore.App.Runtime.win-x64 11.0.0"
+      },
+      {
+        "file": "dotnet-runtime-win-x64/THIRD-PARTY-NOTICES.TXT",
+        "origin": "the runtime pack Microsoft.NETCore.App.Runtime.win-x64 11.0.0"
+      }
+    ]
+  },
+  "packages": [
+    {
+      "id": "K4os.Compression.LZ4",
+      "version": "1.3.8",
+      "content_hash": "LhwlPa7c1zs1OV2XadMtAWdImjLIsqFJPoRcIWAadSRn0Ri1DepK65UbWLPmt4riLqx2d40xjXRk0ogpqNtK7g==",
+      "license": "MIT",
+      "copyright": "Milosz Krajewski",
+      "repository": {
+        "url": "https://github.com/MiloszKrajewski/K4os.Compression.LZ4"
+      },
+      "bundled_files": [
+        "K4os.Compression.LZ4.dll"
+      ],
+      "notices": [
+        {
+          "file": "K4os.Compression.LZ4/k4os.compression.lz4.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "K4os.Compression.LZ4/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the K4os.Compression.LZ4 entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "KeyValues2",
+      "version": "2.0.0-rc2",
+      "content_hash": "HM9ih9tsF7Lz8V57Rl5DtQIGfrkDfjv6/P8S3I+VOelxwPGczGDok9D4qA54Go/dLIyKIna8fZyshQRDu4XifQ==",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2013 Tom Edwards and ValveResourceFormat contributors",
+      "repository": {
+        "url": "https://github.com/ValveResourceFormat/Datamodel.NET",
+        "commit": "d7ae4efed7a3c940e8e357cc4732b117d295362f"
+      },
+      "bundled_files": [
+        "Datamodel.NET.dll"
+      ],
+      "notices": [
+        {
+          "file": "KeyValues2/keyvalues2.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "KeyValues2/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the KeyValues2 entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "NLayer",
+      "version": "3.0.0",
+      "content_hash": "aQrCT93NjIrJNXA7wiTSHMp9OUhGNb8YTJAwnsx2FtaNdAe74vwfguFExf6QFNU72XhNPb/bLAcdMbxvaNZgWg==",
+      "license": "MIT",
+      "copyright": "© Mark Heath 2026",
+      "repository": {
+        "url": "https://github.com/naudio/NLayer",
+        "commit": "046c7ce422970f8f0f0bc205d6c6341bcb7debf1"
+      },
+      "bundled_files": [
+        "NLayer.dll"
+      ],
+      "notices": [
+        {
+          "file": "NLayer/nlayer.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "NLayer/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the NLayer entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Core",
+      "version": "4.9.4",
+      "content_hash": "/4Mn3ABf1xNfHMzDFUapVY2K4PG3oP/oWTQJlK0JacT20HwsNe/HPIAhnAJWz27EM3ukOJDtqyQRukvQKqkcLw==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Core.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Core/opentk.core.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Core/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Graphics",
+      "version": "4.9.4",
+      "content_hash": "yZeq5swIsRnNzifVA9fLtl+qMAQvmYiF1b7U/XQLARmmU4PYQ23lPNahqAdD22XzA21ew7eG3yDyPLkYw+hDBA==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Graphics.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Graphics/opentk.graphics.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Graphics/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Mathematics",
+      "version": "4.9.4",
+      "content_hash": "2ucF25RVJzdSLXUHgjAgB058gVfSgerrR5pLCn9J+Bnyqi45NrBfPu9wyTT35ZCjYwLJCu/HJMnzKFLjq+uFIA==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Mathematics.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Mathematics/opentk.mathematics.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Mathematics/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.redist.glfw",
+      "version": "3.4.0.44",
+      "content_hash": "HEjbdk0wWxSRrXHl3DSmrA8trecndgJpAHHloJJ1vPseNfeu/ynmrH/LturU1KguRn4r3IzZ81UIp5xRjnyahg==",
+      "license": "Zlib",
+      "copyright": null,
+      "repository": {
+        "commit": "9d40a19a64652353c8f67b1c10d3622b07987da9"
+      },
+      "bundled_files": [
+        "glfw3.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.redist.glfw/opentk.redist.glfw.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.redist.glfw/COPYING.md",
+          "origin": "the package"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Windowing.Common",
+      "version": "4.9.4",
+      "content_hash": "xNjvKjoptAh6w5/YYIx/9sNv3/A2VVlTahlekTlLP+qfNyig+0jBuLHO4bWELWZ7Ta3Y1m/2Pvk0Z1KCG8VZOA==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Windowing.Common.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Windowing.Common/opentk.windowing.common.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Windowing.Common/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Windowing.Desktop",
+      "version": "4.9.4",
+      "content_hash": "LBX4jwCneISIBST2vWYLI8cdR8tLwHNcswK1decElbTAXMB+H6uFIoF41ld+af4q3TsHpjR5fyP2ilbTK3T0rA==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Windowing.Desktop.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Windowing.Desktop/opentk.windowing.desktop.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Windowing.Desktop/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "OpenTK.Windowing.GraphicsLibraryFramework",
+      "version": "4.9.4",
+      "content_hash": "wNlxnPrD7veMV8EGTTi/sCDeg5V8w/18vC0aw0Ao69eNneD7YSq9Ad+C389rVA957eHNR6Xieu/5qzHQeEOyxQ==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/opentk/opentk.git"
+      },
+      "bundled_files": [
+        "OpenTK.Windowing.GraphicsLibraryFramework.dll"
+      ],
+      "notices": [
+        {
+          "file": "OpenTK.Windowing.GraphicsLibraryFramework/opentk.windowing.graphicslibraryframework.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "OpenTK.Windowing.GraphicsLibraryFramework/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the OpenTK entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "SharpGLTF.Core",
+      "version": "1.0.7",
+      "content_hash": "dZHCUl2jH1ViiLbAwyYbVfZnFqsF1e/9OhZAfLBoggOpqnsbgKQghldK3LnobmtNRp6GNZMyaNkPceqERkqmsQ==",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2026 Vicente Penades",
+      "repository": {
+        "url": "https://github.com/vpenades/SharpGLTF",
+        "commit": "acbc151e70d65ceb8bec24fa95f0067d0e5ed933"
+      },
+      "bundled_files": [
+        "SharpGLTF.Core.dll"
+      ],
+      "notices": [
+        {
+          "file": "SharpGLTF.Core/sharpgltf.core.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "SharpGLTF.Core/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the SharpGLTF entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "SkiaSharp",
+      "version": "4.153.1",
+      "content_hash": "TghYLOUaP3q6rTjQw7U9uQaaXh8lEs9rfA1U7/VtmyAptVDtj/SmjtcWzFWmcC/VMWxe3QgbV9uyvqDL7ySFtQ==",
+      "license": "MIT",
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "repository": {
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "commit": "4783f51448f9b070dda4f87b83e941c9599e466e"
+      },
+      "bundled_files": [
+        "SkiaSharp.dll"
+      ],
+      "notices": [
+        {
+          "file": "SkiaSharp/skiasharp.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "SkiaSharp/LICENSE.txt",
+          "origin": "the package"
+        }
+      ]
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.Win32",
+      "version": "4.153.1",
+      "content_hash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q==",
+      "license": "MIT",
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "repository": {
+        "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+        "commit": "4783f51448f9b070dda4f87b83e941c9599e466e"
+      },
+      "bundled_files": [
+        "libSkiaSharp.dll"
+      ],
+      "notices": [
+        {
+          "file": "SkiaSharp.NativeAssets.Win32/skiasharp.nativeassets.win32.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "SkiaSharp.NativeAssets.Win32/LICENSE.txt",
+          "origin": "the package"
+        },
+        {
+          "file": "SkiaSharp.NativeAssets.Win32/THIRD-PARTY-NOTICES.txt",
+          "origin": "the package"
+        }
+      ]
+    },
+    {
+      "id": "System.IO.Hashing",
+      "version": "11.0.0",
+      "content_hash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ==",
+      "license": "MIT",
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "repository": {
+        "url": "https://github.com/dotnet/dotnet",
+        "commit": "297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f"
+      },
+      "bundled_files": [
+        "System.IO.Hashing.dll"
+      ],
+      "notices": [
+        {
+          "file": "System.IO.Hashing/system.io.hashing.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "System.IO.Hashing/THIRD-PARTY-NOTICES.TXT",
+          "origin": "the package"
+        },
+        {
+          "file": "System.IO.Hashing/DOTNET-LICENSE.TXT",
+          "origin": "the runtime pack Microsoft.NETCore.App.Runtime.win-x64 11.0.0 (the same repository)"
+        }
+      ]
+    },
+    {
+      "id": "System.Numerics.Tensors",
+      "version": "11.0.0",
+      "content_hash": "thx6y1hMzB6LumB/aLcZoLHWq8wr+dbldk/FiNghyT+4ynxo9u2oCTFfb5iDMDG6hykDXLorXuaf4EPEij2BBg==",
+      "license": "MIT",
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "repository": {
+        "url": "https://github.com/dotnet/dotnet",
+        "commit": "297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f"
+      },
+      "bundled_files": [
+        "System.Numerics.Tensors.dll"
+      ],
+      "notices": [
+        {
+          "file": "System.Numerics.Tensors/system.numerics.tensors.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "System.Numerics.Tensors/THIRD-PARTY-NOTICES.TXT",
+          "origin": "the package"
+        },
+        {
+          "file": "System.Numerics.Tensors/DOTNET-LICENSE.TXT",
+          "origin": "the runtime pack Microsoft.NETCore.App.Runtime.win-x64 11.0.0 (the same repository)"
+        }
+      ]
+    },
+    {
+      "id": "TinyBCSharp",
+      "version": "0.1.2",
+      "content_hash": "XNqUm7oBpYlxQyUNjpNHk+pEBSlmGsl+wkK2mJU+WNTchwke7kfzdnUQCk0H4ANnIjggz6CKIJz5i/wEFAWJRQ==",
+      "license": "MIT",
+      "copyright": null,
+      "repository": {
+        "url": "https://github.com/jandk/TinyBCSharp",
+        "commit": "5eef47a45c603f00376c4f9c358c730309d058cf"
+      },
+      "bundled_files": [
+        "TinyBCSharp.dll"
+      ],
+      "notices": [
+        {
+          "file": "TinyBCSharp/tinybcsharp.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "TinyBCSharp/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the TinyBCSharp entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "ValveKeyValue",
+      "version": "0.80.0.542",
+      "content_hash": "tuM+//7kpcWQIQ5I/I5WoB0mSHmqY2ExicD/pzQUQHH2vAm+5FUMBoVzsUtRPe7Mo1Hi+LZTOGSnLPBP8S94/Q==",
+      "license": "MIT",
+      "copyright": "Copyright © ValveKeyValue Contributors",
+      "repository": {
+        "url": "https://github.com/ValveResourceFormat/ValveKeyValue",
+        "commit": "5149a2b1fe72bea1b2fac1b8b24e11c1755c9ece"
+      },
+      "bundled_files": [
+        "ValveKeyValue.dll"
+      ],
+      "notices": [
+        {
+          "file": "ValveKeyValue/valvekeyvalue.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "ValveKeyValue/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the ValveKeyValue entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "ValvePak",
+      "version": "7.2.0.221",
+      "content_hash": "Ee86dj0pwto3zDg8jw/3TQcF+DgMR5XqIKANKlWma5F7UjTkgR4scV3bvGQsSgvezQ12fom5YCNHuTkhJ4lw6w==",
+      "license": "MIT",
+      "copyright": "Copyright © ValvePak Contributors",
+      "repository": {
+        "url": "https://github.com/ValveResourceFormat/ValvePak",
+        "commit": "d9602ca8ca16d336b30ddd1f9c866928a5b34286"
+      },
+      "bundled_files": [
+        "ValvePak.dll"
+      ],
+      "notices": [
+        {
+          "file": "ValvePak/valvepak.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "ValvePak/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the ValvePak entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "ValveResourceFormat",
+      "version": "21.1.7798",
+      "content_hash": "1/S647OLmq3jPf9mF2MYTJOtb8Z9YHlAe9nI9jZ3PCLz4Wekt8E/OmGZwXsu/6ftkH3YKgoaH/TwV0CgRIAGLw==",
+      "license": "MIT",
+      "copyright": "Copyright © ValveResourceFormat Contributors",
+      "repository": {
+        "url": "https://github.com/ValveResourceFormat/ValveResourceFormat",
+        "commit": "942df5b37ebbde6153f6c488880b91d4bed003e6"
+      },
+      "bundled_files": [
+        "ValveResourceFormat.dll"
+      ],
+      "notices": [
+        {
+          "file": "ValveResourceFormat/valveresourceformat.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "ValveResourceFormat/THIRD_PARTY_NOTICES.txt",
+          "origin": "the package"
+        },
+        {
+          "file": "ValveResourceFormat/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright line of the package nuspec"
+        }
+      ]
+    },
+    {
+      "id": "ValveResourceFormat.Renderer",
+      "version": "21.1.7798",
+      "content_hash": "S+OGNvQ9q4WGSwUl8kxLGGClPzD09ell9W8sThy9EKV20eIqAhuSJuIqeDGj4mE2ODxZcd+Wf2LRXNvJDTyATg==",
+      "license": "MIT",
+      "copyright": "Copyright © ValveResourceFormat Contributors",
+      "repository": {
+        "url": "https://github.com/ValveResourceFormat/ValveResourceFormat",
+        "commit": "942df5b37ebbde6153f6c488880b91d4bed003e6"
+      },
+      "bundled_files": [
+        "Renderer.dll"
+      ],
+      "notices": [
+        {
+          "file": "ValveResourceFormat.Renderer/valveresourceformat.renderer.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "ValveResourceFormat.Renderer/THIRD_PARTY_NOTICES.txt",
+          "origin": "the package"
+        },
+        {
+          "file": "ValveResourceFormat.Renderer/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright line of the package nuspec"
+        }
+      ]
+    },
+    {
+      "id": "Vortice.SPIRV",
+      "version": "1.0.6",
+      "content_hash": "2T/lYZmypc01JYxFegnyR3B2KFr7bO8leSAnWxqjDygdmCw1VIOb6d/9tQinCRxTxFFcA1DPodZyAYEgy+YvQw==",
+      "license": "MIT",
+      "copyright": "Copyright (c) Amer Koleci and Contributors",
+      "repository": {
+        "url": "https://github.com/amerkoleci/Vortice.Vulkan",
+        "commit": "b5f06ab84b42588cd5e574e99f879dd284e2243a"
+      },
+      "bundled_files": [
+        "Vortice.SPIRV.dll"
+      ],
+      "notices": [
+        {
+          "file": "Vortice.SPIRV/vortice.spirv.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "Vortice.SPIRV/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the Vortice.SpirvCross entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "id": "Vortice.SpirvCross",
+      "version": "1.6.0",
+      "content_hash": "4cDghlTgRKdwTPUAh8Iy2MHm767rJOKJFFRntCCy1jgrFEG1E1H0U3SsCEhecx3qh0WDetyfBMK25qKPk2ZEvw==",
+      "license": "MIT",
+      "copyright": "Copyright (c) Amer Koleci and Contributors",
+      "repository": {
+        "url": "https://github.com/amerkoleci/Vortice.Vulkan",
+        "commit": "b5f06ab84b42588cd5e574e99f879dd284e2243a"
+      },
+      "bundled_files": [
+        "spirv-cross.dll",
+        "Vortice.SpirvCross.dll"
+      ],
+      "notices": [
+        {
+          "file": "Vortice.SpirvCross/vortice.spirvcross.nuspec",
+          "origin": "the package (its metadata)"
+        },
+        {
+          "file": "Vortice.SpirvCross/LICENSE-MIT.txt",
+          "origin": "the standard MIT text, from the .NET runtime pack LICENSE.TXT, with the copyright lines of the Vortice.SpirvCross entry in ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt"
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "Esoterica",
+      "license": "MIT",
+      "used_under": "MIT",
+      "copyright": [
+        "Copyright (c) 2022-2024 Bobby Anguelov",
+        "Copyright (c) 2024-2026 Bobby Anguelov and Kirill Bazhenov"
+      ],
+      "url": "https://github.com/BobbyAnguelov/Esoterica",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/Esoterica.txt",
+        "origin": "the Esoterica entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard MIT text, from the .NET runtime pack LICENSE.TXT"
+      }
+    },
+    {
+      "name": "Filament",
+      "license": "Apache-2.0",
+      "used_under": "Apache-2.0",
+      "copyright": [
+        "Copyright 2023 The Android Open Source Project"
+      ],
+      "url": "https://github.com/google/filament",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/Filament.txt",
+        "origin": "the Filament entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard Apache License 2.0 text, from licenses/THIRD-PARTY-RUST.txt"
+      }
+    },
+    {
+      "name": "JetBrains Mono",
+      "license": "OFL-1.1",
+      "used_under": "OFL-1.1",
+      "copyright": [
+        "Copyright 2020 The JetBrains Mono Project Authors"
+      ],
+      "url": "https://github.com/JetBrains/JetBrainsMono",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/JetBrains-Mono.txt",
+        "origin": "the JetBrains Mono entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the SIL Open Font License 1.1 text, from scripts/notice-texts/OFL-1.1.txt"
+      }
+    },
+    {
+      "name": "Manrope",
+      "license": "OFL-1.1",
+      "used_under": "OFL-1.1",
+      "copyright": [
+        "Copyright 2026 Mikhail Sharanda"
+      ],
+      "url": "https://fonts.google.com/specimen/Manrope",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/Manrope.txt",
+        "origin": "the Manrope entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the SIL Open Font License 1.1 text, from scripts/notice-texts/OFL-1.1.txt"
+      }
+    },
+    {
+      "name": "meshoptimizer",
+      "license": "MIT",
+      "used_under": "MIT",
+      "copyright": [
+        "Copyright (c) 2016-2026 Arseny Kapoulkine"
+      ],
+      "url": "https://github.com/zeux/meshoptimizer",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/meshoptimizer.txt",
+        "origin": "the meshoptimizer entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard MIT text, from the .NET runtime pack LICENSE.TXT"
+      }
+    },
+    {
+      "name": "s&box",
+      "license": "MIT",
+      "used_under": "MIT",
+      "copyright": [
+        "Copyright (c) 2025 Facepunch Studios Ltd"
+      ],
+      "url": "https://github.com/Facepunch/sbox-public",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/s-box.txt",
+        "origin": "the s&box entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard MIT text, from the .NET runtime pack LICENSE.TXT"
+      }
+    },
+    {
+      "name": "SPIRV-Cross",
+      "license": "Apache-2.0 OR MIT",
+      "used_under": "Apache-2.0",
+      "copyright": [
+        "Copyright 2015-2021 Arm Limited",
+        "Copyright 2019-2021 Hans-Kristian Arntzen"
+      ],
+      "url": "https://github.com/KhronosGroup/SPIRV-Cross",
+      "inside": "Vortice.SpirvCross (spirv-cross.dll)",
+      "notice": {
+        "file": "components/SPIRV-Cross.txt",
+        "origin": "the SPIRV-Cross entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard Apache License 2.0 text, from licenses/THIRD-PARTY-RUST.txt"
+      }
+    },
+    {
+      "name": "The Lab Renderer",
+      "license": "BSD-3-Clause",
+      "used_under": "BSD-3-Clause",
+      "copyright": [
+        "Copyright (c) Valve Corporation"
+      ],
+      "url": "https://github.com/ValveSoftware/the_lab_renderer",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/The-Lab-Renderer.txt",
+        "origin": "the The Lab Renderer entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard BSD-3-Clause text, from licenses/THIRD-PARTY-RUST.txt"
+      }
+    },
+    {
+      "name": "uTinyRipper (Etc decoder)",
+      "license": "MIT",
+      "used_under": "MIT",
+      "copyright": [
+        "Copyright (c) 2020 mafaca",
+        "Copyright (c) 2017 Ishotihadus (mikunyan)"
+      ],
+      "url": "https://github.com/mafaca/UtinyRipper",
+      "inside": "ValveResourceFormat 21.1.7798 / ValveResourceFormat.Renderer 21.1.7798",
+      "notice": {
+        "file": "components/uTinyRipper.txt",
+        "origin": "the uTinyRipper (Etc decoder) entry of ValveResourceFormat 21.1.7798 THIRD_PARTY_NOTICES.txt, with the standard MIT text, from the .NET runtime pack LICENSE.TXT"
+      }
+    }
+  ],
+  "not_shipped": [
+    {
+      "id": "Blake3",
+      "version": "3.0.2",
+      "reason": "removed by trimming (no file of it is in the output)"
+    },
+    {
+      "id": "Microsoft.NET.ILLink.Tasks",
+      "version": "11.0.0",
+      "reason": "a build tool (it adds build steps; none of its files is in the output)"
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.Linux.NoDependencies",
+      "version": "4.153.1",
+      "reason": "no files for win-x64 (assets for other platforms only)"
+    },
+    {
+      "id": "SkiaSharp.NativeAssets.macOS",
+      "version": "4.153.1",
+      "reason": "no files for win-x64 (assets for other platforms only)"
+    }
+  ],
+  "missing_texts": []
+}

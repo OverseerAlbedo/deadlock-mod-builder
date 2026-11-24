@@ -18,22 +18,5 @@ export function PrepIcon({name,size=20}:{name:'model'|'roles'|'physics'|'mapping
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shapes[name]}</svg>;
 }
-const panels:{id:PrepPanel;label:string;description:string}[]=[
-  {id:'roles',label:'Body roles',description:'Check the main joints'},
-  {id:'physics',label:'Moving parts',description:'Hair, cloth and tails'},
-  {id:'mapping',label:'Bone mapping',description:'Resolve remaining bones'},
-  {id:'weapon',label:'Weapon',description:'Fit your gun'},
-  {id:'review',label:'Fit & review',description:'Confirm conversion choices'},
-];
-export function PreparationTabs({active,change,rigged,unmapped,weapon=false,weaponOnly=false,hidden=[]}:{active:PrepPanel;change:(panel:PrepPanel)=>void;rigged:boolean;unmapped:number;weapon?:boolean;weaponOnly?:boolean;hidden?:PrepPanel[]}){
-  const available=panels.filter(p=>!hidden.includes(p.id)&&(weaponOnly?['weapon','review'].includes(p.id):(rigged||!['physics','mapping'].includes(p.id))&&(p.id!=='weapon'||weapon)));
-  return <div className="prep-tabs" role="tablist" aria-label="Preparation review sections">{available.map((panel,index)=><button key={panel.id} role="tab" id={`prep-tab-${panel.id}`} aria-controls={`prep-panel-${panel.id}`} aria-selected={active===panel.id} tabIndex={active===panel.id?0:-1} onClick={()=>change(panel.id)} onKeyDown={event=>{
-    const move=event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0;
-    if(move||event.key==='Home'||event.key==='End'){
-      event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?available.length-1:(index+move+available.length)%available.length;change(available[next].id);document.getElementById(`prep-tab-${available[next].id}`)?.focus();
-    }
-  }}><PrepIcon name={panel.id}/><span><strong>{panel.label}</strong><small>{panel.description}</small></span>{panel.id==='mapping'&&unmapped>0&&<b className="prep-count">{unmapped}</b>}</button>)}</div>;
-}
-export function PreparationPanel({id,active,children}:{id:PrepPanel;active:PrepPanel;children:ReactNode}){
-  return <div id={`prep-panel-${id}`} role="tabpanel" aria-labelledby={`prep-tab-${id}`} hidden={active!==id} className="prep-panel">{children}</div>;
-}
+/* The tab strip and the tab panels are the studio frame's (`StudioTabs`, `StudioTabPanel` with
+ * base `prep`, so the ids stay `prep-tab-<id>` / `prep-panel-<id>`); the labels are `TAB_NAMES`. */

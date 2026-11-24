@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Deadlock Mod Builder Rust",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "identifier": "com.deadlockmodbuilder.migration",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -33,11 +33,14 @@
       "nsis"
     ],
     "shortDescription": "Build and validate Deadlock character mods",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2026 Deadlock Character Mod Builder contributors",
     "resources": {
       "../physics-references/": "physics-references/",
       "../resources/native/cloth-reader/manifest.json": "native/cloth-reader/manifest.json",
       "../resources/native/cloth-reader/win-x64/Dmb.ClothReader.exe": "native/cloth-reader/win-x64/Dmb.ClothReader.exe",
       "../LICENSE": "LICENSE",
+      "../NOTICE": "NOTICE",
       "../licenses/": "licenses/"
     }
   }

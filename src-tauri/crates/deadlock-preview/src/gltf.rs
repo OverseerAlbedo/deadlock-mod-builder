@@ -20,6 +20,60 @@ const MAX_JSON: usize = 32 * 1024 * 1024;
 const EXPORTER: &str = include_str!("preview_export.py");
 const SOURCE_HELPERS: &str =
     include_str!("../../deadlock-preparation/resources/blender/source_helpers.py");
+/// MMD models through the MMD Tools add-on, the same import as preparation.
+const MMD_SOURCE: &str =
+    include_str!("../../deadlock-preparation/resources/blender/mmd_source.py");
+/// Textures a staged FBX holds under shorter names, the same import as preparation.
+const STAGED_IMAGES: &str =
+    include_str!("../../deadlock-preparation/resources/blender/staged_images.py");
+/// The copy of an image a staged model names by `relative` when staging put
+/// it directly beside the model under a shorter name, because its path in the
+/// workspace would have been too long for Blender (deadlock-preparation
+/// `source.rs shorter_copies`): the staging manifest beside the model lists
+/// the copy (`relative`, one file name) and the path the model names
+/// (`origin`). The same holds for an image the model names under another
+/// extension (`origin` `body.png`, copy `body.jpg`). None for any other model,
+/// and when two copies stand for the path.
+fn staged_copy(model: &Path, relative: &str) -> Option<PathBuf> {
+    let folder = model.parent()?;
+    let filename = model.file_name()?.to_str()?;
+    let raw = fs::read(folder.join("source-manifest.json")).ok()?;
+    if raw.len() > MAX_JSON {
+        return None;
+    }
+    let entries: Vec<Value> = serde_json::from_slice(&raw).ok()?;
+    let text = |entry: &Value, key: &str| entry.get(key).and_then(Value::as_str).map(str::to_owned);
+    // Only a manifest that lists this model as its staged model.
+    if !entries.iter().any(|e| e.get("origin").is_none() && text(e, "relative").as_deref() == Some(filename)) {
+        return None;
+    }
+    let copies: Vec<PathBuf> = entries
+        .iter()
+        .filter_map(|entry| {
+            let copy = text(entry, "relative")?;
+            let plain = !copy.is_empty()
+                && copy != "."
+                && copy != ".."
+                && !copy.contains(['/', '\\', ':', '\0']);
+            (plain && same_path(&text(entry, "origin")?, relative)).then(|| folder.join(copy))
+        })
+        .collect();
+    // An image saved under another extension (a stand-in, whose `origin`
+    // has the extension the model asks for) is used the same way; two copies
+    // for one path are a choice left to the user, never a guess.
+    match copies.as_slice() {
+        [copy] => Some(copy.clone()),
+        _ => None,
+    }
+}
+/// Relative paths compared by their parts ("./tex/a.png" is "tex/a.png"),
+/// ignoring case as Windows does.
+fn same_path(a: &str, b: &str) -> bool {
+    let parts = |path: &str| -> Vec<String> {
+        path.split(['/', '\\']).filter(|p| !p.is_empty() && *p != ".").map(str::to_lowercase).collect()
+    };
+    parts(a) == parts(b)
+}
 fn err(e: impl std::fmt::Display) -> CoreError {
     fail(e.to_string())
 }
@@ -294,7 +348,12 @@ impl<'a> Document<'a> {
             {
                 return Err(fail("Remote or escaping glTF URI refused"));
             }
-            let path = self.path.parent().unwrap().join(relative.as_ref());
+            let mut path = self.path.parent().unwrap().join(relative.as_ref());
+            if !path.exists() {
+                if let Some(copy) = staged_copy(&self.path, &relative) {
+                    path = copy;
+                }
+            }
             let (path, data) = bounded_file(&path, limit, self.cancel)?;
             if !path.starts_with(self.path.parent().unwrap()) {
                 return Err(fail("glTF resource escapes source directory"));
@@ -762,6 +821,7 @@ impl Document<'_> {
         }
         let materials = array(&self.doc, "materials")?.to_vec();
         let mut textured = Vec::new();
+        let mut untextured = Vec::new();
         for (i, material) in materials.iter().enumerate() {
             obj(material)?;
             let p = material
@@ -798,7 +858,30 @@ impl Document<'_> {
             {
                 return Err(fail("glTF material factors are outside supported range"));
             }
-            let is_textured = if let Some(info) = p.get("baseColorTexture") {
+            let is_textured = if p
+                .get("baseColorTexture")
+                .and_then(|info| info.get("texCoord"))
+                .and_then(Value::as_i64)
+                == Some(-1)
+            {
+                // Out of the specification (texCoord has a minimum of 0), but
+                // Blender's exporter writes -1 when the mesh has no UV map at
+                // all (the active render UV index of a mesh without UV maps).
+                // Such an image cannot be placed on the mesh: the preview
+                // leaves it out of this material and says so. Every other
+                // negative index is still refused.
+                let name = material
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| format!("Material {}", i + 1));
+                untextured.push(name);
+                self.doc["materials"][i]["pbrMetallicRoughness"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("baseColorTexture");
+                false
+            } else if let Some(info) = p.get("baseColorTexture") {
                 if defint(info, "texCoord", 0)? != 0
                     || info
                         .get("extensions")
@@ -1224,7 +1307,15 @@ impl Document<'_> {
             }
         }
         let source = self.path.to_string_lossy().into_owned();
-        Ok(Metadata{schema_version:1,source_sha256:self.dependencies[&source].clone(),source,dependencies:self.dependencies.clone(),warnings:vec!["Preview uses approximate lighting and materials. Deadlock shaders, procedural motion and cloth simulation are not reproduced.".into()],up_axis:"Y".into(),mesh_count:meshes,vertex_count:vertices,triangle_count:triangles,bone_count:bones.len(),animations})
+        let mut warnings = vec!["Preview uses approximate lighting and materials. Deadlock shaders, procedural motion and cloth simulation are not reproduced.".to_owned()];
+        if !untextured.is_empty() {
+            warnings.push(format!(
+                "Shown without its image: {}. The model gives {} a base color image, but the mesh has no UV map to place it with.",
+                untextured.join(", "),
+                if untextured.len() == 1 { "this material" } else { "these materials" }
+            ));
+        }
+        Ok(Metadata{schema_version:1,source_sha256:self.dependencies[&source].clone(),source,dependencies:self.dependencies.clone(),warnings,up_axis:"Y".into(),mesh_count:meshes,vertex_count:vertices,triangle_count:triangles,bone_count:bones.len(),animations})
     }
 }
 fn affine(v: &[f64], eps: f64) -> bool {
@@ -1671,9 +1762,9 @@ pub fn load_source_packet(
     if suffix == "gltf" || suffix == "glb" {
         return load_packet(path, cancel, clock);
     }
-    if suffix != "blend" && suffix != "fbx" {
+    if !["blend", "fbx", "pmx", "pmd"].contains(&suffix.as_str()) {
         return Err(fail(
-            "Choose a GLB, glTF, Blender or FBX model for this preview",
+            "Choose a GLB, glTF, Blender, FBX or MMD (.pmx, .pmd) model for this preview",
         ));
     }
     let (source, raw) = measure(clock, "Snapshot authoring preview input", || {
@@ -1710,13 +1801,25 @@ pub fn load_source_packet(
     fs::write(&script, EXPORTER).map_err(err)?;
     let helpers_script = destination.path().join("source_helpers.py");
     fs::write(&helpers_script, SOURCE_HELPERS).map_err(err)?;
+    let mmd_script = destination.path().join("mmd_source.py");
+    fs::write(&mmd_script, MMD_SOURCE).map_err(err)?;
+    fs::write(destination.path().join("staged_images.py"), STAGED_IMAGES).map_err(err)?;
     fs::write(
         &job,
         serde_json::to_vec(&json!({"source":source,"output":output,"receipt":receipt}))?,
     )
     .map_err(err)?;
     measure(clock, "Export Blender preview snapshot", || {
-        let result = runner.run(
+        // The exporter writes its reason (an MMD model without MMD Tools) into
+        // the receipt of this new folder; the full output stays in the logs.
+        let reason = || {
+            bounded_file(&receipt, MAX_JSON, cancel)
+                .ok()
+                .and_then(|(_, raw)| serde_json::from_slice::<Value>(&raw).ok())
+                .and_then(|v| v.get("error").and_then(Value::as_str).map(str::to_owned))
+                .map(|reason| fail(format!("Blender preview export failed: {reason}")))
+        };
+        let result = match runner.run(
             &CommandSpec::new(blender)
                 .args([
                     "--background",
@@ -1730,10 +1833,16 @@ pub fn load_source_packet(
                 .arg("--")
                 .arg(&job)
                 .current_dir(destination.path()),
-        )?;
+        ) {
+            Ok(result) => result,
+            Err(error) => {
+                cancel.check()?;
+                return Err(reason().unwrap_or(error));
+            }
+        };
         cancel.check()?;
         if !result.success {
-            return Err(fail("Blender preview export failed; review the tool log"));
+            return Err(reason().unwrap_or_else(|| fail("Blender preview export failed; review the tool log")));
         }
         Ok(())
     })?;
@@ -1757,6 +1866,9 @@ pub fn load_source_packet(
         }
         if bounded_file(&helpers_script, MAX_JSON, cancel)?.1 != SOURCE_HELPERS.as_bytes() {
             return Err(fail("Blender source helper script changed"));
+        }
+        if bounded_file(&mmd_script, MAX_JSON, cancel)?.1 != MMD_SOURCE.as_bytes() {
+            return Err(fail("Blender MMD import script changed"));
         }
         let dependencies = result
             .get("dependencies")

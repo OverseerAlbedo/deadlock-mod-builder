@@ -1,0 +1,205 @@
+/* Prepare model in the studio frame (src/studio): top bar with menus, tabs with status words, the
+   3D view on the left of every tab, the tab panels on the right, check results, prepared output and
+   the bottom bar. Theme tokens only. The page is not a .studio-workspace page (its four untouched
+   panels keep .prep-workspace's sizes), so the studio rules that live under .studio-workspace are
+   repeated here under .prep-studio. */
+.prep-studio { container: prep-studio / inline-size; margin: 0 0 20px; }
+.prep-studio .studio-topbar { margin-bottom: 10px; }
+.prep-studio .studio-topbar-title { font-size: 14px; }
+.prep-workspace .prep-studio .studio-barmenu-button { min-height: 32px; padding: 4px 10px; font-size: 12.5px; gap: 6px; }
+.prep-workspace .prep-studio .studio-barmenu-close { min-height: 28px; }
+.prep-studio .studio-barmenu-panel { scroll-margin-top: 12px; }
+.prep-studio .prep-menu-model .prep-source { max-width: 980px; }
+.prep-studio .prep-menu-mode .field { max-width: 360px; }
+.prep-studio .prep-menu-scene .prep-scene-bare { margin: 0; padding: 0; border: 0; background: none; }
+
+/* Before a check: the model file card, open. */
+.prep-studio .prep-source-card { margin-bottom: 12px; }
+.prep-source .path-control { margin: 10px 0 0; max-width: none; }
+.prep-source .prep-source-gun { margin-top: 12px; }
+.prep-source .prep-source-gun .hint { margin: 4px 0 0; font-size: 12px; }
+.prep-source .disclosure { margin: 12px 0 0; border: 0; }
+.prep-source .disclosure > summary { padding: 8px 0; font-size: 12.5px; color: var(--secondary); }
+.prep-source .disclosure > summary small { display: inline; margin-left: 12px; font-size: 12px; }
+.prep-source .disclosure-content { padding-left: 0; }
+.prep-source-actions { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 12px; }
+.prep-source > .hint { margin: 8px 0 0; font-size: 12px; }
+.prep-studio .prep-source-preview { margin-bottom: 12px; }
+.prep-studio .prep-source-preview .viewport { height: clamp(360px, 52dvh, 620px); }
+
+/* Under the bar: the re-check line, what the check found, the Simple matched line. */
+.prep-reinspect { margin: 0 0 10px; color: var(--secondary); font-size: 12.5px; }
+.prep-found { margin: 0 0 10px; }
+.prep-found-line { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; border: 1px solid rgba(var(--warn-rgb), .45); border-radius: 9px; background: rgba(var(--warn-rgb), .08); color: var(--warn-text); font-size: 13px; }
+.prep-found-line svg { flex: none; }
+.prep-found .prep-missing-skeleton { margin-top: 8px; }
+.prep-studio .prep-matched { margin: 0 0 10px; padding: 8px 12px; font-size: 13px; }
+
+/* Notes menu */
+.prep-notes-panel { display: grid; gap: 8px; }
+.prep-notes-summary { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; }
+.prep-notes-panel .prep-preset-status { margin: 0; }
+.prep-notes-panel .prep-inspection-details { font-size: 12.5px; color: var(--secondary); }
+.prep-notes-panel .prep-inspection-details > summary { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 0; }
+.prep-notes-panel .prep-inspection-details pre { overflow: auto; max-height: 360px; max-width: 100%; }
+.prep-notes-panel .prep-inspection-details li { margin: 8px 0; }
+.prep-mode-panel .hint { margin: 6px 0 0; font-size: 12px; }
+
+/* Tabs: the studio strip, sized like the studio pages. */
+.prep-studio .studio-tabs { margin-bottom: 12px; }
+.prep-workspace .prep-studio .studio-tabs .studio-tab { min-height: 40px; padding: 9px 14px; justify-content: flex-start; border-radius: 0; }
+.prep-workspace .prep-studio .studio-tabs .studio-tab:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.prep-review-workspace { scroll-margin-top: 16px; }
+
+/* The view on the left, the panels on the right; stacked when the frame is narrow. */
+.prep-studio .prep-studio-grid { display: grid; gap: 14px; align-items: start; grid-template-columns: minmax(0, 1fr) clamp(420px, 46%, 820px); }
+.prep-studio-view, .prep-studio-panels, .prep-panel { min-width: 0; }
+.prep-studio .prep-studio-view { position: sticky; top: 0; z-index: 1; }
+.prep-studio .prep-view .viewport { height: clamp(360px, 56dvh, 640px); }
+.prep-studio .prep-view .prep-preview-empty { min-height: clamp(340px, 50dvh, 560px); border: 0; border-radius: 0; }
+.prep-studio .prep-view .preview-shell { max-width: none; }
+.prep-studio .prep-view .preview-shell > :not(.viewport):not(.viewport-toolbar) { margin-left: 12px; margin-right: 12px; }
+.prep-studio .prep-view .preview-shell > :last-child { margin-bottom: 12px; }
+.prep-view-title { font-size: 13.5px; }
+.prep-workspace .prep-studio .studio-view-bar button { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.prep-studio .prep-view-switch { display: inline-flex; flex-wrap: nowrap; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.prep-workspace .prep-studio .prep-view-switch > button { border: 0; border-radius: 0; background: transparent; color: var(--secondary); font-weight: 600; }
+.prep-workspace .prep-studio .prep-view-switch > button + button { border-left: 1px solid var(--border-subtle); }
+.prep-workspace .prep-studio .prep-view-switch > button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent-strong); }
+.prep-studio .prep-panel > .section { min-height: 0; margin-bottom: 0; }
+@container prep-studio (max-width: 960px) {
+  .prep-studio .prep-studio-grid { grid-template-columns: minmax(0, 1fr); }
+  .prep-studio .prep-studio-view { position: static; }
+  .prep-studio .prep-view .viewport { height: clamp(320px, 48dvh, 520px); }
+  .prep-studio .prep-view .prep-preview-empty { min-height: 300px; }
+}
+
+/* Fit & review */
+.prep-fit { display: grid; gap: 12px; }
+.prep-fit .studio-card + .studio-card { margin-top: 0; }
+.prep-fit-intro { margin: 0 0 10px; }
+.prep-fit .prep-fit-heading { margin: 6px 0 2px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); }
+/* .prep-workspace gives every input 42px; a card's radio stays small. */
+.prep-workspace .studio-option input[type=radio] { min-height: 0; height: 17px; }
+.prep-fit-sub { margin: 0 0 10px; }
+.prep-fit-alert { margin: 0 0 10px; padding: 8px 12px; border: 1px solid rgba(var(--warn-rgb), .5); border-radius: 8px; background: rgba(var(--warn-rgb), .1); color: var(--warn-text); font-size: 12.5px; }
+.prep-fit-note { margin: 0 0 10px; padding: 8px 12px; border: 1px solid var(--accent-soft-border); border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12.5px; }
+.prep-fit-clear { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
+.prep-fit-clear .hint { margin: 0; font-size: 12px; }
+.prep-fit-switches { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--border-subtle); }
+.prep-fit-switches .hint { margin: 0 0 8px 2px; font-size: 12px; }
+.prep-fit-switches .field { max-width: 260px; margin-top: 10px; }
+.prep-workspace .prep-fit .checkbox-line { min-height: 44px; padding: 9px 12px; margin: 8px 0 4px; }
+.prep-fit-measured { margin: 6px 0 0; font-size: 13px; }
+.prep-confirmations .studio-note { margin-top: 4px; }
+.prep-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.prep-confirm-actions .prep-preset-button { margin-left: auto; }
+.prep-confirmations .hint { margin: 8px 0 0; font-size: 12px; }
+
+/* Check results and prepared output, in the frame. */
+.prep-studio .prep-check-results { margin: 14px 0 0; padding: 14px 16px; border: 1px solid rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .07); }
+.prep-studio .prep-check-results.passed { border-color: var(--ok-border); background: var(--ok-faint); }
+.prep-studio .prep-check-heading { color: var(--warn-text); }
+.prep-studio .prep-check-results.passed .prep-check-heading { color: var(--ok-text); }
+.prep-studio .prep-check-results li { border-top-color: rgba(var(--warn-rgb), .3); padding-top: 10px; margin-top: 10px; }
+.prep-studio .prep-check-results li strong { text-transform: none; font-size: 12px; color: var(--warn-text); }
+.prep-studio .prep-check-results button { background: var(--surface); border-color: var(--border); color: var(--text); }
+.prep-studio .prep-output { margin: 14px 0 0; padding: 14px 16px; border: 1px solid var(--ok-border); border-radius: 10px; background: var(--ok-faint); }
+.prep-studio .prep-output .section-heading { margin-bottom: 8px; padding-bottom: 8px; }
+.prep-studio .prep-output .section-heading h2 { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.prep-studio .prep-output-ready { color: var(--ok-text); margin-bottom: 8px; }
+.prep-studio .prep-output-actions { margin: 10px 0 4px; gap: 8px; }
+
+/* The bottom bar ends the page (static) at every size: sticky, it covered the end of the panels
+   (Save mapping preset, the last role rows) while scrolling, at 1920×1080 as on Physics at 1280×820. */
+.prep-studio > .studio-action-bar { position: static; }
+.prep-workspace .prep-studio .studio-action-bar button { min-height: 38px; }
+
+/* Part 2: Body roles, Moving parts, Joint matches and Gun in the frame. */
+.prep-view-hint { color: var(--secondary); font-size: 12px; }
+.prep-studio .prep-panel > .prep-tab-card { margin: 0; }
+/* The Gun tab with a fit preview: the panel brings its own view, the page view is hidden (CSS
+   only: it stays mounted with whatever it loaded). */
+.prep-studio .prep-studio-grid:has(#prep-panel-weapon:not([hidden]) .prep-gun-fitcol) { grid-template-columns: minmax(0, 1fr); }
+.prep-studio .prep-studio-grid:has(#prep-panel-weapon:not([hidden]) .prep-gun-fitcol) > .prep-studio-view { display: none; }
+
+/* Chips (pressed buttons) */
+.prep-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 6px; }
+.prep-workspace .prep-chip { min-height: 32px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600; }
+.prep-workspace .prep-chip:hover:not(:disabled) { background: var(--hover); }
+.prep-workspace .prep-chip[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+.prep-alert { margin: 10px 0 0; padding: 8px 12px 8px 28px; border: 1px solid rgba(var(--warn-rgb), .5); border-radius: 9px; background: rgba(var(--warn-rgb), .08); color: var(--warn-text); font-size: 12.5px; }
+
+/* Body roles: one row per joint */
+.prep-workspace table.prep-role-table { table-layout: fixed; border-collapse: separate; border-spacing: 0 6px; }
+.prep-workspace .prep-role-table thead th { position: static; background: none; padding: 4px 8px 0; text-align: left; font-weight: 500; font-size: 12px; letter-spacing: 0; }
+.prep-role-table th:first-child { width: 28%; }
+.prep-role-table td { padding: 6px 8px; background: var(--surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+.prep-role-table td:first-child { border-left: 1px solid var(--border-subtle); border-radius: 9px 0 0 9px; }
+.prep-role-table td:last-child { border-right: 1px solid var(--border-subtle); border-radius: 0 9px 9px 0; }
+.prep-role-table tr.selected-role td { background: var(--accent-soft); border-color: var(--accent); }
+.prep-workspace .prep-role-name { width: 100%; min-height: 34px; justify-content: flex-start; padding: 4px 2px; border: 0; background: transparent; color: var(--text); font-weight: 650; font-size: 13px; text-align: left; }
+.prep-role-table tr.selected-role .prep-role-name { color: var(--accent-strong); }
+.prep-workspace .prep-role-table select, .prep-workspace .prep-role-table input { width: 100%; min-height: 36px; padding: 5px 8px; font-size: 12.5px; }
+.prep-role-table .vector-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+
+/* Moving parts: the detected groups, always shown while kept */
+.prep-physics-groups { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--border-subtle); }
+.prep-group-list { display: grid; gap: 6px; }
+.prep-group-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); scroll-margin: 60px; }
+.prep-group-row.kept { border-color: var(--border); }
+.prep-group-row.marked { border-color: var(--accent); background: var(--accent-soft); }
+.prep-workspace .prep-group-row input[type=checkbox] { width: 18px; height: 18px; flex: none; }
+.prep-group-row label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; flex: 1; min-width: 0; cursor: pointer; font-size: 13px; overflow-wrap: anywhere; }
+.prep-group-row label small { margin-left: auto; color: var(--secondary); font-size: 12px; }
+.prep-physics-card > .studio-note { margin-top: 10px; }
+
+/* Joint matches */
+.prep-quickfixes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.prep-workspace .prep-quickfix { display: grid; justify-content: stretch; justify-items: start; align-content: start; gap: 4px; min-height: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); text-align: left; }
+.prep-workspace .prep-quickfix:hover:not(:disabled) { border-color: var(--accent); background: var(--hover); }
+.prep-workspace .prep-quickfix:disabled { opacity: .6; }
+.prep-quickfix strong { font-size: 13px; }
+.prep-quickfix small { color: var(--secondary); font-size: 12px; font-weight: 400; }
+.prep-quickfix-apply { margin-top: 4px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; font-weight: 600; }
+.prep-quickfix:not(:disabled) .prep-quickfix-apply { border-color: var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); }
+.prep-groups-note { font-size: 12px; }
+.prep-proposal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.prep-proposal-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); font-size: 13px; }
+.prep-proposal-card .studio-note { margin: 0; }
+.prep-proposal-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.prep-workspace .prep-proposal-actions button, .prep-workspace .prep-bulk-row button, .prep-workspace .prep-match-controls button, .prep-workspace .prep-pager button { min-height: 32px; padding: 4px 10px; font-size: 12.5px; }
+.prep-match-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 8px; }
+.prep-segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.prep-workspace .prep-segmented > button { min-height: 34px; padding: 4px 11px; border: 0; border-radius: 0; background: transparent; color: var(--secondary); font-size: 12.5px; font-weight: 600; }
+.prep-workspace .prep-segmented > button + button { border-left: 1px solid var(--border-subtle); }
+.prep-workspace .prep-segmented > button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent-strong); }
+.prep-segmented small { font-weight: 500; }
+.prep-match-group { flex: 0 1 180px; min-width: 130px; }
+.prep-match-search { flex: 1 1 200px; min-width: 160px; }
+.prep-workspace .prep-match-filters select, .prep-workspace .prep-match-filters input { width: 100%; min-height: 34px; padding: 4px 9px; font-size: 12.5px; }
+.prep-bulk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; padding: 8px 10px; border: 1px dashed var(--border); border-radius: 9px; font-size: 12.5px; }
+.prep-bulk-row .studio-note { margin: 0; }
+.prep-bulk-row > p.studio-note { flex: 1 1 100%; font-size: 11.5px; }
+.prep-bulk-assign { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.prep-workspace .prep-bulk-assign select { min-height: 32px; padding: 3px 8px; font-size: 12.5px; max-width: 220px; }
+.prep-match-list { display: grid; gap: 6px; }
+.prep-match-row { display: grid; grid-template-columns: auto minmax(0, .8fr) minmax(0, 1.6fr); gap: 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); scroll-margin: 60px; }
+.prep-match-row.selected { border-color: var(--accent); background: var(--accent-soft); }
+.prep-workspace .prep-match-row input[type=checkbox] { width: 18px; height: 18px; margin-top: 4px; }
+.prep-match-name { display: grid; gap: 2px; min-width: 0; }
+.prep-workspace .prep-match-bone { min-height: 0; padding: 2px 0; justify-content: flex-start; border: 0; background: transparent; color: var(--text); font-weight: 650; font-size: 13px; text-align: left; overflow-wrap: anywhere; }
+.prep-match-row.selected .prep-match-bone { color: var(--accent-strong); }
+.prep-match-name small { color: var(--secondary); font-size: 11.5px; overflow-wrap: anywhere; }
+.prep-match-target { display: grid; gap: 4px; min-width: 0; }
+.prep-match-target .studio-note { margin: 0; font-size: 11.5px; }
+.prep-match-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+.prep-workspace .prep-match-controls select { flex: 1 1 160px; min-width: 0; min-height: 32px; padding: 3px 8px; font-size: 12.5px; }
+.prep-workspace .prep-match-controls select.needs { border-color: rgba(var(--warn-rgb), .6); }
+.prep-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; }
+.prep-pager-size { margin: 0 0 0 auto; }
+@container prep-studio (max-width: 1500px) { .prep-match-row { grid-template-columns: auto minmax(0, 1fr); } .prep-match-target { grid-column: 2; } }
+
+/* The Joint check view: the lit line (the view pink of the selected weighted bone) */
+.prep-studio .mapping-lit { margin: 6px 12px 0; padding: 6px 10px; border-left: 3px solid #ff71d7; border-radius: 4px; background: var(--surface); font-size: 12.5px; }
+.prep-studio .mapping-lit.none { border-left-color: var(--warn-text); color: var(--warn-text); }

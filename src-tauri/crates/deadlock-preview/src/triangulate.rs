@@ -91,7 +91,7 @@ pub fn polygon(
     let mut pending: Vec<usize> = (0..corners.len()).collect();
     let mut result = Vec::new();
     // Repeated corners (a quad that is really a triangle) are equal only to
-    // f32 precision when they come from a fit: arcaneVin's railgun had three
+    // f32 precision when they come from a fit: one model's railgun had three
     // such quads one step apart after moving the gun 1 in (exactly equal
     // before), and no ear can be cut next to them.
     let same = 4. * far * f64::from(f32::EPSILON);
@@ -257,7 +257,7 @@ mod tests {
     }
     #[test]
     fn a_quad_with_a_corner_repeated_to_f32_precision_is_a_triangle() {
-        // arcaneVin's railgun after moving the gun 1 in: corners 3 and 4 are
+        // A railgun after moving the gun 1 in: corners 3 and 4 are
         // one float step apart (exactly equal at the old offset).
         let p = [
             [14.141365, -9.347721, 49.586754],

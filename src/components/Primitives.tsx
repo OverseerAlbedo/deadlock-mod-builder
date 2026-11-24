@@ -24,7 +24,7 @@ export function StateLabel({ tone, children }: PropsWithChildren<{ tone: StateTo
   return <span className={`state-label state-${tone}`} title={typeof children === 'string' ? children : undefined}><span aria-hidden="true">{icon}</span><span>{children}</span></span>;
 }
 export function Disclosure({ title, hint, children, id, open }: PropsWithChildren<{ title: string; hint?: string; id?: string; open?: boolean }>) {
-  return <details className="disclosure" id={id} open={open}><summary><span>{title}</span>{hint && <small>{hint}</small>}</summary><div className="disclosure-content">{children}</div></details>;
+  return <details className="disclosure" id={id} open={open}><summary><span>{title}</span>{hint && <>{' '}<small>{hint}</small></>}</summary><div className="disclosure-content">{children}</div></details>;
 }
 export function Field({ label, value, onChange, hint, disabled = false }: {
   label: string; value: string; onChange: (value: string) => void; hint?: string; disabled?: boolean;

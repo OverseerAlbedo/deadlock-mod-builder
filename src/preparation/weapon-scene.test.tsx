@@ -155,22 +155,22 @@ describe('Weapon tab',()=>{
 
 describe('Preparation page with a gun in the source',()=>{
   function Harness(){const[current,setCurrent]=useState(project);return <PreparationPage project={current} update={setCurrent} busy={false} operate={async(_,task)=>task()}/>;}
-  it('applies the gun suggestion, completes the mapping and opens the Weapon tab from review issues',async()=>{
+  it('applies the gun suggestion, completes the mapping and opens the Gun tab from review issues',async()=>{
     const analysis=withGun(heroGun);
     native.preparationInspect.mockResolvedValue(analysis);native.preparationSuggest.mockResolvedValue(analysis.suggestions);
-    native.preparationReview.mockResolvedValue([{tab:'weapon',message:'Choose which object in the source is the gun (Weapon tab).'}]);
-    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByText('What we found in your model');
+    native.preparationReview.mockResolvedValue([{tab:'weapon',message:'Choose which object in the source is the gun (Gun tab).'}]);
+    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByRole('tablist',{name:'Preparation review sections'});
     expect(screen.getByText('Scene objects')).toBeVisible();
-    fireEvent.click(screen.getByRole('tab',{name:/Weapon/}));
+    fireEvent.click(screen.getByRole('tab',{name:/Gun/}));
     expect(screen.getByLabelText(/Use my gun instead of/)).toBeChecked();
     fireEvent.click(screen.getByRole('button',{name:'Check for problems'}));
-    await screen.findByText('Choose which object in the source is the gun (Weapon tab).');
+    await screen.findByText('Choose which object in the source is the gun (Gun tab).');
     const sent=native.preparationReview.mock.calls.at(-1)![2];
     expect(sent.weapon).toMatchObject({action:'replace',objects:['Pistol']});
     expect(sent.complete_mapping).toBe(true);
     fireEvent.click(screen.getByRole('tab',{name:/Body roles/}));
     fireEvent.click(screen.getByRole('button',{name:/Open section/}));
-    expect(screen.getByRole('tab',{name:/Weapon/})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByRole('tab',{name:/Gun/})).toHaveAttribute('aria-selected','true');
   });
 });
 
@@ -222,15 +222,15 @@ describe('Gun file',()=>{
 });
 
 describe('Preparation page with a gun file',()=>{
-  it('keeps the gun file through inspection and shows the Weapon tab without a gun in the source',async()=>{
+  it('keeps the gun file through inspection and shows the Gun tab without a gun in the source',async()=>{
     const start={...project,preparation_options:{weapon_source:gunPath}} as unknown as Project;
     function Harness(){const[current,setCurrent]=useState(start);return <><PreparationPage project={current} update={setCurrent} busy={false} operate={async(_,task)=>task()}/><output data-testid="project">{JSON.stringify(current.preparation_options)}</output></>;}
     const analysis={...base,analysis:{...base.analysis,weapons:[],scene:receipt},weapon_reference:heroGun} as PreparationAnalysis;
     native.preparationInspect.mockResolvedValue(analysis);native.preparationSuggest.mockResolvedValue(analysis.suggestions);
-    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByText('What we found in your model');
+    render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Load and check only'}));await screen.findByRole('tablist',{name:'Preparation review sections'});
     expect(native.preparationInspect.mock.calls[0][0].preparation_options.weapon_source).toBe(gunPath);
     expect(JSON.parse(screen.getByTestId('project').textContent!).weapon_source).toBe(gunPath);
-    fireEvent.click(screen.getByRole('tab',{name:/Weapon/}));
+    fireEvent.click(screen.getByRole('tab',{name:/Gun/}));
     expect(screen.getByText('Loading the gun from this file needs a new inspection.')).toBeVisible();
   });
 });

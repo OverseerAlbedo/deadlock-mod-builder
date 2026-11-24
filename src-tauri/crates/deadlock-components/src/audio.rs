@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 #[path = "audio_edit.rs"]
 mod edit;
-pub use edit::{EditReport, PreparedAudio, prepare_audio, preview_audio, validate_rendered_sound};
+pub use edit::{EditReport, PreparedAudio, SILENCE_POLICY, is_silent, prepare_audio, preview_audio, silent_audio, validate_rendered_sound};
+pub use edit::{CEILING_DB, EDIT_MAX_FILE_BYTES, EDIT_MAX_MINUTES, EDIT_MAX_SAMPLES, MatchedVolume, Rendered, SourceAudio, WINDOW_POLICY, WindowReport, decode_source, decode_source_file, file_sha, loudness, matched_volume, peaks, prepare_edited_audio, prepare_edited_file, render_edit, sound_samples};
+pub const LEGACY_MAX_SAMPLES: usize = edit::MAX_SAMPLES;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Metadata {
     pub format: String,

@@ -166,7 +166,7 @@ pub struct Candidate {
     pub keywords: Vec<String>,
     #[serde(default)]
     pub elongation: f64,
-    /// The gun comes from the Weapon tab's gun file, not the character file.
+    /// The gun comes from the Gun tab's gun file, not the character file.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub gun_file: bool,
     /// Deform bones the gun objects are weighted to (its own bones and charms).
@@ -241,6 +241,11 @@ pub struct Reference {
     /// Original render meshes that show the gun, including lower LODs.
     #[serde(default)]
     pub meshes: Vec<String>,
+    /// Gun meshes (of `meshes`, all detail levels) that the game shows
+    /// together with the gun's main part: a fitted gun disables them so it is
+    /// drawn once (see `place_once`). Empty for a gun of one part.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disable: Vec<String>,
     /// Base-LOD gun meshes used for measuring.
     #[serde(default)]
     pub primary: Vec<String>,
@@ -303,6 +308,9 @@ pub struct Side {
     /// "right" or "left".
     pub side: String,
     pub meshes: Vec<String>,
+    /// As `Reference::disable`, for this hand.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disable: Vec<String>,
     pub primary: Vec<String>,
     pub points: Vec<Vec3>,
     pub weights: Vec<Vec<(String, f64)>>,
@@ -322,6 +330,7 @@ impl Reference {
         let Some(gun) = self.sides.iter().find(|s| s.side == side) else { return self.clone() };
         Reference {
             meshes: gun.meshes.clone(),
+            disable: gun.disable.clone(),
             primary: gun.primary.clone(),
             points: gun.points.clone(),
             weights: gun.weights.clone(),
@@ -513,6 +522,10 @@ pub struct Plan {
     pub mesh_prefix: String,
     /// Original render meshes the fitted gun replaces.
     pub replace: Vec<String>,
+    /// Original gun meshes the game shows beside the replaced ones; they are
+    /// disabled so the fitted gun is drawn once.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disable: Vec<String>,
     /// The hero bone the fitted gun mainly follows; charms hang from it.
     #[serde(default)]
     pub anchor: String,
@@ -543,6 +556,7 @@ impl Default for Plan {
             skin: Skin::Rigid { bone: String::new() },
             mesh_prefix: "weapon_".into(),
             replace: vec![],
+            disable: vec![],
             anchor: String::new(),
             side: String::new(),
             left: None,
@@ -1044,7 +1058,7 @@ pub fn choice(options: &deadlock_project::PreparationOptions) -> Result<Choice> 
     match options.values.get("weapon") {
         None | Some(serde_json::Value::Null) => Ok(Choice::default()),
         Some(value) => {
-            let choice: Choice = serde_json::from_value(value.clone()).map_err(|_| invalid("Invalid weapon choices. Reset the Weapon tab."))?;
+            let choice: Choice = serde_json::from_value(value.clone()).map_err(|_| invalid("Invalid weapon choices. Reset the Gun tab."))?;
             if !["", "replace", "remove", "keep"].contains(&choice.action.as_str()) {
                 return Err(invalid("Choose what to do with the gun: fit it to the hero's gun, leave it out, or keep it on the hand."));
             }
@@ -1221,7 +1235,12 @@ pub fn plan(fit: &Fit, candidate: &Candidate, reference: &Reference, action: &st
         action: action.into(),
         matrix: fit.matrix,
         skin,
-        replace: if reference.separate_model { reference.model_meshes.clone() } else { reference.meshes.clone() },
+        replace: if reference.separate_model {
+            reference.model_meshes.clone()
+        } else {
+            reference.meshes.iter().filter(|m| !reference.disable.contains(m)).cloned().collect()
+        },
+        disable: if reference.separate_model { vec![] } else { reference.disable.clone() },
         anchor: fit.anchor.clone(),
         side: reference.side.clone(),
         ..Plan::default()
@@ -1251,7 +1270,7 @@ fn find_candidate<'a>(candidates: &'a [Candidate], objects: &[String]) -> Result
     candidates
         .iter()
         .find(|c| c.objects.iter().collect::<BTreeSet<_>>() == wanted)
-        .ok_or_else(|| invalid("The chosen gun is no longer in the inspected source. Inspect the source again and choose the gun in the Weapon tab."))
+        .ok_or_else(|| invalid("The chosen gun is no longer in the inspected source. Inspect the source again and choose the gun in the Gun tab."))
 }
 
 /// The hand a candidate is held in: the gun file's mark, otherwise the hand
@@ -1292,7 +1311,7 @@ pub fn plan_choice(choice: &Choice, cx: &Context) -> Result<Option<Plan>> {
         if cx.weapon_model {
             return Ok(None);
         }
-        return Err(invalid("Choose which object in the source is the gun (Weapon tab)."));
+        return Err(invalid("Choose which object in the source is the gun (Gun tab)."));
     }
     let candidate = find_candidate(cx.candidates, &choice.objects)?;
     let left_candidate = if choice.left.objects.is_empty() { None } else { Some(find_candidate(cx.candidates, &choice.left.objects)?) };
@@ -1522,6 +1541,20 @@ pub fn reference_with_simulated(
     separate_model: bool,
     cancel: &deadlock_core::CancellationToken,
 ) -> Result<Reference> {
+    reference_with_placements(base, model_text, target, simulated, separate_model, cancel).map(|(reference, _)| reference)
+}
+
+/// `reference_with_simulated` with how each hand's gun parts were placed
+/// (hand "right" or "left" for a dual-wield hero, empty otherwise), for reports.
+pub fn reference_with_placements(
+    base: &Path,
+    model_text: &str,
+    target: &[PreparedBone],
+    simulated: &BTreeSet<String>,
+    separate_model: bool,
+    cancel: &deadlock_core::CancellationToken,
+) -> Result<(Reference, Vec<(String, Placement)>)> {
+    let mut placements = vec![];
     let analysis = deadlock_model::analyze(model_text).map_err(|e| invalid(e.to_string()))?;
     let document = deadlock_resource::text::Document::parse(model_text).map_err(|e| invalid(e.to_string()))?;
     let bones: Vec<Bone> = target.iter().map(Bone::from).collect();
@@ -1729,6 +1762,14 @@ pub fn reference_with_simulated(
         }
     };
     reference.meshes = lods(&gun_bases);
+    // Which gun parts carry a fitted gun and which are disabled, per hand.
+    let choices = body_group_choices(&document);
+    let place = |side: Option<&str>| -> (Placement, Vec<String>) {
+        let nodes: Vec<(String, usize)> = guns.iter().filter(|g| side.is_none() || g.1 == side).map(|g| (g.0.clone(), g.4.triangles.len())).collect();
+        let placement = place_once(&nodes, &choices);
+        let disabled: BTreeSet<String> = placement.disable.iter().map(|n| deadlock_model::canonical(n)).collect();
+        (placement, lods(&disabled))
+    };
     if !reference.points.is_empty() {
         reference.source = "meshes".into();
         reference.bones = used_bones(&reference.weights);
@@ -1749,11 +1790,19 @@ pub fn reference_with_simulated(
                     shape.append(part);
                 }
                 gun.meshes = lods(&bases);
+                let (placement, disable) = place(Some(side));
+                gun.disable = disable;
+                placements.push((side.into(), placement));
                 gun.bones = used_bones(&gun.weights);
                 thin(&mut gun.points, &mut gun.weights);
                 gun.shape = simplify(&shape.points, &shape.triangles, PREVIEW_GUN_TRIANGLES);
                 reference.sides.push(gun);
             }
+        }
+        if reference.sides.is_empty() && !separate_model {
+            let (placement, disable) = place(None);
+            reference.disable = disable;
+            placements.push((String::new(), placement));
         }
         if reference.sides.is_empty() {
             let mut shape = RawShape::default();
@@ -1804,7 +1853,7 @@ pub fn reference_with_simulated(
             hands,
         });
     }
-    Ok(reference)
+    Ok((reference, placements))
 }
 
 /// Meshes shown only by a body group choice other than the first (the one the
@@ -1823,6 +1872,142 @@ fn optional_meshes(document: &deadlock_resource::text::Document) -> BTreeSet<Str
     }
     optional.retain(|m| !shown.contains(m));
     optional
+}
+
+/// Every body group of a model as its choices, each the set of base render
+/// nodes it shows (detail levels named by their base, compared canonically).
+/// The game shows one choice of every group at a time, the first by default;
+/// a node in no group always shows.
+pub fn body_group_choices(document: &deadlock_resource::text::Document) -> Vec<Vec<BTreeSet<String>>> {
+    document
+        .objects(Some("BodyGroup"))
+        .into_iter()
+        .map(|group| {
+            group
+                .get("children")
+                .and_then(|c| c.array())
+                .map(|a| {
+                    a.iter()
+                        .filter(|c| c.get("_class").and_then(|v| v.scalar()) == Some("BodyGroupChoice"))
+                        .map(|c| c.get("meshes").and_then(|m| m.array()).map(|a| a.iter().filter_map(|v| v.scalar().map(node_key)).collect()).unwrap_or_default())
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+        .collect()
+}
+
+fn node_key(name: &str) -> String {
+    deadlock_model::canonical(&lod_base(name))
+}
+
+/// Where a fitted gun goes among one hand's gun parts (see `place_once`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Placement {
+    /// The hand's base gun nodes in the model's order, with their triangles.
+    pub nodes: Vec<(String, usize)>,
+    /// The part that shows by default and is the gun itself.
+    pub main: Option<String>,
+    /// Base nodes that carry the fitted gun: the main part and the parts
+    /// shown instead of it in other states.
+    pub keep: Vec<String>,
+    /// Base nodes shown together with the main part: disabled.
+    pub disable: Vec<String>,
+    /// Why the body groups could not decide, when they could not; every part
+    /// then keeps the gun (it stays visible).
+    pub undecided: Option<String>,
+}
+
+/// The (group, choice) pairs that show a node.
+fn shown_by(node: &str, choices: &[Vec<BTreeSet<String>>]) -> Vec<(usize, usize)> {
+    let key = node_key(node);
+    let mut out = vec![];
+    for (group, list) in choices.iter().enumerate() {
+        for (index, shown) in list.iter().enumerate() {
+            if shown.contains(&key) {
+                out.push((group, index));
+            }
+        }
+    }
+    out
+}
+
+/// Whether some state of the body groups (one choice of every group) shows
+/// both nodes. A node in no group always shows.
+fn together(a: &[(usize, usize)], b: &[(usize, usize)]) -> bool {
+    if a.is_empty() || b.is_empty() {
+        return true;
+    }
+    a.iter().any(|(ga, ca)| b.iter().any(|(gb, cb)| ga != gb || ca == cb))
+}
+
+/// Places a fitted gun on one hand's gun parts so that it is drawn once in
+/// every state the body groups can show. The main part is the part shown by
+/// default with the most triangles (ties: the first in the model's order). A
+/// part some state shows together with it is disabled; a part shown only
+/// instead of it (another choice of its own body group) keeps the gun, so the
+/// gun does not disappear when the game switches parts. A hand of one part
+/// keeps the gun on it. When the data cannot decide (no part shows by
+/// default; a main part in no body group beside a part a body group switches
+/// on; parts shown instead of the main part that also show together) the
+/// parts in doubt keep the gun, so it stays visible.
+pub fn place_once(nodes: &[(String, usize)], choices: &[Vec<BTreeSet<String>>]) -> Placement {
+    let mut placement = Placement { nodes: nodes.to_vec(), keep: nodes.iter().map(|n| n.0.clone()).collect(), ..Placement::default() };
+    if nodes.len() < 2 {
+        placement.main = nodes.first().map(|n| n.0.clone());
+        return placement;
+    }
+    let shown: Vec<Vec<(usize, usize)>> = nodes.iter().map(|(n, _)| shown_by(n, choices)).collect();
+    let by_default = |i: usize| shown[i].is_empty() || shown[i].iter().any(|(_, c)| *c == 0);
+    let mut main: Option<usize> = None;
+    for i in (0..nodes.len()).filter(|i| by_default(*i)) {
+        if main.is_none_or(|m| nodes[i].1 > nodes[m].1) {
+            main = Some(i);
+        }
+    }
+    let Some(main) = main else {
+        placement.undecided = Some("no gun part shows by default".into());
+        return placement;
+    };
+    let (mut keep, mut disable) = (vec![main], vec![]);
+    let mut switched_beside = vec![];
+    for i in (0..nodes.len()).filter(|i| *i != main) {
+        if shown[main].is_empty() && !by_default(i) {
+            // The main part is in no body group and this part only a later
+            // choice shows: whether the game then still shows the main part
+            // is not in the data, so this part keeps the gun as well.
+            switched_beside.push(nodes[i].0.as_str());
+            keep.push(i);
+        } else if together(&shown[main], &shown[i]) {
+            disable.push(i);
+        } else {
+            keep.push(i);
+        }
+    }
+    // Parts shown instead of the main part that some state shows together
+    // would draw the gun twice there; the data does not say which one is the
+    // gun then, so all of them keep it.
+    let doubled: Vec<&str> = keep
+        .iter()
+        .filter(|a| **a != main && !switched_beside.contains(&nodes[**a].0.as_str()))
+        .filter(|a| keep.iter().any(|b| *b != main && b != *a && together(&shown[**a], &shown[*b])))
+        .map(|i| nodes[*i].0.as_str())
+        .collect();
+    let mut reasons = vec![];
+    if !switched_beside.is_empty() {
+        reasons.push(format!("the main part is in no body group and a body group switches on {}", switched_beside.join(", ")));
+    }
+    if !doubled.is_empty() {
+        reasons.push(format!("parts shown instead of the main part also show together: {}", doubled.join(", ")));
+    }
+    if !reasons.is_empty() {
+        placement.undecided = Some(reasons.join("; "));
+    }
+    keep.sort_unstable();
+    placement.main = Some(nodes[main].0.clone());
+    placement.keep = keep.iter().map(|i| nodes[*i].0.clone()).collect();
+    placement.disable = disable.iter().map(|i| nodes[*i].0.clone()).collect();
+    placement
 }
 
 fn attachments(model_text: &str, target: &[PreparedBone]) -> Vec<Attachment> {
@@ -1871,23 +2056,47 @@ pub fn mesh_mappings(plan_meshes: &[String], replace: &[String]) -> BTreeMap<Str
 pub fn record_replacements(audit: &mut serde_json::Value, plan: &Plan) {
     let Some(object) = audit.as_object_mut() else { return };
     object.insert("replace".into(), serde_json::json!(plan.replace));
+    if !plan.disable.is_empty() {
+        object.insert("disable".into(), serde_json::json!(plan.disable));
+    }
     if let Some(hands) = object.get_mut("hands").and_then(|h| h.as_array_mut()) {
         for hand in hands {
             let side = hand.get("side").and_then(|s| s.as_str()).unwrap_or_default().to_string();
             if let (Some(planned), Some(hand)) = (plan.hands().into_iter().find(|h| h.side == side), hand.as_object_mut()) {
                 hand.insert("replace".into(), serde_json::json!(planned.replace));
+                if !planned.disable.is_empty() {
+                    hand.insert("disable".into(), serde_json::json!(planned.disable));
+                }
             }
         }
     }
 }
 
+/// The original gun parts a weapon receipt disables (every hand).
+pub fn receipt_disabled(audit: &serde_json::Value) -> BTreeSet<String> {
+    let list = |value: Option<&serde_json::Value>| -> Vec<String> { value.and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default() };
+    let hands = audit.get("hands").and_then(|h| h.as_array()).into_iter().flatten();
+    list(audit.get("disable")).into_iter().chain(hands.flat_map(|hand| list(hand.get("disable")))).collect()
+}
+
 /// Mesh mappings from a weapon receipt: each hand's fitted gun replaces that
-/// hand's original gun (all detail levels).
+/// hand's original gun (all detail levels), and the gun parts the game shows
+/// beside it are disabled, so the fitted gun is drawn once.
 pub fn receipt_mappings(audit: &serde_json::Value) -> BTreeMap<String, deadlock_project::MeshMapping> {
     let list = |value: Option<&serde_json::Value>| -> Vec<String> { value.and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default() };
+    let hand = |value: &serde_json::Value| {
+        let meshes = list(value.get("meshes"));
+        let mut out = mesh_mappings(&meshes, &list(value.get("replace")));
+        if !meshes.is_empty() {
+            for name in list(value.get("disable")) {
+                out.entry(name).or_insert_with(|| deadlock_project::MeshMapping::One("@disable".into()));
+            }
+        }
+        out
+    };
     match audit.get("hands").and_then(|h| h.as_array()).filter(|h| !h.is_empty()) {
-        Some(hands) => hands.iter().flat_map(|hand| mesh_mappings(&list(hand.get("meshes")), &list(hand.get("replace")))).collect(),
-        None => mesh_mappings(&list(audit.get("meshes")), &list(audit.get("replace"))),
+        Some(hands) => hands.iter().flat_map(hand).collect(),
+        None => hand(audit),
     }
 }
 
@@ -2087,7 +2296,7 @@ mod tests {
         let right = pistol([-10., 0., 0.], [0., 0., 1.], [1., 0., 0.], 40.);
         let left = pistol([10., 0., 0.], [0., 0., 1.], [1., 0., 0.], 40.);
         let side = |name: &str, points: &[Vec3], bone: &str| Side {
-            side: name.into(), meshes: vec![format!("gun_{name}"), format!("gun_{name}_lod1")], primary: vec![format!("gun_{name}")],
+            side: name.into(), meshes: vec![format!("gun_{name}"), format!("gun_{name}_lod1")], disable: vec![], primary: vec![format!("gun_{name}")],
             points: points.to_vec(), weights: vec![vec![(bone.to_string(), 1.)]; points.len()], bones: vec![bone.into()], shape: Shape::default(),
         };
         Reference {
@@ -2161,5 +2370,135 @@ mod tests {
         // Single-gun receipts keep their earlier meaning.
         let single = serde_json::json!({"meshes": ["weapon_a", "weapon_b"], "replace": ["gun", "gun_lod1"]});
         assert_eq!(receipt_mappings(&single).len(), 2);
+    }
+
+    fn model(groups: &str) -> Vec<Vec<BTreeSet<String>>> {
+        let text = format!(
+            "<!-- kv3 encoding:text:version{{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}} format:modeldoc29:version{{3cec427c-1b0e-4d48-a90a-0436f33a6041}} -->\n\
+             {{ rootNode = {{ _class = \"RootNode\" children = [ {{ _class = \"BodyGroupList\" children = [ {groups} ] }} ] }} }}"
+        );
+        body_group_choices(&deadlock_resource::text::Document::parse(&text).unwrap())
+    }
+    fn nodes(list: &[(&str, usize)]) -> Vec<(String, usize)> {
+        list.iter().map(|(n, t)| (n.to_string(), *t)).collect()
+    }
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|n| n.to_string()).collect()
+    }
+    #[test]
+    fn body_group_choices_name_detail_levels_by_their_base() {
+        let choices = model(r#"{ _class = "BodyGroup" name = "gun" children = [
+            { _class = "BodyGroupChoice" name = "on" meshes = [ "Gun", "gun_lod1" ] },
+            { _class = "BodyGroupChoice" name = "off" meshes = [ ] } ] }"#);
+        assert_eq!(choices, vec![vec![BTreeSet::from(["gun".to_string()]), BTreeSet::new()]]);
+    }
+    #[test]
+    fn a_gun_of_one_part_keeps_the_gun_whatever_its_body_groups_say() {
+        for groups in ["", r#"{ _class = "BodyGroup" name = "gun" children = [
+            { _class = "BodyGroupChoice" name = "off" meshes = [ ] }, { _class = "BodyGroupChoice" name = "on" meshes = [ "gun" ] } ] }"#] {
+            let placement = place_once(&nodes(&[("gun", 10)]), &model(groups));
+            assert_eq!((placement.main.as_deref(), placement.keep.clone(), placement.disable.clone(), placement.undecided.clone()), (Some("gun"), names(&["gun"]), vec![], None));
+        }
+    }
+    #[test]
+    fn parts_always_shown_beside_the_gun_are_disabled() {
+        // A board with its pieces, none in a body group: the largest part carries the gun.
+        let placement = place_once(&nodes(&[("piece_a", 50), ("board", 900), ("piece_b", 900)]), &[]);
+        assert_eq!((placement.main.as_deref(), placement.keep.clone(), placement.disable.clone()), (Some("board"), names(&["board"]), names(&["piece_a", "piece_b"])));
+    }
+    #[test]
+    fn parts_another_body_group_switches_on_beside_the_gun_are_disabled() {
+        let choices = model(r#"{ _class = "BodyGroup" name = "default" children = [
+                { _class = "BodyGroupChoice" name = "base" meshes = [ "body", "gun", "gun_lod1" ] },
+                { _class = "BodyGroupChoice" name = "no_gun" meshes = [ "body" ] } ] },
+            { _class = "BodyGroup" name = "ammo" children = [
+                { _class = "BodyGroupChoice" name = "full" meshes = [ "ammo_full" ] },
+                { _class = "BodyGroupChoice" name = "two" meshes = [ "ammo_02" ] },
+                { _class = "BodyGroupChoice" name = "one" meshes = [ "ammo_01" ] } ] }"#);
+        let placement = place_once(&nodes(&[("gun", 400), ("ammo_full", 30), ("ammo_02", 20), ("ammo_01", 10)]), &choices);
+        assert_eq!((placement.main.as_deref(), placement.keep.clone(), placement.disable.clone(), placement.undecided), (Some("gun"), names(&["gun"]), names(&["ammo_full", "ammo_02", "ammo_01"]), None));
+    }
+    #[test]
+    fn a_gun_shown_in_another_state_of_its_own_body_group_keeps_the_gun() {
+        let choices = model(r#"{ _class = "BodyGroup" name = "variant" children = [
+                { _class = "BodyGroupChoice" name = "off" meshes = [ "gun" ] },
+                { _class = "BodyGroupChoice" name = "on" meshes = [ "gun_other" ] } ] },
+            { _class = "BodyGroup" name = "clip" children = [
+                { _class = "BodyGroupChoice" name = "in" meshes = [ "clip" ] },
+                { _class = "BodyGroupChoice" name = "out" meshes = [ ] } ] }"#);
+        let placement = place_once(&nodes(&[("gun_other", 900), ("gun", 500), ("clip", 40)]), &choices);
+        // The larger part shows only in the other state, so the default one is the main part.
+        assert_eq!((placement.main.as_deref(), placement.keep.clone(), placement.disable.clone()), (Some("gun"), names(&["gun_other", "gun"]), names(&["clip"])));
+    }
+    #[test]
+    fn undecided_cases_keep_the_gun_on_every_part() {
+        // No part shows by default.
+        let choices = model(r#"{ _class = "BodyGroup" name = "a" children = [
+                { _class = "BodyGroupChoice" name = "off" meshes = [ ] },
+                { _class = "BodyGroupChoice" name = "on" meshes = [ "front", "back" ] } ] }"#);
+        let placement = place_once(&nodes(&[("front", 10), ("back", 20)]), &choices);
+        assert_eq!((placement.main, placement.keep, placement.disable), (None, names(&["front", "back"]), vec![]));
+        assert!(placement.undecided.is_some());
+        // Two parts shown instead of the main part, together with each other.
+        let choices = model(r#"{ _class = "BodyGroup" name = "a" children = [
+                { _class = "BodyGroupChoice" name = "base" meshes = [ "gun" ] },
+                { _class = "BodyGroupChoice" name = "other" meshes = [ "front", "back" ] } ] }"#);
+        let placement = place_once(&nodes(&[("gun", 30), ("front", 10), ("back", 20)]), &choices);
+        assert_eq!((placement.keep, placement.disable), (names(&["gun", "front", "back"]), vec![]));
+        assert!(placement.undecided.is_some());
+        // A main part in no body group beside a part a body group switches on;
+        // a part shown by default beside it is still disabled.
+        let choices = model(r#"{ _class = "BodyGroup" name = "reload" children = [
+                { _class = "BodyGroupChoice" name = "stowed" meshes = [ "clip_stowed" ] },
+                { _class = "BodyGroupChoice" name = "in_hand" meshes = [ "clip_in_hand" ] } ] }"#);
+        let placement = place_once(&nodes(&[("bow", 300), ("clip_stowed", 20), ("clip_in_hand", 20)]), &choices);
+        assert_eq!((placement.main.as_deref(), placement.keep, placement.disable), (Some("bow"), names(&["bow", "clip_in_hand"]), names(&["clip_stowed"])));
+        assert!(placement.undecided.is_some_and(|u| u.contains("clip_in_hand")));
+    }
+    #[test]
+    fn equal_parts_shown_together_keep_the_gun_on_the_first() {
+        let placement = place_once(&nodes(&[("gun_a", 10), ("gun_b", 10)]), &[]);
+        assert_eq!((placement.keep, placement.disable), (names(&["gun_a"]), names(&["gun_b"])));
+    }
+    #[test]
+    fn each_hand_disables_only_its_own_parts_and_the_receipt_writes_them() {
+        let mut reference = dual_reference();
+        reference.meshes.extend(names(&["clip_left", "clip_left_lod1"]));
+        reference.sides[1].meshes.extend(names(&["clip_left", "clip_left_lod1"]));
+        reference.sides[1].disable = names(&["clip_left", "clip_left_lod1"]);
+        let target: Vec<Bone> = serde_json::from_value(serde_json::json!([
+            {"name":"weapon_hand_R","parent":null,"position":[-10,0,0]}, {"name":"weapon_hand_L","parent":null,"position":[10,0,0]}])).unwrap();
+        let candidates = vec![gun("gun_file_R", Some("right"), [0., 0., 0.]), gun("gun_file_L", Some("left"), [0., 1., 0.])];
+        let cx = Context { candidates: &candidates, reference: Some(&reference), source: &[], roles: &BTreeMap::new(), target: &target, body_scale: None, weapon_model: false };
+        let plan = plan_choice(&suggest_choice(&cx).unwrap(), &cx).unwrap().unwrap();
+        let left = plan.left.as_deref().unwrap();
+        assert_eq!((plan.replace.clone(), plan.disable.clone()), (names(&["gun_right", "gun_right_lod1"]), vec![]));
+        assert_eq!((left.replace.clone(), left.disable.clone()), (names(&["gun_left", "gun_left_lod1"]), names(&["clip_left", "clip_left_lod1"])));
+        let mut audit = serde_json::json!({"meshes": ["weapon_gun", "weapon_l_gun"], "hands": [
+            {"side": "right", "meshes": ["weapon_gun"]}, {"side": "left", "meshes": ["weapon_l_gun"]}]});
+        record_replacements(&mut audit, &plan);
+        assert!(audit["hands"][0].get("disable").is_none(), "a hand without such parts writes no key");
+        let one = |v: &str| deadlock_project::MeshMapping::One(v.into());
+        assert_eq!(
+            receipt_mappings(&audit),
+            BTreeMap::from([
+                ("gun_right".to_string(), one("weapon_gun")),
+                ("gun_right_lod1".to_string(), one("weapon_gun")),
+                ("gun_left".to_string(), one("weapon_l_gun")),
+                ("gun_left_lod1".to_string(), one("weapon_l_gun")),
+                ("clip_left".to_string(), one("@disable")),
+                ("clip_left_lod1".to_string(), one("@disable")),
+            ])
+        );
+        assert_eq!(receipt_disabled(&audit), BTreeSet::from(["clip_left".to_string(), "clip_left_lod1".to_string()]));
+        // A hero with one gun part: the plan and the receipt are as before.
+        let single = Reference { sides: vec![], side: String::new(), ..dual_reference().hand("right") };
+        let cx = Context { reference: Some(&single), ..cx };
+        let plan = plan_choice(&Choice { left: Hand::default(), ..suggest_choice(&cx).unwrap() }, &cx).unwrap().unwrap();
+        assert!(serde_json::to_value(&plan).unwrap().get("disable").is_none());
+        let mut audit = serde_json::json!({"meshes": ["weapon_gun"]});
+        record_replacements(&mut audit, &plan);
+        assert_eq!(audit, serde_json::json!({"meshes": ["weapon_gun"], "replace": ["gun_right", "gun_right_lod1"]}));
+        assert!(receipt_disabled(&audit).is_empty());
     }
 }

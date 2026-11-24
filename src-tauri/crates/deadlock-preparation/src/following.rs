@@ -263,6 +263,44 @@ fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
         .sqrt()
 }
 
+/// The review issue kind of `stale_message` (the page offers its one-click fix).
+pub const STALE_KIND: &str = "stale_following";
+/// Body-following matches whose anchor no longer fits the body roles or the
+/// mapping (for example after a role was changed by hand).
+pub fn stale(source: &[Bone], options: &PreparationOptions) -> Vec<String> {
+    let anchors = map(options, "mapping_anchors");
+    let mapping = map(options, "mapping");
+    let roles = map(options, "source_roles");
+    anchors
+        .iter()
+        .filter(|(name, anchor)| {
+            *name == *anchor
+                || roles.values().any(|n| n == *name)
+                || anchors.contains_key(*anchor)
+                || !source.iter().any(|b| b.name == **name)
+                || !source.iter().any(|b| b.name == **anchor)
+                || !valid_anchor(source, &roles, anchor, name)
+                || mapping.get(*anchor).is_none_or(String::is_empty)
+                || mapping.get(*name) != mapping.get(*anchor)
+        })
+        .map(|(name, _)| name.clone())
+        .collect()
+}
+/// One message for every stale body-following match (`names` from `stale`).
+pub fn stale_message(names: &[String]) -> String {
+    use crate::page_names::{JOINT_MATCHES_TAB, REFRESH_MATCHES};
+    match names {
+        [name] => format!("The body-following match for {name} no longer fits your body roles. On the {JOINT_MATCHES_TAB} tab, press {REFRESH_MATCHES}, or choose a target for {name}."),
+        _ => {
+            const SHOWN: usize = 5;
+            let mut list = names.iter().take(SHOWN).cloned().collect::<Vec<_>>().join(", ");
+            if names.len() > SHOWN {
+                list.push_str(&format!(" and {} more", names.len() - SHOWN));
+            }
+            format!("{} body-following matches no longer fit your body roles ({list}). On the {JOINT_MATCHES_TAB} tab, press {REFRESH_MATCHES}, or choose targets for these bones.", names.len())
+        }
+    }
+}
 pub fn errors(source: &[Bone], options: &PreparationOptions) -> Vec<String> {
     let anchors = map(options, "mapping_anchors");
     if options
@@ -272,21 +310,10 @@ pub fn errors(source: &[Bone], options: &PreparationOptions) -> Vec<String> {
     {
         return vec!["Invalid body-following mapping data.".into()];
     }
-    let mapping = map(options, "mapping");
-    let roles = map(options, "source_roles");
     let mut errors = vec![];
-    for (name, anchor) in &anchors {
-        if name == anchor
-            || roles.values().any(|n| n == name)
-            || anchors.contains_key(anchor)
-            || !source.iter().any(|b| b.name == *name)
-            || !source.iter().any(|b| b.name == *anchor)
-            || !valid_anchor(source, &roles, anchor, name)
-            || mapping.get(anchor).is_none_or(String::is_empty)
-            || mapping.get(name) != mapping.get(anchor)
-        {
-            errors.push(format!("Body-following mapping for {name} is stale or invalid. Run Auto-map bones again or choose a direct target."));
-        }
+    let stale = stale(source, options);
+    if !stale.is_empty() {
+        errors.push(stale_message(&stale));
     }
     if !anchors.is_empty()
         && options

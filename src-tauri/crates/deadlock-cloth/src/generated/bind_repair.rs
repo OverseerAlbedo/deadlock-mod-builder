@@ -43,7 +43,7 @@ pub(super) fn prepare(
 }
 /// Preserve original physics with kept source bones: the compiler stores
 /// their model-skeleton locals with rounding that grows down long chains
-/// (scale 1.000126 eight joints down a hair chain, measured on SiViolet),
+/// (scale 1.000126 eight joints down a hair chain, measured on a test model),
 /// while its animation rest table keeps the source values. The same
 /// reconciliation as for generated bones, without the solver cross-check.
 pub(crate) fn prepare_kept(

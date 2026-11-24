@@ -319,6 +319,52 @@ fn textures_recolor_only_blocks_in_range_and_keep_everything_else() {
 }
 
 #[test]
+fn a_range_for_one_part_recolors_only_that_part_at_every_size() {
+    use deadlock_project::color_parts::PartArea;
+    let orange = solid([140, 80, 36, 0]);
+    // 8x8 top mip of orange (four blocks), a 4x4 mip, a one-block fallback (4x4).
+    let top = vec![encode(&orange); 4];
+    let raw = texture(20, 0, 8, &[top, vec![encode(&orange)]], &[[0u8; 16]]);
+    let range = ColorRange {
+        hue: 25.,
+        hue_width: 12.,
+        saturation_range: [0.5, 1.],
+        hue_shift: 180.,
+        part: Some(color_ranges::ColorPart { u: 0.2, v: 0.2 }),
+        ..ColorRange::default()
+    };
+    // The part: the left half of the image (two triangles).
+    let left = PartArea { range: 0, pieces: 1, triangles: vec![[0., 0., 0.5, 0., 0.5, 1.], [0., 0., 0.5, 1., 0., 1.]] };
+    let result = texture_recolor::recolor_texture_parts(&raw, &[range], &[left], &CancellationToken::new()).unwrap();
+    let payload = deadlock_components::icons::texture_metadata(&raw).unwrap().payload_offset;
+    let texels = |raw: &[u8], i: usize| block_refit::decode_bc7(raw[payload + i * 16..payload + i * 16 + 16].try_into().unwrap());
+    // Top mip blocks 1..=4 (stored after the 4x4 mip): row-major 2 x 2 blocks.
+    let blue = |t: [u8; 4]| t[2] > t[0];
+    for (block, left_half) in [(1, true), (2, false), (3, true), (4, false)] {
+        let after = texels(&result.bytes, block);
+        for (t, texel) in after.iter().enumerate() {
+            // Right of the part only the columns within MASK_REACH (one pixel) change: column 4
+            // beside its right edge and column 7, which the texture repeats beside its left edge.
+            assert_eq!(blue(*texel), left_half || t % 4 == 0 || t % 4 == 3, "block {block} texel {t}: {texel:?}");
+        }
+    }
+    // The 4x4 mip is marked at its own size: columns 0-1 in the part and the one pixel of reach on
+    // each side (column 2, and column 3 repeated beside column 0): all of it at this size.
+    let small = texels(&result.bytes, 0);
+    assert!(small.iter().all(|t| blue(*t)), "{small:?}");
+    // A part away from the edges leaves the far columns of the top mip as they were.
+    let inner = PartArea { range: 0, pieces: 1, triangles: vec![[0.25, 0.25, 0.5, 0.25, 0.5, 0.75], [0.25, 0.25, 0.5, 0.75, 0.25, 0.75]] };
+    let result_inner = texture_recolor::recolor_texture_parts(&raw, &[range], &[inner], &CancellationToken::new()).unwrap();
+    let corner = texels(&result_inner.bytes, 4);
+    assert!(corner.iter().enumerate().all(|(t, texel)| blue(*texel) == (t % 4 == 0 && t / 4 < 3)), "{corner:?}");
+    // Alpha is kept.
+    assert!((0..5).all(|i| texels(&result.bytes, i).iter().all(|t| t[3] == 0)));
+    // Without its area a part range is refused, never applied to the whole image.
+    let error = texture_recolor::recolor_texture(&raw, &[range], &CancellationToken::new()).unwrap_err().to_string();
+    assert!(error.contains("could not be read"), "{error}");
+}
+
+#[test]
 fn textures_that_cannot_keep_their_data_are_refused() {
     let top = vec![encode(&solid([140, 80, 36, 0]))];
     assert!(texture_recolor::unsupported(&texture(20, 0, 4, &[top.clone()], &[])).is_none());

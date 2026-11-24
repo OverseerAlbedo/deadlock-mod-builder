@@ -95,7 +95,7 @@ pub struct Capabilities {
 }
 /// Installed mods after the game's October 16, 2026 attachment change (Build & install → Installed mods).
 #[tauri::command]
-async fn scan_installed_mods(state: AppState<'_>) -> Result<Vec<deadlock_pipeline::mod_update::InstalledMod>> {
+async fn scan_installed_mods(state: AppState<'_>) -> Result<Vec<crate::installed_mods::InstalledModView>> {
     let app = state.inner().clone();
     background(move || app.installed_mods()).await
 }
@@ -155,6 +155,13 @@ fn delete_physics_preset(state: AppState<'_>, name: String) -> Result<Vec<crate:
 async fn motion_preview(state: AppState<'_>, project: Project) -> Result<tauri::ipc::Response> {
     let app = state.inner().clone();
     background(move || app.motion_preview(project)).await.map(tauri::ipc::Response::new)
+}
+/// The movement preview's cloth packet written by Analyze (JSON), or null when
+/// there is none for this proxy. No operation lease.
+#[tauri::command]
+async fn preview_cloth(state: AppState<'_>, project: Project, proxy_sha256: String) -> Result<Option<String>> {
+    let app = state.inner().clone();
+    background(move || app.preview_cloth(project, proxy_sha256)).await
 }
 /// Test my setup: paths, one material compile and the model compiler probe.
 #[tauri::command]
@@ -239,6 +246,11 @@ async fn get_heroes(state: AppState<'_>, all_models: bool) -> Result<Vec<crate::
 async fn select_hero(state: AppState<'_>, project: Project, path: String) -> Result<Project> {
     let app = state.inner().clone();
     background(move || app.select_hero(project, &path)).await
+}
+#[tauri::command]
+async fn copy_project_for_hero(state: AppState<'_>, project: Project, path: String) -> Result<deadlock_project::hero_copy::HeroCopy> {
+    let app = state.inner().clone();
+    background(move || app.copy_for_hero(project, &path)).await
 }
 #[tauri::command]
 async fn included_physics(state: AppState<'_>, hero_path: String) -> Result<IncludedPhysics> {
@@ -391,6 +403,7 @@ pub fn run() {
             if let (Ok(settings), Some(window)) = (application.settings(), host.get_webview_window("main")) {
                 apply_theme_icon(&window, &icon_for(&settings));
             }
+            crate::effect_player::commands::connect(&application, host.handle().clone());
             host.manage(application);
             Ok(())
         })
@@ -424,6 +437,7 @@ pub fn run() {
             fix_setting_fields,
             test_setup,
             motion_preview,
+            preview_cloth,
             autosave_project,
             clear_autosaves,
             session_recovery,
@@ -442,6 +456,7 @@ pub fn run() {
             preview_source,
             get_heroes,
             select_hero,
+            copy_project_for_hero,
             included_physics,
             validate_asset_path,
             cancel_operation,
@@ -481,7 +496,38 @@ pub fn run() {
             crate::catalogs::commands::discover_variants,
             crate::catalogs::commands::discover_weapon_models,
             crate::catalogs::commands::preview_image,
+            crate::catalogs::commands::file_stamps,
             crate::catalogs::commands::preview_extra,
+            crate::catalogs::commands::hero_scene,
+            crate::catalogs::commands::replacement_color_scene,
+            crate::catalogs::commands::effect_trees,
+            crate::catalogs::commands::effect_preview,
+            crate::sound_edit::commands::sound_edit_preview,
+            crate::items::commands::item_catalog,
+            crate::items::commands::item_names_state,
+            crate::objects::commands::ability_object_catalog,
+            crate::objects::commands::prepare_ability_object,
+            crate::objects::commands::ability_object_fit,
+            crate::objects::commands::ability_object_motion,
+            crate::clips::commands::motion_catalog,
+            crate::clips::commands::clip_fit,
+            crate::clips::commands::clip_preview,
+            crate::made_clips::commands::made_clip_check,
+            crate::made_clips::commands::made_clip_actions,
+            crate::made_clips::commands::make_clip,
+            crate::made_clips::commands::made_clip_report,
+            crate::made_clips::commands::made_clip_preview,
+            crate::taken_clips::commands::taken_clip_heroes,
+            crate::taken_clips::commands::taken_clip_check,
+            crate::taken_clips::commands::taken_clip_sources,
+            crate::taken_clips::commands::taken_clip_report,
+            crate::taken_clips::commands::taken_clip_preview,
+            crate::effect_player::commands::effect_player_play,
+            crate::effect_player::commands::effect_player_edit,
+            crate::effect_player::commands::effect_player_control,
+            crate::effect_player::commands::effect_player_stop,
+            crate::effect_player::commands::effect_player_state,
+            crate::effect_player::commands::effect_player_frame,
             crate::diagnostics::commands::tool_candidates,
             crate::diagnostics::commands::tool_diagnostics,
             crate::diagnostics::commands::validate_blender,
@@ -489,6 +535,9 @@ pub fn run() {
             crate::cloth_authoring::commands::skirt_analyze,
             crate::cloth_authoring::commands::skirt_author,
             crate::cloth_authoring::commands::cloth_setup,
+            crate::installed_mods::commands::set_installed_mod_label,
+            crate::installed_mods::commands::show_installed_mod,
+            crate::installed_mods::commands::show_project_file,
             crate::vpk_slots::commands::get_vpk_slots,
             crate::vpk_slots::commands::choose_free_vpk_slot,
             crate::storage::commands::storage_report,
@@ -501,6 +550,8 @@ pub fn run() {
                 // A normal exit; a crash leaves the session marker for recovery.
                 if let tauri::RunEvent::Exit = event {
                     if let Some(application) = handle.try_state::<Arc<Application>>() {
+                        // No effect player outlives the app.
+                        application.effect_player_stop();
                         application.end_session();
                     }
                 }

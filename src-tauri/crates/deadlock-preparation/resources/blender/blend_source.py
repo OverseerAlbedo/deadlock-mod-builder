@@ -6,8 +6,18 @@ copy is saved. Packing happens before saving to retain // texture resolution.
 This imports rest geometry/materials, not animation or simulation authoring.
 """
 import hashlib
+import os
 from source_helpers import uses_linked_libraries
 from pathlib import Path
+
+
+def _too_long(path):
+    """A file that exists but whose path Blender cannot open (260 characters or more)."""
+    text = str(path)
+    if os.name != 'nt' or len(text.encode('utf-16-le')) // 2 < 260 or not os.path.isabs(text):
+        return False
+    long_form = text if text.startswith('\\\\?\\') else '\\\\?\\' + text
+    return os.path.isfile(long_form)
 
 
 def snapshot_blend(bpy, source, destination):
@@ -50,6 +60,13 @@ def snapshot_blend(bpy, source, destination):
         if image.is_dirty:
             warnings.append('Texture '+image.name+' has unsaved paint changes; the saved file on disk is used.')
         path = Path(bpy.path.abspath(image.filepath, library=image.library)).resolve()
+        if not path.is_file() and _too_long(path):
+            # Blender cannot open a path of 260 characters or more, wherever it is.
+            warnings.append('Texture file '+str(path)+' for '+image.name+' has a path too long for Blender ('
+                            +str(len(str(path).encode('utf-16-le')) // 2)+' characters; Blender can only open paths shorter than 260). '
+                            'Its material keeps a flat colour; move the model\'s folder to a shorter path and import again, '
+                            'or choose an image in Appearance.')
+            continue
         if not path.is_file():
             warnings.append('Missing texture file '+str(path)+' for '+image.name+'. Its material keeps a flat colour; choose an image in Appearance or restore the file and import again.')
             continue

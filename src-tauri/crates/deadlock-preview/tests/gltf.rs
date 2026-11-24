@@ -109,6 +109,65 @@ fn external_images_buffers_are_hashed_embedded_and_change_identity() {
     let b = packet(&temp.path().join("external.gltf"));
     assert_ne!(parts(&b).0["dependencies"][key], before);
 }
+/// A staged glTF whose image was copied beside it under a short name (its
+/// workspace path would have been too long for Blender): the staging manifest
+/// names the copy, and the source preview of the staged model reads it.
+#[test]
+fn a_staged_image_under_a_short_name_is_read_through_the_staging_manifest() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut doc: Value = serde_json::from_slice(&fs::read(root().join("external.gltf")).unwrap()).unwrap();
+    doc["images"][0]["uri"] = json!("./Long%20Folder/cloth.png");
+    fs::write(temp.path().join("external.gltf"), serde_json::to_vec(&doc).unwrap()).unwrap();
+    fs::copy(root().join("mesh.bin"), temp.path().join("mesh.bin")).unwrap();
+    fs::copy(root().join("cloth.png"), temp.path().join("0123456789abcdef.png")).unwrap();
+    // Without the manifest the image is missing.
+    let gltf = temp.path().join("external.gltf");
+    assert!(load_packet(&gltf, &CancellationToken::default(), &TimingRecorder::new("missing")).is_err());
+    let manifest = |model: &str| json!([
+        {"relative": "0123456789abcdef.png", "sha256": "0", "origin": "long folder/Cloth.png"},
+        {"relative": "external.gltf", "sha256": "0"},
+        {"relative": "mesh.bin", "sha256": "0"},
+    ]).to_string().replace("external.gltf", model);
+    // A manifest of another staged model is not used.
+    fs::write(temp.path().join("source-manifest.json"), manifest("other.gltf")).unwrap();
+    assert!(load_packet(&gltf, &CancellationToken::default(), &TimingRecorder::new("other")).is_err());
+    fs::write(temp.path().join("source-manifest.json"), manifest("external.gltf")).unwrap();
+    let bytes = packet(&gltf);
+    let (meta, glb) = parts(&bytes);
+    let doc = glb_json(glb);
+    assert_eq!(doc["images"][0]["mimeType"], "image/png");
+    let copy = temp.path().join("0123456789abcdef.png").canonicalize().unwrap();
+    assert!(meta["dependencies"].get(copy.to_string_lossy().as_ref()).is_some(), "{meta}");
+}
+/// A staged glTF that names `cloth.tga` where only `cloth.png` existed: the
+/// staged copy stands in for it (another extension), and the preview reads
+/// it; two copies for one path are never a guess.
+#[test]
+fn an_image_staged_under_another_extension_is_read_and_two_copies_are_not() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut doc: Value = serde_json::from_slice(&fs::read(root().join("external.gltf")).unwrap()).unwrap();
+    doc["images"][0]["uri"] = json!("tex/cloth.tga");
+    fs::write(temp.path().join("external.gltf"), serde_json::to_vec(&doc).unwrap()).unwrap();
+    fs::copy(root().join("mesh.bin"), temp.path().join("mesh.bin")).unwrap();
+    fs::copy(root().join("cloth.png"), temp.path().join("cloth.png")).unwrap();
+    fs::copy(root().join("cloth.png"), temp.path().join("cloth.jpg")).unwrap();
+    let gltf = temp.path().join("external.gltf");
+    let mut entries = vec![
+        json!({"relative": "cloth.png", "sha256": "0", "origin": "tex/cloth.tga", "found": "tex/cloth.png"}),
+        json!({"relative": "external.gltf", "sha256": "0"}),
+        json!({"relative": "mesh.bin", "sha256": "0"}),
+    ];
+    fs::write(temp.path().join("source-manifest.json"), json!(entries).to_string()).unwrap();
+    let bytes = packet(&gltf);
+    let (meta, glb) = parts(&bytes);
+    // The pixels decide the type, not the name the model asks for.
+    assert_eq!(glb_json(glb)["images"][0]["mimeType"], "image/png");
+    let copy = temp.path().join("cloth.png").canonicalize().unwrap();
+    assert!(meta["dependencies"].get(copy.to_string_lossy().as_ref()).is_some(), "{meta}");
+    entries.push(json!({"relative": "cloth.jpg", "sha256": "0", "origin": "tex/cloth.tga", "found": "tex/cloth.jpg"}));
+    fs::write(temp.path().join("source-manifest.json"), json!(entries).to_string()).unwrap();
+    assert!(load_packet(&gltf, &CancellationToken::default(), &TimingRecorder::new("two")).is_err());
+}
 #[test]
 fn path_uri_and_reference_rejections() {
     for uri in [
@@ -421,6 +480,75 @@ fn numeric_data_and_rest_pose_overflow_are_rejected() {
     let j = attrs.remove("JOINTS_0").unwrap();
     attrs.insert("JOINTS_00".into(), j);
     assert!(rejects(&d).contains("consecutive"));
+}
+/// One triangle whose material names an image while the mesh has no UV map,
+/// written the way Blender's glTF exporter writes it: `texCoord` -1.
+fn untextured_triangle(tex_coord: i64) -> (tempfile::TempDir, PathBuf) {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let temp = tempfile::tempdir().unwrap();
+    let points: Vec<u8> = [0f32, 0., 0., 1., 0., 0., 0., 1., 0.]
+        .iter()
+        .flat_map(|v| v.to_le_bytes())
+        .collect();
+    image::RgbaImage::from_pixel(2, 2, image::Rgba([200, 120, 90, 255]))
+        .save(temp.path().join("skin.png"))
+        .unwrap();
+    let doc = json!({
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"name": "Body", "mesh": 0}],
+        "meshes": [{"name": "Body", "primitives": [{"attributes": {"POSITION": 0}, "material": 0}]}],
+        "materials": [{"name": "Skin", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0, "texCoord": tex_coord}, "metallicFactor": 0, "roughnessFactor": 0.5}}],
+        "textures": [{"source": 0}],
+        "images": [{"uri": "skin.png"}],
+        "accessors": [{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3"}],
+        "bufferViews": [{"buffer": 0, "byteLength": 36}],
+        "buffers": [{"byteLength": 36, "uri": format!("data:application/octet-stream;base64,{}", STANDARD.encode(&points))}],
+    });
+    let path = temp.path().join("model.gltf");
+    fs::write(&path, serde_json::to_vec(&doc).unwrap()).unwrap();
+    (temp, path)
+}
+#[test]
+fn an_image_on_a_mesh_without_a_uv_map_is_left_out_with_a_warning() {
+    let (_temp, path) = untextured_triangle(-1);
+    let bytes = packet(&path);
+    let (meta, glb) = parts(&bytes);
+    assert_eq!(meta["mesh_count"], 1);
+    let warnings = meta["warnings"].as_array().unwrap();
+    assert!(
+        warnings.iter().any(|w| w.as_str().unwrap().starts_with("Shown without its image: Skin.")),
+        "{meta}"
+    );
+    let doc = glb_json(glb);
+    let material = &doc["materials"][0]["pbrMetallicRoughness"];
+    assert!(material.get("baseColorTexture").is_none(), "{material}");
+    assert_eq!(material["roughnessFactor"], 0.5);
+    // Any other negative index stays outside the specification and refused.
+    let (_temp, path) = untextured_triangle(-2);
+    let error = load_packet(&path, &CancellationToken::default(), &TimingRecorder::new("negative"))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("nonnegative glTF integer"), "{error}");
+    // A valid index on a mesh without UVs is refused as before.
+    let (_temp, path) = untextured_triangle(0);
+    let error = load_packet(&path, &CancellationToken::default(), &TimingRecorder::new("no uv"))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("no UV0"), "{error}");
+}
+/// A real export (for example from Blender) in `DMB_GLTF_PREVIEW`, read
+/// through the preview reader; prints what it found.
+#[test]
+#[ignore]
+fn an_exported_gltf_previews() {
+    let source = PathBuf::from(std::env::var("DMB_GLTF_PREVIEW").expect("DMB_GLTF_PREVIEW"));
+    let bytes = packet(&source);
+    let (meta, glb) = parts(&bytes);
+    let doc = glb_json(glb);
+    println!("{}", serde_json::to_string_pretty(&meta).unwrap());
+    println!("materials: {}", doc["materials"]);
 }
 #[test]
 fn malformed_sparse_stream_and_texture_fail_closed() {

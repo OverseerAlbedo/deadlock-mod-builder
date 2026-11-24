@@ -1,8 +1,15 @@
-import { useState } from 'react';
-import { fireEvent,render,screen } from '@testing-library/react';
+import { useContext,useEffect,useState } from 'react';
+import { PhysicsLabelsContext } from './physicsLabels';
+import { partLabels } from './CharacterPreview';
+import { fireEvent,render,screen,within } from '@testing-library/react';
+import { PreviewLinkContext, STOPPED_BEFORE_MOVING_PARTS, type PreviewState } from './previewLink';
 import { describe,it,expect,vi } from 'vitest';
 import { PhysicsPage } from './CustomizationPages';
-import { SecondaryMotion } from './SecondaryMotion';
+import { MotionFineTune, MotionStatus, MotionTools, MovingParts, type MotionProps } from './SecondaryMotion';
+/** The Automatic motion controls together: on the page they sit in the top bar and three tabs. */
+function SecondaryMotion(props:MotionProps){return <><MotionTools {...props}/><MotionFineTune {...props}/><MovingParts {...props}/><MotionStatus {...props}/></>;}
+/** Opens one of the page's tabs (Physics mode, Fine-tune, Moving parts, Tested cloth setup). */
+const tab=(name:string)=>fireEvent.click(screen.getByRole('tab',{name:new RegExp(`^${name}`)}));
 import reference from '../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json';
 import type { Project } from '../models';
 import { inspected } from '../build/testFixtures';
@@ -10,6 +17,7 @@ vi.mock('../api',()=>({api:{validateAssetPath:vi.fn()},basename:(s:string)=>s}))
 vi.mock('@tauri-apps/plugin-dialog',()=>({open:vi.fn()}));
 const original=structuredClone(reference.cases[0].expected) as unknown as Project;
 function Harness(){const [project,update]=useState<Project>({...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true,physics:{enabled:true,source:'saved.vmdl_c'},audio:[{source:'sound.vsnd_c'}]}});return <><PhysicsPage project={project} update={update} disabled={false} fail={vi.fn()} summary={null}/><output data-testid="saved">{JSON.stringify(project)}</output></>;}
+const chip=(name:string)=>fireEvent.click(screen.getByRole('tab',{name:new RegExp(`^${name}`)}));
 const saved=()=>JSON.parse(screen.getByTestId('saved').textContent!) as Project;
 describe('Generated secondary motion',()=>{
  it('shows long-skirt support only for a current analysis and exposes its reviewed type',()=>{
@@ -18,11 +26,25 @@ describe('Generated secondary motion',()=>{
    const props={project,update:vi.fn(),disabled:false,report};
    const {rerender}=render(<SecondaryMotion {...props} fresh/>);
    expect(screen.getByText(/Long-skirt support: 1 group with mesh-verified panel connections/)).toBeVisible();
-   fireEvent.click(screen.getByText('Adjust moving parts',{selector:'summary > span'}));
    fireEvent.change(screen.getByLabelText('Part type for panel'),{target:{value:'long_skirt'}});
    expect(props.update).toHaveBeenCalledWith({part_kinds:{panel:'long_skirt'}});
    rerender(<SecondaryMotion {...props} fresh={false}/>);
    expect(screen.queryByText(/Long-skirt support:/)).not.toBeInTheDocument();
+ });
+ it('says in the status that the last Analyze stopped before the moving parts while mesh mappings need a choice',()=>{
+   const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair']},customization:{enabled:true,secondary_motion:{enabled:true}}};
+   const waiting={...inspected,secondary_motion:undefined,motion_preview_nodes:undefined,unresolved_meshes:['face']};
+   const {rerender}=render(<MotionStatus project={project} update={vi.fn()} disabled={false} report={waiting} fresh/>);
+   expect(screen.getByText(STOPPED_BEFORE_MOVING_PARTS)).toBeVisible();
+   expect(screen.queryByText(/Nothing recorded for this version/)).toBeNull();
+   // Automatic motion writes body colliders; the sentence says so.
+   expect(screen.getByText(/Body colliders on the legs, arms, hips, neck and head/)).toBeInTheDocument();
+   expect(screen.queryByText(/Body collision for the new moving parts is not added/)).toBeNull();
+   const leftOut={...waiting,unresolved_meshes:[],secondary_meshes_left_out:['Hair']};
+   rerender(<MotionStatus project={project} update={vi.fn()} disabled={false} report={leftOut} fresh/>);
+   expect(screen.getByText(STOPPED_BEFORE_MOVING_PARTS)).toBeVisible();
+   rerender(<MotionStatus project={project} update={vi.fn()} disabled={false} report={{...waiting,unresolved_meshes:[]}} fresh/>);
+   expect(screen.getByText(/Nothing recorded for this version/)).toBeVisible();
  });
  it('reports shared hair movement and clears hair overrides without changing other parts',()=>{
    const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['bangs','ponytail','tail']},customization:{enabled:true,secondary_motion:{enabled:true,profiles:{ponytail:'soft' as const,tail:'stiff' as const}}}};
@@ -52,17 +74,18 @@ describe('Generated secondary motion',()=>{
    const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'source',proxy_sha256:'proxy',proxy_positions:18,groups:[],hair_motion:{policy:'bounded-length-adaptive-hair-motion-v3',shared_profile_groups:['ponytail'],custom_profile_groups:[],review_groups:[],jump_protected_groups:[{root:'ponytail',anchor:'head',stretch_tethers:true}]}}};
    const props={project,update:vi.fn(),disabled:false,report};
    const {rerender}=render(<SecondaryMotion {...props} fresh/>);
-   expect(screen.getByText('Long-hair jump protection: stretch resistance and height limits for 1 group.')).toBeVisible();
+   expect(screen.getByText('Hair jump protection: stretch resistance and height limits for 1 group.')).toBeVisible();
    rerender(<SecondaryMotion {...props} fresh={false}/>);
-   expect(screen.queryByText(/Long-hair jump protection:/)).not.toBeInTheDocument();
+   expect(screen.queryByText(/Hair jump protection:/)).not.toBeInTheDocument();
  });
  it('shows checked twist coverage and review reasons without treating stale analysis as current',()=>{
    const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true,secondary_motion:{enabled:true}}};
    const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'source',proxy_sha256:'proxy',proxy_positions:18,groups:[{source_root:'hair',root:'hair',anchor:'head',bones:['hair'],weighted_bones:['hair']}],parts:[{root:'hair',kind:'hair',reason:'Consistent hair names',roll_locked:true,review_recommended:false},{root:'tail',kind:'tail',reason:'Branching rig needs review',roll_locked:false,review_recommended:true}]}};
    const props={project,update:vi.fn(),disabled:false,fail:vi.fn(),summary:null,report};
    const {rerender}=render(<PhysicsPage {...props} fresh/>);
+   tab('Physics mode');
    expect(screen.getByText('Twist protection planned for 1 group · checked during Build.')).toBeVisible();
-   fireEvent.click(screen.getByText('Adjust moving parts',{selector:'summary > span'}));
+   tab('Moving parts');
    expect(screen.getByText(/Branching rig needs review/)).toBeVisible();
    rerender(<PhysicsPage {...props} fresh={false}/>);
    expect(screen.queryByText(/Twist protection planned for/)).not.toBeInTheDocument();
@@ -86,8 +109,8 @@ describe('Generated secondary motion',()=>{
    expect(screen.getByText(/No moving parts were found in your model’s rig/)).toBeVisible();
    expect(screen.queryByText(/No prepared physics groups/)).not.toBeInTheDocument();
  });
- it('saves the reference preset and restores optional group choices when returning to automatic',()=>{render(<Harness/>);fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));fireEvent.click(screen.getByText('Adjust moving parts',{selector:'summary > span'}));fireEvent.change(screen.getByLabelText('Movement for tail'),{target:{value:'soft'}});fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'tangtang_reference'}});expect(saved().customization.secondary_motion).toMatchObject({enabled:true,preset:'tangtang_reference',profiles:{tail:'soft'}});expect(screen.getByText(/flexible along their length, with anti-twist/)).toBeVisible();expect(screen.queryByLabelText('Movement for tail')).not.toBeInTheDocument();expect(saved().customization.audio).toEqual([{source:'sound.vsnd_c'}]);fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'automatic'}});expect(screen.getByLabelText('Movement for tail')).toHaveValue('soft');});
- it('switches modes without erasing references, tuning or other changes',()=>{render(<Harness/>);fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));expect(saved().customization.physics).toMatchObject({enabled:false,source:'saved.vmdl_c'});expect(saved().customization.audio).toEqual([{source:'sound.vsnd_c'}]);fireEvent.click(screen.getByText('Adjust moving parts',{selector:'summary > span'}));fireEvent.change(screen.getByLabelText('Movement for tail'),{target:{value:'soft'}});fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'tangtang_r2'}});expect(screen.getByText(/exact R2 setup/)).toBeVisible();fireEvent.click(screen.getByRole('radio',{name:/Preserve original physics/}));expect(saved().customization.secondary_motion).toMatchObject({enabled:false,preset:'tangtang_r2',profiles:{tail:'soft'}});fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'automatic'}});expect(screen.getByLabelText('Movement for tail')).toHaveValue('soft');});
+ it('saves the reference preset and restores optional group choices when returning to automatic',()=>{render(<Harness/>);fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));tab('Moving parts');fireEvent.change(screen.getByLabelText('Movement for tail'),{target:{value:'soft'}});fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'tangtang_reference'}});expect(saved().customization.secondary_motion).toMatchObject({enabled:true,preset:'tangtang_reference',profiles:{tail:'soft'}});tab('Fine-tune');expect(screen.getByText(/flexible along their length, with anti-twist/)).toBeVisible();expect(screen.queryByLabelText('Movement for tail')).not.toBeInTheDocument();expect(saved().customization.audio).toEqual([{source:'sound.vsnd_c'}]);fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'automatic'}});expect(screen.getByLabelText('Movement for tail')).toHaveValue('soft');});
+ it('switches modes without erasing references, tuning or other changes',()=>{render(<Harness/>);fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));expect(saved().customization.physics).toMatchObject({enabled:false,source:'saved.vmdl_c'});expect(saved().customization.audio).toEqual([{source:'sound.vsnd_c'}]);tab('Moving parts');fireEvent.change(screen.getByLabelText('Movement for tail'),{target:{value:'soft'}});fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'tangtang_r2'}});tab('Fine-tune');expect(screen.getByText(/exact R2 setup/)).toBeVisible();tab('Physics mode');fireEvent.click(screen.getByRole('radio',{name:/Preserve original physics/}));expect(saved().customization.secondary_motion).toMatchObject({enabled:false,preset:'tangtang_r2',profiles:{tail:'soft'}});fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));fireEvent.change(screen.getByLabelText('Secondary motion preset'),{target:{value:'automatic'}});expect(screen.getByLabelText('Movement for tail')).toHaveValue('soft');});
  it('explains missing preparation rather than promising a static DMX will move',()=>{const project={...original,preparation_options:{},customization:{enabled:true,secondary_motion:{enabled:true}}};render(<PhysicsPage project={project} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null}/>);expect(screen.getByRole('status')).toHaveTextContent('No prepared physics groups');});
 });
 describe('Breast motion on the Physics tab',()=>{
@@ -95,6 +118,7 @@ describe('Breast motion on the Physics tab',()=>{
  it('turns existing breast groups on and off and sets their amount together, without a conversion',()=>{
    const update=vi.fn(),preparation=vi.fn();
    const {rerender}=render(<SecondaryMotion project={base} update={update} preparation={preparation} disabled={false} report={null} fresh={false}/>);
+   chip('Breasts');
    const box=screen.getByLabelText('Breast motion');
    expect(box).toBeChecked();
    expect(screen.getByText(/On for 胸上2.L, 胸上2.R. Applies at the next Analyze and Build; no conversion needed/)).toBeVisible();
@@ -111,11 +135,12 @@ describe('Breast motion on the Physics tab',()=>{
    expect(update).toHaveBeenLastCalledWith({part_kinds:{'胸上2.L':'breast','胸上2.R':'breast'}});
    expect(preparation).toHaveBeenCalledWith({breast_motion:true});
  });
- it('leaves breast bones that carry a cape to their part type (arcaneVin)',()=>{
+ it('leaves breast bones that carry a cape to their part type (MMD rig)',()=>{
    const parts=['胸上2.L','胸上2.R'].map(root=>({root,kind:'cloth',reason:'A longer part hangs from this breast bone (reaching 53 in); it moves with that part, not as a breast',weighted_chain:[],chain_length_inches:54.7,shape_radii_inches:[1,1,1],roll_locked:false,review_recommended:false}));
    const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'s',proxy_sha256:'p',proxy_positions:4,groups:[],parts}};
    const project={...base,preparation_options:{...base.preparation_options,breast_motion:true}} as unknown as Project;
    render(<SecondaryMotion project={project} update={vi.fn()} preparation={vi.fn()} disabled={false} report={report} fresh/>);
+   chip('Breasts');
    expect(screen.queryByLabelText('Breast motion')).not.toBeInTheDocument();
    expect(screen.getByText(/胸上2.L, 胸上2.R carry a longer part \(a cape or garment\) and move with it/)).toBeVisible();
    expect(screen.queryByText(/no breast bones that can move yet/)).not.toBeInTheDocument();
@@ -124,6 +149,7 @@ describe('Breast motion on the Physics tab',()=>{
    const project={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['hair']}} as unknown as Project;
    const preparation=vi.fn(),openPreparation=vi.fn();
    const {rerender}=render(<SecondaryMotion project={project} update={vi.fn()} preparation={preparation} openPreparation={openPreparation} disabled={false} report={null} fresh={false}/>);
+   chip('Breasts');
    fireEvent.click(screen.getByLabelText('Breast motion'));
    expect(preparation).toHaveBeenCalledWith({breast_motion:true});
    const wanted={...project,preparation_options:{...project.preparation_options,breast_motion:true}} as unknown as Project;
@@ -138,6 +164,7 @@ describe('Gun charm motion on the Physics tab',()=>{
  it('turns gun charms on and off and sets their amount together, without a conversion',()=>{
    const update=vi.fn();
    const {rerender}=render(<SecondaryMotion project={base} update={update} disabled={false} report={null} fresh={false}/>);
+   chip('Gun charms');
    const box=screen.getByLabelText('Gun charm motion');
    expect(box).toBeChecked();
    expect(screen.getByText(/On for Pistol_Link_00, Key_Chain_00: a light swing that settles quickly and does not sag into the gun/)).toBeVisible();
@@ -156,9 +183,11 @@ describe('Gun charm motion on the Physics tab',()=>{
    const project={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['Bone.012','hair']}} as unknown as Project;
    const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'source',proxy_sha256:'proxy',proxy_positions:18,groups:[],parts:[{root:'Bone.012',kind:'charm',reason:'Hangs from the fitted gun; light charm swing',roll_locked:false,review_recommended:false}]}};
    const {rerender}=render(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={report} fresh/>);
+   chip('Gun charms');
    expect(screen.getByLabelText('Gun charm motion')).toBeChecked();
    rerender(<SecondaryMotion project={project} update={vi.fn()} disabled={false} report={null} fresh={false}/>);
    expect(screen.queryByLabelText('Gun charm motion')).not.toBeInTheDocument();
+   expect(screen.queryByRole('tab',{name:/^Gun charms/})).toBeNull();
  });
 });
 describe('Builds without the TangTang presets',()=>{
@@ -187,6 +216,7 @@ describe('Ear motion on the Physics tab',()=>{
  it('turns both ears off and back on together, leaving other parts alone',()=>{
    const update=vi.fn();
    const {rerender}=render(<SecondaryMotion project={base} update={update} disabled={false} report={null} fresh={false}/>);
+   chip('Ears');
    const box=screen.getByLabelText('Ear motion');
    expect(box).toBeChecked();
    fireEvent.click(box);
@@ -203,9 +233,133 @@ describe('Ear motion on the Physics tab',()=>{
  it('finds ears from the last Analyze and stays hidden without any',()=>{
    const plain={...base,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','fluff_01'],physics_kinds:{}}} as unknown as Project;
    const {rerender}=render(<SecondaryMotion project={plain} update={vi.fn()} disabled={false} report={null} fresh={false}/>);
+   chip('Ears');
    expect(screen.queryByLabelText('Ear motion')).toBeNull();
    const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'s',proxy_sha256:'p',proxy_positions:4,groups:[],parts:[{root:'fluff_01',kind:'ear',reason:'',weighted_chain:[],chain_length_inches:1,shape_radii_inches:[1,1,1],roll_locked:false,review_recommended:false}]}};
    rerender(<SecondaryMotion project={plain} update={vi.fn()} disabled={false} report={report as never} fresh/>);
    expect(screen.getByLabelText('Ear motion')).toBeChecked();
+ });
+});
+describe('The character preview beside the motion controls',()=>{
+ it('keeps one preview mounted while the physics mode and the tab change',()=>{
+   let mounts=0,unmounts=0;
+   function Probe(){useEffect(()=>{mounts++;return()=>{unmounts++;};},[]);return <div data-testid="probe">preview</div>;}
+   function Page(){const [project,update]=useState<Project>({...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true}});return <PhysicsPage project={project} update={update} disabled={false} fail={vi.fn()} summary={null} preview={<Probe/>}/>;}
+   render(<Page/>);
+   expect(screen.getByTestId('probe')).toBeInTheDocument();
+   fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));
+   tab('Fine-tune');
+   expect(screen.getByRole('tablist',{name:'Part types to fine-tune'})).toBeInTheDocument();
+   for(const name of ['Moving parts','Tested cloth setup','Fine-tune','Physics mode'])tab(name);
+   fireEvent.click(screen.getByRole('radio',{name:/Replacement cloth setup/}));
+   for(const name of ['Fine-tune','Moving parts','Tested cloth setup','Physics mode'])tab(name);
+   fireEvent.click(screen.getByRole('radio',{name:/Automatic secondary motion/}));
+   fireEvent.click(screen.getByRole('radio',{name:/Preserve original physics/}));
+   expect(screen.queryByRole('tablist',{name:'Part types to fine-tune'})).toBeNull();
+   expect(screen.getByTestId('probe')).toBeInTheDocument();
+   expect(mounts).toBe(1);
+   expect(unmounts).toBe(0);
+ });
+ it('opens Fine-tune on a part type when its label on the character is clicked, and marks its first part on Moving parts',()=>{
+   const nodes=[{bone:'hair_1',root:'hair',kind:'hair',goal:.5,drag:.1,gravity:0,travel:0},{bone:'tail_1',root:'tail',kind:'tail',goal:.5,drag:.1,gravity:0,travel:0}];
+   // Stands in for the 3D view: the same labels CharacterPreview gives the views, as plain buttons.
+   function Labels(){const context=useContext(PhysicsLabelsContext);const set=context&&partLabels(nodes,context.active,context.select);return <div>{set?.items.map(item=><button key={item.id} aria-pressed={Boolean(item.active)} onClick={()=>set.select(item.id)}>{item.text} label</button>)}</div>;}
+   const project={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true,secondary_motion:{enabled:true}}};
+   const report={...inspected,secondary_motion:{preset:'automatic',source_sha256:'s',proxy_sha256:'p',proxy_positions:2,groups:[{source_root:'hair',root:'hair',anchor:'head',bones:['hair_1'],weighted_bones:['hair_1']},{source_root:'tail',root:'tail',anchor:'pelvis',bones:['tail_1'],weighted_bones:['tail_1']}],parts:[{root:'hair',kind:'hair',reason:'Named hair',roll_locked:true,review_recommended:false},{root:'tail',kind:'tail',reason:'Named tail',roll_locked:true,review_recommended:false}],preview_nodes:nodes}};
+   render(<PhysicsPage project={project} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null} fresh report={report} preview={<Labels/>}/>);
+   expect(screen.getByText('2 groups · 2 moving bones · 2 part types · recorded by the last Analyze')).toBeInTheDocument();
+   tab('Physics mode');
+   fireEvent.click(screen.getByRole('button',{name:'Tails label'}));
+   expect(screen.getByRole('tab',{name:/^Fine-tune/})).toHaveAttribute('aria-selected','true');
+   expect(screen.getByRole('tab',{name:/^Tails/})).toHaveAttribute('aria-selected','true');
+   expect(screen.getByRole('button',{name:'Tails label'})).toHaveAttribute('aria-pressed','true');
+   tab('Moving parts');
+   fireEvent.click(screen.getByRole('button',{name:'Tails label'}));
+   expect(screen.getByRole('tab',{name:/^Moving parts/})).toHaveAttribute('aria-selected','true');
+   expect(screen.getByLabelText('Part type for tail').closest('.moving-parts-row')).toHaveClass('marked');
+   expect(screen.getByLabelText('Part type for hair').closest('.moving-parts-row')).not.toHaveClass('marked');
+ });
+ describe('the line above the sliders',()=>{
+   const automatic={...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true,secondary_motion:{enabled:true}}} as Project;
+   const base:PreviewState={mode:'still',loaded:true,nodes:2,analyzed:true,analyzing:false,canMove:true};
+   /** Stands in for CharacterPreview: reports the given state and its actions as the real one does. */
+   function Fake({state,show,load}:{state:PreviewState;show:()=>void;load:()=>void}){const link=useContext(PreviewLinkContext);useEffect(()=>{link?.report(state);if(link)link.actions.current={showMovement:show,load};},[link,state,show,load]);return <div data-testid="probe"/>;}
+   function Page({state,show=vi.fn(),load=vi.fn(),next=vi.fn()}:{state:PreviewState;show?:()=>void;load?:()=>void;next?:()=>void}){const [project,update]=useState<Project>(automatic);return <><PhysicsPage project={project} update={update} disabled={false} fail={vi.fn()} summary={null} next={next} preview={<Fake state={state} show={show} load={load}/>}/><output data-testid="saved">{JSON.stringify(project)}</output></>;}
+   /** The page's open tab (the Fine-tune chips have their own inner tab panel). */
+   const panel=()=>document.querySelector<HTMLElement>('.studio-tab-panel:not([hidden])')!;
+   it('asks for Movement on Still, and See it move does what the preview’s Movement button does',()=>{
+     const show=vi.fn();
+     render(<Page state={base} show={show}/>);
+     expect(within(panel()).getByText('The sliders show in Movement.')).toBeVisible();
+     fireEvent.click(screen.getByRole('button',{name:'See it move'}));
+     expect(show).toHaveBeenCalledTimes(1);
+     tab('Moving parts');
+     expect(within(panel()).getByText('The sliders show in Movement.')).toBeVisible();
+     expect(screen.getByRole('button',{name:'See it move'})).toBeVisible();
+   });
+   it('offers See it move when nothing is analyzed yet, and Build & install when Analyze found nothing that swings',()=>{
+     const next=vi.fn(),show=vi.fn();
+     const {unmount}=render(<Page state={{...base,nodes:0,analyzed:false}} next={next} show={show}/>);
+     expect(within(panel()).getByText(/Nothing is analyzed yet in this session/)).toBeVisible();
+     expect(screen.queryByRole('button',{name:'Go to Build & install'})).toBeNull();
+     fireEvent.click(screen.getByRole('button',{name:'See it move'}));
+     expect(show).toHaveBeenCalledTimes(1);
+     expect(next).not.toHaveBeenCalled();
+     unmount();
+     render(<Page state={{...base,mode:'movement',nodes:0,analyzed:true}} next={next}/>);
+     expect(within(panel()).getByText(/The last Analyze recorded nothing that swings/)).toBeVisible();
+     fireEvent.click(screen.getByRole('button',{name:'Go to Build & install'}));
+     expect(next).toHaveBeenCalledTimes(1);
+   });
+   it('says that the last Analyze stopped before the moving parts while mesh mappings need a choice',()=>{
+     const next=vi.fn(),show=vi.fn();
+     render(<Page state={{...base,mode:'movement',nodes:0,analyzed:true,stopped:true}} next={next} show={show}/>);
+     expect(within(panel()).getByText(STOPPED_BEFORE_MOVING_PARTS)).toBeVisible();
+     expect(within(panel()).queryByText(/recorded nothing that swings/)).toBeNull();
+     fireEvent.click(screen.getByRole('button',{name:'Go to Build & install'}));
+     expect(next).toHaveBeenCalledTimes(1);
+     expect(show).not.toHaveBeenCalled();
+   });
+   it('offers the load action when the character is not shown, and says when an Analyze is running',()=>{
+     const load=vi.fn();
+     const {unmount}=render(<Page state={{...base,loaded:false}} load={load}/>);
+     expect(within(panel()).getByText(/Your character is not shown yet/)).toBeVisible();
+     fireEvent.click(within(panel()).getByRole('button',{name:'Show my character'}));
+     expect(load).toHaveBeenCalledTimes(1);
+     unmount();
+     render(<Page state={{...base,nodes:0,analyzed:false,analyzing:true}}/>);
+     expect(within(panel()).getByText(/Analyzing your moving parts/)).toBeVisible();
+     expect(screen.queryByRole('button',{name:'Go to Build & install'})).toBeNull();
+   });
+   it('is quiet in Movement with recorded bones',()=>{
+     render(<Page state={{...base,mode:'movement'}}/>);
+     expect(within(panel()).getByText('2 moving bones follow your sliders.')).toBeVisible();
+     expect(screen.queryByRole('button',{name:'See it move'})).toBeNull();
+     expect(document.querySelector('.preview-hint')).toBeNull();
+   });
+   it('highlights once when a slider changes on Still, saves the value and never switches the view',()=>{
+     const show=vi.fn();
+     render(<Page state={base} show={show}/>);
+     const line=()=>within(panel()).getByText('The sliders show in Movement.').closest('.preview-hint')!;
+     expect(line()).not.toHaveClass('flash');
+     fireEvent.keyDown(screen.getByLabelText('Hair stiffness'),{key:'ArrowRight'});
+     expect(line()).toHaveClass('flash');
+     expect(saved().customization.secondary_motion?.tuning?.hair?.stiffness).toBe(.05);
+     expect(show).not.toHaveBeenCalled();
+   });
+   it('shows no line without a preview',()=>{
+     render(<PhysicsPage project={automatic} update={vi.fn()} disabled={false} fail={vi.fn()} summary={null}/>);
+     expect(document.querySelector('.preview-hint, .preview-hint-quiet')).toBeNull();
+   });
+ });
+ it('says Fine-tune and Moving parts belong to Automatic in the other modes and switches there on request',()=>{
+   function Page(){const [project,update]=useState<Project>({...original,preparation_options:{preserve_physics_bones:true,physics_roots:['hair','tail']},customization:{enabled:true}});return <><PhysicsPage project={project} update={update} disabled={false} fail={vi.fn()} summary={null}/><output data-testid="saved">{JSON.stringify(project)}</output></>;}
+   render(<Page/>);
+   expect(screen.getByRole('tab',{name:/^Physics mode/})).toHaveAttribute('aria-selected','true');
+   tab('Moving parts');
+   expect(screen.getByText(/Moving parts applies to Automatic secondary motion only/)).toBeVisible();
+   fireEvent.click(screen.getByRole('button',{name:'Use Automatic secondary motion'}));
+   expect(saved().customization.secondary_motion?.enabled).toBe(true);
+   expect(screen.getByLabelText('Part type for hair')).toBeVisible();
  });
 });

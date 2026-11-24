@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { openFor, PURPOSE_OF_KIND } from "../dialogs";
 import { api, basename } from "../api";
 import type { ExtraKind } from "./models";
 import { specs } from "./models";
@@ -62,7 +62,7 @@ export function ExtraDropzone({
   }, []);
   async function browse() {
     try {
-      const path = await open({
+      const path = await openFor(PURPOSE_OF_KIND[spec.sourceKind], {
         title: `Choose replacement ${spec.singular}`,
         multiple: false,
         filters: [{ name: spec.formats, extensions: [...spec.extensions] }],

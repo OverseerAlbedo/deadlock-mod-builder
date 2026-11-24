@@ -91,6 +91,16 @@ impl ToolExecutor for FixtureTool {
         })
     }
 }
+/// The base-color images a preparation found for one material (its pick and
+/// candidates), as a kept hand pick is offered them.
+fn corrected_color(result: &deadlock_preparation::service::PreparationResult, material: &str) -> Option<Vec<String>> {
+    let report: Value = serde_json::from_slice(&fs::read(&result.report).unwrap()).unwrap();
+    let found = &report["materials"][material];
+    let mut paths: std::collections::BTreeSet<String> = found["candidates"]["color"].as_array().into_iter().flatten().filter_map(|p| p.as_str().map(String::from)).collect();
+    paths.extend(found["textures"]["color"].as_str().map(String::from));
+    paths.retain(|p| !p.is_empty());
+    (!paths.is_empty()).then(|| paths.into_iter().collect())
+}
 fn fixture() -> Value {
     serde_json::from_str(include_str!("fixtures/reference.json")).unwrap()
 }
@@ -106,6 +116,8 @@ fn proportion_choice_survives_presets_project_save_and_corrections_and_rejects_s
     // This process double qualifies option/receipt transport only. Real geometry
     // and Blender correction round trips have separate algorithm/API tests.
     data["report"]["rest_alignment"]["policy"] = json!(fitting::PROPORTIONS_POLICY);
+    data["report"]["rest_alignment"]["leg_joint_fit"] = json!({"policy": "leg-joint-fit-v1", "mode": "scaled_joints", "applied": true,
+        "body_scale": 0.92, "joint_offsets_inches": {"knee_L": 0.0}, "fitted": {"shin_L": [0, 0, 1]}, "hero_joints": {"shin_L": [0, 0, 1]}});
     let tool = Arc::new(FixtureTool {data: data.clone(), calls: Mutex::new(vec![]), emit: true});
     let svc = PreparationService::new(root, BlenderBridge {executable, executor: tool.clone()});
     let mut project = Project::default();
@@ -114,7 +126,7 @@ fn proportion_choice_survives_presets_project_save_and_corrections_and_rejects_s
     let analysis = svc.inspect(&project, source.to_str().unwrap(), [0.; 3], &compiled,
         serde_json::from_value(data["skeleton"].clone()).unwrap()).unwrap();
     let options: PreparationOptions = serde_json::from_value(json!({
-        "reviewed": true, "fit_mode": "preserve_proportions", "fit_arm_joints": false, "arm_skinning": "smooth_twist",
+        "reviewed": true, "fit_mode": "preserve_proportions", "fit_arm_joints": false, "arm_skinning": "smooth_twist", "fit_leg_joints": "scaled_joints",
         "source_roles": analysis.suggestions.source.as_ref().unwrap().roles,
         "target_roles": analysis.suggestions.target.roles, "mapping": analysis.suggestions.mapping
     })).unwrap();
@@ -127,15 +139,27 @@ fn proportion_choice_survives_presets_project_save_and_corrections_and_rejects_s
     assert_eq!(before, tool.calls.lock().unwrap().len());
     let mut invalid_arms=options.clone();invalid_arms.values.insert("fit_arm_joints".into(),json!("yes"));
     assert!(service::review_issues(&project,&analysis,&invalid_arms).unwrap().iter().any(|i|i.tab=="model fitting"));
+    let mut invalid_legs=options.clone();invalid_legs.values.insert("fit_leg_joints".into(),json!("knees"));
+    assert!(service::review_issues(&project,&analysis,&invalid_legs).unwrap().iter().any(|i|i.tab=="model fitting"));
+    // Shortening the legs to the floor would take them off the hero's joints again.
+    let mut floor_legs=options.clone();floor_legs.values.insert("fit_floor".into(),json!("legs"));
+    assert!(service::review_issues(&project,&analysis,&floor_legs).unwrap().iter().any(|i|i.tab=="model fitting"&&i.message.contains("Leg joints")));
+    assert_eq!(before, tool.calls.lock().unwrap().len());
     let preset = mapping_presets::capture(&analysis, &options).unwrap();
     let restored = mapping_presets::restore(preset, &mapping_presets::key(&analysis).unwrap()).unwrap();
     assert_eq!(restored.values["fit_mode"], "preserve_proportions");
     assert_eq!(restored.values["fit_arm_joints"], false);
     assert_eq!(restored.values["arm_skinning"], "smooth_twist");
+    assert_eq!(restored.values["fit_leg_joints"], "scaled_joints");
     assert_eq!(restored.values["reviewed"], false);
     let result = svc.prepare(&project, &analysis, options.clone(), false, &compiled).unwrap();
     assert_eq!(tool.calls.lock().unwrap().last().unwrap()["options"]["fit_mode"], "preserve_proportions");
     assert_eq!(tool.calls.lock().unwrap().last().unwrap()["options"]["fit_arm_joints"], false);
+    assert_eq!(tool.calls.lock().unwrap().last().unwrap()["options"]["fit_leg_joints"], "scaled_joints");
+    // The page gets this conversion's Leg joints measurements, without the joint positions.
+    let measured = result.leg_fit.as_ref().unwrap();
+    assert_eq!(measured["mode"], "scaled_joints");
+    assert!(measured.get("fitted").is_none() && measured.get("hero_joints").is_none());
     let accepted = service::handoff(&project, &result).unwrap();
     let saved: Project = serde_json::from_slice(&serde_json::to_vec(&accepted).unwrap()).unwrap();
     assert_eq!(saved.preparation_options.values["fit_mode"], "preserve_proportions");
@@ -146,6 +170,10 @@ fn proportion_choice_survives_presets_project_save_and_corrections_and_rejects_s
     assert!(fitting::mode(&invalid_skin).is_err());
     let mut changed_arms=saved.clone();changed_arms.preparation_options.values.insert("fit_arm_joints".into(),json!(true));
     assert!(service::check_handoff(&changed_arms).unwrap_err().to_string().contains("Model fitting changed"));
+    for other in ["pelvis", "joints"] {
+        let mut changed_legs=saved.clone();changed_legs.preparation_options.values.insert("fit_leg_joints".into(),json!(other));
+        assert!(service::check_handoff(&changed_legs).unwrap_err().to_string().contains("Model fitting changed"));
+    }
     let corrected = svc.prepare(&saved, &analysis, options.clone(), true, &compiled).unwrap();
     let corrected = service::handoff(&saved, &corrected).unwrap();
     assert_eq!(corrected.preparation_options, options);
@@ -210,8 +238,25 @@ fn preserved_rig_survives_correction_presets_and_handoff_without_resetting_compa
     assert!(last["options"].get("mapping_anchors").is_none());
     let ready=service::handoff(&accepted,&corrected).unwrap();
     assert_eq!(ready.meshes,accepted.meshes); assert!(ready.review_lods);
-    assert_eq!(ready.materials[&material],choices); assert_eq!(ready.textures,accepted.textures);
+    // The choice is kept; what the new preparation found is offered beside it.
+    let mut kept=ready.materials[&material].clone();
+    let offered=kept.candidates.take();
+    assert_eq!(kept,choices,"offered: {offered:?}"); assert_eq!(ready.textures,accepted.textures);
+    assert_eq!(offered.map(|c|c.get("color").cloned()), Some(corrected_color(&corrected, &material)));
     assert_eq!(ready.preparation_options,options); service::check_handoff(&ready).unwrap();
+    // A gun part an earlier fitted gun disabled comes back unless this preparation's gun disables it too.
+    let again = svc.prepare(&ready, &analysis, options.clone(), true, &compiled).unwrap();
+    assert_ne!(again.report, ready.preparation_report);
+    let (earlier_bytes, again_bytes) = (fs::read(&ready.preparation_report).unwrap(), fs::read(&again.report).unwrap());
+    let with_disabled = |bytes: &[u8]| { let mut receipt: Value = serde_json::from_slice(bytes).unwrap();
+        receipt["weapon"] = json!({"meshes": ["weapon_gun"], "replace": [], "disable": ["unused"]}); serde_json::to_vec(&receipt).unwrap() };
+    fs::write(&ready.preparation_report, with_disabled(&earlier_bytes)).unwrap();
+    let back = service::handoff(&ready, &again).unwrap();
+    assert!(!back.meshes.contains_key("unused") && back.meshes["gun"] == MeshMapping::One("@keep".into()), "{:?}", back.meshes);
+    fs::write(&again.report, with_disabled(&again_bytes)).unwrap();
+    let still = service::handoff(&ready, &again).unwrap();
+    assert_eq!(still.meshes, ready.meshes); assert!(still.review_lods);
+    fs::write(&ready.preparation_report, earlier_bytes).unwrap(); fs::write(&again.report, again_bytes).unwrap();
     // Repeated corrections continue using the original source review choices.
     svc.prepare(&ready,&analysis,options.clone(),true,&compiled).unwrap();
     let mut changed=ready.clone(); changed.preparation_options.values.insert("physics_roots".into(),json!([]));
@@ -503,4 +548,58 @@ fn gun_file_is_added_at_inspect_and_convert_and_its_hash_binds_the_preparation()
     assert!(service::review_issues(&project, &plain, &options).unwrap().iter().any(|i| i.message.contains("gun file changed")));
     assert!(service::review_issues(&project, &plain, &without).unwrap().is_empty());
     assert_eq!(fs::read(source).unwrap(), b"{}");
+}
+#[test]
+fn a_copy_for_another_hero_keeps_material_and_motion_choices_through_its_first_preparation() {
+    use deadlock_project::{hero_copy, MaterialChoices, MeshMapping};
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("project"); fs::create_dir(&root).unwrap();
+    let source = root.join("input.gltf"); fs::write(&source, b"{}").unwrap();
+    let compiled = root.join("hero.vmdl_c"); fs::write(&compiled, b"original compiled fixture").unwrap();
+    let executable = root.join("blender.exe"); fs::write(&executable, b"fixture").unwrap();
+    let data: Value = serde_json::from_str(include_str!("fixtures/secondary-bones.json")).unwrap();
+    let target: Vec<deadlock_skeleton::transforms::PreparedBone> = serde_json::from_value(data["target"].clone()).unwrap();
+    let skeleton = || deadlock_skeleton::Skeleton {
+        names: target.iter().map(|b| b.name.clone()).collect(),
+        parents: target.iter().map(|b| b.parent.as_ref().map_or(-1, |p| target.iter().position(|t| &t.name == p).unwrap() as i32)).collect(),
+        positions: target.iter().map(|b| b.local_position).collect(), rotations: target.iter().map(|b| b.local_rotation).collect(),
+        scales: target.iter().map(|b| b.local_scale).collect(), flags: vec![0x40;target.len()],
+    };
+    let tool = Arc::new(FixtureTool {data:data.clone(), calls:Mutex::new(vec![]), emit:true});
+    let svc = PreparationService::new(root, BlenderBridge {executable,executor:tool.clone()});
+    let mut project = Project::default(); project.original_model="models/test/hero.vmdl_c".into(); project.hero_name="First".into(); project.model_input_mode=ModelInputMode::RiggedHumanoid;
+    let analysis = svc.inspect(&project, source.to_str().unwrap(), [0.;3], &compiled, skeleton()).unwrap();
+    let mut options: PreparationOptions = serde_json::from_value(data["options"].clone()).unwrap();
+    options.values.insert("automatic_secondary_motion".into(),json!(true));
+    let result = svc.prepare(&project, &analysis, options.clone(), false, &compiled).unwrap();
+    let mut accepted = service::handoff(&project, &result).unwrap();
+    // The user's own choices on the first hero: a hand-picked image, fine-tuning, a mesh mapping.
+    let material = accepted.materials.keys().next().unwrap().clone();
+    let choices: MaterialChoices = serde_json::from_value(json!({"confirmed":true,"textures":{"color":"chosen.png"},"mode":"generate"})).unwrap();
+    accepted.materials.insert(material.clone(), choices.clone());
+    let motion = accepted.customization.secondary_motion.as_mut().unwrap();
+    motion.tuning = Some(serde_json::from_value(json!({"hair": {"stiffness": 0.4}})).unwrap());
+    let tuning = motion.tuning.clone();
+    accepted.meshes.insert("body".into(), MeshMapping::One("appendage geometry".into()));
+    let original = serde_json::to_string(&accepted).unwrap();
+
+    let copy = hero_copy::copy_for_hero(&accepted, "Second", "models/test/hero2.vmdl_c", None).project;
+    assert_eq!(copy.copied_report, accepted.preparation_report);
+    let inspected = svc.inspect(&copy, source.to_str().unwrap(), [0.;3], &compiled, skeleton()).unwrap();
+    // The page makes the joint matches again; the fixture's are the same for both heroes.
+    let remade: PreparationOptions = PreparationOptions { values: copy.preparation_options.values.clone().into_iter()
+        .chain(["mapping", "target_roles", "reviewed"].into_iter().filter_map(|k| options.values.get(k).map(|v| (k.to_owned(), v.clone())))).collect() };
+    let result = svc.prepare(&copy, &inspected, remade.clone(), false, &compiled).unwrap();
+    let ready = service::handoff(&copy, &result).unwrap();
+    // The hand-picked image stays (what the preparation found is offered beside it).
+    let mut kept = ready.materials[&material].clone();
+    kept.candidates = None;
+    assert_eq!(kept, choices);
+    assert_eq!(ready.customization.secondary_motion.as_ref().unwrap().tuning, tuning);
+    // The mesh mapping named the first hero's meshes: it is made again.
+    assert!(!ready.meshes.contains_key("body"));
+    assert!(ready.copied_report.is_empty() && !ready.preparation_report.is_empty() && ready.preparation_report != accepted.preparation_report);
+    // The original project and its files are untouched.
+    assert_eq!(serde_json::to_string(&accepted).unwrap(), original);
+    assert!(Path::new(&accepted.preparation_report).is_file() && Path::new(&accepted.dmx).is_file());
 }

@@ -36,6 +36,9 @@
           "url": "https://www.blender.org/releases/5-2/"
         },
         {
+          "url": "https://extensions.blender.org/add-ons/mmd-tools/"
+        },
+        {
           "url": "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/"
         },
         {

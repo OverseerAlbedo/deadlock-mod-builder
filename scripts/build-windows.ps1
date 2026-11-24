@@ -28,7 +28,19 @@ Invoke-Checked 'repository-checks' 'node' @('scripts/check-repository.mjs')
 Invoke-Checked 'npm-install' 'npm.cmd' @('ci', '--no-audit', '--no-fund')
 Invoke-Checked 'frontend-tests' 'npm.cmd' @('test', '--', '--maxWorkers=2')
 Invoke-Checked 'rust-tests' 'cargo' @('test', '--manifest-path', 'src-tauri/Cargo.toml', '--workspace', '--locked', '--target', $target)
+# The effect player (needs the .NET SDK; see the script). Release builds always include it; a
+# local build without the SDK goes on without it. DMB_REQUIRE_EFFECT_PLAYER=true makes any build
+# require it (the push workflow sets it).
+$requirePlayer = $Release -or $env:DMB_REQUIRE_EFFECT_PLAYER -eq 'true'
+$playerArguments = @('-NoProfile', '-File', (Join-Path $PSScriptRoot 'publish-effect-player.ps1'))
+if ($requirePlayer) { $playerArguments += '-Required' }
+Invoke-Checked 'effect-player' 'pwsh' $playerArguments
+$player = Test-Path -LiteralPath (Join-Path $root 'resources/native/effect-player/win-x64/Dmb.EffectPlayer.exe')
+if ($requirePlayer -and -not $player) { throw 'The effect player was not staged; this build must include it.' }
 $buildArguments = @('run', 'tauri', '--', 'build', '--ci', '--target', $target)
+# Its bundle entry is a separate configuration so that builds without it still pass (Tauri fails
+# on a listed resource that does not exist).
+if ($player) { $buildArguments += @('--config', (Join-Path $root 'src-tauri/tauri.effect-player.conf.json')) }
 if ($Release) { $buildArguments += @('--bundles', 'nsis') } else { $buildArguments += '--no-bundle' }
 $buildArguments += @('--', '--locked')
 Invoke-Checked 'windows-build' 'npm.cmd' $buildArguments
@@ -45,7 +57,9 @@ foreach ($folder in @('portable','release')) {
     $generated = Join-Path $out $folder
     if (Test-Path -LiteralPath $generated) { Remove-Item -LiteralPath $generated -Recurse -Force }
 }
-Invoke-Checked 'package-checks' 'node' @('scripts/package-windows.mjs', (Join-Path $build 'deadlock-mod-builder.exe'), $installer, $out)
+$packageArguments = @('scripts/package-windows.mjs', (Join-Path $build 'deadlock-mod-builder.exe'), $installer, $out)
+if ($player) { $packageArguments += '--with-effect-player' }
+Invoke-Checked 'package-checks' 'node' $packageArguments
 $portable = Join-Path $out 'portable/DeadlockModBuilder'
 if (-not $SkipStartupSmoke) {
     & "$PSScriptRoot/smoke-windows.ps1" -Portable $portable -Report (Join-Path $reports 'startup.json')

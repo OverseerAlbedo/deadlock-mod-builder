@@ -54,6 +54,14 @@ pub struct Identification {
     pub errors: Vec<String>,
     pub status: String,
     pub evidence: String,
+    /// Plain-language notes about how the guess was made, shown with the
+    /// suggestion checks so a doubtful guess is visible.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    /// Source bones that follow a role's hero bone as well (bone -> role), for
+    /// example the hair-cap joint above the face-carrying head joint.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub also: BTreeMap<String, String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Suggestions {
@@ -126,6 +134,56 @@ pub fn name_role(name: &str) -> Option<&'static str> {
         }
     }
     None
+}
+/// Body names behind a studio or character prefix shared by the rig
+/// (`<Prefix>_Spine`, `<Prefix>_UpLeg_L`). Only a leading part of the name
+/// that ends in a separator is tried, and only the same full-name aliases as
+/// `name_role` match what follows it, so helpers, IK targets and twist bones
+/// still cannot match a limb. A prefix counts only when it proves at least
+/// `PREFIX_MIN_ROLES` different roles, each held by exactly one deforming bone,
+/// and no other prefix proves as many. When skin weights are known, only
+/// weighted bones count, so an unweighted control family (`Ctrl_`, `IK_`,
+/// `FK_` copies of the body) never wins over the skin skeleton.
+/// Returns the prefix (lower case) and role -> bone.
+pub const PREFIX_MIN_ROLES: usize = 8;
+pub fn prefixed_roles(bones: &[Bone], weighted: &[String]) -> Option<(String, BTreeMap<String, String>)> {
+    let mut by_prefix: BTreeMap<String, BTreeMap<&'static str, Vec<&str>>> = BTreeMap::new();
+    for bone in bones {
+        if bone.details.get("deform").and_then(|v| v.as_bool()) == Some(false) {
+            continue;
+        }
+        if !weighted.is_empty() && !weighted.contains(&bone.name) {
+            continue;
+        }
+        let name = bone.name.rsplit(':').next().unwrap_or(&bone.name);
+        let mut seen = 0;
+        for (index, c) in name.char_indices() {
+            if !matches!(c, '_' | '.' | ' ' | '-') {
+                continue;
+            }
+            seen += 1;
+            if seen > 2 {
+                break;
+            }
+            let (prefix, rest) = (&name[..=index], &name[index + 1..]);
+            if rest.is_empty() || prefix.len() < 2 {
+                continue;
+            }
+            if let Some(role) = name_role(rest) {
+                by_prefix.entry(prefix.to_lowercase()).or_default().entry(role).or_default().push(&bone.name);
+            }
+        }
+    }
+    let proven = |roles: &BTreeMap<&'static str, Vec<&str>>| -> BTreeMap<String, String> {
+        roles.iter().filter(|(_, b)| b.len() == 1).map(|(r, b)| (r.to_string(), b[0].to_string())).collect()
+    };
+    let mut ranked: Vec<_> = by_prefix.iter().map(|(p, r)| (proven(r), p)).collect();
+    ranked.sort_by_key(|(r, _)| std::cmp::Reverse(r.len()));
+    let (best, prefix) = ranked.first()?;
+    if best.len() < PREFIX_MIN_ROLES || ranked.get(1).is_some_and(|(r, _)| r.len() == best.len()) {
+        return None;
+    }
+    Some(((*prefix).clone(), best.clone()))
 }
 fn ancestor(child: &str, parent: &str, names: &BTreeMap<&str, &Bone>) -> Result<bool> {
     let mut cursor = Some(child);
@@ -255,7 +313,7 @@ pub fn identify(bones: &[Bone], overrides: &BTreeMap<String, String>) -> Result<
             }
         }
     }
-    Ok(Identification{roles,missing,status:if errors.is_empty(){"Supported Humanoid"}else{"Needs Review"}.into(),errors,evidence:"Names + ancestor chains + left/right and vertical landmark tests; human confirmation required.".into()})
+    Ok(Identification{roles,missing,status:if errors.is_empty(){"Supported Humanoid"}else{"Needs Review"}.into(),errors,evidence:"Names + ancestor chains + left/right and vertical landmark tests; human confirmation required.".into(),notes:vec![],also:BTreeMap::new()})
 }
 pub fn suggest_mapping(
     source: &[Bone],
@@ -296,6 +354,10 @@ pub struct ReviewIssue {
     pub roles: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bones: Vec<String>,
+    /// A problem the page can fix in one click (`following::STALE_KIND`,
+    /// `secondary_bones::STALE_GROUPS_KIND`); absent for every other issue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 }
 pub fn review_issues(
     target: &[Bone],
@@ -306,6 +368,7 @@ pub fn review_issues(
     options: &deadlock_project::PreparationOptions,
 ) -> Vec<ReviewIssue> {
     let mut result = Vec::new();
+    let mut stale_following: Vec<String> = vec![];
     let mut add = |tab: &str,
                    message: String,
                    scope: Option<&str>,
@@ -317,6 +380,7 @@ pub fn review_issues(
             scope: scope.map(str::to_string),
             roles,
             bones,
+            kind: None,
         })
     };
     if mode != suggested_mode {
@@ -386,8 +450,11 @@ pub fn review_issues(
             Err(error) => { add("physics bones", error.to_string(), None, vec![], vec![]); None }
         };
         let body_options = crate::secondary_bones::body_options(options, preservation.as_ref());
+        // Every stale body-following match is one grouped issue naming its bones.
+        stale_following = crate::following::stale(source, &body_options);
         for error in crate::following::errors(source, &body_options) {
-            add("mapping", error, None, vec![], vec![]);
+            let bones = if !stale_following.is_empty() && error == crate::following::stale_message(&stale_following) { stale_following.clone() } else { vec![] };
+            add("mapping", error, None, vec![], bones);
         }
         let targets: BTreeSet<_> = target.iter().map(|b| &b.name).collect();
         let missing: Vec<_> = weighted
@@ -469,6 +536,16 @@ pub fn review_issues(
                 bad,
                 vec![],
             );
+        }
+    }
+    // Problems the page fixes in one click carry their kind.
+    let groups = crate::secondary_bones::stale_groups_message();
+    let following = (!stale_following.is_empty()).then(|| crate::following::stale_message(&stale_following));
+    for issue in &mut result {
+        if issue.tab == "physics bones" && issue.message == groups {
+            issue.kind = Some(crate::secondary_bones::STALE_GROUPS_KIND.into());
+        } else if issue.tab == "mapping" && following.as_ref() == Some(&issue.message) {
+            issue.kind = Some(crate::following::STALE_KIND.into());
         }
     }
     result

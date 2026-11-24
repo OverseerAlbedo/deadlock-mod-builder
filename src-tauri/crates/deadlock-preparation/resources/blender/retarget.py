@@ -27,6 +27,25 @@ FLOOR_POLICY = 'feet-on-floor-v1'
 FLOOR_MODES = ('ankles', 'legs', 'lift')
 # Below this many inches between the soles and the floor nothing is corrected.
 FLOOR_TOLERANCE = 0.05
+LEG_JOINT_POLICY = 'leg-joint-fit-v1'
+# Model fitting -> Leg joints (Preserve source proportions only); must equal
+# fitting.rs LEG_JOINT_MODES and models.ts LEG_JOINT_MODES.
+#   'pelvis':        the fit as before (the body placed by the pelvis role bone).
+#   'hips':          the body placed and turned by the hip joints.
+#   'scaled':        'hips', and the whole character scaled evenly so its legs
+#                    are as long as the hero's.
+#   'scaled_joints': 'scaled', and hips, knees and ankles on the hero's joints
+#                    (thighs and shins scaled along their length only).
+#   'joints':        'hips', and the legs on the hero's joints (no even scale).
+LEG_JOINT_MODES = ('pelvis', 'hips', 'scaled', 'scaled_joints', 'joints')
+# Choices that put the legs on the hero's joints. Feet on the floor -> 'legs'
+# rescales the legs below the hips and would take them off again: refused.
+LEGS_ON_HERO_JOINTS = ('scaled_joints', 'joints')
+# Choices that scale the whole character by the leg-length ratio.
+EVENLY_SCALED = ('scaled', 'scaled_joints')
+LEG_FLOOR_REFUSED = ('Feet on the floor -> Shorten or lengthen the legs cannot be used with a Leg joints choice that '
+                     'puts the legs on the hero\'s joints: it would take them off the joints again. '
+                     'Choose another Feet on the floor option.')
 
 
 def floor_corrections(mode, sole, hip, floor=0.):
@@ -43,13 +62,12 @@ def floor_corrections(mode, sole, hip, floor=0.):
       'legs':   everything below the hips scales vertically about `hip`, so the
                 hips, body and arms stay on the hero's joints; the legs get
                 shorter (or longer), so the mesh's knees and ankles move off
-                the hero's joints (up for shorter legs; arcaneVin: the ankle
+                the hero's joints (up for shorter legs; on one model the ankle
                 4.5 in above the hero's) and the feet turn about a point
                 inside the heel.
       'lift':   the whole character moves up (or down); the body and arms leave
                 the hero's joints by that much.
-    (Scaling only the feet about the ankles was tried and dropped after testing
-    on October 25, 2026.) A scale outside 0.2–3 (a hip at the floor) corrects
+    (Scaling only the feet about the ankles is not offered.) A scale outside 0.2–3 (a hip at the floor) corrects
     nothing."""
     none = np.eye(4)
     delta = floor - sole
@@ -77,22 +95,23 @@ NEXT = {'pelvis': 'spine', 'spine': 'chest', 'chest': 'neck', 'neck': 'head',
            (('upperarm', 'forearm'), ('forearm', 'hand'), ('thigh', 'shin'), ('shin', 'foot'))}}
 
 
-def rigid_attachment_map(transform, pivot):
+def rigid_attachment_map(transform, pivot, scale=1.):
     """Move a retained decoration with a fitted limb without stretching its rig.
 
     Its attachment point follows the full limb fit, while internal distances
-    and fabric shape retain the source's rigid mapping.
+    and fabric shape retain the source's rigid mapping, at the body's even
+    `scale` (Leg joints can scale the whole character; 1 otherwise).
     """
     matrix = np.asarray(transform, dtype=float)
-    if np.allclose(matrix[:3,:3].T@matrix[:3,:3], np.eye(3), atol=1e-10, rtol=0):
+    if np.allclose(matrix[:3,:3].T@matrix[:3,:3], scale*scale*np.eye(3), atol=1e-10, rtol=0):
         return matrix
     u, _, vh = np.linalg.svd(matrix[:3,:3])
     rotation = u@vh
     if np.linalg.det(rotation) <= 0:
         raise ValueError('Cannot fit a mirrored secondary attachment.')
     point = np.asarray(pivot, dtype=float)
-    result = np.eye(4); result[:3,:3] = rotation
-    result[:3,3] = (matrix@np.r_[point,1.])[:3]-rotation@point
+    result = np.eye(4); result[:3,:3] = rotation if scale == 1. else scale*rotation
+    result[:3,3] = (matrix@np.r_[point,1.])[:3]-result[:3,:3]@point
     return result
 
 
@@ -104,9 +123,15 @@ def unit(value, label):
     return value / length
 
 
-def anatomical_frames(positions, roles):
+def _base(p, hips):
+    """The lower end of the body's up direction: the pelvis role bone, or (hips)
+    the midpoint of the two hip joints."""
+    return (p['thigh_L'] + p['thigh_R']) / 2. if hips else p['pelvis']
+
+
+def anatomical_frames(positions, roles, hips=False):
     p = {role: np.asarray(positions[name], dtype=float) for role, name in roles.items()}
-    up = unit(p['head'] - p['pelvis'], 'body height')
+    up = unit(p['head'] - _base(p, hips), 'body height')
     lateral = p['thigh_L'] - p['thigh_R']
     lateral = unit(lateral - up * np.dot(lateral, up), 'left/right hips')
     forward = unit(np.cross(lateral, up), 'body facing')
@@ -135,10 +160,10 @@ def anatomical_frames(positions, roles):
     return frames
 
 
-def body_basis(positions, roles):
+def body_basis(positions, roles, hips=False):
     """A rigid body frame from reviewed landmarks, independent of bone roll."""
     p = {role: np.asarray(positions[name], dtype=float) for role, name in roles.items()}
-    up = unit(p['head'] - p['pelvis'], 'body height')
+    up = unit(p['head'] - _base(p, hips), 'body height')
     lateral = p['thigh_L'] - p['thigh_R']
     lateral = unit(lateral - up * np.dot(lateral, up), 'left/right hips')
     return np.column_stack((lateral, up, unit(np.cross(lateral, up), 'body facing')))
@@ -177,8 +202,49 @@ def hero_extremes(tp, target_roles):
     return found, {'arm_to_torso': {s: round(v, 3) for s, v in arms.items()}, 'leg_to_torso': round(legs, 3)}
 
 
+def _leg_length(points, roles):
+    """Thigh plus shin length of both legs together."""
+    return sum(_length(points, roles['thigh_'+s], roles['shin_'+s]) + _length(points, roles['shin_'+s], roles['foot_'+s])
+               for s in 'LR')
+
+
+LEG_REPORT = {'hip': 'thigh', 'knee': 'shin', 'ankle': 'foot'}
+BODY_REPORT = ('spine', 'chest', 'neck', 'head')
+
+
+def leg_joint_offsets(fitted, target_points):
+    """Inches between each fitted joint and the hero's (hip, knee and ankle per
+    side; spine, chest, neck, head), and the knee gap a 90 degree bend opens
+    between the mesh's knee and the hero's (2 x offset x sin 45 degrees)."""
+    offsets = {}
+    for label, role in LEG_REPORT.items():
+        for side in 'LR':
+            if role+'_'+side in fitted:
+                offsets[label+'_'+side] = round(float(np.linalg.norm(fitted[role+'_'+side] - target_points[role+'_'+side])), 4)
+    for role in BODY_REPORT:
+        if role in fitted:
+            offsets[role] = round(float(np.linalg.norm(fitted[role] - target_points[role])), 4)
+    knees = [offsets[k] for k in ('knee_L', 'knee_R') if k in offsets]
+    return offsets, round(2. * max(knees) * np.sin(np.radians(45.)), 4) if knees else None
+
+
+def leg_fit_after_floor(audit, every, leg):
+    """Measure the leg-joint offsets again after Feet on the floor changed the
+    maps (`every` on every bone, `leg` on the leg bones first)."""
+    if not audit or 'fitted' not in audit:
+        return
+    moved = {}
+    for role, point in audit['fitted'].items():
+        m = every @ leg if role.split('_')[0] in ('thigh', 'shin', 'foot') else every
+        moved[role] = (m @ np.r_[np.asarray(point, dtype=float), 1.])[:3]
+    targets = {role: np.asarray(p, dtype=float) for role, p in audit['hero_joints'].items()}
+    audit['joint_offsets_inches'], audit['knee_gap_at_90_degrees_inches'] = leg_joint_offsets(moved, targets)
+    audit['fitted'] = {role: p.tolist() for role, p in moved.items()}
+    audit['measured_after_floor'] = True
+
+
 def proportion_maps(source, target, mapping, source_roles, target_roles, source_parents,
-                    follow_anchors, sf, tf, parallel, matched, fit_arm_joints):
+                    follow_anchors, sf, tf, parallel, matched, fit_arm_joints, fit_leg_joints='pelvis'):
     """Retain source torso/legs, with optional joint-centered arm fitting.
 
     Torso, neck and head share one rigid transform. Each limb starts at its
@@ -187,6 +253,9 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
     target finger/helper pivots must not independently pull the source mesh.
     Target bind matrices are read-only. The final vertical translation aligns
     the lowest reviewed ankle, rather than stretching legs to reach the floor.
+    Leg joints (`fit_leg_joints`, LEG_JOINT_MODES) can place the body by its
+    hip joints, scale it evenly to the hero's leg length and put the legs on
+    the hero's joints; 'pelvis' (the default) is the fit as before.
     """
     sp = {name: np.asarray(matrix)[:3, 3] for name, matrix in source.items()}
     tp = {name: np.asarray(matrix)[:3, 3] for name, matrix in target.items()}
@@ -197,15 +266,34 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
     # hero's, the legs follow the hero's leg joints, and any arm difference is
     # spread over the whole arm (below). Other heroes keep the source fit.
     extremes, measured = hero_extremes(tp, target_roles)
+    # Leg joints is ignored for these heroes: their own path already puts the
+    # legs on the hero's joints.
+    legs_mode = 'pelvis' if extremes else fit_leg_joints
+    hips = legs_mode != 'pelvis'
+    on_joints = legs_mode in LEGS_ON_HERO_JOINTS
+    if hips:
+        # The limb frames turn with the body: the same hip-based up direction.
+        sf = anatomical_frames(sp, source_roles, hips=True)
+        tf = anatomical_frames(tp, target_roles, hips=True)
     scale = 1.
     if extremes:
         top = 'neck' if 'neck' in source_roles and 'neck' in target_roles else 'head'
         span_source = _length(sp, source_roles['pelvis'], source_roles[top])
         if span_source > 1e-6:
             scale = _length(tp, target_roles['pelvis'], target_roles[top]) / span_source
+    elif legs_mode in EVENLY_SCALED:
+        legs_source = _leg_length(sp, source_roles)
+        if legs_source > 1e-6:
+            scale = _leg_length(tp, target_roles) / legs_source
     body = np.eye(4)
-    body[:3, :3] = scale * (body_basis(tp, target_roles) @ body_basis(sp, source_roles).T)
-    body[:3, 3] = tp[target_roles['pelvis']] - body[:3, :3] @ sp[source_roles['pelvis']]
+    if hips:
+        body[:3, :3] = scale * (body_basis(tp, target_roles, hips=True) @ body_basis(sp, source_roles, hips=True).T)
+        hero_hips = (tp[target_roles['thigh_L']] + tp[target_roles['thigh_R']]) / 2.
+        source_hips = (sp[source_roles['thigh_L']] + sp[source_roles['thigh_R']]) / 2.
+        body[:3, 3] = hero_hips - body[:3, :3] @ source_hips
+    else:
+        body[:3, :3] = scale * (body_basis(tp, target_roles) @ body_basis(sp, source_roles).T)
+        body[:3, 3] = tp[target_roles['pelvis']] - body[:3, :3] @ sp[source_roles['pelvis']]
     role_maps = {role: body.copy() for role in source_roles}
     for side in ('L', 'R'):
         for chain in (('upperarm', 'forearm', 'hand'), ('thigh', 'shin', 'foot')):
@@ -216,7 +304,7 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
                 pivot = (parent_map @ np.r_[origin, 1.])[:3]
                 transform = np.eye(4)
                 transform[:3, :3] = scale * (tf[role][:3, :3] @ sf[role][:3, :3].T)
-                if extremes and part in ('thigh', 'shin', 'foot'):
+                if (extremes or on_joints) and part in ('thigh', 'shin', 'foot'):
                     # Legs follow the hero's leg joints, keeping the source's
                     # (evenly scaled) cross-section, so the hips stay on the hero's.
                     pivot = tp[target_roles[role]]
@@ -231,7 +319,8 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
     floor = min(tp[target_roles['foot_' + side]][2] for side in ('L', 'R'))
     fitted_floor = min((role_maps['foot_' + side] @ np.r_[sp[source_roles['foot_' + side]], 1.])[2]
                        for side in ('L', 'R'))
-    if not extremes:
+    # Legs on the hero's joints already put the ankles on the hero's.
+    if not extremes and not on_joints:
         for transform in role_maps.values():
             transform[2, 3] += floor - fitted_floor
         body[2, 3] += floor - fitted_floor
@@ -274,13 +363,16 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
                     destination = elbow
                     turn = _turn(tp[target_roles[NEXT[role]]] - tp[target_roles[role]], tp[target_roles[NEXT[role]]] - elbow)
                     turn = np.eye(3) if turn is None else turn
-                ratio = 1. if not extremes else scale
+                # The body's even scale (1 unless the hero is extreme or Leg
+                # joints scales the character) sets the arm's width and hand.
+                evenly = extremes or legs_mode in EVENLY_SCALED
+                ratio = 1. if not evenly else scale
                 if part != 'hand':
                     next_role = NEXT[role]
                     end = elbow if (elbow is not None and part == 'upperarm') else tp[target_roles[next_role]]
                     ratio = (np.linalg.norm(end-destination) /
                              np.linalg.norm(sp[source_roles[next_role]]-origin))
-                width = scale if extremes else 1.
+                width = scale if evenly else 1.
                 transform = np.eye(4)
                 transform[:3,:3] = turn @ tf[role][:3,:3] @ np.diag([width,ratio,width]) @ sf[role][:3,:3].T
                 transform[:3,3] = destination-transform[:3,:3]@origin
@@ -339,12 +431,35 @@ def proportion_maps(source, target, mapping, source_roles, target_roles, source_
         actual = tp[target_roles[role]]
         offsets.append({'role': role, 'fitted_position': fitted.tolist(),
                         'target_position': actual.tolist(), 'distance_mm': float(np.linalg.norm(fitted - actual) * 25.4)})
+    # Leg joints: what this fit did and how far the model's joints sit from
+    # the hero's (inches; before Feet on the floor, which measures it again).
+    report_roles = [r+'_'+s for r in LEG_REPORT.values() for s in 'LR'] + list(BODY_REPORT)
+    fitted_joints = {r: (role_maps[r] @ np.r_[sp[source_roles[r]], 1.])[:3] for r in report_roles if r in source_roles and r in target_roles}
+    hero_joints = {r: tp[target_roles[r]] for r in fitted_joints}
+    joint_offsets, knee_gap = leg_joint_offsets(fitted_joints, hero_joints)
+    turn = body[:3, :3] / scale
+    lengths = {}
+    for side in 'LR':
+        for part in ('thigh', 'shin'):
+            role = part+'_'+side
+            source_length = _length(sp, source_roles[role], source_roles[NEXT[role]])
+            if source_length > 1e-9:
+                lengths[role] = round(float(np.linalg.norm(fitted_joints[NEXT[role]] - fitted_joints[role]) / source_length), 4)
+    leg_fit = {'policy': LEG_JOINT_POLICY, 'mode': fit_leg_joints, 'applied': not extremes,
+               'ignored_reason': 'extreme_hero_proportions' if extremes and fit_leg_joints != 'pelvis' else None,
+               'body_placed_by': 'hip_joints' if hips else 'pelvis_bone', 'legs_on_hero_joints': bool(on_joints or 'legs' in extremes),
+               'body_scale': round(float(scale), 4), 'length_scale': lengths,
+               'lean_degrees': round(float(np.degrees(np.arccos(np.clip(turn[2, 2] / max(np.linalg.norm(turn[:, 2]), 1e-12), -1., 1.)))), 3),
+               'joint_offsets_inches': joint_offsets, 'knee_gap_at_90_degrees_inches': knee_gap,
+               'fitted': {r: p.tolist() for r, p in fitted_joints.items()},
+               'hero_joints': {r: p.tolist() for r, p in hero_joints.items()}, 'measured_after_floor': False}
     return result, {'policy': PROPORTIONS_POLICY, 'fit_mode': 'preserve_proportions',
                     'parallel_leg_policy': LEG_CHAINS_POLICY, 'parallel_leg_joints': parallel,
                     'following_anchors': dict(follow_anchors),
                     'foreign_bone_axes_used_for_geometry': False, 'target_bind_matrices_modified': False,
-                    'body_alignment': body.tolist(), 'source_limb_lengths_preserved': not fit_arm_joints and not extremes,
-                    'source_leg_lengths_preserved': not extremes, 'arm_joint_fit': arm_fit,
+                    'body_alignment': body.tolist(), 'source_limb_lengths_preserved': not fit_arm_joints and not extremes and legs_mode in ('pelvis', 'hips'),
+                    'source_leg_lengths_preserved': not extremes and legs_mode in ('pelvis', 'hips'), 'arm_joint_fit': arm_fit,
+                    'leg_joint_fit': leg_fit,
                     'hero_fit': {'policy': HERO_FIT_POLICY, 'extremes': extremes, 'measured': measured,
                                  'torso_scale': round(float(scale), 4), 'arm_spread': arm_spread},
                     'joint_offsets': offsets, 'max_joint_offset_mm': max(x['distance_mm'] for x in offsets),
@@ -427,7 +542,7 @@ def finger_curl(result, source, target, mapping, source_parents, follow_anchors,
     return {'policy': FINGER_CURL_POLICY, 'segments': segments, 'skipped': skipped}
 
 
-def rest_maps(source, target, mapping, source_roles, target_roles, source_parents, follow_anchors=None, anchor_mapping=None, fit_mode='match_target', source_bones=None, target_bones=None, fit_arm_joints=True, fit_finger_curl=True):
+def rest_maps(source, target, mapping, source_roles, target_roles, source_parents, follow_anchors=None, anchor_mapping=None, fit_mode='match_target', source_bones=None, target_bones=None, fit_arm_joints=True, fit_finger_curl=True, fit_leg_joints='pelvis'):
     """Return rigid anatomical transforms; never copy foreign bone roll.
 
     Non-primary weighted bones inherit the closest reviewed ancestor's rotation
@@ -435,6 +550,8 @@ def rest_maps(source, target, mapping, source_roles, target_roles, source_parent
     """
     if not isinstance(fit_mode, str) or fit_mode not in FIT_MODES:
         raise ValueError('Choose a supported Model fitting option before conversion.')
+    if not isinstance(fit_leg_joints, str) or fit_leg_joints not in LEG_JOINT_MODES:
+        raise ValueError('Choose a supported Leg joints option in Model fitting before conversion.')
     follow_anchors = follow_anchors or {}
     anchor_mapping = mapping if anchor_mapping is None else anchor_mapping
     # Production supplies deform flags from inspection. Non-deforming control
@@ -477,7 +594,7 @@ def rest_maps(source, target, mapping, source_roles, target_roles, source_parent
     matched = {n: m for n, m in matched.items() if anchor_mapping.get(n) == m['target'] and n not in follow_anchors}
     if fit_mode == 'preserve_proportions':
         result, audit = proportion_maps(source, target, mapping, source_roles, target_roles, source_parents,
-                               follow_anchors, sf, tf, parallel, matched, fit_arm_joints)
+                               follow_anchors, sf, tf, parallel, matched, fit_arm_joints, fit_leg_joints)
         audit.update(arm_deformation_policy=ARM_POLICY, arm_deformation=matched)
         if fit_finger_curl:
             audit['finger_curl'] = finger_curl(result, source, target, mapping, source_parents, follow_anchors, snapped=False)

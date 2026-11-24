@@ -90,8 +90,14 @@ fn maps(d: &Dmx) -> BTreeMap<String, [f32; 6]> {
     }
     result
 }
+/// Each moving bone's strand length (inches).
+fn strand_lengths(setup: &secondary::Setup) -> BTreeMap<String, f64> {
+    setup.groups.iter().zip(&setup.parts)
+        .flat_map(|(g, p)| g.bones.iter().map(move |b| (b.clone(), p.chain_length_inches)))
+        .collect()
+}
 #[test]
-fn automatic_long_hair_is_softer_without_changing_short_hair_or_helper_invariance() {
+fn automatic_long_hair_is_softer_while_short_hair_keeps_its_pull_and_helpers_stay_invariant() {
     let (d, p, binding, oracle) = fixture();
     let setup = secondary::setup(&p, &d, Some(&binding), &CancellationToken::new())
         .unwrap()
@@ -101,13 +107,16 @@ fn automatic_long_hair_is_softer_without_changing_short_hair_or_helper_invarianc
     assert_eq!(report.shared_profile_groups.len(), 5);
     assert!(report.custom_profile_groups.is_empty());
     assert_eq!(report.review_groups, ["hair_single", "hair_branch"]);
+    // Only the long strands are softened; every shared strand, short ones
+    // included, gets jump protection.
     assert_eq!(report.length_adjusted_groups.len(), 3);
-    assert_eq!(report.jump_protected_groups.len(), 3);
+    assert_eq!(report.jump_protected_groups.len(), 5);
     assert!(setup.requires_animation_limits());
     for adjusted in &report.length_adjusted_groups {
         assert_eq!(adjusted.short_hair_limit_inches, 12.);
         assert_eq!(adjusted.goal_strength_multiplier, 0.6);
     }
+    let lengths = strand_lengths(&setup);
     let proxy = Dmx::parse(setup.proxy).unwrap();
     assert_eq!(
         surface::binds(&d).unwrap().skeleton,
@@ -120,17 +129,25 @@ fn automatic_long_hair_is_softer_without_changing_short_hair_or_helper_invarianc
         }
         let t = t.as_f64().unwrap();
         let multiplier = if bone.contains("short") { 1. } else { 0.6 };
+        // Below the root, short strands of at least a quarter of the 12 in
+        // short-hair limit have a third of the game's gravity (360); long
+        // strands keep none.
+        let gravity = if t > 0. && multiplier == 1. && lengths[bone.as_str()] >= 3. { 120. } else { 0. };
+        // The joint below the held root pulls at 0.9, the next one halfway there.
+        let own = (0.6 - 0.2 * t) * multiplier;
+        let joint: usize = bone.rsplit('_').next().unwrap().parse().unwrap();
+        let share = match joint { 1 => 1., 2 => 0.5, _ => 0. };
         let expected = [
-            if t == 0. { 1. } else { (0.6 - 0.2 * t) * multiplier } as f32,
+            if t == 0. { 1. } else { own + (0.9 - own) * share } as f32,
             0.,
             1.,
-            0.,
+            gravity,
             0.,
             0.,
         ];
         for k in [0, 1, 2, 3, 5] { assert_eq!(settings[bone][k], expected[k], "{bone} map {k}"); }
-        if multiplier == 1. { assert_eq!(settings[bone][4], 0.); }
-        else { assert!(settings[bone][4] > 0.); }
+        assert!(settings[bone][4] > 0., "{bone}: every strand has a travel limit");
+        if t == 0. { assert_eq!(settings[bone][4], 0.03, "{bone}: the root is held"); }
     }
     for helper in ["spring_imported", "helper_leading"] {
         assert_eq!(settings[&format!("dmb_secondary_{helper}")][0], settings["dmb_secondary_hair_short_0"][0]);
@@ -139,16 +156,19 @@ fn automatic_long_hair_is_softer_without_changing_short_hair_or_helper_invarianc
         settings["dmb_secondary_helper_end"][0],
         settings["dmb_secondary_ponytail_2"][0]
     );
-    assert!(settings["dmb_secondary_ponytail_1"][0] < settings["dmb_secondary_bang_short_1"][0]);
-    assert_eq!(settings["dmb_secondary_hair_short_1"][0], 0.4);
-    assert_eq!(settings["dmb_secondary_ponytail_2"][0], 0.24);
+    // Joint 2 is firm on every strand; from joint 3 the long strand is softer.
+    assert_eq!(settings["dmb_secondary_ponytail_1"][0], settings["dmb_secondary_bang_short_1"][0]);
+    assert!(settings["dmb_secondary_ponytail_2"][0] < settings["dmb_secondary_bang_short_2"][0]);
+    assert_eq!(settings["dmb_secondary_hair_short_1"][0], 0.9);
+    assert!((settings["dmb_secondary_ponytail_2"][0] - 0.57).abs() < 1e-6);
+    assert!((settings["dmb_secondary_hair_dense_3"][0] - 0.27).abs() < 1e-6);
     assert_eq!(
         settings["dmb_secondary_ponytail_1"][0],
         settings["dmb_secondary_hair_curved_1"][0]
     );
     assert_eq!(
-        settings["dmb_secondary_hair_curved_1"][0],
-        settings["dmb_secondary_hair_dense_2"][0]
+        settings["dmb_secondary_ponytail_2"][0],
+        settings["dmb_secondary_hair_curved_2"][0]
     );
 }
 #[test]
@@ -178,7 +198,7 @@ fn long_hair_softens_even_when_no_short_hair_is_selected() {
     assert_eq!(single.hair_motion.as_ref().unwrap().length_adjusted_groups.len(), 1);
     let all_maps = maps(&Dmx::parse(all.proxy).unwrap());
     let single_maps = maps(&Dmx::parse(single.proxy).unwrap());
-    assert_eq!(single_maps["dmb_secondary_ponytail_2"][0], 0.24);
+    assert!((single_maps["dmb_secondary_ponytail_2"][0] - 0.57).abs() < 1e-6);
     for (name, values) in single_maps {
         assert_eq!(all_maps[&name], values, "{name}");
     }
@@ -221,14 +241,16 @@ fn model_rotation_and_uniform_scale_do_not_change_shared_hair_settings() {
     let after = maps(&Dmx::parse(changed.proxy).unwrap());
     for (bone, values) in before {
         for (k, (a, b)) in values.into_iter().zip(after[&bone]).enumerate() {
-            let expected = if k == 4 { a * 3. } else { a };
+            // Travel scales with the model, except a held root's: 0.03 in is
+            // the compiler's smallest kept limit, an absolute value.
+            let expected = if k == 4 && a == 0.03 { a } else if k == 4 { a * 3. } else { a };
             assert!((expected - b).abs() < 1e-5, "{bone} map {k}: {expected} vs {b}");
         }
     }
 }
 
 #[test]
-fn travel_envelopes_stay_below_ceiling_and_stretch_maps_only_target_long_hair() {
+fn travel_envelopes_stay_below_ceiling_and_stretch_maps_only_target_protected_hair() {
     let (d, p, binding, _) = fixture();
     let setup = secondary::setup(&p, &d, Some(&binding), &CancellationToken::new()).unwrap().unwrap();
     let protected = &setup.hair_motion.as_ref().unwrap().jump_protected_groups;
@@ -260,15 +282,40 @@ fn travel_envelopes_stay_below_ceiling_and_stretch_maps_only_target_long_hair() 
         }
         assert_eq!(stretch[i], 0.);
     }
+    // Every shared strand is bounded (short ones too); only the review
+    // groups (a single bone, a branch) stay free.
+    assert_eq!(protected.len(), 5);
     assert!(bounded > 0);
 }
 
 #[test]
-fn short_hair_only_needs_no_extra_maps_or_native_travel_gate() {
+fn short_hair_alone_gets_jump_protection_and_the_native_travel_gate() {
+    // Short hair without a travel limit rose without bound in a long fall: a
+    // short strand on its own now gets the height and travel limits and the
+    // tethers, and the compiled model must carry those limits.
     let (d, mut p, binding, _) = fixture();
     p.customization.secondary_motion.as_mut().unwrap().roots = Some(vec!["hair_short_0".into()]);
     let setup = secondary::setup(&p, &d, Some(&binding), &CancellationToken::new()).unwrap().unwrap();
-    assert!(!setup.requires_animation_limits());
+    assert!(setup.requires_animation_limits());
+    let report = setup.hair_motion.as_ref().unwrap();
+    assert!(report.length_adjusted_groups.is_empty(), "short hair keeps its pull");
+    assert_eq!(report.jump_protected_groups.len(), 1);
+    let plan = &report.jump_protected_groups[0];
+    assert!(plan.stretch_tethers && plan.ceiling_from_reference_inches > 0.);
+    let length = strand_lengths(&setup)["dmb_secondary_hair_short_1"];
+    assert!(length < 12.);
     let proxy = Dmx::parse(setup.proxy).unwrap();
-    assert!(proxy.elements.iter().all(|e| e.get("cloth_suspenders$0").is_none()));
+    let suspenders = stream(&proxy, "cloth_suspenders$0");
+    let enabled = stream(&proxy, "cloth_enable$0");
+    assert!((0..enabled.len()).filter(|&i| enabled[i] > 0.).all(|i| suspenders[i] == 1.));
+    let settings = maps(&proxy);
+    for (bone, t) in [("dmb_secondary_hair_short_0", 0.), ("dmb_secondary_hair_short_1", 1.)] {
+        let row = settings[bone];
+        // Two joints: the tip is the joint below the held root (pull 0.9).
+        assert_eq!(row[0], if t == 0. { 1. } else { 0.9 }, "{bone}: pull");
+        // Travel: the held root 0.03 in; below it at most 0.8 of the distance
+        // along the strand plus 3% of the limit (lower near the body).
+        assert!(row[4] > 0. && row[4] as f64 <= length * 0.8 * t + 0.36 + 1e-5, "{bone}: {}", row[4]);
+        assert_eq!(row[3], if t > 0. && length >= 3. { 120. } else { 0. }, "{bone} gravity");
+    }
 }

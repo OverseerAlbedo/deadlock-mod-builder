@@ -25,12 +25,22 @@ export function unusedSourceMeshes(report: InspectionReport, saved: Mappings): s
   return report.dmx.meshes.map(mesh => mesh.name).filter(name => !used.has(name));
 }
 
+const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const weaponNode = (name: string) => /gun|weapon/.test(canonical(name));
+/** The main body node: the first base node that is not a gun (by its name or `gun_part`),
+ * whatever it shows, so a mesh the user put on another part never turns that part into the body. */
+function mainNode(report: InspectionReport) {
+  return report.model.meshes.find(node => !node.lower_lod && !weaponNode(node.name) && !node.gun_part) ?? null;
+}
+
 /** Adds meshes to the main render node and its lower-detail levels; Keep/Disable rows are untouched. */
 export function addToMainNode(report: InspectionReport, saved: Mappings, meshes: string[]): { meshes: Mappings; node: string | null } {
   const effective = effectiveMappings(report, saved);
-  const bases = report.model.meshes.filter(node => !node.lower_lod);
-  const main = bases.find(node => mappedTargets(effective[node.name]).length > 0)
-    ?? bases.find(node => effective[node.name] === undefined) ?? null;
+  // When the user set the main node to Keep or Disable, the first other body part that shows
+  // meshes; never a gun.
+  const first = mainNode(report);
+  const main = first && !special(effective[first.name]) ? first
+    : report.model.meshes.find(node => !node.lower_lod && !weaponNode(node.name) && !node.gun_part && mappedTargets(effective[node.name]).length > 0) ?? null;
   if (!main) return { meshes: saved, node: null };
   const next = { ...saved };
   for (const node of report.model.meshes) {
@@ -45,27 +55,51 @@ export function addToMainNode(report: InspectionReport, saved: Mappings, meshes:
   return { meshes: next, node: main.name };
 }
 
-const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const weaponNode = (name: string) => /gun|weapon/.test(canonical(name));
-
 /**
  * A proposal for render nodes that have no mapping yet, applied only when you choose it.
  * Prepared characters name meshes after the source (Body, Face), not after the hero's render
  * nodes: every source mesh goes on the main body node, the original's other parts are hidden,
- * its gun stays, and lower detail levels follow the LOD strategy. Name-matched sources keep
- * the classic matching instead.
+ * its gun and its carried objects (`carried`: parts the game shows only while the hero carries
+ * something, decided at Analyze) stay, and lower detail levels follow the LOD strategy. Parts of
+ * the hero's gun whose names do not say so (`gun_part`: nearly all of their skin weight on weapon
+ * bones, decided at Analyze; ammunition, a bow's clips) follow the gun: kept while the hero's own
+ * gun is kept, disabled once a gun node shows the user's meshes or the gun is disabled (a fitted gun from
+ * Prepare model writes these rows itself: the user's gun meshes on the gun's main node and on the
+ * nodes the game shows instead of it, Disable on the parts it shows beside it). When every source mesh is
+ * named like a render node, the classic name matching is kept instead. When the main node and
+ * its detail levels show meshes and other source meshes are left over, the suggestion adds them
+ * there. Analyze saves its own matches as the project's rows (`project_mappings`), so a row the
+ * analysis matched cannot be told from one the user set: the suggestion only ever adds unused
+ * meshes to rows that show meshes, and never removes or replaces what a row shows.
  */
 export function suggestedMappings(report: InspectionReport, saved: Mappings, strategy: string): Mappings {
   const effective = effectiveMappings(report, saved);
   const nodes = report.model.meshes;
   const sources = report.dmx.meshes.map(mesh => mesh.name);
-  const named = sources.some(source => nodes.some(node => canonical(source) === canonical(node.name) || canonical(source) === canonical(lodBase(node.name))));
-  const main = nodes.find(node => !node.lower_lod && !weaponNode(node.name));
+  const namedLikeNode = (source: string) => nodes.some(node => canonical(source) === canonical(node.name) || canonical(source) === canonical(lodBase(node.name)));
+  const named = sources.length > 0 && sources.every(namedLikeNode);
+
+  // The hero's own gun is kept unless a gun node shows the user's meshes, or the gun node named
+  // as such is disabled. A part disabled on its own decides nothing for the others.
+  const gunKept = !nodes.some(node => !node.lower_lod && (weaponNode(node.name) || node.gun_part) && (
+    mappedTargets(effective[node.name]).length > 0 || (effective[node.name] === '@disable' && weaponNode(node.name) && node.gun_part)));
+  const main = mainNode(report);
+
   const result: Mappings = {};
-  if (named || !main || !nodes.some(node => effective[node.name] === undefined)) return result;
+  if (named || !main) return result;
   const unused = unusedSourceMeshes(report, saved);
+  if (mappedTargets(effective[main.name]).length > 0 && unused.length > 0) {
+    for (const node of nodes) {
+      if (node.name !== main.name && !(node.lower_lod && lodBase(node.name) === main.name)) continue;
+      const targets = mappedTargets(effective[node.name]);
+      if (targets.length === 0) continue;
+      const value = asMapping([...new Set([...targets, ...unused])]);
+      if (value !== undefined) result[node.name] = value;
+    }
+  }
   for (const node of nodes.filter(node => !node.lower_lod && effective[node.name] === undefined)) {
-    const value = node.name === main.name ? asMapping(unused) : weaponNode(node.name) ? '@keep' : '@disable';
+    const value = node.name === main.name ? asMapping(unused)
+      : weaponNode(node.name) || node.carried || (node.gun_part && gunKept) ? '@keep' : '@disable';
     if (value !== undefined) result[node.name] = value;
   }
   for (const node of nodes.filter(node => node.lower_lod && effective[node.name] === undefined)) {
@@ -94,7 +128,7 @@ export function MeshMapping({ report, meshes, busy, update, strategy = 'choose' 
   return <>
     <p className="hint">Map source meshes to each original render node. A render node can use several source meshes; tick every mesh it should show. Saved mappings are rechecked during preparation.</p>
     {suggested.length > 0 && <div className="callout mesh-suggestion" role="status">
-      <p><strong>Suggested mapping</strong> for {suggested.length} render node{suggested.length === 1 ? '' : 's'} without a choice: {suggested.slice(0, 6).map(name => `${name} → ${shown(name)}`).join('; ')}{suggested.length > 6 ? ' …' : ''}.</p>
+      <p><strong>Suggested mapping</strong> for {suggested.length} render node{suggested.length === 1 ? '' : 's'}{suggested.every(name => effective[name] === undefined) ? ' without a choice' : ''}: {suggested.slice(0, 6).map(name => `${name} → ${shown(name)}`).join('; ')}{suggested.length > 6 ? ' …' : ''}.</p>
       <button disabled={busy} onClick={() => update({ ...meshes, ...suggestion })}>Apply suggested mapping</button>
     </div>}
     {/* Shown even while a suggestion is pending, so an unused mesh always has its button (issue #6). */}

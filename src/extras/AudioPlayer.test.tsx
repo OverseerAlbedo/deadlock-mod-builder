@@ -66,6 +66,21 @@ beforeEach(() => {
   resume = () => Promise.resolve();
   vi.stubGlobal("AudioContext", Context);
 });
+it("warns about clipping only on the player whose volume goes into the build", async () => {
+  // A sound whose peaks already reach past full scale at 100%.
+  class Loud extends Context {
+    async decodeAudioData() {
+      return { duration: 2, numberOfChannels: 1, getChannelData: () => new Float32Array([0, 1.2, -1.1, 0.1]) };
+    }
+  }
+  vi.stubGlobal("AudioContext", Loud);
+  const view = render(<AudioPlayer bytes={bytes} label="original" />);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Play original" })).toBeEnabled());
+  expect(screen.queryByText(/Peaks will clip/)).toBeNull();
+  view.unmount();
+  render(<AudioPlayer bytes={bytes} label="replacement" volume={100} />);
+  expect(await screen.findByText(/Peaks will clip/)).toBeVisible();
+});
 it("auditions actual gain, updates a playing sound, mutes, and stops other players", async () => {
   const Pair = ({ volume }: { volume: number }) => (
     <>

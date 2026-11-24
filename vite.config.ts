@@ -8,7 +8,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: { target: 'es2022' },
   // Full-app UI tests take several seconds on 2-core CI runners; the 5 s
-  // default made them fail by chance there. Only src/ holds tests: copies of
-  // the project inside it (agent worktrees under .claude/) are not collected.
+  // default made them fail by chance there. Only test files under src/ are
+  // collected.
   test: { environment: 'jsdom', setupFiles: './src/test-setup.ts', restoreMocks: true, testTimeout: 30000, include: ['src/**/*.test.{ts,tsx}'] },
 });

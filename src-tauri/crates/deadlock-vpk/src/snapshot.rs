@@ -99,7 +99,10 @@ impl Drop for PendingSnapshot {
     }
 }
 type Inventory = BTreeMap<String, Baseline>;
-fn inventory(root: &Path, check: &mut Check<'_>) -> Result<Inventory> {
+/// The compiled files (`…_c`) under `root`, plus the other files `named`
+/// (casefolded relative paths a package requires by name, such as the item
+/// names text files); any other file that is not compiled is left out.
+fn inventory(root: &Path, named: &BTreeSet<String>, check: &mut Check<'_>) -> Result<Inventory> {
     check_unlinked_path(root, false)?;
     let mut found = BTreeMap::new();
     let mut seen = BTreeSet::new();
@@ -128,7 +131,8 @@ fn inventory(root: &Path, check: &mut Check<'_>) -> Result<Inventory> {
             let Some(filename) = filename.to_str() else {
                 return Err(Error::invalid("Compiled output path is not UTF-8."));
             };
-            if !filename.ends_with("_c") {
+            let compiled = filename.ends_with("_c");
+            if !compiled && named.is_empty() {
                 continue;
             }
             let rel = path
@@ -137,6 +141,9 @@ fn inventory(root: &Path, check: &mut Check<'_>) -> Result<Inventory> {
                 .to_str()
                 .ok_or_else(|| Error::invalid("Compiled output path is not UTF-8."))?
                 .replace('\\', "/");
+            if !compiled && !named.contains(&key(&rel)) {
+                continue;
+            }
             let rel = relative_asset(&rel)?;
             if !seen.insert(key(&rel)) {
                 return Err(Error::invalid(format!(
@@ -167,9 +174,11 @@ fn attempt(
     options: &SnapshotOptions,
     check: &mut Check<'_>,
 ) -> Result<Hashes> {
-    let before = inventory(source, check)?;
+    // Required files that are not compiled resources (text files) are taken by name.
+    let named: BTreeSet<String> = options.required.iter().filter(|p| !p.ends_with("_c")).map(|p| key(p)).collect();
+    let before = inventory(source, &named, check)?;
     pause(options.settle_time, check)?;
-    same_inventory(&before, &inventory(source, check)?, "during quiet interval")?;
+    same_inventory(&before, &inventory(source, &named, check)?, "during quiet interval")?;
     let missing: Vec<_> = options
         .required
         .iter()
@@ -225,7 +234,7 @@ fn attempt(
         return Err(Error::invalid("No compiled files selected for packaging."));
     }
     pause(options.settle_time, check)?;
-    same_inventory(&before, &inventory(source, check)?, "after snapshot copy")?;
+    same_inventory(&before, &inventory(source, &named, check)?, "after snapshot copy")?;
     for (rel, baseline) in &before {
         check()?;
         let final_hash = hash_copy(&source.join(rel), baseline, None, check)?;
@@ -237,7 +246,7 @@ fn attempt(
     }
     same_inventory(
         &before,
-        &inventory(source, check)?,
+        &inventory(source, &named, check)?,
         "at snapshot completion",
     )?;
     for rel in selected.keys() {
@@ -437,6 +446,24 @@ mod tests {
         assert!(source.join("payload").exists());
         assert!(destination.is_dir());
         assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
+    }
+    /// A text file is frozen only when the package requires it by name; other
+    /// files that are not compiled stay out, as before.
+    #[test]
+    fn a_required_text_file_is_frozen_and_other_text_files_are_not() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("compiled");
+        let names = "resource/localization/sample_names/sample_names_english.txt";
+        for (path, bytes) in [("models/a.vmdl_c", "model"), (names, "names"), ("resource/notes.txt", "notes"), ("models/a.vmdl", "source")] {
+            fs::create_dir_all(source.join(path).parent().unwrap()).unwrap();
+            fs::write(source.join(path), bytes).unwrap();
+        }
+        let options = |required: &[&str]| SnapshotOptions { required: required.iter().map(|p| p.to_string()).collect(), settle_time: Duration::ZERO, ..Default::default() };
+        let mut check = || Ok(());
+        let frozen = create_snapshot(&source, &root.path().join("one"), &options(&["models/a.vmdl_c", names]), &mut check, &mut |_| {}).unwrap();
+        assert_eq!(frozen.files.keys().collect::<Vec<_>>(), ["models/a.vmdl_c", names]);
+        let plain = create_snapshot(&source, &root.path().join("two"), &options(&["models/a.vmdl_c"]), &mut check, &mut |_| {}).unwrap();
+        assert_eq!(plain.files.keys().collect::<Vec<_>>(), ["models/a.vmdl_c"], "without a named text file, only compiled files");
     }
     /// Issue #7: MoveFileExW needs verbatim paths from 260 characters on.
     #[cfg(windows)]

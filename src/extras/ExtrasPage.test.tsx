@@ -12,10 +12,13 @@ import type { Project } from "../models";
 import type { ComponentCatalog } from "../components/AssetCatalog";
 import { ExtrasWorkspace } from "./ExtrasPage";
 import { clearExtraMediaCache } from "./media";
+import { NOT_A_PICTURE, NOT_A_PICTURE_STATUS, clearPictureChecks } from "./pictureChecks";
 import reference from "../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json";
 const native = vi.hoisted(() => ({
   validateAssetPath: vi.fn(),
   previewExtra: vi.fn(),
+  // Items reads the game's item list when its tab opens; it stays loading here.
+  itemCatalog: vi.fn(() => new Promise(() => undefined)),
 }));
 vi.mock("../api", async (original) => ({
   ...(await original<typeof import("../api")>()),
@@ -86,6 +89,7 @@ function packet(mime_type: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   clearExtraMediaCache();
+  clearPictureChecks();
   native.validateAssetPath.mockImplementation(async (path) => path);
   native.previewExtra.mockImplementation(async ({ kind }) =>
     packet(kind === "icons" ? "image/png" : "audio/wav"),
@@ -169,6 +173,23 @@ describe("Extras workspace", () => {
     );
     expect(discover).toHaveBeenCalledTimes(2);
   });
+  it("asks for the hero first and reads nothing while none is chosen", async () => {
+    const discover = vi.fn();
+    const fail = vi.fn();
+    const none = { ...initial, original_model: "", hero_name: "" } as Project;
+    render(
+      <ExtrasWorkspace project={none} update={vi.fn()} disabled={false} fail={fail} discover={discover} />,
+    );
+    expect(screen.getByRole("heading", { name: "Choose the hero first" })).toBeInTheDocument();
+    expect(screen.getByText(/in Character & model, then return here/)).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Extras categories" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Load character assets/ })).toBeDisabled();
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(discover).not.toHaveBeenCalled();
+    expect(native.itemCatalog).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+  });
   it("previews the original before importing and saves a validated drop without losing other choices", async () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: /Hero portrait/ }));
@@ -205,6 +226,60 @@ describe("Extras workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove replacement" }));
     expect(saved().customization.icons).toEqual([]);
     expect(saved().customization.physics?.enabled).toBe(true);
+  });
+  it("says plainly when a chosen picture file is not a picture, and does not show it as Replaced", async () => {
+    native.previewExtra.mockImplementation(async ({ kind, source }) => {
+      if (source) throw { kind: "validation", message: "Integrity check failed: A replacement picture is not a PNG or JPEG image the app can read: C:\\Art\\not-a-picture.png. The image format could not be determined", details: "" };
+      return packet(kind === "icons" ? "image/png" : "audio/wav");
+    });
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: /Hero portrait/ }));
+    await drop("C:\\Art\\not-a-picture.png");
+    expect(await screen.findByText(NOT_A_PICTURE)).toBeVisible();
+    expect(screen.getByText(/The image format could not be determined/)).toBeVisible();
+    // The row in the list and the editor's state say it too; nothing calls it Replaced.
+    const row = screen.getByRole("button", { name: /Hero portrait/ });
+    await waitFor(() => expect(row).toHaveTextContent(NOT_A_PICTURE_STATUS));
+    expect(row.querySelector(".extra-asset-state.attention")).not.toBeNull();
+    expect(screen.queryByText("Replaced")).toBeNull();
+    // A real picture for the same row is Replaced again.
+    native.previewExtra.mockImplementation(async ({ kind }) => packet(kind === "icons" ? "image/png" : "audio/wav"));
+    await drop("C:\\Art\\portrait.png");
+    await waitFor(() => expect(row).toHaveTextContent("Replaced"));
+    expect(screen.queryByText(NOT_A_PICTURE)).toBeNull();
+  });
+  it("keeps a picture Replaced when its preview fails for another reason (busy, a moved file)", async () => {
+    native.previewExtra.mockImplementation(async ({ kind, source }) => {
+      if (source) throw { kind: "busy", message: "Another operation is running", details: "" };
+      return packet(kind === "icons" ? "image/png" : "audio/wav");
+    });
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: /Hero portrait/ }));
+    await drop("C:\\Art\\portrait.png");
+    expect(await screen.findByText("Another operation is running")).toBeVisible();
+    expect(screen.getByText("Preview unavailable")).toBeVisible();
+    expect(screen.queryByText(NOT_A_PICTURE)).toBeNull();
+    expect(screen.getByRole("button", { name: /Hero portrait/ })).toHaveTextContent("Replaced");
+  });
+  it("opens the tab that was open when the page was left, per project, for the session", () => {
+    const first = render(<Harness />);
+    fireEvent.click(document.getElementById("extras-tab-items")!);
+    expect(document.getElementById("extras-tab-items")).toHaveAttribute("aria-selected", "true");
+    first.unmount();
+    const again = render(<Harness />);
+    expect(document.getElementById("extras-tab-items")).toHaveAttribute("aria-selected", "true");
+    again.unmount();
+    // Another project starts on the first tab.
+    render(<Harness start={{ ...initial, id: "another-project" } as Project} />);
+    expect(document.getElementById("extras-tab-icons")).toHaveAttribute("aria-selected", "true");
+  });
+  it("does not say the replacement model stays included when none is chosen", () => {
+    const view = render(<Harness start={{ ...initial, dmx: "" } as Project} />);
+    expect(screen.getByText(/^No replacement model is chosen yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Your replacement model stays included/)).toBeNull();
+    view.unmount();
+    render(<Harness start={{ ...initial, dmx: "C:\\Models\\hero.dmx" } as Project} />);
+    expect(screen.getByText("Your replacement model stays included")).toBeInTheDocument();
   });
   it("saves sound gain from zero to two hundred with unity as default and previews the same gain", async () => {
     render(<Harness />);
@@ -306,7 +381,8 @@ describe("Extras workspace", () => {
       "aria-selected",
       "true",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Changed (0)" }));
+    // Sounds has its own library: "Changed" is "Replaced only" there.
+    fireEvent.click(screen.getByRole("button", { name: /^Replaced only/ }));
     expect(screen.getByText("No replacements yet")).toBeVisible();
   });
   it("keeps missing saved destinations recoverable without inventing a game path", () => {

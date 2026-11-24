@@ -73,7 +73,7 @@ impl Application {
         }
     }
     /// Saved project files outside the workspace that still carry their ID.
-    fn known_projects(&self, settings: &Settings, open: Option<&Project>) -> BTreeMap<String, KnownProject> {
+    pub(crate) fn known_projects(&self, settings: &Settings, open: Option<&Project>) -> BTreeMap<String, KnownProject> {
         let workspace = PathBuf::from(&settings.workspace);
         let mut candidates = self.registry();
         if !settings.last_project.is_empty() {

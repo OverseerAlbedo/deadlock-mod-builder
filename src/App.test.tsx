@@ -6,7 +6,7 @@ import type { AnalysisResult, Project, Settings, TimingReport } from './models';
 const mocks = vi.hoisted(() => ({
   sessionRecovery:vi.fn(),dismissRecovery:vi.fn(),restoreAutosave:vi.fn(),autosaveProject:vi.fn(),clearAutosaves:vi.fn(),testSetup:vi.fn(),prebuildWarnings:vi.fn(),checkSettingFields:vi.fn(),heroProportions:vi.fn(),operationDurations:vi.fn(),buildProject:vi.fn(),  inspectProject:vi.fn(),analyzeMaterials:vi.fn(),importSourcePackage:vi.fn(),detectSettings:vi.fn(),setupStatus:vi.fn(),settings:vi.fn(),saveSettings:vi.fn(),newProject:vi.fn(),openProject:vi.fn(),saveProject:vi.fn(),analyze:vi.fn(),cancel:vi.fn(),latestTimings:vi.fn(),timings:vi.fn(),logs:vi.fn(),logText:vi.fn(),saveLog:vi.fn(),
   invoke:vi.fn(),open:vi.fn(),save:vi.fn(),ask:vi.fn(),drop:vi.fn(),close:vi.fn(),desktop:true,
-  discoverExtras:vi.fn(),previewExtra:vi.fn(),validateAssetPath:vi.fn(),
+  discoverExtras:vi.fn(),preview:vi.fn(),previewExtra:vi.fn(),validateAssetPath:vi.fn(),scanInstalledMods:vi.fn(),
 }));
 vi.mock('./api', async original => ({...await original<typeof import('./api')>(),isDesktop:() => mocks.desktop,api:mocks}));
 vi.mock('@tauri-apps/plugin-dialog', () => ({open:mocks.open,save:mocks.save,ask:mocks.ask}));
@@ -18,6 +18,7 @@ vi.mock('@tauri-apps/api/event', () => ({listen:vi.fn(async () => vi.fn())}));
 vi.mock('@tauri-apps/api/window', () => ({getCurrentWindow:() => ({onDragDropEvent:mocks.drop,onCloseRequested:mocks.close,destroy:vi.fn()})}));
 import { App, AUTOSAVE_MS } from './App';
 import { inspected, reviewedProject } from './build/testFixtures';
+import { version as APP_VERSION } from '../package.json';
 
 const draft = reference.cases[0].expected as unknown as Project;
 const settings: Settings = {steam:'',deadlock:'',pak:'',csdk:'',resourcecompiler:'',cswin:'',cswin_resourcecompiler:'',model_backend:'auto',model_game:'',model_format:'auto',optional_cs2:'',source2viewer:'',vpk_tool:'',vpk_backend:'builtin',ag2_adapter:'',workspace:'',last_project:'',blender:''};
@@ -95,6 +96,17 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'Step timings'}));
     expect(screen.getByTestId('total-duration')).toHaveTextContent('1.000 s');
   });
+  it('opens Prepare model from Extras → Colors when the replacement model is not prepared yet', async () => {
+    const project = {...structuredClone(reference.cases[1].expected), dmx:'', customization:{enabled:true}} as unknown as Project;
+    mocks.newProject.mockResolvedValue({path:null,project});
+    mocks.settings.mockResolvedValue(settings);
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.click(screen.getByRole('button',{name:'Extras'}));
+    fireEvent.click(screen.getByRole('tab',{name:/Colors/}));
+    expect(screen.getByText('No prepared model yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:/Open Prepare model/}));
+    expect(screen.getByRole('button',{name:'Prepare model'})).toHaveAttribute('aria-current','page');
+  });
   it('keeps Extras and the selected icon mounted while a native image drag crosses the window into its replacement box', async () => {
     const project = structuredClone(reference.cases[1].expected) as unknown as Project;
     const target = 'panorama/images/heroes/hero_test.vtex_c', source = 'C:\\Art\\portrait.png';
@@ -145,9 +157,9 @@ describe('Connected desktop workspace', () => {
     expect(mocks.analyze).not.toHaveBeenCalled();
     // One line at the top; the whole error is one click away.
     expect(screen.getByRole('alert')).toHaveTextContent('Could not import the dropped fileDetails in Notifications.');
-    expect(screen.queryByText('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.')).toBeNull();
+    expect(screen.queryByText('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, FBX or MMD (.pmx, .pmd) source.')).toBeNull();
     fireEvent.click(screen.getByRole('button',{name:'Show details'}));
-    expect(screen.getByRole('alert')).toHaveTextContent('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, or FBX source.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Drop one local file with the .dmx extension, or a Blender, GLB, glTF, FBX or MMD (.pmx, .pmd) source.');
   });
   it('keeps failed-analysis timing evidence and surfaces complete error details', async () => {
     const report = {...timings,status:'failed' as const};
@@ -165,6 +177,24 @@ describe('Connected desktop workspace', () => {
     fireEvent.click(screen.getByRole('button',{name:'Step timings'}));
     expect(screen.getByText(/Failed/)).toBeInTheDocument();
     expect(screen.getByTestId('total-duration')).toHaveTextContent('1.000 s');
+  });
+  it('ends a run that starts no backend operation on its own result, not on an earlier failed operation', async () => {
+    const report = {...timings,status:'failed' as const};
+    // A failing operation that takes a moment, so its run shows in the status bar.
+    mocks.analyze.mockImplementation(()=>new Promise((_,reject)=>setTimeout(()=>reject({kind:'validation',message:'Model is malformed',details:''}),50)));
+    mocks.open.mockResolvedValue('C:\\Models\\bad.dmx');
+    const { container } = render(<App />); await screen.findByLabelText('Project name');
+    mocks.latestTimings.mockResolvedValue(report);
+    fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
+    fireEvent.click(screen.getByRole('button',{name:'Choose model…'}));
+    await screen.findByRole('alert');
+    const status = () => container.querySelector('.statusbar-text');
+    await waitFor(()=>expect(status()).toHaveTextContent('Stopped with an error'));
+    // New project asks the backend for nothing that writes a timing report: the failed one stays the latest.
+    fireEvent.click(screen.getByRole('button',{name:'New'}));
+    await waitFor(()=>expect(mocks.newProject).toHaveBeenCalledTimes(2));
+    await waitFor(()=>expect(status()).toHaveTextContent('Done'));
+    expect(status()).not.toHaveTextContent('Stopped with an error');
   });
   it('imports verified source data and material plans through the native service before saving', async () => {
     const imported={...structuredClone(draft),dmx:'C:\\workspace\\source.dmx',original_model:'models/heroes/test.vmdl',source_overlay:'C:\\workspace\\overlay',expected_dmx_sha256:'a'.repeat(64),customization:{future:{retained:true}}};
@@ -239,6 +269,48 @@ describe('Connected desktop workspace', () => {
     await waitFor(()=>expect(screen.queryByText('Tool settings have unsaved changes')).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole('button',{name:'Character & model'}));
     expect(screen.getByLabelText('Project name')).toHaveValue('Keep mapping and cloth project');
+  });
+  it('loads the prepared model by itself with Load 3D previews automatically, once, and not again on either page after a failure', async () => {
+    mocks.settings.mockResolvedValue({...settings,auto_previews:true});
+    mocks.newProject.mockResolvedValue({path:null,project:{...structuredClone(draft),original_model:'models/heroes_wip/test/test.vmdl',dmx:'C:\\Models\\prepared.dmx'}});
+    mocks.preview.mockRejectedValue({kind:'validation',message:'The prepared model could not be read'});
+    render(<App/>);await screen.findByLabelText('Project name');
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,150));});
+    // Nothing loads on the other pages.
+    expect(mocks.preview).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
+    await waitFor(()=>expect(mocks.preview).toHaveBeenCalledWith('C:\\Models\\prepared.dmx'));
+    expect(await screen.findByText('Preview could not be loaded')).toBeVisible();
+    fireEvent.click(screen.getByRole('button',{name:'Physics & preview'}));
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,150));});
+    fireEvent.click(screen.getByRole('button',{name:'Appearance & weapons'}));
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,150));});
+    expect(mocks.preview).toHaveBeenCalledOnce();
+  });
+  it('saves the two Appearance preferences at once, without the unsaved tool paths', async () => {
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+    fireEvent.change(screen.getByLabelText('Workspace folder'),{target:{value:'C:\\Pending workspace'}});
+    expect(screen.getByLabelText('Default fit for new models')).toHaveValue('preserve_proportions');
+    fireEvent.click(screen.getByLabelText('Load 3D previews automatically'));
+    fireEvent.change(screen.getByLabelText('Default fit for new models'),{target:{value:'match_target'}});
+    // Two quick changes: the second keeps the first.
+    await waitFor(()=>expect(mocks.saveSettings).toHaveBeenLastCalledWith({...settings,auto_previews:true,default_fit_mode:'match_target'}));
+    expect(mocks.saveSettings).toHaveBeenNthCalledWith(1,{...settings,auto_previews:true});
+    expect(screen.getByLabelText('Load 3D previews automatically')).toBeChecked();
+    // Only the path is still unsaved.
+    expect(screen.getByLabelText('Workspace folder')).toHaveValue('C:\\Pending workspace');
+    expect(screen.getByText('Settings unsaved')).toBeVisible();
+  });
+  it('says in About this build which version it is, its license and where its source code is', async () => {
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.click(screen.getByRole('button',{name:'About this build'}));
+    const about=document.getElementById('app-about') as HTMLElement;
+    expect(about).toHaveTextContent(`Deadlock Mod Builder ${APP_VERSION}`);
+    expect(about).toHaveTextContent('GNU Affero General Public License v3.0 or later');
+    expect(about).toHaveTextContent(`https://github.com/OverseerAlbedo/deadlock-mod-builder, tag v${APP_VERSION}`);
+    expect(about).toHaveTextContent('Third-party notices are in the licenses folder beside the app.');
+    expect(about).not.toHaveTextContent(/reported working|qualification/);
   });
   it('does not claim Blender is saved when validation cannot persist the path', async () => {
     const path = 'C:\\Blender 5.2\\blender.exe';
@@ -359,6 +431,29 @@ describe('Connected desktop workspace', () => {
     expect(screen.queryByText('Ready to build',{exact:true})).not.toBeInTheDocument();
     expect(screen.getByText('Analyze to check compatibility')).toBeInTheDocument();
   });
+  it('opens the project an installed mod was built from as Open… does, asking about unsaved changes first', async () => {
+    const stored = {...structuredClone(draft),name:'Built project'};
+    const file = 'C:\\Projects\\built.dmb.json';
+    mocks.openProject.mockResolvedValue({path:file,project:stored});
+    mocks.scanInstalledMods.mockResolvedValue([{path:'C:\\Game\\addons\\pak05_dir.vpk',file:'pak05_dir.vpk',bytes:1048576,status:'no_hero_model',note:'',models:[],identity:`vpk-tree-v1:${'a'.repeat(64)}`,
+      contents:{files:2,kinds:{sound:2},heroes:[{name:'Haze',files:2}],every_hero:0,unattributed:0,ability_objects:[],samples:{}},shared:[],label:null,
+      made:{project_id:'b'.repeat(32),project_name:'Built project',hero:'Haze',project_file:file,source:'install'}}]);
+    render(<App/>);await screen.findByLabelText('Project name');
+    fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Unsaved changes'}});
+    fireEvent.click(within(screen.getByRole('navigation',{name:'Main navigation'})).getByRole('button',{name:'Build & install'}));
+    fireEvent.click(await screen.findByRole('button',{name:'Check installed mods'}));
+    fireEvent.click(await screen.findByRole('button',{name:/Details/}));
+    // Keeping the unsaved changes opens nothing.
+    mocks.ask.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button',{name:'Open its project'}));
+    await waitFor(()=>expect(mocks.ask).toHaveBeenCalledOnce());
+    expect(mocks.ask.mock.calls[0][0]).toContain('unsaved changes');
+    expect(mocks.openProject).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Open its project'}));
+    await waitFor(()=>expect(mocks.openProject).toHaveBeenCalledWith(file));
+    expect(mocks.open).not.toHaveBeenCalled();
+    expect(await screen.findByDisplayValue('Built project')).toBeInTheDocument();
+  });
 
 });
 
@@ -425,14 +520,36 @@ describe('Gun file before automatic preparation', () => {
     expect(mocks.validateAssetPath).toHaveBeenCalledWith('C:\Models\gun.blend','weapon');
     window.removeEventListener('dmb-model-source', listener);
   });
+  it('takes a dropped MMD model like any other source, and offers MMD files in the pickers', async () => {
+    mocks.newProject.mockResolvedValue({path:null,project:{...structuredClone(draft),original_model:'models/heroes_staging/haze/haze.vmdl_c',hero_name:'haze'}});
+    mocks.ask.mockResolvedValue(false);
+    const seen:string[] = [];const listener=(event:Event)=>seen.push((event as CustomEvent<{path:string}>).detail.path);
+    window.addEventListener('dmb-model-source', listener);
+    render(<App/>);await screen.findByLabelText('Project name');
+    // The model picker and the gun picker list .pmx and .pmd.
+    mocks.ask.mockResolvedValueOnce(true);
+    mocks.open.mockResolvedValueOnce('C:\\Models\\hero.pmx').mockResolvedValueOnce(null);
+    fireEvent.click(screen.getAllByRole('button',{name:'Choose model file…'})[0]);
+    await waitFor(()=>expect(seen).toEqual(['C:\\Models\\hero.pmx']));
+    expect(mocks.open).toHaveBeenCalledTimes(2);
+    for (const [options] of mocks.open.mock.calls) expect(options.filters[0].extensions).toEqual(expect.arrayContaining(['pmx','pmd']));
+    // Dropped anywhere, an MMD model starts preparation like a Blender file.
+    const handler = mocks.drop.mock.calls[0][0];
+    act(() => handler({payload:{type:'drop',paths:['C:\\Models\\キャラ.PMX'],position:{x:1,y:1}}}));
+    await waitFor(()=>expect(seen).toEqual(['C:\\Models\\hero.pmx','C:\\Models\\キャラ.PMX']));
+    act(() => handler({payload:{type:'drop',paths:['C:\\Models\\old.pmd'],position:{x:1,y:1}}}));
+    await waitFor(()=>expect(seen).toEqual(['C:\\Models\\hero.pmx','C:\\Models\\キャラ.PMX','C:\\Models\\old.pmd']));
+    expect(mocks.analyze).not.toHaveBeenCalled();
+    window.removeEventListener('dmb-model-source', listener);
+  });
 });
 
 describe('Autosave and recovery', () => {
   it('offers the newest autosave after a crash and restores it as unsaved changes', async () => {
-    mocks.sessionRecovery.mockResolvedValue({unclean:true,autosaves:[{file:'1760000000000.json',id:draft.id,name:'Crashed Yvonne',path:'C:\Projects\yvonne.dmb.json',saved_ms:1760000000000}]});
-    mocks.restoreAutosave.mockResolvedValue({path:'C:\Projects\yvonne.dmb.json',project:{...structuredClone(draft),name:'Crashed Yvonne'}});
+    mocks.sessionRecovery.mockResolvedValue({unclean:true,autosaves:[{file:'1760000000000.json',id:draft.id,name:'Crashed Sample',path:'C:\Projects\sample.dmb.json',saved_ms:1760000000000}]});
+    mocks.restoreAutosave.mockResolvedValue({path:'C:\Projects\sample.dmb.json',project:{...structuredClone(draft),name:'Crashed Sample'}});
     render(<App/>);
-    await waitFor(()=>expect(screen.getByLabelText('Project name')).toHaveValue('Crashed Yvonne'));
+    await waitFor(()=>expect(screen.getByLabelText('Project name')).toHaveValue('Crashed Sample'));
     expect(mocks.ask).toHaveBeenCalledWith(expect.stringContaining('did not close normally'),expect.objectContaining({okLabel:'Restore'}));
     expect(mocks.restoreAutosave).toHaveBeenCalledWith(draft.id,'1760000000000.json');
     expect(mocks.dismissRecovery).toHaveBeenCalled();
@@ -440,7 +557,7 @@ describe('Autosave and recovery', () => {
   });
   it('autosaves only unsaved changes and forgets autosaves after saving', async () => {
     const intervals = vi.spyOn(window,'setInterval');
-    mocks.save.mockResolvedValue('C:\Projects\yvonne.dmb.json');
+    mocks.save.mockResolvedValue('C:\Projects\sample.dmb.json');
     mocks.saveProject.mockImplementation(async (path,project) => ({path,project}));
     render(<App/>);await screen.findByLabelText('Project name');
     const tick = () => { for (const call of intervals.mock.calls) if (call[1] === AUTOSAVE_MS) (call[0] as () => void)(); };

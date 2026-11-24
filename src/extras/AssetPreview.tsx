@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ExtraIcon } from "./Icons";
 import { AudioPlayer } from "./AudioPlayer";
 import { useExtraMedia, useVisible } from "./media";
@@ -41,7 +42,10 @@ export function AssetPreview({
   kind,
   volume,
   disabled,
+  errorView,
 }: {
+  /** Shown instead of the error text when it returns something (Sounds: a long file leads to the editor). */
+  errorView?: (error: string) => ReactNode;
   request: ExtraPreviewRequest | null;
   identity: string;
   label: string;
@@ -61,7 +65,7 @@ export function AssetPreview({
           Loading {label.toLowerCase()}…
         </div>
       )}
-      {error && (
+      {error && errorView?.(error) ? errorView(error) : error && (
         <div className="extra-preview-placeholder extra-error" role="status">
           <ExtraIcon name="warning" size={26} />
           <strong>Preview unavailable</strong>

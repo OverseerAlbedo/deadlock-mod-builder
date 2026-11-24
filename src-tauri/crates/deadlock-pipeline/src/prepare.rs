@@ -145,7 +145,7 @@ impl ModelPipeline<'_> {
                 for material in report.materials.keys(){if !safety::inside(&content,material)?.is_file(){return Err(invalid(format!("Missing material: {material}")));}}
                 self.clock.skip_step("Generate material sources and textures",Some(parent.id()),"Existing material sources selected")?;vec![]
             };
-            for changed in self.clock.measure("Apply material customization",Some(parent.id()),|_|deadlock_materials::patch_materials(&content,&report.materials,&p.customization,self.cancel).map_err(material_error))?{if !created.contains(&changed){created.push(changed);}}
+            for changed in self.clock.measure("Apply material customization",Some(parent.id()),|_|{/* Color ranges for one part read the prepared model's meshes (only when there are some). */let parts=crate::hero_meshes::PreparedPartMeshes::new(&p.dmx,self.cancel);deadlock_materials::patch_materials_with(&content,&report.materials,&p.customization,Some(&parts),self.cancel).map_err(material_error)})?{if !created.contains(&changed){created.push(changed);}}
             // Face layers the source keeps transparent (blush, tears): hidden
             // unless shown in Appearance > Face details.
             let face_layers=self.clock.measure("Apply face layers",Some(parent.id()),|_|deadlock_materials::patch_face_layers(&content,&report.materials,&p.customization,self.cancel).map_err(material_error))?;

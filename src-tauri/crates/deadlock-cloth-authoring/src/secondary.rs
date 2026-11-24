@@ -60,6 +60,11 @@ pub struct PreviewNode {
     pub gravity: f64,
     /// Travel limit in inches; 0 swings freely.
     pub travel: f64,
+    /// A hard maximum of the travel limit after Fine-tune (a breast whose
+    /// partner hangs from the same anchor, `secondary_auto::cap_travel`; an
+    /// a held root or a held hair strand's upper joints, `secondary_auto::TravelCap`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_travel: Option<f64>,
 }
 #[derive(Debug, Serialize)]
 pub struct Setup {
@@ -111,6 +116,11 @@ pub struct Setup {
     pub preset_fit: Option<crate::tangtang_fit::FitReceipt>,
     #[serde(skip)]
     pub proxy: Vec<u8>,
+    /// Each proxy point's motion values before Fine-tune and the caps applied
+    /// after it, for the movement preview's cloth packet (`preview_cloth`).
+    /// Never serialized: the setup's JSON is hashed for build freshness.
+    #[serde(skip)]
+    pub preview_points: Vec<crate::preview_cloth::PointMotion>,
 }
 impl Setup {
     /// The groups the cloth solver moves: every group except the parts set to
@@ -390,9 +400,12 @@ pub fn setup_with(
                 report.custom_profile_groups.push(part.root.clone());
             } else {
                 report.shared_profile_groups.push(part.root.clone());
-                if let Some(adjustment) = crate::hair_motion::length_adjustment(group, part, &hair_bind, &hair_state, None) {
-                    report.jump_protected_groups.push(crate::hair_limits::plan(group, part, &hair_bind, &hair_state, &adjustment)?);
-                    report.length_adjusted_groups.push(adjustment);
+                // Every strand gets jump protection; only long ones a lower pull.
+                if let Some(reference) = crate::hair_motion::reference(group, part, &hair_bind, &hair_state, None) {
+                    report.jump_protected_groups.push(crate::hair_limits::plan(group, part, &hair_bind, &hair_state, &reference)?);
+                    if reference.goal_strength_multiplier < 1. {
+                        report.length_adjusted_groups.push(reference);
+                    }
                 }
             }
         }
@@ -432,7 +445,7 @@ pub fn setup_with(
     // Twist protection per strip: chains may not share joints, so the first
     // strip of a part takes the joints it shares with the others. Bones the
     // upper-garment rule restrains keep their own orientation fit, which that
-    // restraint needs (arcaneVin's beltA__jnt1 at the cloak's root).
+    // restraint needs (a belt joint such as beltA__jnt1 at a cloak's root).
     let restrained:BTreeSet<String>=attachments.iter().flat_map(|a|a.plan.bones.iter().map(|b|b.bone.clone())).collect();
     for (part,group) in strip_parts() {
         let mut claimed=restrained.clone();
@@ -445,6 +458,7 @@ pub fn setup_with(
     }
     let mut preset_fit = None;
     let mut preview_nodes = vec![];
+    let mut preview_points = vec![];
     let (proxy, positions, dynamic) = match effective {
         "tangtang_r2" | "tangtang_reference" => {
             // The data is private (see tangtang_assets.rs); a public build has none of it.
@@ -487,10 +501,10 @@ pub fn setup_with(
             }
             // The movement preview's moving parts for the bundled setup as well;
             // the proxy stays the reviewed one (the automatic plan is thrown away).
-            let _ = generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, cancel);
+            let _ = generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, &mut vec![], cancel);
             (proxy, 900, 786)
         }
-        "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, cancel)?,
+        "automatic" => generate_inner(d, &groups, &profiles, &tuning, &springs, Some(&parts), long_skirt.as_ref(), &still, &hero_vertex_sets, &mut preview_nodes, &mut preview_points, cancel)?,
         _ => return Err(invalid("Unknown secondary motion preset.")),
     };
     cancel.check()?;
@@ -539,6 +553,7 @@ pub fn setup_with(
         native_compiled: false,
         preset_fit,
         proxy,
+        preview_points,
     }))
 }
 fn frame(
@@ -584,7 +599,7 @@ pub fn generate(
     profiles: &BTreeMap<String, String>,
     cancel: &CancellationToken,
 ) -> Result<(Vec<u8>, usize, usize)> {
-    generate_inner(d,groups,profiles,&BTreeMap::new(),&BTreeMap::new(),None,None,&BTreeSet::new(),&[],&mut vec![],cancel)
+    generate_inner(d,groups,profiles,&BTreeMap::new(),&BTreeMap::new(),None,None,&BTreeSet::new(),&[],&mut vec![],&mut vec![],cancel)
 }
 /// Body vertices for strand clearance: skinned at least half to bones outside
 /// every moving part. At most 24,000 evenly sampled points.
@@ -603,7 +618,7 @@ fn body_points(d:&Dmx,groups:&[Group],cancel:&CancellationToken)->Result<crate::
     let step=points.len().div_ceil(24_000).max(1);
     Ok(crate::secondary_auto::Body{points:points.into_iter().step_by(step).collect()})
 }
-fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tuning:&BTreeMap<String,deadlock_project::customization::MotionTuning>,springs:&BTreeMap<String,[f64;3]>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,still:&BTreeSet<String>,hero_sets:&[String],nodes:&mut Vec<PreviewNode>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
+fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tuning:&BTreeMap<String,deadlock_project::customization::MotionTuning>,springs:&BTreeMap<String,[f64;3]>,parts:Option<&[crate::parts::Part]>,long_skirt:Option<&crate::long_skirt::Plan>,still:&BTreeSet<String>,hero_sets:&[String],nodes:&mut Vec<PreviewNode>,points:&mut Vec<crate::preview_cloth::PointMotion>,cancel:&CancellationToken)->Result<(Vec<u8>,usize,usize)> {
     let bind = surface::binds(d)?;
     let sk = &bind.skeleton;
     let state = transforms::bind_state(sk)?;
@@ -635,6 +650,7 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
     let mut frames = BTreeMap::new();
     let mut part_maps=vec![];
     let mut breast_rings=vec![];
+    let mut no_body_collision=BTreeSet::new();
     // Each breast (or butt) of a left/right pair on one anchor knows where the other is.
     let breasts:Vec<(usize,String,[f64;3])>=parts.map(|parts|groups.iter().zip(parts).enumerate()
         .filter(|(_,(_,p))|matches!(p.kind,crate::parts::Kind::Breast|crate::parts::Kind::Butt))
@@ -675,7 +691,17 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
             let pair:Vec<_>=breasts.iter().filter(|b|b.1==key).collect();
             let partner=if pair.len()==2 {pair.iter().find(|b|b.0!=ordinal).map(|b|b.2)} else {None};
             let before=part_maps.len();
-            let ring=crate::secondary_auto::append(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps,partner,body.as_ref())?;
+            // Travel limits that hold after Fine-tune (a held root, a held hair
+            // strand's upper joints), by bone slot.
+            let mut caps=BTreeMap::new();
+            let ring=crate::secondary_auto::append_capped(&mut s,group,part,&slots,&lookup,sk,&state,profiles.get(&group.source_root).map(String::as_str),long_skirt.and_then(|plan| plan.group(&group.source_root)),&mut part_maps,partner,body.as_ref(),&mut caps)?;
+            // A breast's moving ring: kept out of the body colliders, and its
+            // travel limit stays a hard maximum after Fine-tune (no pair link
+            // keeps the two apart).
+            let breast=ring.filter(|_|part.kind==crate::parts::Kind::Breast);
+            let cap=breast.and(breasts.iter().find(|b|b.0==ordinal)).and_then(|b|crate::secondary_auto::breast_travel_cap(b.2,partner));
+            let capped_slot=breast.and(cap).and_then(|_|breast.and_then(|r|s.influences[r[0]].keys().next().copied()));
+            if let Some(r)=breast {no_body_collision.extend(r);}
             // Source rig springs replace the automatic pose pull, drag and gravity of
             // the part's moving points (pinned points stay pinned).
             if let Some(v)=springs.get(&group.source_root) {
@@ -683,6 +709,12 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
                     if s.enabled[i] && row[0]<0.999 {row[0]=v[0];row[1]=v[1];row[3]=v[2];}
                 }
             }
+            // The movement preview's cloth packet: each point's own values
+            // before Fine-tune (the preview applies the tuning itself).
+            points.resize_with(before, Default::default);
+            points.extend(part_maps[before..].iter().map(|row| crate::preview_cloth::PointMotion {
+                kind: Some(part.kind), goal: row[0], drag: row[1], gravity: row[3], travel: row[4], caps: vec![],
+            }));
             // Each moving bone's values before Fine-tune: the average of its proxy points.
             let mut sums:BTreeMap<usize,([f64;4],usize)>=BTreeMap::new();
             for (i,row) in part_maps.iter().enumerate().skip(before) {
@@ -696,14 +728,49 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
             for (slot,(sum,count)) in sums {
                 let Some((&name,_))=slots.iter().find(|(_,&i)|i==slot) else {continue};
                 let n=count as f64;
-                nodes.push(PreviewNode{bone:name.to_string(),root:group.source_root.clone(),kind:part.kind,goal:sum[0]/n,drag:sum[1]/n,gravity:sum[2]/n,travel:sum[3]/n});
+                // The preview holds these caps through `max_travel` and
+                // `capTravel`: exactly for `AtMost`; a held root can only
+                // shrink there, by less than its limit, under a negative Swing
+                // range (the build keeps it exact).
+                use crate::secondary_auto::TravelCap;
+                let max_travel=if Some(slot)==capped_slot {cap} else {match caps.get(&slot) {
+                    Some(TravelCap::Held)=>Some(crate::secondary_auto::HELD_ROOT_TRAVEL),
+                    Some(TravelCap::AtMost(v))=>Some(*v),
+                    None=>None,
+                }};
+                nodes.push(PreviewNode{bone:name.to_string(),root:group.source_root.clone(),kind:part.kind,goal:sum[0]/n,drag:sum[1]/n,gravity:sum[2]/n,travel:sum[3]/n,max_travel});
             }
             if let Some(t)=serde_json::to_value(part.kind).ok().and_then(|k|k.as_str().and_then(|k|tuning.get(k))) {
                 for (i,row) in part_maps.iter_mut().enumerate().skip(before) {
                     if s.enabled[i] {crate::secondary_auto::tune(row,t);}
                 }
             }
-            if let Some(ring)=ring {
+            if let (Some(r),Some(c))=(breast,cap) {
+                for i in r {
+                    part_maps[i][4]=crate::secondary_auto::cap_travel(part_maps[i][4],cap);
+                    points[i].caps.push(crate::preview_cloth::Cap::AtMost(c));
+                }
+            }
+            // A held root keeps its limit whatever Swing range says; a held
+            // hair strand's upper joints never travel further than automatic.
+            for i in before..part_maps.len() {
+                if !s.enabled[i] {continue;}
+                for slot in s.influences[i].keys() {
+                    match caps.get(slot) {
+                        Some(crate::secondary_auto::TravelCap::Held)=>{
+                            part_maps[i][4]=crate::secondary_auto::HELD_ROOT_TRAVEL;
+                            points[i].caps.push(crate::preview_cloth::Cap::Held);
+                        }
+                        Some(&crate::secondary_auto::TravelCap::AtMost(v))=>{
+                            part_maps[i][4]=crate::secondary_auto::cap_travel(part_maps[i][4],Some(v));
+                            points[i].caps.push(crate::preview_cloth::Cap::AtMost(v));
+                        }
+                        None=>{}
+                    }
+                }
+            }
+            // Breasts are not linked to each other (see `append_breast`); butts are.
+            if let Some(ring)=ring.filter(|_|part.kind!=crate::parts::Kind::Breast) {
                 breast_rings.push((key,ring));
             }
             continue;
@@ -762,7 +829,7 @@ fn generate_inner(d:&Dmx,groups:&[Group],profiles:&BTreeMap<String,String>,tunin
     let mut edited = Editable::new(d);
     surface::write_surface(&mut edited, &row, &s)?;
     let raw = surface::prune_proxy(edited, &BTreeSet::from([row.mesh]))?;
-    let raw=if parts.is_some(){crate::secondary_auto::write_maps(&raw,&part_maps,hero_sets)?}else{
+    let raw=if parts.is_some(){crate::secondary_auto::write_maps(&raw,&part_maps,hero_sets,&no_body_collision)?}else{
         motion::author_motion_maps_by_group(&raw, &profile("balanced")?, &ranges, cancel)?.0
     };
     Ok((raw, positions, dynamic))

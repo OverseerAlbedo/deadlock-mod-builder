@@ -30,7 +30,7 @@ pub struct Plan {
     pub strands: Vec<Vec<String>>,
 }
 /// Extra bend allowed at each streamer joint (degrees beyond its rest bend).
-/// SiViolet's 30-joint sleeves folded up like an accordion on quick turns
+/// A model's 30-joint sleeves folded up like an accordion on quick turns
 /// with only the compiler's neighbor rods.
 pub const STRAND_BEND_DEGREES: f64 = 35.;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -263,8 +263,8 @@ pub fn apply(fe: &Value, plan: &Plan) -> Result<(Value,Proof)> {
         }
         // Tethers: from the static anchor point the streamer hangs from to each
         // joint, no longer than the streamer's own length up to that joint, so
-        // a quick start cannot stretch it beyond its length (SiViolet's sleeves
-        // grew visibly longer when she started to run). Bending and swinging
+        // a quick start cannot stretch it beyond its length (long sleeves
+        // grew visibly longer when the character started to run). Bending and swinging
         // stay free: the tether only stops extension.
         let &root_ctrl=lookup.get(chain[0].as_str()).ok_or_else(||invalid("Streamer native control is missing."))?;
         let ring:Vec<usize>=(static_..driven).filter(|&p|parents[p].integer().ok()==Some(root_ctrl as i128)).collect();

@@ -135,7 +135,7 @@ pub fn check_clothing_selection(
         )),
     }
 }
-/// The Weapon tab's gun file (`options.weapon_source`) and the SHA-256 of the
+/// The Gun tab's gun file (`options.weapon_source`) and the SHA-256 of the
 /// original file and its textures when it was inspected.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WeaponFileSelection {
@@ -146,7 +146,7 @@ pub struct WeaponFileSelection {
 pub fn weapon_file_selection(options: &PreparationOptions) -> Result<Option<WeaponFileSelection>> {
     let text = match options.values.get("weapon_source") {
         None | Some(serde_json::Value::Null) => return Ok(None),
-        Some(value) => value.as_str().ok_or_else(|| invalid("The gun file must be a file path. Choose it again in the Weapon tab."))?,
+        Some(value) => value.as_str().ok_or_else(|| invalid("The gun file must be a file path. Choose it again in the Gun tab."))?,
     };
     if text.trim().is_empty() {
         return Ok(None);
@@ -197,11 +197,13 @@ pub fn source_proof(original: &Path, staged: &Path) -> Result<Vec<SourceProof>> 
         .ok_or_else(|| invalid("Source filename cannot be encoded."))?;
     let mut files = Vec::new();
     for entry in manifest {
+        // An image staged under a shorter path is proved at its own place.
+        let relative = entry.found.or(entry.origin).unwrap_or(entry.relative);
         files.push(SourceProof {
-            relative: if entry.relative == filename {
+            relative: if relative == filename {
                 String::new()
             } else {
-                entry.relative
+                relative
             },
             sha256: entry.original_sha256.unwrap_or(entry.sha256),
         });

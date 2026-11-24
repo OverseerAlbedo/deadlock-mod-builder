@@ -50,8 +50,14 @@ fn validate_row(row: &AppearanceMaterial) -> Result<()> {
             "Appearance color needs three finite RGB values from 0 to 1.",
         ));
     }
-    if let Some(adjustment) = crate::color_adjust::Adjustment::from_row(row) {
-        adjustment.validate()?;
+    if row.ranges.as_ref().is_some_and(|r| r.len() > deadlock_project::color_ranges::MAX_RANGES) {
+        return Err(invalid(format!(
+            "A material holds at most {} color ranges.",
+            deadlock_project::color_ranges::MAX_RANGES
+        )));
+    }
+    if let Some(edit) = crate::color_adjust::ColorEdit::from_row(row) {
+        edit.validate()?;
     }
     Ok(())
 }
@@ -328,6 +334,17 @@ pub fn patch_materials(
     state: &Customization,
     cancel: &CancellationToken,
 ) -> Result<Vec<String>> {
+    patch_materials_with(content, plans, state, None, cancel)
+}
+/// `patch_materials`, with the prepared model's meshes for color ranges that
+/// change one part (`deadlock_project::color_parts`).
+pub fn patch_materials_with(
+    content: &Path,
+    plans: &Plans,
+    state: &Customization,
+    parts: Option<&dyn deadlock_project::color_parts::PartMeshes>,
+    cancel: &CancellationToken,
+) -> Result<Vec<String>> {
     apply_materials(plans, state)?;
     let mut staged = Vec::new();
     for row in selections(state)?
@@ -343,7 +360,7 @@ pub fn patch_materials(
             )));
         }
         let source = read_text(&path)?;
-        let patched = crate::color_adjust::adjust_material(content, target, &patch_text(&source, row)?, row, cancel)?;
+        let patched = crate::color_adjust::adjust_material_with(content, target, &patch_text(&source, row)?, row, parts, cancel)?;
         if patched != source {
             staged.push((target.to_owned(), path, patched));
         }

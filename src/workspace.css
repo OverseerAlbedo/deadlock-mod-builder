@@ -130,16 +130,10 @@
 .studio-workspace .mode-option strong { font-size: 15px; line-height: 1.55; }
 .studio-workspace .mode-option strong small { display: inline-block; background: hsl(calc(var(--hue) - 3) 26% 23%); color: hsl(calc(var(--hue) - 5) 47% 80%); border-color: hsl(calc(var(--hue) - 8) 20% 40%); border-radius: 4px; margin: 0 0 0 5px; }
 .studio-workspace .mode-option span > span { line-height: 1.65; color: hsl(calc(var(--hue) + 41) 16% 74%); }
-.studio-workspace .secondary-motion-controls { margin-top: 0; gap: 18px; }
-.studio-workspace .motion-preset { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(0, 1fr); gap: 28px; align-items: center; }
-.studio-workspace .motion-preset .field { margin: 0; }
 .studio-workspace .motion-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .studio-workspace .motion-status-grid:empty { display: none; }
 .studio-workspace .motion-status-grid > * { border: 1px solid hsl(var(--hue) 15% 24%); border-radius: 9px; background: hsl(calc(var(--hue) + 1) 23% 14%); padding: 16px; color: hsl(calc(var(--hue) - 6) 19% 77%); font-size: 13px; line-height: 1.75; }
 .studio-workspace .motion-status-grid button { margin-top: 10px; white-space: normal; }
-.studio-workspace .secondary-motion-controls td > label { display: flex; gap: 12px; align-items: center; overflow-wrap: anywhere; }
-.studio-workspace .secondary-motion-controls .field { min-width: 180px; }
-.studio-workspace .secondary-motion-controls .table-scroll .hint { max-width: 42ch; }
 .studio-workspace .motion-preserved { padding: 30px; display: flex; align-items: center; gap: 22px; border: 1px solid hsl(calc(var(--hue) + 1) 14% 22%); border-radius: 12px; background: hsl(calc(var(--hue) + 1) 23% 12%); margin-bottom: 24px; }
 .studio-workspace .motion-preserved p { margin-top: 8px; max-width: 75ch; line-height: 1.7; }
 .studio-workspace .studio-symbol { width: 64px; height: 64px; flex-shrink: 0; display: grid; place-items: center; background: hsl(calc(var(--hue) - 2) 25% 21%); border: 1px solid hsl(calc(var(--hue) - 20) 16% 33%); border-radius: 14px; color: var(--studio-accent); }
@@ -244,7 +238,6 @@
   .studio-workspace .material-layout.with-inspector { grid-template-columns: minmax(0, 1fr); }
   .studio-workspace .report-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .studio-workspace .settings-fields { grid-template-columns: minmax(0, 1fr); }
-  .studio-workspace .motion-preset { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }
 @media (max-width: 1000px) {
   .studio-workspace { padding: 24px 22px 40px; }
@@ -276,34 +269,169 @@
   .studio-workspace .destination { grid-template-columns: minmax(0, 1fr); }
   .studio-workspace .destination .hint { grid-column: 1; }
 }
-/* Physics → Fine-tune movement: four sliders per part type, saved presets. */
-.motion-tuning-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 10px; }
-.motion-tuning { margin: 0; padding: 8px 14px 12px; border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 6px; min-width: 0; background: var(--surface); }
-.motion-tuning legend { padding: 0 4px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.motion-tuning legend button { min-height: 22px; padding: 1px 8px; font-size: 12px; }
-/* One slider: automatic in the middle, filled from the middle toward the value, − / + steps. */
-.tuning-slider { display: grid; gap: 3px; padding: 4px 0; }
-.tuning-slider-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; min-width: 0; }
-.tuning-slider-label { font-weight: 600; font-size: 13px; }
-.tuning-slider-hint { color: var(--muted); font-size: 11.5px; text-align: right; }
-.tuning-slider-track { display: grid; grid-template-columns: 28px minmax(0, 1fr) 28px 72px; align-items: center; gap: 8px; }
-.tuning-step { min-height: 28px; padding: 0; font-size: 16px; line-height: 1; border-radius: 7px; }
-.tuning-slider-range { position: relative; display: block; min-width: 0; }
-.tuning-slider-range::before { content: ''; position: absolute; left: 50%; top: 50%; width: 2px; height: 12px; transform: translate(-50%, -50%); background: var(--border); border-radius: 1px; pointer-events: none; }
-.tuning-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; position: relative; }
-.tuning-slider input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--elevated) 0, var(--elevated) var(--lo, 50%), var(--accent) var(--lo, 50%), var(--accent) var(--hi, 50%), var(--elevated) var(--hi, 50%), var(--elevated) 100%); border: 1px solid var(--border-subtle); }
-.tuning-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, .5); transition: transform 120ms ease; }
-.tuning-slider.tuned input[type=range]::-webkit-slider-thumb { background: var(--accent); }
-.tuning-slider input[type=range]:hover:not(:disabled)::-webkit-slider-thumb { transform: scale(1.12); }
-.tuning-slider input[type=range]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
-.tuning-slider input[type=range]:disabled { opacity: .5; cursor: default; }
-.tuning-slider output { text-align: right; font-variant-numeric: tabular-nums; color: var(--secondary); font-size: 12.5px; }
-.tuning-slider output.tuned { color: var(--accent); font-weight: 600; }
-.physics-presets { display: grid; gap: 6px; margin-top: 6px; }
-.physics-presets .row { flex-wrap: wrap; gap: 8px; }
-.physics-presets input { min-width: 180px; }
-.physics-preset-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
-.physics-preset-list li { display: flex; align-items: center; gap: 10px; }
-.physics-preset-list small { color: var(--secondary); }
-.tuning-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; font-size: 12.5px; }
-.tuning-toolbar .tuning-reset-warning { flex: 1 1 100%; }
+
+/* Physics → the motion studio, in the studio frame (src/studio/studio.css): top bar, tabs, the
+   character preview always in the same slot with the tab panels beside it (the preview grows with
+   the window, the panel column stops at 800px), stacked when the frame gets narrow (880px or less),
+   and the action bar. The preview height follows the window. */
+.motion-studio { container: motion-studio / inline-size; margin: 0 0 20px; min-width: 0;
+  --studio-view: clamp(360px, calc(100dvh - 520px), 1100px);
+  --studio-movement: clamp(400px, calc(100dvh - 430px), 1200px); }
+.motion-studio-preview, .motion-studio-panels, .motion-studio-controls, .motion-studio-foot { min-width: 0; }
+.motion-studio .motion-studio-grid { display: grid; gap: 16px; align-items: start; grid-template-columns: minmax(0, 1fr) clamp(420px, 44%, 800px); }
+.motion-studio .motion-studio-grid.no-preview { grid-template-columns: minmax(0, 1fr); }
+.motion-studio-grid.no-preview > .motion-studio-preview { display: none; }
+.motion-studio .motion-studio-preview { position: sticky; top: 0; }
+.studio-workspace .motion-studio .character-preview .viewport { height: var(--studio-view); }
+.motion-studio .movement-canvas { height: var(--studio-movement); }
+@container motion-studio (max-width: 880px) {
+  .motion-studio .motion-studio-grid { grid-template-columns: minmax(0, 1fr); }
+  .motion-studio .motion-studio-preview { position: static; }
+  .studio-workspace .motion-studio .character-preview .viewport { height: clamp(360px, 50dvh, 560px); }
+  .motion-studio .movement-canvas { height: clamp(400px, 56dvh, 620px); }
+  .studio-workspace .physics-studio > .studio-action-bar { position: static; box-shadow: none; }
+}
+/* The panels: the mode cards, the status cards and the notes. */
+.studio-workspace .physics-studio .mode-options { margin-top: 12px; grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.studio-workspace .physics-studio .mode-option { min-height: 0; padding: 12px 14px; }
+.studio-workspace .physics-studio .mode-option strong { font-size: 14px; }
+.studio-workspace .physics-studio .mode-option > span { gap: 4px; }
+.studio-workspace .physics-studio .mode-option span > span { line-height: 1.5; font-size: 12.5px; }
+.physics-studio .motion-studio-foot h4 { margin: 18px 0 8px; }
+.studio-workspace .physics-studio .motion-status-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.studio-workspace .physics-studio .motion-status-grid > * { margin: 0; padding: 9px 11px; font-size: 12.5px; line-height: 1.55; }
+.physics-studio .motion-studio-foot > .hint, .physics-studio .motion-studio-foot > .studio-note { margin: 8px 0 0; max-width: none; }
+.physics-studio .studio-tab-panel > .disclosure { margin: 12px 0 0; }
+.physics-studio .included-cloth-summary { margin: 0 0 12px; }
+.physics-studio .finetune-card { padding-top: 12px; }
+/* The action bar stays in reach at the bottom of the window while the page scrolls. */
+.physics-studio > .studio-action-bar { position: sticky; bottom: 0; z-index: 3; box-shadow: 0 -8px 18px rgb(0 0 0 / .25); }
+/* On short windows (the default 820px height) a sticky bar would cover the sliders: let it end the page instead. */
+@media (max-height: 900px) { .physics-studio > .studio-action-bar { position: static; box-shadow: none; } }
+
+/* The motion tools in the top bar: the preset, saved presets, how many sliders changed, Reset all. */
+.motion-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.motion-tools .tuning-reset-warning, .motion-tools .motion-studio-message { flex: 1 1 100%; margin: 0; }
+.motion-tools .motion-studio-message { text-align: right; }
+.motion-preset-select { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 210px; max-width: 340px; }
+.motion-preset-select label { font-size: 12px; color: var(--secondary); white-space: nowrap; }
+.studio-workspace .motion-tools select.compact,
+.studio-workspace .motion-tools input.compact,
+.studio-workspace .motion-tools button.compact,
+.studio-workspace .motion-studio .tune-panel-head button.compact { min-height: 32px; padding: 4px 11px; border-radius: 7px; font-size: 12.5px; }
+.studio-workspace .motion-tools .motion-preset-select select.compact { flex: 1 1 auto; width: 100%; min-width: 150px; text-overflow: ellipsis; }
+
+/* Moving parts: filter, search and one row per part. */
+.moving-parts-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 8px; }
+.studio-workspace .moving-parts-filter .segmented button { min-height: 32px; padding: 4px 12px; font-size: 12.5px; }
+.studio-workspace .moving-parts-filter input[type=search] { flex: 1 1 200px; min-width: 0; min-height: 34px; padding: 5px 10px; border-radius: 8px; font-size: 13px; }
+.moving-parts-list { display: grid; gap: 6px; }
+.moving-parts-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; align-items: start; padding: 7px 9px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); }
+.moving-parts-row.marked { border-color: var(--accent-soft-border); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-soft-border); }
+.moving-parts-row.excluded .moving-parts-name label { color: var(--secondary); }
+.moving-parts-head { padding: 0 9px; border: 0; background: none; color: var(--secondary); font-size: 12px; }
+.moving-parts-name label { display: flex; align-items: center; gap: 8px; min-height: 34px; font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.moving-parts-name small { display: block; margin: -4px 0 0 26px; color: var(--secondary); font-size: 11.5px; }
+.studio-workspace .moving-parts-row .field { margin: 0; min-width: 0; }
+.moving-parts-row .field > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.studio-workspace .moving-parts-row select { width: 100%; min-height: 34px; padding: 4px 8px; font-size: 12.5px; }
+.moving-parts-row .hint { margin: 4px 0 0; font-size: 11.5px; }
+.moving-parts-note { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border-subtle); font-size: 12.5px; color: var(--secondary); }
+.moving-parts-note button { margin-top: 8px; }
+@container motion-studio (max-width: 560px) { .moving-parts-row { grid-template-columns: minmax(0, 1fr); } .moving-parts-head { display: none; } }
+.tool-popover { position: relative; display: inline-flex; }
+.tool-popover-caret { margin-left: 8px; color: var(--muted); font-size: 10px; }
+.studio-workspace .tool-popover-button[aria-expanded=true] { border-color: var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); }
+.tool-popover-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: max-content; min-width: 260px; max-width: min(400px, calc(100vw - 260px)); padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--elevated); box-shadow: 0 10px 28px rgb(0 0 0 / .45); }
+.tool-popover-panel > .hint { margin: 4px 6px; }
+.physics-preset-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; width: 300px; max-width: 100%; }
+.physics-preset-save .hint { grid-column: 1 / -1; margin: 2px 2px 0; }
+.studio-workspace .motion-studio-head .physics-preset-save input.compact, .studio-workspace .physics-preset-save input.compact.compact { width: 100%; min-height: 34px; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; }
+.physics-preset-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.physics-preset-list li { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 8px; border-radius: 6px; }
+.physics-preset-list li:hover { background: var(--hover); }
+.physics-preset-list li > span { display: grid; min-width: 0; flex: 1 1 auto; margin-right: 8px; }
+.physics-preset-list strong { font-weight: 600; overflow-wrap: anywhere; }
+.physics-preset-list small { color: var(--secondary); font-size: 11.5px; }
+.studio-workspace .physics-preset-list button.compact { min-height: 30px; padding: 3px 10px; font-size: 12px; }
+.physics-preset-message { flex-basis: 100%; margin: 0; text-align: right; }
+.tune-count { display: inline-flex; align-items: center; min-height: 24px; padding: 1px 10px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-soft-border); color: var(--accent-strong); font-size: 12px; white-space: nowrap; }
+.tune-count.quiet { background: transparent; border-color: var(--border-subtle); color: var(--secondary); }
+
+/* The controls column: part-type chips and the panel of the chosen type. */
+.motion-studio-label { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--secondary); }
+.motion-studio-controls > .hint { margin: 10px 0; }
+.motion-studio-controls > .tune-common { margin-top: 0; }
+/* The line above the sliders when they cannot be seen working in the preview (PreviewHint):
+   an accent-bordered band with its one button; it highlights once when a slider changes then. */
+.preview-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--accent-soft-border); border-left: 4px solid var(--accent); background: var(--accent-soft); color: var(--text); font-size: 13px; font-weight: 500; }
+.preview-hint > span { flex: 1 1 220px; }
+.preview-hint.flash { animation: preview-hint-flash 1.2s ease-out 1; }
+@keyframes preview-hint-flash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-soft-border); } 100% { box-shadow: 0 0 0 0 transparent; background: var(--accent-soft); } }
+@media (prefers-reduced-motion: reduce) { .preview-hint.flash { animation: none; box-shadow: 0 0 0 2px var(--accent); } }
+.motion-studio-controls > .preview-hint-quiet, .moving-parts > .preview-hint-quiet { margin: 0 0 10px; }
+.motion-studio-controls .source-springs .checkbox-line { margin-top: 4px; }
+.tune-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.studio-workspace .tune-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-secondary); color: var(--text); font-size: 12.5px; font-weight: 500; }
+.studio-workspace .tune-chip:hover:not(:disabled) { background: var(--hover); border-color: var(--muted); }
+.studio-workspace .tune-chip[aria-selected=true], .studio-workspace .tune-chip[aria-selected=true]:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+.studio-workspace .tune-chip.off { border-style: dashed; background: transparent; color: var(--secondary); }
+.tune-chip small { font-size: 10.5px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.tune-chip[aria-selected=true] small { color: var(--accent-strong); }
+.tune-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
+.studio-workspace .tune-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tune-panel { padding: 12px 18px 6px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.tune-panel-head { display: flex; align-items: center; gap: 10px; min-height: 36px; padding-bottom: 8px; }
+.tune-panel-head h3 { margin: 0; font-size: 15px; }
+.tune-panel-head button { margin-left: auto; }
+.tune-panel .breast-motion-control { padding: 10px 0 12px; border-top: 1px solid var(--border-subtle); }
+.tune-panel .breast-motion-control .hint { margin: 6px 0 0; }
+.tune-panel .breast-motion-control .field { margin: 12px 0 0; max-width: 360px; }
+.tune-panel .tune-off-reason { margin: 0 0 10px; }
+
+/* An on/off switch (a checkbox with the switch role). */
+.motion-switch { position: relative; display: inline-flex; align-items: center; gap: 12px; min-height: 36px; font-weight: 600; cursor: pointer; }
+.studio-workspace .motion-switch input[type=checkbox], .motion-switch input[type=checkbox] { position: absolute; left: 0; top: 50%; width: 44px; height: 24px; margin: -12px 0 0; opacity: 0; cursor: pointer; }
+.motion-switch-track { position: relative; flex: none; width: 44px; height: 24px; border-radius: 12px; background: var(--elevated); border: 1px solid var(--muted); transition: background 140ms ease, border-color 140ms ease; }
+.motion-switch-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--secondary); transition: transform 140ms ease, background 140ms ease; }
+.motion-switch input:checked + .motion-switch-track { background: var(--accent); border-color: var(--accent); }
+.motion-switch input:checked + .motion-switch-track::after { transform: translateX(20px); background: var(--accent-text); }
+.motion-switch input:focus-visible + .motion-switch-track { outline: 2px solid var(--focus); outline-offset: 3px; }
+.motion-switch:has(input:disabled) { cursor: default; opacity: .55; }
+.motion-switch-row { display: flex; align-items: center; gap: 10px; }
+.motion-switch-state { font-size: 12px; font-weight: 500; color: var(--secondary); }
+
+/* One fine-tune slider: a long centred track (automatic in the middle, filled from the middle
+   to the value), tick labels, and a box for an exact percentage. The rail is inset by half
+   the thumb so the fill and the detent line up with the thumb's centre at every value. */
+.tune-sliders { margin: 0; padding: 0; border: 0; min-width: 0; }
+.tune-row { padding: 12px 0 8px; border-top: 1px solid var(--border-subtle); }
+.tune-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-bottom: 4px; }
+.tune-label { font-size: 13.5px; font-weight: 600; }
+.tune-hint { font-size: 12px; color: var(--muted); }
+.tune-body { display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 16px; align-items: start; }
+.tune-scale { --thumb: 22px; min-width: 0; }
+.tune-track { position: relative; height: 32px; }
+.tune-rail { position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: var(--border); pointer-events: none; }
+.tune-fill { position: absolute; top: 0; bottom: 0; left: var(--lo, 50%); right: calc(100% - var(--hi, 50%)); border-radius: 3px; background: var(--accent); }
+.tune-detent { position: absolute; left: 50%; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--muted); }
+.tune-track input[type=range] { -webkit-appearance: none; appearance: none; position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+.tune-track input[type=range]::-webkit-slider-runnable-track { height: 100%; background: transparent; border: 0; }
+.tune-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: calc((32px - var(--thumb)) / 2); border-radius: 50%; background: var(--surface); border: 3px solid var(--muted); box-shadow: 0 1px 4px rgb(0 0 0 / .5); transition: transform 120ms ease; }
+.tune-track input[type=range]::-moz-range-track { background: transparent; border: 0; }
+.tune-track input[type=range]::-moz-range-thumb { width: var(--thumb); height: var(--thumb); box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 3px solid var(--muted); }
+.tune-row.tuned .tune-track input[type=range]::-webkit-slider-thumb { border-color: var(--accent); }
+.tune-row.tuned .tune-track input[type=range]::-moz-range-thumb { border-color: var(--accent); }
+.tune-track input[type=range]:hover:not(:disabled)::-webkit-slider-thumb { transform: scale(1.1); border-color: var(--accent-strong); }
+.tune-track input[type=range]:active:not(:disabled)::-webkit-slider-thumb { transform: scale(1.15); }
+.tune-track input[type=range]:focus-visible { outline: none; }
+.tune-track input[type=range]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tune-track input[type=range]:disabled { cursor: default; }
+.tune-row:has(input:disabled) { opacity: .55; }
+.tune-ticks { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 24px; padding: 0 calc(var(--thumb) / 2 - 4px); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tune-ticks > :last-child { text-align: right; }
+.studio-workspace .tune-ticks button.tune-auto { min-height: 22px; padding: 1px 9px; border-radius: 11px; border: 1px solid var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); font-size: 11px; font-weight: 500; }
+.studio-workspace .tune-ticks button.tune-auto:hover:not(:disabled) { background: var(--accent-selected); border-color: var(--accent); color: var(--accent-strong); }
+.studio-workspace .tune-row .tune-body input.tune-box { width: 80px; min-height: 36px; height: 36px; margin-top: -2px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 13.5px; text-align: center; font-variant-numeric: tabular-nums; }
+.studio-workspace .tune-row.tuned .tune-body input.tune-box { color: var(--accent-strong); border-color: var(--accent-soft-border); font-weight: 600; }
+.studio-workspace .tune-row .tune-body input.tune-box:focus { color: var(--text); border-color: var(--focus); }

@@ -11,6 +11,10 @@ __pycache__/
 *.egg-info/
 /tools/cloth-reader/bin/
 /tools/cloth-reader/obj/
+/tools/effect-player/bin/
+/tools/effect-player/obj/
+# The effect player is a build output (scripts/publish-effect-player.ps1), never committed.
+/resources/native/effect-player/
 
 # Local work and captures (intentional test fixtures remain tracked)
 /workspaces/

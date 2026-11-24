@@ -1,0 +1,90 @@
+/* Extras → Colors, the reworked page (HeroColors.tsx and its parts): the top bar, the editor's
+   three steps, the range cards, picking and the glow's legend. Chrome colors are theme tokens.
+   `--glow` is the color the 3D view lights a material or a selection with (data, like a swatch:
+   cyan, or yellow on blue-green materials; set inline from colorGlow.ts); it is used for marks
+   and outlines only, never for text. Every rule is scoped to the page (extras.css loads later). */
+.colors-studio { --glow: rgb(61 242 255); }
+
+/* Top bar */
+.colors-studio .colors-topbar { gap: 8px 10px; padding: 9px 12px; margin-bottom: 14px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-secondary); }
+.colors-studio .colors-topbar h2 { font-size: 15.5px; }
+.colors-studio .color-mode-badge { padding: 1px 9px; border: 1px solid var(--accent-soft-border); border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.colors-studio .colors-stat { font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
+.colors-studio button.small { min-height: 30px; padding: 4px 11px; font-size: 12.5px; }
+.colors-studio .color-history:disabled { opacity: 0.55; }
+
+/* The list: the row pointed at in the 3D view, and the note under the rows */
+.colors-studio .color-row.pointed { border-color: var(--glow); box-shadow: 0 0 0 1px var(--glow); }
+.colors-studio .color-list-note { margin: 2px 4px 0; font-size: 12px; line-height: 1.45; color: var(--secondary); }
+
+/* The view: chip, legend, footer line, the pick's popover */
+.colors-studio .color-view-chip { display: inline-flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; padding: 3px 11px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.colors-studio .color-view-chip.lit::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 6px var(--glow); }
+.colors-studio .color-stage-legend { position: absolute; left: 12px; bottom: 10px; display: inline-flex; align-items: center; gap: 7px; max-width: calc(100% - 24px); padding: 3px 9px; border-radius: 6px; background: hsl(calc(var(--hue) + 0) 20% 5% / 0.78); color: var(--text); font-size: 12px; pointer-events: none; z-index: 1; }
+.colors-studio .color-stage-legend i { flex: none; width: 11px; height: 11px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 8px var(--glow); }
+.colors-studio .color-view-foot { margin: 0; font-size: 12.5px; color: var(--secondary); }
+.colors-studio .color-pick-pop { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 7px; max-width: min(280px, calc(100% - 16px)); padding: 6px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--elevated); color: var(--text); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 10px 30px hsl(calc(var(--hue) + 0) 30% 3% / 0.6); pointer-events: none; }
+.colors-studio .color-pick-pop span:not(.color-inline-swatch) { color: var(--secondary); }
+.colors-studio .color-pick-pop b { color: var(--text); }
+.colors-studio .color-inline-swatch { display: inline-block; flex: none; width: 15px; height: 15px; border-radius: 4px; vertical-align: -3px; box-shadow: inset 0 0 0 1px hsl(0 0% 0% / 0.5); }
+.colors-studio .color-texture-view { position: relative; }
+.colors-studio .color-texture-stage .color-texture-selection { position: absolute; inset: 0; pointer-events: none; image-rendering: pixelated; animation: color-outline 1.1s ease-in-out 2; }
+.colors-studio .color-texture-stage.picking { outline-color: var(--glow); }
+@keyframes color-outline { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .colors-studio .color-texture-stage .color-texture-selection { animation: none; } }
+
+/* The editor: header and steps */
+.colors-studio .color-editor-thumb { position: relative; flex: none; width: 46px; height: 46px; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px hsl(calc(var(--hue) + 0) 20% 4% / 0.5); }
+.colors-studio .color-editor-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.colors-studio .color-editor-title { flex: 1 1 140px; min-width: 0; }
+.colors-studio .color-editor-title p { margin: 2px 0 0; font-size: 12.5px; color: var(--secondary); overflow-wrap: anywhere; }
+.colors-studio .color-editor-head .color-pill { align-self: flex-start; margin-top: 3px; }
+.colors-studio .color-editor-head .color-picker-spacer { display: none; }
+.colors-studio .color-steps { display: flex; flex-direction: column; gap: 10px; }
+.colors-studio .color-step { border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); min-width: 0; }
+.colors-studio .color-step.open { border-color: var(--accent-soft-border); }
+.colors-studio .color-step-heading { margin: 0; }
+.colors-studio .color-step-head { display: flex; width: 100%; justify-content: flex-start; gap: 10px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; font-weight: 600; }
+.colors-studio .color-step-head:hover { background: var(--hover); }
+.colors-studio .color-step-n { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border: 1px solid var(--accent-soft-border); border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-size: 12px; font-weight: 700; }
+.colors-studio .color-step-title { flex: none; font-size: 14px; }
+.colors-studio .color-step-sum { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 500; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.colors-studio .color-step-sum.warn { color: var(--warn-text); }
+.colors-studio .color-step-chevron { flex: none; color: var(--muted); font-size: 11px; transform: rotate(-90deg); transition: transform 0.15s; }
+.colors-studio .color-step.open .color-step-chevron { transform: none; }
+.colors-studio .color-step-body { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-top: 1px solid var(--border-subtle); min-width: 0; }
+.colors-studio .color-step-body .hint { margin: 0; }
+.colors-studio .color-steps-order { margin: 0; font-size: 12.5px; }
+
+/* Picking */
+.colors-studio .color-pick-box { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--accent-panel-border); border-radius: 9px; background: var(--accent-panel); }
+.colors-studio .color-pick-box > strong { color: var(--text); font-size: 13.5px; }
+.colors-studio .color-pick-box p { margin: 0; font-size: 12.5px; color: var(--secondary); }
+.colors-studio .color-pick-box p b { color: var(--text); }
+.colors-studio .color-pick-box.warn { border-color: rgba(var(--warn-rgb), 0.5); background: rgba(var(--warn-rgb), 0.1); }
+.colors-studio .color-pick-box .row-actions { align-items: center; }
+/* This part only / Everywhere this color (switch part_only): on the chooser and on a range card. */
+.colors-studio .color-scope { display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
+.colors-studio .color-scope .color-segmented { align-self: flex-start; flex-wrap: wrap; }
+.colors-studio .color-scope p { margin: 0; font-size: 12.5px; color: var(--secondary); }
+.colors-studio .color-pick-limit, .colors-studio .color-range-warning { margin: 0; padding: 8px 10px; border: 1px solid rgba(var(--warn-rgb), 0.5); border-radius: 8px; background: rgba(var(--warn-rgb), 0.1); color: var(--text); font-size: 12.5px; }
+
+/* Range cards */
+.colors-studio .color-range-card { background: var(--surface-secondary); }
+.colors-studio .color-range-card.lit { border-color: var(--glow); box-shadow: 0 0 0 1px var(--glow); }
+.colors-studio .color-range-card.paused .color-range-swatch { opacity: 0.55; }
+.colors-studio .color-range-head { flex-wrap: wrap; gap: 8px 10px; }
+.colors-studio .color-range-swatch.large { flex: none; width: 38px; height: 38px; border-radius: 9px; }
+.colors-studio .color-range-title { flex: 1 1 130px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.colors-studio .color-range-title strong { font-size: 13.5px; white-space: normal; overflow-wrap: anywhere; }
+.colors-studio .color-range-title small { font-size: 12px; color: var(--secondary); }
+.colors-studio .color-range-title small b { color: var(--text); }
+.colors-studio .color-range-head .color-picker-spacer { display: none; }
+.colors-studio .color-range-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.colors-studio .color-range-none { color: var(--warn-text); }
+.colors-studio .color-range-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.colors-studio .color-range-fine { display: flex; flex-direction: column; gap: 9px; padding-top: 10px; border-top: 1px solid var(--border-subtle); }
+.colors-studio .color-tint-warning { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 9px 11px; border: 1px solid rgba(var(--warn-rgb), 0.5); border-radius: 9px; background: rgba(var(--warn-rgb), 0.1); }
+.colors-studio .color-tint-warning p { margin: 0; font-size: 12.5px; color: var(--text); }
+.colors-studio .hero-color-range-actions .hint { flex: 1 1 180px; font-size: 12.5px; }
+.colors-studio .color-stage-legend.right { left: auto; right: 12px; }

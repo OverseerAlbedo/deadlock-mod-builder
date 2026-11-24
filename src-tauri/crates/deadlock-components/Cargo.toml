@@ -2,6 +2,11 @@
 name = "deadlock-components"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-or-later"
+[features]
+# Lets tests open kinds the app keeps switched off (`ability_objects::open_for_test`
+# and the other `open_for_test` functions). Never enabled by the app's own build.
+object-test-switches = ["deadlock-project/color-test-switches"]
 [dependencies]
 deadlock-core = { path = "../deadlock-core" }
 deadlock-project = { path = "../deadlock-project" }

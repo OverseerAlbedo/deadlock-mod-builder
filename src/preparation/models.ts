@@ -28,9 +28,43 @@ export const FLOOR_HELP: Record<FloorFit,string> = {
   legs: 'Scales everything below the hips up or down so the soles touch the floor. The hips, body and arms stay on the hero’s joints, but your model’s knees and ankles move off the hero’s (up when the legs get shorter), so the ankle movement can look a little off.',
   lift: 'Moves the whole model up or down so the soles touch the floor. Nothing is stretched, but the body, arms and hands sit that much off the hero’s joints (and the gun).',
 };
+/** Model fitting → Leg joints (Preserve source proportions only); the same choices as `retarget.py LEG_JOINT_MODES` and Rust `fitting::LEG_JOINT_MODES`. */
+export const LEG_JOINT_MODES = ['pelvis','hips','scaled','scaled_joints','joints'] as const;
+export type LegJointFit = typeof LEG_JOINT_MODES[number];
+/** Choices that put the legs on the hero's joints: Feet on the floor → Shorten or lengthen the legs is refused with them. */
+export const LEGS_ON_HERO_JOINTS: readonly LegJointFit[] = ['scaled_joints','joints'];
+export const LEG_JOINT_CHOICES: [LegJointFit,string][] = [
+  ['pelvis','As before (body placed by the pelvis bone) · default'],
+  ['joints','Hip joints, and legs on the hero’s joints (no resizing) · recommended if the knees stretch'],
+  ['hips','Place the body by the hip joints'],
+  ['scaled','Hip joints, and resize the character to the hero’s leg length'],
+  ['scaled_joints','Hip joints, resize, and legs on the hero’s joints'],
+];
+/** Shown with the two choices that resize the character. */
+const RESIZE_CAUTION = ' Resizing can stretch the shoulders while the arms are aligned to the hero’s joints, so try it only when the other choices do not suit your character.';
+export const LEG_JOINT_HELP: Record<LegJointFit,string> = {
+  pelvis: 'The body is placed by your model’s pelvis bone, as before. When that bone sits away from the hip joints, the body can lean a little and the knees and ankles sit off the hero’s, so knees can stretch in deep bends (jumping, crouching). If they do, try the recommended choice: Hip joints, and legs on the hero’s joints (no resizing).',
+  hips: 'Places and turns the body by its hip joints instead of the pelvis bone. Nothing is resized; the knees and ankles usually come closer to the hero’s, but legs longer or shorter than the hero’s still leave them a little off.',
+  scaled: 'Also scales the whole character evenly so its legs are as long as the hero’s. The character becomes smaller or larger by the ratio of the leg lengths, head and arms included, so the upper body moves relative to the hero’s skeleton and hands and head sit a little differently.'+RESIZE_CAUTION,
+  scaled_joints: 'Scales the character as above and puts the hips, knees and ankles exactly on the hero’s joints. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays), so the knees bend where the hero’s do; the upper body moves relative to the hero’s skeleton.'+RESIZE_CAUTION,
+  joints: 'The one to try when the default leaves the knees stretching. Puts the hips, knees and ankles exactly on the hero’s joints without resizing the character. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays); the upper body keeps its size and moves relative to the hero’s skeleton, so hands and head sit a little differently.',
+};
+/** What a conversion measured for Leg joints (`rest_alignment.leg_joint_fit`, inches). */
+export interface LegFitAudit {policy:string;mode:LegJointFit;applied:boolean;ignored_reason?:string|null;body_scale:number;length_scale?:Record<string,number>;lean_degrees?:number;joint_offsets_inches:Record<string,number>;knee_gap_at_90_degrees_inches?:number|null;measured_after_floor?:boolean}
+/** One plain line about the measured leg fit, or null without measurements. */
+export function legFitLine(audit:LegFitAudit|null|undefined):string|null{
+  if(!audit)return null;
+  const o=audit.joint_offsets_inches??{},knees=[o.knee_L,o.knee_R].filter((v):v is number=>typeof v==='number');
+  if(!knees.length)return null;
+  const knee=Math.max(...knees),gap=audit.knee_gap_at_90_degrees_inches??0,size=Math.round((audit.body_scale??1)*100);
+  const lengths=audit.length_scale??{},thigh=lengths.thigh_L,shin=lengths.shin_L;
+  const legs=audit.mode==='scaled_joints'||audit.mode==='joints'?typeof thigh==='number'&&typeof shin==='number'?` Thighs ${Math.round(thigh*100)}%, shins ${Math.round(shin*100)}% of their length.`:'':'';
+  const ignored=audit.ignored_reason?' Leg joints is not used for this hero (its unusual proportions have their own fit).':'';
+  return `This conversion: knees ${knee.toFixed(1)} in from the hero’s knee joints${gap>=0.05&&knee>=0.05?`, about ${gap.toFixed(1)} in of stretch in a 90° bend`:''}. Character size ${size}%.${legs}${ignored}`;
+}
 /** A small triangle mesh: x, y, z per vertex and three vertex indices per triangle. */
 export interface Shape {positions:number[];triangles:number[]}
-/** gun_file: the gun comes from the Weapon tab's gun file. attach_kind "placed": moved into the hand by its grip. side: the hand of a gun-file pair. */
+/** gun_file: the gun comes from the Gun tab's gun file. attach_kind "placed": moved into the hand by its grip. side: the hand of a gun-file pair. */
 export interface WeaponCandidate {id:string;objects:string[];vertices:number;bounds:[Vec3,Vec3];sample:Vec3[];attach_bone?:string|null;attach_kind:string;keywords:string[];elongation:number;gun_file?:boolean;/** Deform bones the gun objects are weighted to. */bones?:string[];side?:Hand|null;/** Centres of the parts named for the front, rear and grip. */hints?:{front?:Vec3;rear?:Vec3;grip?:Vec3};/** The gun as a small solid mesh for the fit preview. */shape?:Shape}
 /** One gun of a gun-file pair: where it went and the charm bones it keeps. */
 export interface GunFileGun {side:Hand|null;objects:string[];bone?:string|null;hand?:string|null;placed:boolean;charm_bones?:string[]}
@@ -50,7 +84,9 @@ export interface WeaponFit {policy:string;source:WeaponFrame;target:WeaponFrame;
 /** One hand of the preview; no fit when the hero keeps its own gun in that hand. */
 export interface WeaponHandPreview {side:Hand;fit:WeaponFit|null;fitted:Vec3[];reference:Vec3[]}
 export interface WeaponPreview {fit:WeaponFit;fitted:Vec3[];reference:Vec3[];/** Both hands of a dual-wield hero. */hands?:WeaponHandPreview[];/** The hero's body around the guns. */body?:Vec3[]}
-export interface Inspection {scene?:SceneReceipt;weapons?:WeaponCandidate[];source_helpers?:{policy:string;rigid_body_meshes:number;joint_empties:number;warning:string;objects:{name:string;kind:string}[]}[];warnings?:string[];armatures:number;bones:Bone[];vertices:number;bounds:[Vec3,Vec3];meshes:{name:string;vertices:number;polygons:number;materials:string[];disconnected_components:number}[];morphs:{name:string;mesh:string;shape:string}[];weighted_bones:string[];suggested_mode:PreparationMode;humanoid:Identification|LandmarkEstimate;status:string;/** Result of adding breast bones for breast motion. */breast_bones?:{policy:string;status:string;reason?:string;bones?:string[]};weapon_file?:WeaponFileReceipt;/** The source rig's own MMD/VRM spring settings by bone (source_springs.py). */springs?:Record<string,import('./springs').SpringValues>}
+/** Bone weights without their skeleton (worker.py `missing_skeleton`): the armature was deleted or never saved with the mesh. */
+export interface MissingSkeleton {policy:string;/** Vertex groups that carry weights on the kept character meshes. */groups:number;meshes:string[];/** An armature modifier without its object was on one of them. */modifier:boolean}
+export interface Inspection {/** Present only when the file has bone weights but no skeleton. */missing_skeleton?:MissingSkeleton;scene?:SceneReceipt;weapons?:WeaponCandidate[];source_helpers?:{policy:string;rigid_body_meshes:number;joint_empties:number;warning:string;objects:{name:string;kind:string}[]}[];warnings?:string[];armatures:number;bones:Bone[];vertices:number;bounds:[Vec3,Vec3];meshes:{name:string;vertices:number;polygons:number;materials:string[];disconnected_components:number}[];morphs:{name:string;mesh:string;shape:string}[];weighted_bones:string[];suggested_mode:PreparationMode;humanoid:Identification|LandmarkEstimate;status:string;/** Result of adding breast bones for breast motion. */breast_bones?:{policy:string;status:string;reason?:string;bones?:string[]};weapon_file?:WeaponFileReceipt;/** The source rig's own MMD/VRM spring settings by bone (source_springs.py). */springs?:Record<string,import('./springs').SpringValues>}
 export interface FollowProposal {anchor:string;target:string;group:string;automatic:boolean;reason:string}
 export interface MappingEntry {source:string;target:string|null;group:string;label:string;reason:string;automatic:boolean;follow?:FollowProposal}
 export interface MappingAssistance {policy:string;entries:MappingEntry[];labels:Record<string,string>;warnings:string[];anchors?:Record<string,string>;arm_deformation?:Record<string,{target:string;role:Role;kind:'shoulder'|'twist'}>;preset?:string}
@@ -64,8 +100,10 @@ export interface PropRecord {selection:PropSelection;source:string;source_sha256
 export interface GeometryRecord {props:PropRecord[];face:StaticFace|null}
 export interface PreparationAnalysis {source:string;source_sha256:string;source_original:string;source_input:{received:string;resolved:string;cwd:string};root:string;target_model:string;target_sha256:string;target_skeleton:Skeleton;target:PreparedBone[];target_scale_audit:ScaleAudit;analysis:Inspection;suggestions:Suggestions;rotation:Vec3;geometry_customization:GeometryRecord;clothing:{selection:ClothingSelection;source:string;source_sha256:string}|null;weapon_reference?:WeaponReference|null;weapon_suggestion?:WeaponChoice|null;/** Breast bones added in Blender for this inspection. */breast_generation?:JsonValue|null;/** The gun file this inspection added. */weapon_file?:WeaponFileRecord|null}
 /** Keep unfinished review values while saving; native review determines readiness. */
-export interface PreparationOptions {source_roles?:Partial<Record<Role,string>>;target_roles?:Partial<Record<Role,string>>;mapping?:Record<string,string>;mapping_anchors?:Record<string,string>;follow_motion_reviewed?:boolean;preserve_physics_bones?:boolean;physics_roots?:string[];physics_offered?:string[];automatic_secondary_motion?:boolean;/** Optional gentle breast motion (off by default). */breast_motion?:boolean;/** Optional butt motion, separate from breasts (off by default). */butt_motion?:boolean;/** Part types chosen during preparation, for example breast. */physics_kinds?:Record<string,string>;shape_key_mode?:''|'current_static'|'basis_static';fit_mode?:'match_target'|'preserve_proportions';fit_arm_joints?:boolean;/** Bend the fingers to the hero's resting curl (default on). */fit_finger_curl?:boolean;/** Model fitting → Feet on the floor (default ankles: the fit as before). */fit_floor?:FloorFit;arm_skinning?:'source'|'smooth_twist';landmarks?:Partial<Record<Role,number[]>>;influence_limit?:number;reviewed?:boolean;complete_mapping?:boolean;scene?:SceneChoices;weapon?:WeaponChoice;/** Gun file: take the gun from this file instead of the character file. */weapon_source?:string;[key:string]:JsonValue|undefined}
-export interface ReviewIssue {tab:string;message:string;scope?:string;roles?:string[];bones?:string[]}
-export interface PreparationResult {dmx:string;blend:string;report:string;textures:string;target_model:string;warnings:string[]}
+export interface PreparationOptions {source_roles?:Partial<Record<Role,string>>;target_roles?:Partial<Record<Role,string>>;mapping?:Record<string,string>;mapping_anchors?:Record<string,string>;follow_motion_reviewed?:boolean;preserve_physics_bones?:boolean;physics_roots?:string[];physics_offered?:string[];automatic_secondary_motion?:boolean;/** Optional gentle breast motion (off by default). */breast_motion?:boolean;/** Optional butt motion, separate from breasts (off by default). */butt_motion?:boolean;/** Part types chosen during preparation, for example breast. */physics_kinds?:Record<string,string>;shape_key_mode?:''|'current_static'|'basis_static';fit_mode?:'match_target'|'preserve_proportions';fit_arm_joints?:boolean;/** Bend the fingers to the hero's resting curl (default on). */fit_finger_curl?:boolean;/** Model fitting → Feet on the floor (default ankles: the fit as before). */fit_floor?:FloorFit;/** Model fitting → Leg joints, Preserve source proportions only (default pelvis: the fit as before). */fit_leg_joints?:LegJointFit;arm_skinning?:'source'|'smooth_twist';landmarks?:Partial<Record<Role,number[]>>;influence_limit?:number;reviewed?:boolean;complete_mapping?:boolean;scene?:SceneChoices;weapon?:WeaponChoice;/** Gun file: take the gun from this file instead of the character file. */weapon_source?:string;[key:string]:JsonValue|undefined}
+/** Review issues the page fixes in one click (Rust `following::STALE_KIND`, `secondary_bones::STALE_GROUPS_KIND`). */
+export type IssueKind='stale_following'|'stale_physics_groups';
+export interface ReviewIssue {tab:string;message:string;scope?:string;roles?:string[];bones?:string[];/** Set for a problem with a one-click fix (an `IssueKind`). */kind?:string}
+export interface PreparationResult {dmx:string;blend:string;report:string;textures:string;target_model:string;warnings:string[];/** Leg joints as this conversion measured it (Preserve source proportions). */leg_fit?:LegFitAudit|null}
 export interface PreparationReview {target_model:string;dmx_sha256:string;options:PreparationOptions;warnings:string[];attached_prop_meshes:string[];materials:Record<string,Material>;meshes:{name:string;vertices:number;polygons:number}[];rest_alignment_policy:string;native_compiler_validated:boolean;in_game_validated:boolean}
 export interface ResumedPreparation {analysis:PreparationAnalysis;result:PreparationResult;report:PreparationReview}

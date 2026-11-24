@@ -8,11 +8,11 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({ask: mocks.ask, open: mocks.open}))
 import { StorageSection, formatBytes } from './StorageSection';
 
 const settings = {workspace: 'C:\\Work', keep_backups: 1, keep_previous_preparation: true, clear_build_data_after_build: false} as Settings;
-const open = {id: 'a'.repeat(32), name: 'Ghist'} as Project;
+const open = {id: 'a'.repeat(32), name: 'Sample'} as Project;
 const report: StorageReport = {
   workspace: 'C:\\Work', bytes: 3 * 1024 ** 3, reclaimable: 2 * 1024 ** 3, other_bytes: 0,
   projects: [
-    {id: 'a'.repeat(32), name: 'Ghist', hero: 'Lady Geist', project_file: 'C:\\Projects\\ghist.dmb.json', open: true, locked: false, workspace: 'C:\\Work\\aaa', modified: null, bytes: 2 * 1024 ** 3, reclaimable: 1024 ** 3,
+    {id: 'a'.repeat(32), name: 'Sample', hero: 'Lady Geist', project_file: 'C:\\Projects\\sample.dmb.json', open: true, locked: false, workspace: 'C:\\Work\\aaa', modified: null, bytes: 2 * 1024 ** 3, reclaimable: 1024 ** 3,
       usage: [{kind: 'build_data', bytes: 1024 ** 3, reclaimable: 1024 ** 3}, {kind: 'output', bytes: 1024 ** 3, reclaimable: 0}]},
     {id: 'b'.repeat(32), name: '', hero: '', project_file: null, open: false, locked: false, workspace: 'C:\\Work\\bbb', modified: null, bytes: 1024 ** 3, reclaimable: 1024 ** 3,
       usage: [{kind: 'preparation', bytes: 1024 ** 3, reclaimable: 1024 ** 3}]},
@@ -39,14 +39,14 @@ describe('Storage settings', () => {
     fireEvent.change(screen.getByLabelText('Backups kept per file'), {target: {value: '2'}});
     expect(update).toHaveBeenCalledWith(expect.objectContaining({keep_backups: 2}));
     fireEvent.click(screen.getByRole('button', {name: 'Measure storage'}));
-    await screen.findByText('Ghist · Lady Geist');
+    await screen.findByText('Sample · Lady Geist');
     expect(mocks.storageReport).toHaveBeenCalledWith(open);
     expect(screen.getByText('Open now')).toBeInTheDocument();
     expect(screen.getByText('No saved project file known')).toBeInTheDocument();
     const rows = screen.getAllByRole('row');
-    const ghist = rows.find(row => within(row).queryByText('Ghist · Lady Geist'))!;
-    expect(within(ghist).getByRole('button', {name: 'Remove…'})).toBeDisabled();
-    fireEvent.click(within(ghist).getByRole('button', {name: 'Details'}));
+    const openRow = rows.find(row => within(row).queryByText('Sample · Lady Geist'))!;
+    expect(within(openRow).getByRole('button', {name: 'Remove…'})).toBeDisabled();
+    fireEvent.click(within(openRow).getByRole('button', {name: 'Details'}));
     expect(screen.getByText('Kept')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', {name: 'Clear 1.00 GB'}));
     await waitFor(() => expect(mocks.storageClear).toHaveBeenCalledWith({project: 'a'.repeat(32), kinds: ['build_data']}, open));

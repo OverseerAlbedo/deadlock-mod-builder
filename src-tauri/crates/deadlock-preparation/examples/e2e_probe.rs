@@ -112,6 +112,7 @@ fn synthetic_dual_reference(target: &[Bone]) -> weapon::Reference {
     let side = |name: &str, points: &[[f64; 3]], weights: &[Vec<(String, f64)>], bone: &str| weapon::Side {
         side: name.into(),
         meshes: vec![format!("hero_gun_{name}"), format!("hero_gun_{name}_lod1")],
+        disable: vec![],
         primary: vec![format!("hero_gun_{name}")],
         points: points.to_vec(),
         weights: weights.to_vec(),

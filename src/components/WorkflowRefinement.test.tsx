@@ -3,7 +3,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '../models';
 import { BuildPage } from '../build/BuildPage';
-import { PhysicsPage, MotionPage, ExtrasPage } from './CustomizationPages';
+import { PhysicsPage, ExtrasPage } from './CustomizationPages';
+import { MotionPage } from '../motion/MotionPage';
 import { FilePathInput } from './FilePathInput';
 import reference from '../../src-tauri/crates/deadlock-project/tests/fixtures/reference.json';
 const native = vi.hoisted(() => ({ validateAssetPath: vi.fn(), includedPhysics: vi.fn(), previewExtra: vi.fn() }));
@@ -31,11 +32,11 @@ describe('Refined controls preserve the real project operations', () => {
   });
   it('preserves saved clips when returning to original animations and exposes the graph settings', () => {
     render(<Customized page="motion" />);
-    fireEvent.click(screen.getByRole('radio', { name: /Preserve original animations/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch all replacements off' }));
     expect(saved().animation_policy).toBe('preserve');
     expect(saved().customization.animations?.[0]).toMatchObject({ enabled: false, source: 'C:\\clips\\jump.vnmclip_c', original_sha256: 'hash' });
-    fireEvent.click(screen.getByText('Animation graph handling', { selector: 'summary > span' }));
-    fireEvent.change(screen.getByLabelText('Animation graph mode'), { target: { value: 'adapter' } });
+    fireEvent.click(screen.getByRole('button', { name: /Animation graph handling/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Configured adapter/ }));
     expect(saved().ag2_mode).toBe('adapter');
   });
   it('adds an optional asset, validates a drop into its field, and retains customization', async () => {

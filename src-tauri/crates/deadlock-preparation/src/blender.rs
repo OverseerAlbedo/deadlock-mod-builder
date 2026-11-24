@@ -103,7 +103,15 @@ pub fn detect() -> Option<PathBuf> {
     // By version number, highest supported first (not by folder name order).
     deadlock_core::blender_version::choose_install(candidates)
 }
-const SCRIPTS: [(&str, &[u8]); 25] = [
+const SCRIPTS: [(&str, &[u8]); 30] = [
+    ("mmd_source.py", include_bytes!("../resources/blender/mmd_source.py")),
+    // The fit a clip made from an animation is retargeted with (worker.py writes it at Convert).
+    ("animation_fit.py", include_bytes!("../resources/blender/animation_fit.py")),
+    // Clips made from an animation (its own --python entry, `execute_script`).
+    ("animation_export.py", include_bytes!("../resources/blender/animation_export.py")),
+    // Ability objects (its own --python entry, `execute_script`).
+    ("ability_object.py", include_bytes!("../resources/blender/ability_object.py")),
+    ("staged_images.py", include_bytes!("../resources/blender/staged_images.py")),
     ("source_springs.py", include_bytes!("../resources/blender/source_springs.py")),
     ("readable_names.py", include_bytes!("../resources/blender/readable_names.py")),
     // Mandarin readings for readable material names (Unicode Unihan data).
@@ -225,6 +233,11 @@ pub enum Request {
         source: String,
         destination: String,
     },
+    /// Import an MMD model with MMD Tools and save it as a packed Blender file.
+    StageMmd {
+        source: String,
+        destination: String,
+    },
     Prepare {
         source: String,
         mode: deadlock_project::ModelInputMode,
@@ -264,6 +277,69 @@ pub struct InspectInputs {
     pub weapon_model: bool,
 }
 impl BlenderBridge {
+    /// Runs one of the bridge's own scripts other than `worker.py` (its own
+    /// `--python` entry) with `request` as its job. A script failure is
+    /// answered with the script's own error words.
+    pub fn execute_script<T: Serialize, R: DeserializeOwned>(
+        &self,
+        script: &str,
+        request: &T,
+        destination: &Path,
+    ) -> Result<R> {
+        if script == "worker.py" || !SCRIPTS.iter().any(|(name, _)| *name == script) {
+            return Err(invalid("Unknown Blender bridge script."));
+        }
+        let destination = asset_paths::resolve(destination)?;
+        fs::create_dir_all(&destination)?;
+        let result = destination.join("blender-result.json");
+        if result.exists() {
+            fs::remove_file(&result)?;
+        }
+        let folder = destination.join("bridge");
+        install_scripts(&folder)?;
+        let job = destination.join("job.json");
+        write_json(
+            &job,
+            &Job {
+                request,
+                result: path_text(&result)?,
+                workspace: path_text(&destination)?,
+            },
+        )?;
+        let script_error = || {
+            fs::read(&result)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Status>(&bytes).ok())
+                .filter(|status| status.status == "error")
+                .and_then(|status| status.error)
+        };
+        if let Err(error) = self.executor.run(
+            &CommandSpec::new(&self.executable)
+                .args([
+                    "--background",
+                    "--factory-startup",
+                    "--disable-autoexec",
+                    "--python-exit-code",
+                    "23",
+                    "--python",
+                ])
+                .arg(folder.join(script))
+                .arg("--")
+                .arg(job)
+                .current_dir(&destination),
+        ) {
+            return Err(script_error().map_or(error.into(), invalid));
+        }
+        if !result.is_file() {
+            return Err(invalid("Blender returned without a result. See the full Blender log."));
+        }
+        let bytes = fs::read(&result)?;
+        let status: Status = serde_json::from_slice(&bytes)?;
+        if status.status != "ok" {
+            return Err(invalid(status.error.unwrap_or_else(|| "Blender stopped without saying why.".into())));
+        }
+        Ok(serde_json::from_slice(&bytes)?)
+    }
     pub fn execute<T: Serialize, R: DeserializeOwned>(
         &self,
         request: &T,
@@ -372,6 +448,35 @@ impl BlendStager for BlenderBridge {
             },
             &destination.parent().unwrap().join("blend-import"),
         )?;
+        Ok(response.packed_images)
+    }
+    fn stage_mmd(&self, source: &Path, destination: &Path) -> Result<Vec<PackedImage>> {
+        #[derive(Deserialize)]
+        struct Reply {
+            #[serde(default)]
+            packed_images: Vec<PackedImage>,
+        }
+        let destination = asset_paths::resolve(destination)?;
+        let job = destination.parent().unwrap().join("mmd-import");
+        let response: Reply = self
+            .execute(
+                &Request::StageMmd {
+                    source: path_text(source)?,
+                    destination: path_text(&destination)?,
+                },
+                &job,
+            )
+            .map_err(|error| {
+                // The worker's own words (MMD Tools missing for this Blender,
+                // a file it cannot read) instead of "External tool failed";
+                // the full Blender output stays in the logs.
+                fs::read(job.join("blender-result.json"))
+                    .ok()
+                    .and_then(|bytes| serde_json::from_slice::<Status>(&bytes).ok())
+                    .filter(|status| status.status == "error")
+                    .and_then(|status| status.error)
+                    .map_or(error, invalid)
+            })?;
         Ok(response.packed_images)
     }
 }

@@ -29,7 +29,7 @@ pub fn weapon_like(path: &str) -> bool {
 }
 /// Particle and effect models (Haze's `models/particle/haze_gun_magazine_model_fx`)
 /// are never the gun a hero holds.
-fn effect_model(path: &str) -> bool {
+pub fn effect_model(path: &str) -> bool {
     let name = casefold(path);
     let stem = name.rsplit('/').next().unwrap_or(&name).trim_end_matches(".vmdl");
     name.starts_with("models/particle/") || name.contains("/particles/") || stem.split('_').any(|part| part == "fx")

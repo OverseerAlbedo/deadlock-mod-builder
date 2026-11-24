@@ -20,7 +20,10 @@ use crate::{
     compiled, fail, read, read_file, sha, texture_recolor,
 };
 use deadlock_core::{safety, text::casefold};
-use deadlock_project::customization::HeroMaterial;
+use deadlock_project::{
+    color_parts::{self, PartArea, PartMeshes},
+    customization::HeroMaterial,
+};
 use deadlock_resource::{Kind, Value, binary, container};
 use deadlock_vpk::Vpk;
 use serde::{Deserialize, Serialize};
@@ -104,24 +107,7 @@ impl Recolor {
 /// The enabled color ranges of a hero color that change something, with defaults
 /// for unset values.
 pub fn ranges(row: &HeroMaterial) -> Vec<ColorRange> {
-    let base = ColorRange::default();
-    row.ranges
-        .as_deref()
-        .unwrap_or_default()
-        .iter()
-        .filter(|r| r.enabled.unwrap_or(true))
-        .map(|r| ColorRange {
-            hue: r.hue.unwrap_or(base.hue),
-            hue_width: r.hue_width.unwrap_or(base.hue_width),
-            saturation_range: r.saturation_range.unwrap_or(base.saturation_range),
-            brightness_range: r.brightness_range.unwrap_or(base.brightness_range),
-            softness: r.softness.unwrap_or(base.softness),
-            hue_shift: r.hue_shift.unwrap_or(base.hue_shift),
-            saturation: r.saturation.unwrap_or(base.saturation),
-            brightness: r.brightness.unwrap_or(base.brightness),
-        })
-        .filter(|r| !r.changes_nothing())
-        .collect()
+    crate::color_ranges::enabled(row.ranges.as_deref().unwrap_or_default())
 }
 
 /// The recolored base-color texture of one hero color with ranges.
@@ -136,7 +122,21 @@ pub struct RangeTexture {
     pub output_sha256: String,
     pub ranges: Vec<ColorRange>,
     pub changed_blocks: usize,
+    /// The image areas of ranges for one part (`ColorRange::part`), absent
+    /// without such ranges (so receipts without them keep their bytes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parts: Option<RangeParts>,
 }
+/// Where the part ranges of one hero color reach: the hero's compiled model the
+/// parts were read from (its SHA-256: a game update that changes it means
+/// building again) and each part range's triangles (`color_parts::PartArea`).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct RangeParts {
+    pub model_sha256: String,
+    pub areas: Vec<PartArea>,
+}
+/// The build's message when the hero's model changed since a part range was built.
+pub const PARTS_MODEL_CHANGED: &str = "The hero's model changed since this mod was built (a game update), and a color range changes one part of it. Build again.";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MaterialEntry {
@@ -159,18 +159,19 @@ pub fn packaged_textures(receipt: &MaterialReceipt) -> Vec<String> {
     receipt.entries.iter().filter_map(|e| e.texture.as_ref().map(|t| t.target.clone())).collect()
 }
 
-/// Where the recolored texture goes: fixed by the material, the game texture and the ranges.
-fn range_texture_path(material: &str, source: &str, source_sha256: &str, ranges: &[ColorRange]) -> Result<String> {
-    let fingerprint = sha(
-        format!(
-            "{RANGE_POLICY}|{}|{}|{source_sha256}|{}",
-            casefold(material),
-            casefold(source),
-            serde_json::to_string(ranges).map_err(fail)?
-        )
-        .as_bytes(),
+/// Where the recolored texture goes: fixed by the material, the game texture and
+/// the ranges (and, only for part ranges, their image areas).
+fn range_texture_path(material: &str, source: &str, source_sha256: &str, ranges: &[ColorRange], parts: Option<&RangeParts>) -> Result<String> {
+    let mut input = format!(
+        "{RANGE_POLICY}|{}|{}|{source_sha256}|{}",
+        casefold(material),
+        casefold(source),
+        serde_json::to_string(ranges).map_err(fail)?
     );
-    texture_recolor::texture_path(source, &fingerprint)
+    if let Some(parts) = parts {
+        input.push_str(&format!("|parts|{}", sha(serde_json::to_string(parts).map_err(fail)?.as_bytes())));
+    }
+    texture_recolor::texture_path(source, &sha(input.as_bytes()))
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MaterialReceipt {
@@ -402,6 +403,7 @@ fn stage_texture(
     archive: &Vpk,
     row: &MaterialRow,
     ranges: &[ColorRange],
+    parts: Option<RangeParts>,
     game: &Path,
     cancel: &CancellationToken,
 ) -> Result<RangeTexture> {
@@ -414,14 +416,15 @@ fn stage_texture(
         return Err(fail(format!("Color ranges cannot change {}: {reason}", row.label)));
     }
     // Other errors, a cancel among them, pass through as they are.
-    let recolored = texture_recolor::recolor_texture(&raw, ranges, cancel)?;
+    let areas = parts.as_ref().map(|p| p.areas.as_slice()).unwrap_or_default();
+    let recolored = texture_recolor::recolor_texture_parts(&raw, ranges, areas, cancel)?;
     if recolored.changed_blocks == 0 {
         return Err(fail(format!(
             "The color ranges of {} select none of its base color. Widen a range, or pick a color from the preview.",
             row.label
         )));
     }
-    let path = range_texture_path(&row.target, &source, &source_sha256, ranges)?;
+    let path = range_texture_path(&row.target, &source, &source_sha256, ranges, parts.as_ref())?;
     let target = compiled(&path)?;
     if archive.entries.contains_key(&casefold(&target)) {
         return Err(fail(format!("The game already has a file at {target}; hero colors will not replace it.")));
@@ -435,10 +438,22 @@ fn stage_texture(
         output_sha256: sha(&recolored.bytes),
         ranges: ranges.to_vec(),
         changed_blocks: recolored.changed_blocks,
+        parts,
     })
 }
+/// The part areas of `row`'s part ranges, read from the hero's model through
+/// `meshes`; `None` without part ranges.
+fn part_areas(archive: &Vpk, hero_path: &str, row: &MaterialRow, ranges: &[ColorRange], meshes: Option<&dyn PartMeshes>) -> Result<Option<RangeParts>> {
+    if !ranges.iter().any(|r| r.part.is_some()) {
+        return Ok(None);
+    }
+    let meshes = meshes.ok_or_else(|| fail(format!("{}: {}", row.label, color_parts::NO_PARTS)))?;
+    let found = meshes.part_meshes(&row.path).map_err(|e| fail(format!("{}: {} {e}", row.label, color_parts::NO_PARTS)))?;
+    let areas = color_parts::areas(ranges, &found).map_err(|e| fail(format!("{}: {e}", row.label)))?;
+    Ok(Some(RangeParts { model_sha256: sha(&read(archive, &compiled(hero_path)?)?), areas }))
+}
 /// The material and texture a receipt entry expects, from the current game files.
-fn expected_outputs(archive: &Vpk, entry: &MaterialEntry, original: &[u8], cancel: &CancellationToken) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+fn expected_outputs(archive: &Vpk, hero_path: &str, entry: &MaterialEntry, original: &[u8], cancel: &CancellationToken) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
     let edit = Recolor { color: entry.color, saturation: entry.saturation, brightness: entry.brightness };
     let Some(texture) = &entry.texture else {
         return Ok((recolor(original, &entry.target, &edit)?, None));
@@ -451,7 +466,7 @@ fn expected_outputs(archive: &Vpk, entry: &MaterialEntry, original: &[u8], cance
     if sha(&raw) != texture.source_sha256 {
         return Err(fail(format!("The game texture of {name} changed (a game update). Build again.")));
     }
-    let path = range_texture_path(&entry.target, &texture.source, &texture.source_sha256, &texture.ranges)?;
+    let path = range_texture_path(&entry.target, &texture.source, &texture.source_sha256, &texture.ranges, texture.parts.as_ref())?;
     if casefold(&compiled(&path)?) != casefold(&texture.target) {
         return Err(fail(format!("The recolored texture of {name} is not where its receipt says.")));
     }
@@ -459,7 +474,14 @@ fn expected_outputs(archive: &Vpk, entry: &MaterialEntry, original: &[u8], cance
     if casefold(&compiled(&previous)?) != casefold(&texture.source) {
         return Err(fail(format!("{name} no longer names the base-color texture its colors were made from. Build again.")));
     }
-    let recolored = texture_recolor::recolor_texture(&raw, &texture.ranges, cancel)?;
+    // Part ranges: the areas the build read from the hero's model, which must still be that model.
+    if let Some(parts) = &texture.parts {
+        if sha(&read(archive, &compiled(hero_path)?)?) != parts.model_sha256 {
+            return Err(fail(PARTS_MODEL_CHANGED));
+        }
+    }
+    let areas = texture.parts.as_ref().map(|p| p.areas.as_slice()).unwrap_or_default();
+    let recolored = texture_recolor::recolor_texture_parts(&raw, &texture.ranges, areas, cancel)?;
     Ok((material, Some(recolored.bytes)))
 }
 
@@ -609,12 +631,45 @@ pub fn discover(archive: &Vpk, hero_path: &str, cancel: &CancellationToken) -> R
     Ok(rows)
 }
 
+/// The catalog row of a mesh material: a decompiled DMX names its material
+/// (`mtlName`) exactly as the row's `path`; compared casefolded.
+pub fn row_for_mesh_material<'a>(rows: &'a [MaterialRow], material: &str) -> Option<&'a MaterialRow> {
+    let wanted = casefold(material);
+    rows.iter().find(|row| casefold(&row.path) == wanted)
+}
+
+/// The shader feature switches (`F_*` integer parameters) a compiled material
+/// sets, such as `F_TRANSLUCENT` or `F_ADDITIVE_BLEND`.
+pub fn shader_features(raw: &[u8], name: &str) -> Result<BTreeMap<String, i64>> {
+    let parsed = material(raw, &label(name))?;
+    Ok(rows(&parsed.data.root, "m_intParams")
+        .iter()
+        .filter_map(|row| {
+            let key = row.get("m_name")?.string().ok()?;
+            let value = row.get("m_nValue")?.integer().ok()?;
+            key.starts_with("F_").then(|| (key.to_owned(), value as i64))
+        })
+        .collect())
+}
+
 /// Selected hero colors, recolored into `game` at their game paths.
 pub fn stage(
     archive: &Vpk,
     hero_path: &str,
     selected: &[HeroMaterial],
     game: &Path,
+    cancel: &CancellationToken,
+) -> Result<MaterialReceipt> {
+    stage_with(archive, hero_path, selected, game, None, cancel)
+}
+/// `stage`, with where the hero's meshes come from for color ranges that
+/// change one part (`ColorRange::part`); without them such a range is refused.
+pub fn stage_with(
+    archive: &Vpk,
+    hero_path: &str,
+    selected: &[HeroMaterial],
+    game: &Path,
+    meshes: Option<&dyn PartMeshes>,
     cancel: &CancellationToken,
 ) -> Result<MaterialReceipt> {
     let mut receipt = MaterialReceipt {
@@ -667,10 +722,12 @@ pub fn stage(
         }
         let edit = Recolor::from_row(choice);
         let ranges = ranges(choice);
+        crate::color_ranges::check_switches(&ranges).map_err(|reason| fail(format!("{}: {reason}", row.label)))?;
         let (output, texture) = if ranges.is_empty() {
             (recolor(&original, &row.target, &edit)?, None)
         } else {
-            let texture = stage_texture(archive, row, &ranges, game, cancel)?;
+            let parts = part_areas(archive, hero_path, row, &ranges, meshes)?;
+            let texture = stage_texture(archive, row, &ranges, parts, game, cancel)?;
             let path = texture.target.strip_suffix("_c").unwrap_or(&texture.target);
             let (output, previous) = recolor_with_texture(&original, &row.target, &edit, path)?;
             if casefold(&compiled(&previous)?) != casefold(&texture.source) {
@@ -733,7 +790,7 @@ pub fn verify_compiled(
                 label(&entry.target)
             )));
         }
-        let (expected, texture) = expected_outputs(archive, entry, &original, cancel)?;
+        let (expected, texture) = expected_outputs(archive, &receipt.hero_path, entry, &original, cancel)?;
         let staged = read_file(&safety::inside(game, &entry.target)?)?;
         if staged != expected || sha(&staged) != entry.output_sha256 {
             return Err(fail(format!(

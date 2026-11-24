@@ -21,12 +21,34 @@ pub const RIGID_HINTS: [&str; 38] = ["halo","hat","cap","pin","pins","clip","cli
     "飾","冠","帽","角","眼鏡","メガネ","輪"];
 /// Breast bones move only when breast motion is turned on.
 pub const BREAST_HINTS: [&str; 7] = ["breast","bust","boob","pectoral","oppai","おっぱい","乳"];
+/// Breast names in pinyin, spelled by whole name parts in a row (XiongBu.L,
+/// xiong_bu_l, Xiongbu_R; never inside another word). 乳房 (rufang) is a breast
+/// on its own; 胸 and 胸部 (xiong, xiongbu) also name the chest, so like 胸
+/// they count only with a side, which must follow them directly (xiong_L_0,
+/// XiongBu_R; not XiongMao_L) or come directly before them when they end the
+/// name (L_XiongBu, R_Xiong_Bu_01; not L_XiongMao, L_Xiong_Spine). Keep in
+/// sync with secondary_bones.py and src/preparation/secondary-bones.ts.
+pub const PINYIN_BREAST_HINTS: [&str; 1] = ["rufang"];
+pub const PINYIN_SIDED_BREAST_HINTS: [&str; 2] = ["xiong","xiongbu"];
+const SIDE_WORDS: [&str; 4] = ["l","r","left","right"];
+/// A breast at a branch: a named breast bone may carry more bones than the
+/// three of `body_pair_options` (a rig whose breast has a base bone and a ring
+/// of surface bones), up to this many, all within `NAMED_BREAST_REACH` torso
+/// lengths of it and none named as another part (a ribbon or cape on the
+/// breast makes it a carrier, not a breast).
+pub const NAMED_BREAST_BONES: usize = 24;
+pub const NAMED_BREAST_REACH: f64 = 0.4;
 /// Butt bones move only when butt motion is turned on (off by default). ASCII
 /// words match whole name parts (Butt_L, glute_r; not Button); 尻 also counts
 /// on its own, but never inside 尻尾 (tail). Keep in sync with
 /// secondary_bones.py and src/preparation/secondary-bones.ts.
 pub const BUTT_HINTS: [&str; 16] = ["butt","buttock","buttocks","glute","glutes","gluteus","booty","bum","ass","pigu","tunbu",
     "臀","屁股","お尻","おしり","ケツ"];
+/// The pinyin butt words also match as whole name parts in a row, so joined
+/// syllables count (PiGu_L, Tun_Bu_R; not PiGuan). Only these two: a run of
+/// the English words would find "bum" in XiongBu_M. Keep in sync with
+/// secondary_bones.py and src/preparation/secondary-bones.ts.
+pub const PINYIN_BUTT_HINTS: [&str; 2] = ["pigu","tunbu"];
 /// Charms and other small hanging pieces, matched without separators (Key_Chain
 /// is keychain). They move anywhere and override the rigid accessory words (a
 /// dangle earring moves). Keep in sync with secondary_bones.py and
@@ -105,11 +127,25 @@ pub fn on_gun(root:&str,source:&[Bone],source_roles:&BTreeMap<String,String>,gun
 }
 pub fn named_breast(name:&str)->bool {
     let n=name.to_lowercase();
-    !named_butt(name) && (BREAST_HINTS.iter().any(|h|n.contains(h)) || (n.contains('胸')&&(n.contains('左')||n.contains('右')||tokens(name).iter().any(|t|["l","r","left","right"].contains(&t.as_str())))))
+    !named_butt(name) && (BREAST_HINTS.iter().any(|h|n.contains(h)) || (n.contains('胸')&&(n.contains('左')||n.contains('右')||tokens(name).iter().any(|t|SIDE_WORDS.contains(&t.as_str()))))
+        || pinyin_breast(name))
+}
+/// `PINYIN_BREAST_HINTS` anywhere as whole name parts in a row, or
+/// `PINYIN_SIDED_BREAST_HINTS` followed directly by a side (or 左/右 in the name
+/// with the hint at its end), or ending the name directly after a side.
+fn pinyin_breast(name:&str)->bool {
+    let words=tokens(name);let sided=name.contains('左')||name.contains('右');
+    (0..words.len()).any(|i|(i+1..=words.len()).any(|j|{
+        let run=words[i..j].concat();
+        PINYIN_BREAST_HINTS.contains(&run.as_str()) || (PINYIN_SIDED_BREAST_HINTS.contains(&run.as_str())
+            && (words.get(j).map_or(sided,|next|SIDE_WORDS.contains(&next.as_str())||next.starts_with('左')||next.starts_with('右'))
+                || (j==words.len()&&i>0&&SIDE_WORDS.contains(&words[i-1].as_str()))))
+    }))
 }
 pub fn named_butt(name:&str)->bool {
     let words=tokens(name);let n=name.to_lowercase();
     BUTT_HINTS.iter().any(|h|if h.is_ascii(){words.iter().any(|w|w==h)}else{n.contains(h)}) || (n.contains('尻')&&!n.contains("尻尾"))
+        || (0..words.len()).any(|i|(i+1..=words.len()).any(|j|PINYIN_BUTT_HINTS.contains(&words[i..j].concat().as_str())))
 }
 fn named_secondary(name:&str)->bool {
     let n=name.to_lowercase();HINTS.iter().any(|s|n.contains(s)) || n.split(|c:char|!c.is_alphanumeric()).any(|s|["ear","ears"].contains(&s)) || charm_named(name)
@@ -208,14 +244,43 @@ fn butt_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&BTr
     output.retain(|n|!breasts.contains(n)&&!named_breast(n));
     output
 }
+/// A breast word anywhere in the name, side or not: `BREAST_HINTS`, 胸, or a
+/// pinyin breast word as whole name parts in a row (Xiongbu_Mid.L, 胸先.L).
+fn breast_word(name:&str)->bool {
+    let n=name.to_lowercase();let words=tokens(name);
+    BREAST_HINTS.iter().any(|h|n.contains(h)) || n.contains('胸')
+        || (0..words.len()).any(|i|(i+1..=words.len()).any(|j|{let run=words[i..j].concat();PINYIN_BREAST_HINTS.contains(&run.as_str())||PINYIN_SIDED_BREAST_HINTS.contains(&run.as_str())}))
+}
+/// Named breast bones that carry a larger branch (a base bone and a ring of
+/// surface bones): weighted, non-role children of a torso bone named as
+/// breasts whose whole branch has at most `NAMED_BREAST_BONES` bones, all
+/// within `NAMED_BREAST_REACH` torso lengths, none a role, and every bone
+/// below the root named with a breast word (`breast_word`) and not as another
+/// part. A breast bone that carries anything else (a cape or a streamer, also
+/// one named in a way no hint knows) stays as it was. Unnamed pairs keep the
+/// three-bone limit.
+fn branched_breasts<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&BTreeMap<&str,Vec<&str>>,weighted:&BTreeSet<&str>,roles:&BTreeMap<String,String>,torso:f64)->BTreeSet<&'a str> {
+    let role_names:BTreeSet<&str>=roles.values().map(String::as_str).collect();
+    let parents=torso_chain(names,roles);
+    let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
+    let compact=|bone:&Bone|{
+        let mut branch=vec![bone.name.as_str()];let mut at=0;
+        while at<branch.len() {if branch.len()>NAMED_BREAST_BONES {return false;}branch.extend(children.get(branch[at]).into_iter().flatten().copied());at+=1;}
+        branch.len()<=NAMED_BREAST_BONES && branch.iter().all(|n|!role_names.contains(n)&&names.get(n).is_some_and(|b|distance(&b.position,&bone.position)<=NAMED_BREAST_REACH*torso))
+            && branch[1..].iter().all(|n|breast_word(n)&&!named_secondary(n)&&!rigid_named(n)&&!named_butt(n))
+    };
+    source.iter().filter(|b|b.parent.as_deref().is_some_and(|p|parents.contains(&p))&&!role_names.contains(b.name.as_str())
+        &&weighted.contains(b.name.as_str())&&named_breast(&b.name)&&compact(b)).map(|b|b.name.as_str()).collect()
+}
 /// Breast bones: weighted, short, non-role children of a torso bone that
-/// are named as breasts, or form a mirrored pair in front of the chest in the
+/// are named as breasts (or carry a compact branch, `branched_breasts`), or form a mirrored pair in front of the chest in the
 /// upper torso (never on the pelvis, never a butt).
 fn breast_roots<'a>(source:&'a [Bone],names:&BTreeMap<&str,&'a Bone>,children:&BTreeMap<&str,Vec<&str>>,weighted:&BTreeSet<&str>,roles:&BTreeMap<String,String>)->BTreeSet<&'a str> {
     let Some((options,torso,pelvis,high))=body_pair_options(source,names,children,weighted,roles) else {return BTreeSet::new();};
     let low=roles.get("spine").and_then(|n|names.get(n.as_str())).map_or(pelvis,|b|b.position[2]);
     let floor=low.max(pelvis+0.35*(high-pelvis));
     let mut output:BTreeSet<&str>=options.iter().filter(|b|named_breast(&b.name)).map(|b|b.name.as_str()).collect();
+    output.extend(branched_breasts(source,names,children,weighted,roles,torso));
     // An unnamed pair whose own name says it is another moving part (chest
     // ribbons over the breasts, hair, a cape) is never a breast.
     let above:Vec<&Bone>=options.iter().copied().filter(|b|roles.get("pelvis").is_none_or(|p|b.parent.as_deref()!=Some(p.as_str()))&&!named_butt(&b.name)&&!named_secondary(&b.name)).collect();
@@ -294,7 +359,43 @@ pub fn breast_request(source: &[Bone], source_roles: &BTreeMap<String,String>) -
     let mut chain=vec![high.clone()];
     chain.extend(torso_chain(&names,source_roles).into_iter().map(str::to_owned));
     if chain.last()!=Some(pelvis) || !chain.contains(chest) {return None;}
-    Some(serde_json::json!({"chest":chest,"pelvis":pelvis,"head":head,"high":high,"torso":chain,"forward":facing(&names,&children,source_roles)}))
+    let mut request=serde_json::json!({"chest":chest,"pelvis":pelvis,"head":head,"high":high,"torso":chain,"forward":facing(&names,&children,source_roles)});
+    let carried=chest_carried_bones(source,&names,&children,source_roles);
+    if !carried.is_empty() {request["carried"]=serde_json::json!(carried);}
+    Some(request)
+}
+/// Bones of the rig's own that hang on the chest and carry its skin there,
+/// without being recognised as breasts (a breast with a base and surface bones
+/// named in another language): the branches of a left/right pair of non-role
+/// children of a torso bone above the pelvis (same parent, mirrored sideways),
+/// with no role bone in them (never a shoulder or an arm), none named as another
+/// part (ribbons, capes, accessories, butts) and no rigid-body physics, each
+/// branch as compact as a branched breast (`NAMED_BREAST_BONES`,
+/// `NAMED_BREAST_REACH`; a sash or cape reaches farther). breast_bones.py counts their skin as chest surface and
+/// can move it to the bones it adds. A single bone (a bow in the middle) never
+/// counts. Sorted; empty for most rigs, and then the request is as before.
+fn chest_carried_bones(source:&[Bone],names:&BTreeMap<&str,&Bone>,children:&BTreeMap<&str,Vec<&str>>,roles:&BTreeMap<String,String>)->Vec<String> {
+    let role_names:BTreeSet<&str>=roles.values().map(String::as_str).collect();
+    let (Some(pelvis),Some(head))=(roles.get("pelvis").and_then(|n|names.get(n.as_str())),roles.get("head").and_then(|n|names.get(n.as_str()))) else {return vec![];};
+    let torso=(0..3).map(|k|(pelvis.position[k]-head.position[k]).powi(2)).sum::<f64>().sqrt();
+    if torso<=1e-6 {return vec![];}
+    let parents:Vec<&str>=torso_chain(names,roles).into_iter().filter(|n|*n!=pelvis.name).collect();
+    let branch=|root:&str|->Vec<String>{
+        let mut out=vec![root.to_owned()];let mut at=0;
+        while at<out.len()&&out.len()<=512 {let next:Vec<String>=children.get(out[at].as_str()).into_iter().flatten().map(|c|c.to_string()).collect();out.extend(next);at+=1;}
+        out
+    };
+    let bodies=|b:&Bone|b.details.get("physics").is_some_and(|p|["dynamic_bodies","kinematic_bodies"].iter().any(|k|p[k].as_array().is_some_and(|a|!a.is_empty())));
+    let distance=|a:&[f64;3],b:&[f64;3]|(0..3).map(|k|(a[k]-b[k]).powi(2)).sum::<f64>().sqrt();
+    let roots:Vec<&Bone>=source.iter().filter(|b|b.parent.as_deref().is_some_and(|p|parents.contains(&p))&&!role_names.contains(b.name.as_str())&&{
+        let all=branch(&b.name);
+        all.len()<=NAMED_BREAST_BONES && all.iter().all(|n|!role_names.contains(n.as_str())&&!named_secondary(n)&&!rigid_named(n)&&!named_butt(n)
+            &&names.get(n.as_str()).is_some_and(|x|!bodies(x)&&distance(&x.position,&b.position)<=NAMED_BREAST_REACH*torso))
+    }).collect();
+    let paired=mirrored_pairs(&roots,names,children,roles,torso,|_,_|true);
+    let mut out:Vec<String>=paired.into_iter().flat_map(|r|branch(r)).collect();
+    out.sort();out.dedup();
+    out
 }
 /// Breast-named bones that carry skin weight themselves or below them, even when
 /// other parts hang from them. A rig with these is never given added breast bones.
@@ -400,6 +501,14 @@ pub fn candidates_motion(source: &[Bone], weighted: &[String], source_roles: &BT
     }
     Ok(groups)
 }
+/// The review issue kind of `stale_groups_message` (the page offers its one-click fix).
+pub const STALE_GROUPS_KIND: &str = "stale_physics_groups";
+/// Saved moving-part roots that are no longer detected groups. The same text is in
+/// secondary_bones.py (`tests/page_names.rs` checks it).
+pub fn stale_groups_message() -> String {
+    use crate::page_names::{LOAD_AND_CHECK, MOVING_PARTS_TAB, USE_DETECTED_GROUPS};
+    format!("Some saved moving parts are no longer found in your model. On the {MOVING_PARTS_TAB} tab, press {USE_DETECTED_GROUPS} (or {LOAD_AND_CHECK} if you changed the model file).")
+}
 pub fn selection(source: &[Bone], weighted: &[String], target: &[Bone], options: &PreparationOptions) -> Result<Option<PreservationPlan>> {
     selection_for(source, weighted, target, options, None)
 }
@@ -424,7 +533,7 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
     let roots: Vec<String> = roots.into_iter().filter(|r| !butt_set.contains(r)).collect();
     if roots.is_empty() { return Ok(None); }
     let groups = candidates_motion(source, weighted, &source_roles, &roles(options,"target_roles")?, breast_motion(options)?, butts)?;
-    if roots.iter().any(|r| !groups.iter().any(|g| &g.root == r)) { return Err(invalid("Saved physics groups are stale or unsupported. Inspect the original source again.")); }
+    if roots.iter().any(|r| !groups.iter().any(|g| &g.root == r)) { return Err(invalid(stale_groups_message())); }
     let mut groups: Vec<_> = groups.into_iter().filter(|g| roots.contains(&g.root)).collect();
     // Each fitted gun carries its own charms (a copied gun's charms stay on the original gun).
     for hand in gun.map(crate::weapon::Plan::hands).unwrap_or_default().into_iter().filter(|h| h.action == "replace" && !h.copy) {
@@ -452,8 +561,8 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
 }
 /// The prepared names of kept moving-part bones: PREFIX and the source name.
 /// The model compiler writes every byte other than ASCII letters, digits and _
-/// as _, so names that differ only there would become one bone (arcaneVin's
-/// skirt panels 侧裙_0_0, 前裙_0_0 and 后裙_0_0, two Chinese characters each).
+/// as _, so names that differ only there would become one bone (skirt
+/// panels such as 侧裙_0_0, 前裙_0_0 and 后裙_0_0, two Chinese characters each).
 /// Those take `distinct_name`; every other name is unchanged.
 /// Keep in sync with secondary_bones.py exported_names.
 pub fn exported_names(names: &[String]) -> BTreeMap<String, String> {

@@ -155,8 +155,9 @@ impl BundleMemberBuilder for BuildService<'_> {
             }
             service.components().verify_snapshot(saved, extras, root)?;
         } else if saved.customization.active()
-            && [
+            && ([
                 &saved.customization.icons,
+                &saved.customization.item_icons,
                 &saved.customization.animations,
                 &saved.customization.effects,
                 &saved.customization.audio,
@@ -168,6 +169,7 @@ impl BundleMemberBuilder for BuildService<'_> {
                     .iter()
                     .any(|r| r.enabled.unwrap_or(true))
             })
+            || saved.customization.enabled_effect_edits() > 0)
         {
             return Err(invalid(
                 "Bundled form's selected components lack validated receipts.",

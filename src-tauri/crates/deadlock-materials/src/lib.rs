@@ -10,7 +10,7 @@ mod planner;
 mod source_zip;
 mod texture_size;
 
-pub use appearance::{apply_materials, patch_materials, patch_text, validate_appearance};
+pub use appearance::{apply_materials, patch_materials, patch_materials_with, patch_text, validate_appearance};
 pub use face_layers::{face_layer, patch_face_layers, FACE_LAYERS};
 pub use cache::{
     cache_key_from_inputs, compiled_inventory, plan_cache, restore_cached, store_compiled,

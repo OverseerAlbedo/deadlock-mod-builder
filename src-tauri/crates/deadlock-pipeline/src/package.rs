@@ -444,6 +444,8 @@ pub fn validate_dependencies(
         .keys()
         .map(|path| deadlock_core::text::casefold(path))
         .collect::<BTreeSet<_>>();
+    // Shared engine assets (game/core beside the game archive) are provided too.
+    let engine = original.and_then(|vpk| deadlock_components::engine_archive(&vpk.path));
     for relative in files.keys() {
         cancel.check()?;
         let path = safety::inside(root, relative)?;
@@ -472,7 +474,7 @@ pub fn validate_dependencies(
                 format!("{reference}_c")
             };
             let key = deadlock_core::text::casefold(&path);
-            if !keys.contains(&key) && !original.is_some_and(|vpk| vpk.entries.contains_key(&key)) {
+            if !keys.contains(&key) && !original.is_some_and(|vpk| deadlock_components::provided(vpk, engine.as_ref(), &key)) {
                 return Err(invalid(format!(
                     "Compiled dependency missing from mod and game: {path}"
                 )));

@@ -116,7 +116,7 @@ impl Application {
         safety::atomic_write(&source, TEST_MATERIAL.as_bytes())?;
         let compiler = Path::new(&settings.resourcecompiler);
         deadlock_tools::compiler::compile_resource(runner, compiler, &source, &output, Some(&target_game), clock, None, token)?;
-        Ok(format!("Compiled a test material with {}.", compiler.display()))
+        Ok(format!("Compiled a test material with {}.", shown_path(compiler)))
     }
 
     fn test_model_compiler(&self, settings: &Settings, runner: &deadlock_core::process::Runner, clock: &TimingRecorder, token: &CancellationToken) -> Result<String> {
@@ -138,9 +138,25 @@ impl Application {
     }
 }
 
+/// A settings path as the user reads it: on Windows with one kind of separator
+/// (a path typed or detected with `/` keeps working, but reads oddly beside `\`).
+fn shown_path(path: &Path) -> String {
+    let text = path.display().to_string();
+    if cfg!(windows) { text.replace('/', "\\") } else { text }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_shown_path_uses_one_kind_of_separator() {
+        let shown = shown_path(Path::new("C:/Tools\\SDK/game/bin\\win64/resourcecompiler.exe"));
+        if cfg!(windows) {
+            assert_eq!(shown, "C:\\Tools\\SDK\\game\\bin\\win64\\resourcecompiler.exe");
+        } else {
+            assert!(!shown.is_empty());
+        }
+    }
     #[test]
     fn an_empty_setup_fails_every_step_with_help_and_leaves_nothing_behind() {
         let temp = tempfile::tempdir().unwrap();

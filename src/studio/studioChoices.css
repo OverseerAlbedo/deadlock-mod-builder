@@ -1,0 +1,29 @@
+/* Chips and option cards (src/studio/StudioChoices.tsx). Theme tokens only: accents --accent*,
+   success --ok*, warnings --warn-*. */
+.studio-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.studio-chips .studio-chip { display: inline-flex; align-items: baseline; gap: 7px; min-height: 32px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.studio-chips .studio-chip small { color: var(--secondary); font-size: 11.5px; font-weight: 500; }
+.studio-chips .studio-chip:hover:not(:disabled) { background: var(--hover); }
+.studio-chips .studio-chip[aria-selected=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+.studio-chips .studio-chip[aria-selected=true] small { color: var(--accent-strong); }
+.studio-chips .studio-chip.attention small { color: var(--warn-text); }
+.studio-chip-mark { align-self: center; width: 7px; height: 7px; border-radius: 50%; background: var(--warn-text); }
+.studio-chips .studio-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.studio-chip-panel { min-width: 0; }
+
+.studio-options { display: grid; gap: 8px; }
+.studio-option { display: flex; gap: 11px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--surface); cursor: pointer; min-width: 0; }
+.studio-option:hover:not(.disabled) { border-color: var(--border); }
+.studio-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+.studio-option.disabled { cursor: default; opacity: .7; }
+.studio-option input[type=radio] { flex: none; width: 17px; height: 17px; min-height: 0; margin: 2px 0 0; accent-color: var(--accent); }
+.studio-option:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.studio-option-text { display: grid; gap: 3px; min-width: 0; }
+.studio-option-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.studio-option-title strong { font-size: 13.5px; color: var(--text); }
+.studio-option.selected .studio-option-title strong { color: var(--accent-strong); }
+.studio-option-help { color: var(--secondary); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.studio-option-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--accent-soft-border); background: var(--accent-soft); color: var(--accent-strong); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.studio-option-badge.ok { border-color: var(--ok-border); background: var(--ok-faint); color: var(--ok-text); }
+.studio-option-badge.quiet { border-color: var(--border); background: transparent; color: var(--secondary); }
+.studio-option-badge.attention { border-color: rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .1); color: var(--warn-text); }

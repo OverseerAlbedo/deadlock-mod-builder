@@ -2,7 +2,11 @@
 name = "deadlock-materials"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-or-later"
+
+[features]
+# Test builds only: opens color range abilities that are switched off (`deadlock_project::color_ranges::open_for_test`).
+color-test-switches = ["deadlock-project/color-test-switches"]
 
 [dependencies]
 deadlock-core = { path = "../deadlock-core" }

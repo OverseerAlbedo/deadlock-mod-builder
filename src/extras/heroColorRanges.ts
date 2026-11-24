@@ -4,8 +4,24 @@
  * saturation and brightness (HSV value) with a soft edge, and shifts the hue
  * and scales saturation and brightness. Every range selects by the original
  * color; changes of several ranges add up in order. Alpha is never touched.
+ * With COLOR_SWITCHES (both on) a range may also give what it selects a new hue and saturation and
+ * lift its brightness (`set_hue`, `set_saturation`, `lift`), and reach only one part of the model
+ * (`part`, colorParts.ts). Without those fields a range is exactly what it was.
  * Both tests check `src-tauri/crates/deadlock-components/tests/fixtures/hero-color-ranges.json`. */
 
+/** What color ranges may do beyond selecting and shifting (Rust `color_ranges::Switches`). */
+export interface ColorSwitches { set_colour: boolean; part_only: boolean }
+/** The app's switches: equal to Rust `color_ranges::SWITCHES` (a Rust test reads this line). Both
+ * are on. */
+export const COLOR_SWITCHES: ColorSwitches = { set_colour: true, part_only: true };
+/** The switches the page uses: COLOR_SWITCHES, or a test's own (`openColorSwitchesForTest`). */
+let switchesInForce: ColorSwitches = COLOR_SWITCHES;
+export const colorSwitches = (): ColorSwitches => switchesInForce;
+/** Tests and harnesses only: open switches the app keeps off (null puts COLOR_SWITCHES back). */
+export function openColorSwitchesForTest(switches: ColorSwitches | null) { switchesInForce = switches ?? COLOR_SWITCHES; }
+
+/** The spot of the model a range was picked on (texture coordinates). */
+export interface ColorPart { u: number; v: number }
 export interface ColorRangeValues {
   /** Centre hue in degrees, 0–360. */
   hue?: number;
@@ -20,9 +36,20 @@ export interface ColorRangeValues {
   /** Factors, 0–2; 1 keeps the original. */
   saturation?: number;
   brightness?: number;
+  /** A new color for what the range selects: hue (0–360) and saturation (0–1), always together;
+   * they replace hue_shift and saturation. */
+  set_hue?: number;
+  set_saturation?: number;
+  /** Added to the brightness after `brightness` scales it (-1–1). */
+  lift?: number;
+  /** Only the part of the model at this spot. */
+  part?: ColorPart;
 }
-export type ColorRange = Required<ColorRangeValues>;
+type CoreKey = "hue" | "hue_width" | "saturation_range" | "brightness_range" | "softness" | "hue_shift" | "saturation" | "brightness";
+type NewKey = "set_hue" | "set_saturation" | "lift" | "part";
+export type ColorRange = Required<Pick<ColorRangeValues, CoreKey>> & Pick<ColorRangeValues, NewKey>;
 export type Rgba = [number, number, number, number];
+const NEW_KEYS: NewKey[] = ["set_hue", "set_saturation", "lift", "part"];
 
 export const HUE_FADE = 30;
 export const LEVEL_FADE = 0.15;
@@ -37,11 +64,30 @@ export const RANGE_DEFAULTS: ColorRange = {
   brightness: 1,
 };
 export function withDefaults(range: ColorRangeValues): ColorRange {
-  const value = { ...RANGE_DEFAULTS };
-  for (const key of Object.keys(RANGE_DEFAULTS) as (keyof ColorRange)[]) {
+  const value: ColorRange = { ...RANGE_DEFAULTS };
+  for (const key of Object.keys(RANGE_DEFAULTS) as CoreKey[]) {
     if (range[key] !== undefined && range[key] !== null) (value as Record<string, unknown>)[key] = range[key];
   }
+  // The new fields only when set (a lift of 0 is no lift), as Rust `ColorRange::from_choice`.
+  for (const key of NEW_KEYS) {
+    const set = range[key];
+    if (set === undefined || set === null || (key === "lift" && set === 0)) continue;
+    (value as Record<string, unknown>)[key] = set;
+  }
   return value;
+}
+/** The range gives what it selects a new color, or lifts its brightness (switch `set_colour`). */
+export const usesSetColour = (range: ColorRangeValues) =>
+  range.set_hue != null || range.set_saturation != null || (range.lift != null && range.lift !== 0);
+/** The range leaves every color as it is (Rust `ColorRange::changes_nothing`, on a range with defaults). */
+export function changesNothing(range: ColorRange): boolean {
+  return !usesSetColour(range) && ((range.hue_shift % 360) + 360) % 360 === 0 && range.saturation === 1 && range.brightness === 1;
+}
+/** Why the switches in force refuse a range, or "" (Rust `ColorRange::check_switches`). */
+export function switchRefusal(range: ColorRangeValues, switches: ColorSwitches = colorSwitches()): "" | "set_colour" | "part_only" {
+  if (usesSetColour(range) && !switches.set_colour) return "set_colour";
+  if (range.part && !switches.part_only) return "part_only";
+  return "";
 }
 
 /** Rust `f64::rem_euclid`. */
@@ -80,22 +126,29 @@ export function rangeWeight(range: ColorRange, [h, s, v]: [number, number, numbe
     smooth(range.softness * LEVEL_FADE, value - low) * smooth(range.softness * LEVEL_FADE, high - value);
   return hue * level(s, range.saturation_range) * level(v, range.brightness_range);
 }
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+/** The changed color (Rust `ColorRange::adjust`): without the new fields hue + hue_shift,
+ * saturation × saturation, brightness × brightness; with them hue set_hue, saturation
+ * set_saturation, brightness clamp(v × brightness + lift). */
 function adjust(range: ColorRange, color: [number, number, number]) {
   const [h, s, v] = hsv(...color);
-  return rgb(
-    remEuclid(h + range.hue_shift, 360),
-    Math.min(1, Math.max(0, s * range.saturation)),
-    Math.min(1, Math.max(0, v * range.brightness)),
-  );
+  if (!usesSetColour(range)) return rgb(remEuclid(h + range.hue_shift, 360), clamp01(s * range.saturation), clamp01(v * range.brightness));
+  const given = range.set_hue != null && range.set_saturation != null;
+  const hue = given ? remEuclid(range.set_hue!, 360) : remEuclid(h + range.hue_shift, 360);
+  const saturation = given ? clamp01(range.set_saturation!) : clamp01(s * range.saturation);
+  return rgb(hue, saturation, clamp01(v * range.brightness + (range.lift ?? 0)));
 }
 const byte = (v: number) => Math.min(255, Math.max(0, Math.round(v * 255)));
 
-/** One 8-bit texel after every range; alpha is kept. */
-export function recolorTexel(ranges: ColorRange[], [r, g, b, a]: Rgba): Rgba {
+/** One 8-bit texel after every range; alpha is kept. With `inside`, range i changes the texel only
+ * where inside(i) is true (a part range outside its part: Rust `recolor_where`). */
+export function recolorTexel(ranges: ColorRange[], [r, g, b, a]: Rgba, inside?: (index: number) => boolean): Rgba {
   const original: [number, number, number] = [r / 255, g / 255, b / 255];
   const selection = hsv(...original);
   const color: [number, number, number] = [...original];
-  for (const range of ranges) {
+  for (let index = 0; index < ranges.length; index++) {
+    if (inside && !inside(index)) continue;
+    const range = ranges[index];
     const weight = rangeWeight(range, selection);
     if (weight <= 0) continue;
     const changed = adjust(range, color);
@@ -106,14 +159,17 @@ export function recolorTexel(ranges: ColorRange[], [r, g, b, a]: Rgba): Rgba {
 
 /** RGBA pixels (canvas `ImageData.data`) recolored in place. With `mask`, each
  * pixel shows how much the ranges select it instead (white = fully). */
-export function recolorPixels(ranges: ColorRange[], data: Uint8ClampedArray, mask = false) {
+export function recolorPixels(ranges: ColorRange[], data: Uint8ClampedArray, mask = false, reach?: (Uint8Array | null)[]) {
   for (let i = 0; i < data.length; i += 4) {
+    // A range for one part reaches only the pixels its part mask marks (colorParts.ts).
+    const pixel = i / 4;
+    const inside = reach ? (index: number) => { const m = reach[index]; return !m || m[pixel] === 1; } : undefined;
     if (mask) {
       const selection = hsv(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255);
-      const weight = Math.min(1, ranges.reduce((sum, range) => sum + rangeWeight(range, selection), 0));
+      const weight = Math.min(1, ranges.reduce((sum, range, index) => sum + (!inside || inside(index) ? rangeWeight(range, selection) : 0), 0));
       data[i] = data[i + 1] = data[i + 2] = byte(weight);
     } else {
-      const [r, g, b] = recolorTexel(ranges, [data[i], data[i + 1], data[i + 2], 255]);
+      const [r, g, b] = recolorTexel(ranges, [data[i], data[i + 1], data[i + 2], 255], inside);
       data[i] = r;
       data[i + 1] = g;
       data[i + 2] = b;

@@ -1,4 +1,7 @@
-use deadlock_project::{asset_paths, customization::Customization, Project, Settings};
+use deadlock_project::{asset_paths, Project};
+// Only the reference test that does not run on Windows reads these.
+#[cfg(not(windows))]
+use deadlock_project::{customization::Customization, Settings};
 use serde_json::{json, Value};
 use std::{fs, path::Path};
 fn fixture() -> Value {
@@ -27,9 +30,11 @@ fn unpack(value: &Value, root: &Path) -> Value {
     });
     result
 }
+#[cfg(not(windows))]
 fn normalize(value: &mut Value, root: &Path) {
     strings(value, &|s| s.replace(root.to_str().unwrap(), "${ROOT}"));
 }
+#[cfg(not(windows))]
 fn same(a: &Value, b: &Value, location: &str) {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => assert_eq!(a.as_f64(), b.as_f64(), "{location}"),
@@ -140,7 +145,7 @@ fn python_reference_rejected_profiles_fail_closed() {
                 }
             });
         if case["name"] == "field_name" {
-            // Intentional alpha.2 UX change requested by the user: display
+            // Intentional change since alpha.2: display
             // names may contain spaces and capitals. Keep this legacy oracle
             // case visible as an explicit difference rather than changing it.
             assert!(result.is_ok(), "friendly display name should be accepted");

@@ -282,6 +282,41 @@ pub fn texture_metadata(raw: &[u8]) -> Result<TextureMetadata> {
     Ok(result)
 }
 
+/// The texture compiler step that stores a DXT5 texture's colour as scaled
+/// YCoCg: luma in alpha, the two chroma values in red and green, their scale
+/// in blue. Only the texture's own RED2 block names it.
+const YCOCG_CONVERSION: &str = "Texture Compiler Version Image YCoCg Conversion";
+
+/// Whether a texture's own edit record (RED2 `m_SpecialDependencies`) names
+/// the YCoCg conversion. A missing or unreadable record means no.
+pub fn ycocg_marked(raw: &[u8]) -> bool {
+    // Textures keep their pixels after the blocks, so read the block table
+    // the way `texture_metadata` does.
+    let Ok(layout) = deadlock_vpk::resource_blocks(raw) else { return false };
+    layout.blocks.iter().filter(|b| b.name == "RED2").any(|block| {
+        raw.get(block.offset..block.offset.saturating_add(block.size))
+            .and_then(|body| deadlock_resource::binary::decode(body).ok())
+            .and_then(|doc| {
+                let rows = doc.root.get("m_SpecialDependencies")?.array().ok()?;
+                Some(rows.iter().any(|row| {
+                    row.get("m_String").and_then(|s| s.string().ok()) == Some(YCOCG_CONVERSION)
+                }))
+            })
+            .unwrap_or(false)
+    })
+}
+
+/// One scaled-YCoCg pixel (as stored: r = Co, g = Cg, b = scale, a = Y) as an
+/// opaque colour (the usual scaled-YCoCg DXT5 decode).
+fn ycocg_to_rgba(p: [u8; 4]) -> [u8; 4] {
+    let scale = f32::from((p[2] >> 3) + 1);
+    let co = (f32::from(p[0]) - 128.) / scale;
+    let cg = (f32::from(p[1]) - 128.) / scale;
+    let y = f32::from(p[3]);
+    let channel = |v: f32| v.round().clamp(0., 255.) as u8;
+    [channel(y + co - cg), channel(y + cg), channel(y - co - cg), 255]
+}
+
 pub fn validate_gpu_pixels(meta: &TextureMetadata, raw: &[u8]) -> Result<()> {
     if meta.payload_offset != meta.declared_size {
         return Err(fail("GPU icon uses an unsupported resource/pixel layout."));
@@ -713,24 +748,114 @@ pub fn inspect_image(path: &Path, cancel: &CancellationToken) -> Result<ImageInf
     Ok(info)
 }
 
+/// The start of the message for a replacement picture that is not a PNG or JPEG
+/// image the app can read (troubleshooting.rs matches it).
+pub const PICTURE_NOT_READABLE: &str = "A replacement picture is not a PNG or JPEG image the app can read";
+/// `inspect_image` for the picture of a replacement row, whose failures name the
+/// file (and the game image it replaces, when given). Only a file that is there
+/// but does not decode as a picture gets `PICTURE_NOT_READABLE`.
+fn picture(path: &Path, target: Option<&str>, cancel: &CancellationToken) -> Result<ImageInfo> {
+    inspect_image(path, cancel).map_err(|error| match error {
+        deadlock_core::CoreError::Integrity(cause) => {
+            let replaces = target.map(|t| format!(" (it replaces {t})")).unwrap_or_default();
+            let undecodable = read_file(path).is_ok_and(|raw| decode_image(&raw, cancel).is_err());
+            let shown = safety::plain_path(path);
+            if undecodable {
+                fail(format!("{PICTURE_NOT_READABLE}: {}{replaces}. {cause}", shown.display()))
+            } else {
+                fail(format!("The replacement picture {}{replaces} could not be used: {cause}", shown.display()))
+            }
+        }
+        other => other,
+    })
+}
+/// The picture of a replacement row at Analyze and at build.
+pub fn readable_picture(path: &Path, target: &str, cancel: &CancellationToken) -> Result<ImageInfo> {
+    picture(path, Some(target), cancel)
+}
+/// Every enabled picture row (icons and item icons) whose file is set is read as
+/// a picture, so Analyze names a file the build could not use before it starts.
+pub fn check_pictures(rows: &[&ResourceReplacement], cancel: &CancellationToken) -> Result<()> {
+    for row in rows.iter().filter(|r| r.enabled.unwrap_or(true)) {
+        cancel.check()?;
+        let Some(source) = row.source.as_deref().filter(|s| !s.trim().is_empty()) else { continue };
+        readable_picture(Path::new(source), row.target.as_deref().unwrap_or_default(), cancel)?;
+    }
+    Ok(())
+}
+
 /// Read-only previews also cover flat textures that cannot be safely replaced.
 /// This never relaxes the stricter compilation checks in `method`.
 pub fn preview_texture(raw: &[u8], max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
     thumbnail(texture_image(raw, cancel)?, max_dimension, cancel)
 }
+/// An icon thumbnail with its transparency, decoded from the smallest stored
+/// mip that is still at least `max_dimension` (the Items page's tiles); the
+/// same picture as `preview_texture` at that size.
+pub fn preview_icon(raw: &[u8], max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
+    let meta = texture_metadata(raw)?;
+    let size = max_dimension.clamp(32, 1024);
+    thumbnail(texture_image_level(raw, preview_level(&meta, size), cancel)?, size, cancel)
+}
 /// A material's base-color texture, opaque: model materials keep other data
 /// in its alpha (Deadlock packs metalness there), which would hide the colors.
+/// It decodes the smallest stored mip that is still at least `max_dimension`
+/// (the thumbnail's size) instead of the full image: a 512 preview of a 4096
+/// texture reads mip 3. Textures whose display rectangle is smaller than the
+/// image keep mip 0.
 pub fn preview_color_texture(raw: &[u8], max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
-    let mut image = texture_image(raw, cancel)?;
+    let meta = texture_metadata(raw)?;
+    preview_color_texture_level(raw, max_dimension, preview_level(&meta, max_dimension.clamp(32, 1024)), cancel)
+}
+/// `preview_color_texture` from a chosen mip level (0 decodes the full image).
+pub fn preview_color_texture_level(raw: &[u8], max_dimension: u32, level: u8, cancel: &CancellationToken) -> Result<Vec<u8>> {
+    let mut image = texture_image_level(raw, level, cancel)?;
     for pixel in image.pixels_mut() {
         pixel[3] = 255;
     }
     thumbnail(image, max_dimension, cancel)
 }
+/// A texture's pixels, alpha kept, from the smallest stored mip that is still at
+/// least `size` on its larger side (for colour statistics, not for display).
+pub(crate) fn texture_pixels(raw: &[u8], size: u32, cancel: &CancellationToken) -> Result<RgbaImage> {
+    let meta = texture_metadata(raw)?;
+    texture_image_level(raw, preview_level(&meta, size.clamp(1, 1024)), cancel)
+}
+/// The smallest mip level whose larger side is still at least `size`.
+pub fn preview_level(meta: &TextureMetadata, size: u32) -> u8 {
+    let full = meta.display_width == meta.width && meta.display_height == meta.height;
+    if !full || [15, 16, 17, 18].contains(&meta.format) {
+        return 0;
+    }
+    let mut level = 0;
+    // Only levels that halve both sides exactly, so the thumbnail keeps its size.
+    let exact = |l: u8| u32::from(meta.width) % (1 << l) == 0 && u32::from(meta.height) % (1 << l) == 0;
+    while level + 1 < meta.mips && u32::from(meta.width.max(meta.height)) >> (level + 1) >= size && exact(level + 1) {
+        level += 1;
+    }
+    level
+}
+/// Bytes of one mip level as decoded (before LZ4).
+fn level_bytes(meta: &TextureMetadata, level: u8) -> usize {
+    let width = (meta.width as usize).checked_shr(level as u32).unwrap_or(0).max(1);
+    let height = (meta.height as usize).checked_shr(level as u32).unwrap_or(0).max(1);
+    if [1, 2, 20, 21, 27].contains(&meta.format) {
+        width.div_ceil(4) * height.div_ceil(4) * if [1, 27].contains(&meta.format) { 8 } else { 16 }
+    } else {
+        width * height * match meta.format {3 | 32 | 33 => 1, 22 => 2, _ => 4}
+    }
+}
 fn texture_image(raw: &[u8], cancel: &CancellationToken) -> Result<RgbaImage> {
+    texture_image_level(raw, 0, cancel)
+}
+/// Mip `level` of a texture (0 is the full image). Mips are stored smallest
+/// first, so mip 0 ends the payload and each larger level follows the smaller.
+fn texture_image_level(raw: &[u8], level: u8, cancel: &CancellationToken) -> Result<RgbaImage> {
     let meta = texture_metadata(raw)?;
     let (width, height) = (u32::from(meta.width), u32::from(meta.height));
     dimensions(width, height)?;
+    let level = level.min(meta.mips.saturating_sub(1));
+    let (width, height) = ((width >> level).max(1), (height >> level).max(1));
     if meta.depth != 1 || meta.flags & (16 | 32 | 64) != 0 {
         return Err(fail("This texture needs a cube, volume or array viewer."));
     }
@@ -745,8 +870,11 @@ fn texture_image(raw: &[u8], cancel: &CancellationToken) -> Result<RgbaImage> {
         let expected = if [1, 2, 20, 21, 27].contains(&meta.format) {
             width.div_ceil(4) as usize * height.div_ceil(4) as usize * if [1, 27].contains(&meta.format) {8} else {16}
         } else {width as usize * height as usize * channels};
-        let stored = meta.mip_sizes.first().copied().map(|n| n as usize).unwrap_or(expected);
-        let packed = &raw[raw.len()-stored..];
+        let stored_at = |l: u8| meta.mip_sizes.get(l as usize).copied().map(|n| n as usize).unwrap_or_else(|| level_bytes(&meta, l));
+        let stored = stored_at(level);
+        // Levels below this one (larger images) come after it.
+        let end = raw.len() - (0..level).map(stored_at).sum::<usize>();
+        let packed = &raw[end-stored..end];
         let pixels = if stored < expected {
             lz4_flex::block::decompress(packed, expected).map_err(fail)?
         } else {packed.to_vec()};
@@ -762,6 +890,9 @@ fn texture_image(raw: &[u8], cancel: &CancellationToken) -> Result<RgbaImage> {
                 });
             }
         } else {
+            // DXT5 that holds scaled YCoCg is turned into colour per pixel here,
+            // before any crop or resize mixes the coded values.
+            let ycocg = meta.format == 2 && ycocg_marked(raw);
             let stride = if [1, 27].contains(&meta.format) {8} else {16};
             for (index, block) in pixels.chunks_exact(stride).enumerate() {
                 if index % 1024 == 0 {cancel.check()?;}
@@ -779,6 +910,12 @@ fn texture_image(raw: &[u8], cancel: &CancellationToken) -> Result<RgbaImage> {
                         for (p, v) in rgba.chunks_exact_mut(4).zip(rg.chunks_exact(2)) {p.copy_from_slice(&[v[0], v[1], 0, 255]);}
                     }
                     _ => unreachable!(),
+                }
+                if ycocg {
+                    for pixel in rgba.chunks_exact_mut(4) {
+                        let converted = ycocg_to_rgba(pixel.try_into().unwrap());
+                        pixel.copy_from_slice(&converted);
+                    }
                 }
                 let x = (index as u32 % width.div_ceil(4)) * 4;
                 let y = (index as u32 / width.div_ceil(4)) * 4;
@@ -813,7 +950,8 @@ fn thumbnail(image: RgbaImage, max_dimension: u32, cancel: &CancellationToken) -
 
 pub fn preview_fitted_image(path: &Path, original: &[u8], fit: &str, max_dimension: u32, cancel: &CancellationToken) -> Result<Vec<u8>> {
     let meta = texture_metadata(original)?;
-    let info = inspect_image(path, cancel)?;
+    // The page marks a replacement as "Not a picture" only on `PICTURE_NOT_READABLE`.
+    let info = picture(path, None, cancel)?;
     let raw = read_file(path)?;
     if sha(&raw) != info.sha256 {return Err(fail("Image changed during preview."));}
     let (png, _) = resize_png(&raw, meta.display_width.into(), meta.display_height.into(), fit, cancel)?;
@@ -950,14 +1088,7 @@ pub fn discover_with_warnings(
         let mut item = IconDiscovery {
             target: entry.path.clone(),
             path: entry.path.clone(),
-            label: entry
-                .path
-                .rsplit('/')
-                .next()
-                .unwrap_or_default()
-                .trim_end_matches(".vtex_c")
-                .trim_end_matches(".vsvg_c")
-                .replace('_', " "),
+            label: icon_label(&entry.path),
             supported: false,
             reason: String::new(),
             width: 0,
@@ -993,7 +1124,78 @@ pub fn discover_with_warnings(
         };
         result.push(item);
     }
+    tell_apart_labels(&mut result);
     Ok((result,paths.warnings))
+}
+/// The part of each path's folder that the others do not share: the folders without the
+/// segments every one of them starts with and ends with.
+pub fn differing_folders(paths: &[&str]) -> Vec<String> {
+    let dirs: Vec<Vec<&str>> = paths.iter().map(|p| p.rsplit_once('/').map(|(dir, _)| dir.split('/').collect()).unwrap_or_default()).collect();
+    let shortest = dirs.iter().map(Vec::len).min().unwrap_or(0);
+    let lead = (0..shortest).take_while(|&i| dirs.iter().all(|d| d[i] == dirs[0][i])).count();
+    let tail = (0..shortest - lead).take_while(|&i| dirs.iter().all(|d| d[d.len() - 1 - i] == dirs[0][dirs[0].len() - 1 - i])).count();
+    dirs.iter().map(|d| d[lead..d.len() - tail].join("/")).collect()
+}
+/// Words of an image's file name that only say how the picture was stored.
+const IMAGE_FORMAT_WORDS: [&str; 4] = ["psd", "png", "tga", "jpg"];
+/// An icon's display name from its file name: the words without an image format word and
+/// without a last word of eight hex digits (the compiler's suffix). Display only.
+pub fn icon_label(path: &str) -> String {
+    let (kept, stem) = (icon_words(path).0, icon_stem(path));
+    if kept.is_empty() { stem.replace('_', " ") } else { kept.join(" ") }
+}
+fn icon_stem(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or_default().trim_end_matches(".vtex_c").trim_end_matches(".vsvg_c")
+}
+/// The file name's words: those the display name keeps, the hex suffix, the format words.
+fn icon_words(path: &str) -> (Vec<&str>, Option<&str>, Vec<&str>) {
+    let mut words: Vec<&str> = icon_stem(path).split('_').filter(|w| !w.is_empty()).collect();
+    let hex = if words.len() > 1 && words.last().is_some_and(|w| w.len() == 8 && w.bytes().all(|b| b.is_ascii_hexdigit())) { words.pop() } else { None };
+    let (formats, kept): (Vec<&str>, Vec<&str>) = words.into_iter().partition(|w| IMAGE_FORMAT_WORDS.contains(&w.to_ascii_lowercase().as_str()));
+    (kept, hex, formats)
+}
+/// The words the display name left out: the hex suffix, and the format words.
+fn dropped_words(path: &str) -> (String, String) {
+    let (_, hex, formats) = icon_words(path);
+    (hex.unwrap_or_default().to_owned(), formats.join(" "))
+}
+/// Rows of one list that share a display name get, in brackets, what tells them apart: their
+/// folder, or their size when only that differs. Display only: targets and order stay.
+fn tell_apart_labels(rows: &mut [IconDiscovery]) {
+    let mut by_label: std::collections::BTreeMap<String, Vec<usize>> = Default::default();
+    for (index, row) in rows.iter().enumerate() {
+        by_label.entry(casefold(&row.label)).or_default().push(index);
+    }
+    for indices in by_label.into_values().filter(|i| i.len() > 1) {
+        let distinct = |words: &dyn Fn(&IconDiscovery) -> String| {
+            let all: BTreeSet<String> = indices.iter().map(|&i| words(&rows[i])).collect();
+            all.len() == indices.len() && !all.contains("")
+        };
+        let paths: Vec<&str> = indices.iter().map(|&i| rows[i].path.as_str()).collect();
+        let differing = differing_folders(&paths);
+        let folder_of = |row: &IconDiscovery| paths.iter().position(|p| *p == row.path).map(|at| differing[at].clone()).unwrap_or_default();
+        let folders = |row: &IconDiscovery| folder_of(row);
+        let sizes = |row: &IconDiscovery| format!("{}×{}", row.width, row.height);
+        let both = |row: &IconDiscovery| format!("{}, {}×{}", folder_of(row), row.width, row.height);
+        let extra: Option<&dyn Fn(&IconDiscovery) -> String> =
+            if distinct(&folders) { Some(&folders) } else if distinct(&sizes) { Some(&sizes) } else if distinct(&both) { Some(&both) } else { None };
+        let words: Vec<String> = match extra {
+            Some(extra) => indices.iter().map(|&i| extra(&rows[i])).collect(),
+            // Same folder and size: the words the name left out (the hex suffix, else the
+            // format word); one row without such a word keeps its name as it is.
+            None => {
+                let pick = |part: fn(&str) -> String| {
+                    let words: Vec<String> = indices.iter().map(|&i| part(&rows[i].path)).collect();
+                    (words.iter().collect::<BTreeSet<_>>().len() == words.len()).then_some(words)
+                };
+                let Some(words) = pick(|p| dropped_words(p).0).or_else(|| pick(|p| dropped_words(p).1)) else { continue };
+                words
+            }
+        };
+        for (&i, words) in indices.iter().zip(words).filter(|(_, w)| !w.is_empty()) {
+            rows[i].label = format!("{} ({words})", rows[i].label);
+        }
+    }
 }
 fn inside(root: &Path, path: &str) -> Result<PathBuf> {
     deadlock_vpk::check_unlinked_path(root, true).map_err(fail)?;
@@ -1001,6 +1203,20 @@ fn inside(root: &Path, path: &str) -> Result<PathBuf> {
     deadlock_vpk::check_unlinked_path(&root.join(&path), true).map_err(fail)?;
     safety::inside(root, &path)
 }
+/// What staging says when a row's target is not allowed or its game image changed.
+pub struct StageWords {
+    pub outside: &'static str,
+    pub changed: &'static str,
+}
+pub const HERO_WORDS: StageWords = StageWords {
+    outside: "Choose an image discovered for the selected hero in the current game VPK",
+    changed: "The game image changed after selection. Find this hero's images again.",
+};
+/// Item icons (`item_icons`): the game's item pictures, the same for every hero.
+pub const ITEM_WORDS: StageWords = StageWords {
+    outside: crate::item_icons::NOT_AN_ITEM_ICON,
+    changed: crate::item_icons::ITEM_ICON_CHANGED,
+};
 pub fn stage(
     archive: &Vpk,
     replacements: &[ResourceReplacement],
@@ -1018,6 +1234,18 @@ pub fn stage(
                 .collect::<std::collections::BTreeMap<_,_>>(),
         )
     };
+    stage_allowed(archive, replacements, content, allowed, &HERO_WORDS, cancel)
+}
+/// `stage` with the allowed targets given (casefolded target → whether it is
+/// shared and needs `allow_shared`); `None` allows any Panorama image.
+pub fn stage_allowed(
+    archive: &Vpk,
+    replacements: &[ResourceReplacement],
+    content: &Path,
+    allowed: Option<std::collections::BTreeMap<String, bool>>,
+    words: &StageWords,
+    cancel: &CancellationToken,
+) -> Result<IconReceipt> {
     let mut seen = BTreeSet::new();
     let mut entries = vec![];
     for replacement in replacements.iter().filter(|r| r.enabled.unwrap_or(true)) {
@@ -1034,9 +1262,7 @@ pub fn stage(
             || !archive.entries.contains_key(&key)
             || allowed.as_ref().is_some_and(|a| !a.contains_key(&key))
         {
-            return Err(fail(format!(
-                "Choose an image discovered for the selected hero in the current game VPK: {target}"
-            )));
+            return Err(fail(format!("{}: {target}", words.outside)));
         }
         if allowed.as_ref().and_then(|a|a.get(&key)).copied().unwrap_or(false) && !replacement.allow_shared.unwrap_or(false) {
             return Err(fail("This icon is shared. Enable Include this shared replacement before building."));
@@ -1049,14 +1275,12 @@ pub fn stage(
             .as_ref()
             .is_some_and(|s| !s.is_empty() && *s != original_sha256)
         {
-            return Err(fail(
-                "The game image changed after selection. Find this hero's images again.",
-            ));
+            return Err(fail(words.changed));
         }
         let meta = texture_metadata(&original)?;
         let method = method(&meta, &original, cancel)?.to_owned();
         let source = Path::new(replacement.source.as_deref().unwrap_or_default());
-        let source_info = inspect_image(source, cancel)?;
+        let source_info = readable_picture(source, &target, cancel)?;
         let raw = read_file(source)?;
         if sha(&raw) != source_info.sha256 {
             return Err(fail(
@@ -1280,4 +1504,44 @@ pub fn preview_image(
     let (png, _) = resize_png(&raw, width, height, "contain", cancel)?;
     cancel.check()?;
     Ok(png)
+}
+
+#[cfg(test)]
+mod label_tests {
+    use super::*;
+    fn row(path: &str, width: u16, height: u16) -> IconDiscovery {
+        IconDiscovery { target: path.into(), path: path.into(), label: icon_label(path), supported: true, reason: String::new(), width, height, original_sha256: None, metadata: None, method: None, shared: false }
+    }
+    #[test]
+    fn icon_names_leave_out_image_formats_and_the_hex_suffix() {
+        assert_eq!(icon_label("panorama/images/hud/abilities/engineer/engineer_sm_psd_de81f570.vtex_c"), "engineer sm");
+        assert_eq!(icon_label("panorama/images/heroes/haze_card_png.vtex_c"), "haze card");
+        assert_eq!(icon_label("panorama/images/heroes/haze_vertical_psd.vtex_c"), "haze vertical");
+        // A name of only such words keeps them, and an ordinary last word stays.
+        assert_eq!(icon_label("panorama/images/psd.vtex_c"), "psd");
+        assert_eq!(icon_label("panorama/images/hud/ability_bullet_dance.vtex_c"), "ability bullet dance");
+    }
+    #[test]
+    fn rows_that_share_a_name_are_told_apart_by_folder_then_by_size() {
+        let mut rows = vec![
+            row("panorama/images/hud/abilities/engineer/engineer_turret_psd.vtex_c", 128, 128),
+            row("panorama/images/upgrades/engineer/engineer_turret_psd.vtex_c", 128, 128),
+            row("panorama/images/heroes/engineer_card_psd.vtex_c", 256, 256),
+            row("panorama/images/heroes/engineer_card_png.vtex_c", 512, 512),
+            row("panorama/images/heroes/engineer_sm_psd.vtex_c", 64, 64),
+            // Same folder and size: the hex suffix tells it apart.
+            row("panorama/images/heroes/engineer_sm_psd_de81f570.vtex_c", 64, 64),
+            // Same folder and size, no suffix: the format word does.
+            row("panorama/images/heroes/engineer_mm_psd.vtex_c", 32, 32),
+            row("panorama/images/heroes/engineer_mm_png.vtex_c", 32, 32),
+        ];
+        tell_apart_labels(&mut rows);
+        let labels: Vec<&str> = rows.iter().map(|r| r.label.as_str()).collect();
+        assert_eq!(labels, [
+            "engineer turret (hud/abilities)", "engineer turret (upgrades)", "engineer card (256×256)", "engineer card (512×512)",
+            "engineer sm", "engineer sm (de81f570)", "engineer mm (psd)", "engineer mm (png)",
+        ]);
+        // Targets and order never change.
+        assert_eq!(rows[1].target, "panorama/images/upgrades/engineer/engineer_turret_psd.vtex_c");
+    }
 }

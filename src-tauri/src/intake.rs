@@ -33,10 +33,13 @@ pub fn validate_asset_path(path: &Path, kind: AssetKind) -> Result<String> {
                 .to_ascii_lowercase();
             let allowed: &[&str] = match kind {
                 AssetKind::Physics => &["vmdl_c"],
-                AssetKind::Garment | AssetKind::Prop | AssetKind::Weapon => &["blend", "glb", "gltf", "fbx"],
+                // A gun file may be an MMD weapon model (staged through MMD Tools).
+                AssetKind::Weapon => &["blend", "glb", "gltf", "fbx", "pmx", "pmd"],
+                AssetKind::Garment | AssetKind::Prop => &["blend", "glb", "gltf", "fbx"],
                 AssetKind::Icon => &["png", "jpg", "jpeg"],
                 AssetKind::Texture => &["png", "tga", "jpg", "jpeg", "tif", "tiff", "exr"],
-                AssetKind::Animation => &["vnmclip", "vnmclip_c", "blend", "fbx", "glb", "gltf"],
+                // Only clips the build can take (no Blender or FBX animation import).
+                AssetKind::Animation => &["vnmclip_c", "vnmclip"],
                 AssetKind::Effect => &["vpcf_c"],
                 AssetKind::Audio => &["wav", "mp3", "flac", "ogg", "vsnd_c"],
                 AssetKind::VariantProject => &["json"],

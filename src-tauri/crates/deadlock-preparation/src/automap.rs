@@ -91,6 +91,30 @@ pub fn roles(
     overrides: &BTreeMap<String, String>,
 ) -> Result<Identification> {
     let mut found = algorithms::identify(bones, &BTreeMap::new())?.roles;
+    let mut notes = vec![];
+    // Body names behind a prefix every body bone shares. Only when the plain
+    // names prove almost nothing, and only to fill roles still missing.
+    if found.len() < 6 {
+        if let Some((prefix, named)) = algorithms::prefixed_roles(bones, weighted) {
+            let mut added = 0;
+            for (role, name) in named {
+                if !found.contains_key(&role) && !found.values().any(|n| *n == name) {
+                    found.insert(role, name);
+                    added += 1;
+                }
+            }
+            if added > 0 {
+                let shown = bones
+                    .iter()
+                    .map(|b| b.name.rsplit(':').next().unwrap_or(&b.name))
+                    .find(|n| n.to_lowercase().starts_with(&prefix))
+                    .and_then(|n| n.get(..prefix.len()))
+                    .unwrap_or(&prefix)
+                    .to_string();
+                notes.push(format!("Body bone names were read after the prefix \"{shown}\" that the rig's bones share."));
+            }
+        }
+    }
     // Blender's rest-rig recovery supplies recomputed anatomical hints. They
     // fill missing roles only; duplicate hints, ordinary detections and explicit
     // user choices are never silently overridden. identify below still checks
@@ -150,6 +174,7 @@ pub fn roles(
             }
         }
     }
+    numbered_spine(bones, &mut found);
     // Valve/Mixamo rigs can contain several named chest/spine candidates.
     // Use the highest member of one actual ancestor chain below the neck.
     if !found.contains_key("chest") {
@@ -173,6 +198,7 @@ pub fn roles(
             }
         }
     }
+    fill_from_structure(bones, weighted, &mut found, &mut notes);
     crate::leg_chains::detect(bones, weighted, &mut found);
     for (role, name) in overrides {
         if !name.is_empty() {
@@ -181,12 +207,14 @@ pub fn roles(
     }
     let named = algorithms::identify(bones, &found)?;
     if named.errors.is_empty() {
-        return Ok(named);
+        return Ok(refined(bones, weighted, named, overrides, notes));
     }
     // Names were missing, ambiguous or contradictory. Recognize the body from
     // the skin skeleton's structure instead; explicit user choices still win
     // and the ordinary identify checks decide whether the result is usable.
-    if let Some(detected) = crate::structure::detect(bones, weighted) {
+    // Roles the names did prove guide the structure's choice of limb joints.
+    let hints: BTreeMap<String, String> = found.iter().filter(|(_, n)| !n.is_empty()).map(|(r, n)| (r.clone(), n.clone())).collect();
+    if let Some(detected) = crate::structure::detect_with_hints(bones, weighted, &hints) {
         let mut merged = detected.roles.clone();
         for (role, name) in overrides {
             if !name.is_empty() {
@@ -195,18 +223,204 @@ pub fn roles(
         }
         let structural = algorithms::identify(bones, &merged)?;
         if structural.errors.is_empty() {
-            return Ok(algorithms::Identification {
+            let mut notes = notes;
+            notes.extend(detected.notes.iter().cloned());
+            let found = algorithms::Identification {
                 evidence: format!(
-                    "Skeleton structure (hierarchy, floor contact, arm span and limb proportions); sides from {}. {}Human confirmation required.",
+                    "Skeleton structure (hierarchy, floor contact, arm span and limb proportions); sides from {}. Human confirmation required.",
                     detected.sides_from,
-                    detected.notes.iter().map(|n| format!("{n} ")).collect::<String>()
                 ),
                 ..structural
-            });
+            };
+            return Ok(refined(bones, weighted, found, overrides, notes));
         }
     }
     Ok(named)
 }
+
+fn skin_weight(bone: &Bone) -> f64 {
+    let skin = bone.details.get("skin");
+    skin.and_then(|s| s.get("weight_sum")).and_then(|v| v.as_f64())
+        .or_else(|| skin.and_then(|s| s.get("vertices")).and_then(|v| v.as_f64()))
+        .unwrap_or(0.)
+}
+fn bone<'a>(bones: &'a [Bone], name: &str) -> Option<&'a Bone> {
+    bones.iter().find(|b| b.name == name)
+}
+fn deforming(b: &Bone) -> bool {
+    b.details.get("deform").and_then(|v| v.as_bool()) != Some(false)
+}
+/// Ancestors of `name`, starting with its parent.
+fn ancestors(bones: &[Bone], name: &str) -> Vec<String> {
+    let mut out = vec![];
+    let mut next = bone(bones, name).and_then(|b| b.parent.clone());
+    while let Some(n) = next {
+        if out.contains(&n) {
+            break;
+        }
+        next = bone(bones, &n).and_then(|b| b.parent.clone());
+        out.push(n);
+    }
+    out
+}
+
+/// Numbered spine bones (`Spine`, `Spine1`, `Spine2` ...): the aliases read
+/// `Spine` and `Spine1` both as the spine (and `Spine2`, `Spine3` both as the
+/// chest), so the name pass drops the role. When the pelvis is known and the
+/// spine or the chest is missing, the deforming bones below the pelvis named
+/// as spine or chest that lie on one ancestor chain (2 to 8 of them) map
+/// lowest to highest: the lowest is the spine, the highest the chest, each
+/// only when that role is missing and never both to one bone. The same rule
+/// as the Blender rest-rig recovery (`source_compatibility.py plan`), which
+/// gives these roles as hints when it recovers a rig. Fills missing roles
+/// only; identify still checks the whole body.
+fn numbered_spine(bones: &[Bone], found: &mut BTreeMap<String, String>) {
+    let Some(pelvis) = found.get("pelvis").cloned() else { return };
+    if found.contains_key("spine") && found.contains_key("chest") {
+        return;
+    }
+    let candidates: Vec<&Bone> = bones
+        .iter()
+        .filter(|b| {
+            deforming(b)
+                && b.position.iter().all(|v| v.is_finite())
+                && matches!(algorithms::name_role(&b.name), Some("spine" | "chest"))
+                && is_ancestor(bones, &pelvis, &b.name)
+        })
+        .collect();
+    if !(2..=8).contains(&candidates.len())
+        || !candidates.iter().all(|a| candidates.iter().all(|b| is_ancestor(bones, &a.name, &b.name) || is_ancestor(bones, &b.name, &a.name)))
+    {
+        return;
+    }
+    let lowest = candidates.iter().find(|b| candidates.iter().all(|c| is_ancestor(bones, &b.name, &c.name)));
+    let highest = candidates.iter().find(|b| candidates.iter().all(|c| is_ancestor(bones, &c.name, &b.name)));
+    let (Some(lowest), Some(highest)) = (lowest, highest) else { return };
+    let spine = found.get("spine").cloned().unwrap_or_else(|| lowest.name.clone());
+    let chest = found.get("chest").cloned().unwrap_or_else(|| highest.name.clone());
+    if spine == chest || found.iter().any(|(role, name)| role != "spine" && role != "chest" && (*name == spine || *name == chest)) {
+        return;
+    }
+    found.insert("spine".into(), spine);
+    found.insert("chest".into(), chest);
+}
+
+/// Roles the names left out but the named neighbours prove: the pelvis is the
+/// joint that carries both named thighs and the named spine (rigs whose root
+/// carries the hips' skin), and a limb's middle joint is the only joint
+/// between its named upper and end joints (a misspelled shin or forearm).
+/// Fills missing roles only; identify still checks the whole body.
+fn fill_from_structure(bones: &[Bone], weighted: &[String], found: &mut BTreeMap<String, String>, notes: &mut Vec<String>) {
+    if !found.contains_key("pelvis") {
+        if let (Some(l), Some(r), Some(s)) = (found.get("thigh_L"), found.get("thigh_R"), found.get("spine")) {
+            let (al, ar, asp) = (ancestors(bones, l), ancestors(bones, r), ancestors(bones, s));
+            if let Some(common) = al.iter().find(|a| ar.contains(a) && asp.contains(a)).cloned() {
+                if weighted.contains(&common) && bone(bones, &common).is_some_and(deforming) && !found.values().any(|n| *n == common) {
+                    notes.push(format!("The pelvis is {common}: no bone is named as hips, and it carries both thighs and the spine."));
+                    found.insert("pelvis".into(), common);
+                }
+            }
+        }
+    }
+    for side in ["L", "R"] {
+        for [top, middle, end] in [["thigh", "shin", "foot"], ["upperarm", "forearm", "hand"]] {
+            let role = format!("{middle}_{side}");
+            if found.contains_key(&role) {
+                continue;
+            }
+            let (Some(t), Some(e)) = (found.get(&format!("{top}_{side}")), found.get(&format!("{end}_{side}"))) else { continue };
+            let up = ancestors(bones, e);
+            let Some(at) = up.iter().position(|n| n == t) else { continue };
+            if at != 1 {
+                continue;
+            }
+            let joint = up[0].clone();
+            if bone(bones, &joint).is_some_and(deforming) && !found.values().any(|n| *n == joint) {
+                notes.push(format!("{} is {joint}: it is the only joint between the named {top} and {end}.", role.replace('_', " ")));
+                found.insert(role, joint);
+            }
+        }
+    }
+}
+
+/// Skin-based corrections of a valid guess. Each is kept only when identify
+/// still accepts the whole body; roles the user chose are never changed.
+fn refined(
+    bones: &[Bone],
+    weighted: &[String],
+    found: Identification,
+    overrides: &BTreeMap<String, String>,
+    mut notes: Vec<String>,
+) -> Identification {
+    let chosen = |role: &str| overrides.get(role).is_some_and(|n| !n.is_empty());
+    let mut roles = found.roles.clone();
+    let mut also = BTreeMap::new();
+    let mut extra = vec![];
+    // The head is the joint that carries the face. A joint at or above the
+    // neck that carries at least HEAD_SKIN of the head's skin weight holds the
+    // face (the guessed head then carries little more than a hair cap): it
+    // becomes the head, and the guessed head follows the hero's head too.
+    // Ordinary rigs measured 0.00-0.18 for neck / head; the rig this rule was
+    // made for 1.15, and 0.35 of the head with its children.
+    if !chosen("head") && !chosen("neck") {
+        if let (Some(neck), Some(head), Some(chest)) = (roles.get("neck").cloned(), roles.get("head").cloned(), roles.get("chest").cloned()) {
+            let head_skin = bone(bones, &head).map(skin_weight).unwrap_or(0.);
+            let up = ancestors(bones, &head);
+            if let Some(at) = up.iter().position(|n| *n == neck) {
+                // Everything the head carries with its children (hair, ears,
+                // and on rigs with facial bones the jaw, eyes and face).
+                let head_tree: f64 = bones
+                    .iter()
+                    .filter(|b| b.name == head || ancestors(bones, &b.name).contains(&head))
+                    .map(skin_weight)
+                    .sum();
+                if head_skin > 0. {
+                    // From the neck upwards, the lowest joint carrying the face.
+                    let face = up[..=at].iter().rev().find(|n| {
+                        weighted.contains(n)
+                            && bone(bones, n).is_some_and(|b| {
+                                skin_weight(b) >= HEAD_SKIN * head_skin && skin_weight(b) >= HEAD_TREE_SKIN * head_tree
+                            })
+                    }).cloned();
+                    if let Some(face) = face {
+                        let new_neck = if face == neck {
+                            ancestors(bones, &neck).first().cloned().filter(|p| {
+                                *p != chest && ancestors(bones, p).contains(&chest) && !roles.values().any(|n| n == p)
+                            })
+                        } else {
+                            Some(neck.clone())
+                        };
+                        if let Some(new_neck) = new_neck {
+                            extra.push(format!(
+                                "The head is {face}: it carries about as much skin as {head} above it or more, which is where the face is. {head} follows the hero's head as well."
+                            ));
+                            roles.insert("neck".into(), new_neck);
+                            roles.insert("head".into(), face);
+                            also.insert(head, "head".to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let accepted = !extra.is_empty() && algorithms::identify(bones, &roles).is_ok_and(|r| r.errors.is_empty());
+    let mut result = if accepted {
+        notes.extend(extra);
+        Identification { roles, also, ..found }
+    } else {
+        found
+    };
+    if !notes.is_empty() {
+        result.evidence = format!("{} {}", result.evidence, notes.join(" "));
+    }
+    result.notes = notes;
+    result
+}
+const HEAD_SKIN: f64 = 0.8;
+/// The face-carrying joint also holds at least this share of everything the
+/// guessed head and its children carry, so a light head bone whose face sits
+/// on facial bones below it (jaw, eyes) never hands the head to the neck.
+const HEAD_TREE_SKIN: f64 = 0.25;
 
 fn primary_ancestor<'a>(
     bones: &[Bone],
@@ -375,6 +589,18 @@ pub fn suggest(
             automatic.insert(name.clone(), "Corresponding humanoid role".into());
         }
     }
+    // Joints the guess found to carry the rest of a role's body part (the hair
+    // cap above the face-carrying head joint) follow the same hero bone, unless
+    // the project already chose something for them.
+    for (name, role) in &sr.also {
+        if let Some(dest) = tr.roles.get(role) {
+            if !mapping.contains_key(name) {
+                mapping.insert(name.clone(), dest.clone());
+                automatic.insert(name.clone(), format!("Carries the rest of the {role} above the joint chosen as {role}; follows the same hero bone"));
+            }
+        }
+    }
+    assistance.warnings.extend(sr.notes.iter().map(|n| format!("Body guess: {n}")));
     // Identical names are accepted only within corresponding anatomical branches.
     for bone in source {
         if !mapping.contains_key(&bone.name) && targets.contains(bone.name.as_str()) {

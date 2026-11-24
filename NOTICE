@@ -1,0 +1,37 @@
+Deadlock Mod Builder
+Copyright (C) 2026 Deadlock Character Mod Builder contributors
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program (the file LICENSE). If not, see
+<https://www.gnu.org/licenses/>.
+
+
+Scope
+
+The GNU Affero General Public License covers the application source. It
+does not grant rights to Valve game assets, the user's model/textures, CSDK
+binaries or external tools. Bundled third-party components keep their own
+licenses; their notices are in the licenses/ folder.
+
+
+Source code
+
+The complete source code is available at
+<https://github.com/OverseerAlbedo/deadlock-mod-builder>. The source of a
+given release is the tag v<version> in that repository, where <version>
+is the version shown in the application.
+
+
+Earlier versions
+
+Versions up to and including 0.13.0 were published under the MIT License.

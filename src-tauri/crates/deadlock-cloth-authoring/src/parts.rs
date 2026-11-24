@@ -63,7 +63,67 @@ pub struct Part {
     /// Long hanging strips inside a cloth part, moving like streamers (`strips`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub strips: Vec<Strip>,
+    /// A tail modelled straight and level (`level_rest`): its rest pose is a
+    /// modelling pose, so in automatic motion it hangs under gravity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level_rest: Option<LevelRest>,
 }
+/// The rest shape of a tail's weighted chain that makes it hang.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct LevelRest {
+    /// The outer part's end-to-end distance over its summed joint-to-joint
+    /// length (1 = straight; see `LEVEL_TAIL_BASE`).
+    pub outer_straightness: f64,
+    /// Vertical component of the whole chain's root-to-tip unit direction.
+    pub vertical: f64,
+}
+/// A tail's base (the part of the chain within this share of its length from
+/// the root) is left out of the straightness. MMD tails leave the hips going
+/// down and back and bend up to level: a user's 50 in tail on Lady Geist has a
+/// 4.3 in segment at (0, 0.52, -0.85), bends of 26° and 28°, then 39 in dead
+/// straight and level; its whole chain measured only 0.957–0.960.
+pub const LEVEL_TAIL_BASE: f64 = 0.4;
+/// A tail is straight from this outer straightness on (the outer part's
+/// end-to-end distance over its summed joint-to-joint length; the whole
+/// chain when the outer part has fewer than three joints)...
+pub const LEVEL_TAIL_OUTER_STRAIGHTNESS: f64 = 0.98;
+/// ...and level up to this vertical component of its root-to-tip direction
+/// (within 30° of horizontal). MMD models build tails straight out behind the
+/// hips and let physics hang them: that tail (direction (0, 0.99, -0.11))
+/// pointed straight out in game. Tails modelled hanging (vertical -0.71 to
+/// -0.92 on other models), curved or pointing up keep their values.
+pub const LEVEL_TAIL_VERTICAL: f64 = 0.5;
+/// Up in the hero's model frame, the direction gravity pulls against, rather
+/// than the pelvis-to-head line, which a hero's posture leans (the MMD tail
+/// fitted to Lady Geist: vertical -0.225 against z, -0.238 against that line).
+const GRAVITY_UP: [f64; 3] = [0., 0., 1.];
+/// The rest shape of a chain that is level and straight past its base
+/// (`points` root first, `up` the character's unit up direction), or `None`
+/// for any other chain.
+pub fn level_rest(points: &[[f64; 3]], up: [f64; 3]) -> Option<LevelRest> {
+    if points.len() < 2 {
+        return None;
+    }
+    let mut along = vec![0.];
+    for w in points.windows(2) {
+        along.push(along[along.len() - 1] + norm(sub(w[1], w[0])));
+    }
+    let length = along[along.len() - 1];
+    let span = sub(points[points.len() - 1], points[0]);
+    let reach = norm(span);
+    if length <= 1e-4 || reach <= 1e-4 {
+        return None;
+    }
+    let vertical = (0..3).map(|r| span[r] * up[r]).sum::<f64>() / reach;
+    // The outer part starts at the last joint within LEVEL_TAIL_BASE of the length.
+    let start = along.iter().rposition(|&a| a <= LEVEL_TAIL_BASE * length).unwrap_or(0);
+    let start = if points.len() - start >= 3 { start } else { 0 };
+    let outer_length = length - along[start];
+    let outer_straightness = norm(sub(points[points.len() - 1], points[start])) / outer_length;
+    (outer_straightness >= LEVEL_TAIL_OUTER_STRAIGHTNESS && vertical.abs() <= LEVEL_TAIL_VERTICAL)
+        .then_some(LevelRest { outer_straightness, vertical })
+}
+const LEVEL_TAIL_REASON: &str = "; straight, level tail in the rest pose: it hangs under gravity";
 /// A long hanging strip inside a cloth part: the weighted joints from the part's
 /// root to a tip, root first. `branch` is where it leaves the joints it shares
 /// with other strips (0 when the part does not fork before it).
@@ -72,12 +132,12 @@ pub struct Strip {
     pub path: Vec<String>,
     pub branch: usize,
 }
-/// Torso lengths (head to pelvis) a strip reaches at least: arcaneVin's shoulder
+/// Torso lengths (head to pelvis) a strip reaches at least: one model's shoulder
 /// capes R_capeC/D (0.67) count, skirt panels of 10–12 in (0.4) do not.
 const STRIP_REACH: f64 = 0.6;
-/// Long hanging strips inside a cloth part (arcaneVin's cloak panels L/R_capeB and
+/// Long hanging strips inside a cloth part (one model's cloak panels L/R_capeB and
 /// ribbonC, its shoulder capes R_capeC/D, the capes hanging from its breast
-/// bones), which move like streamers, as SiViolet's floor-length sleeves do: each
+/// bones), which move like streamers, as floor-length sleeves do: each
 /// path of weighted joints from the part's root to a tip whose stretch below its
 /// last fork has at least three weighted joints, that reaches STRIP_REACH torso
 /// lengths, and whose own mesh (below the fork) is at least twice as long as
@@ -109,7 +169,7 @@ fn strips(sk: &Skeleton, group: &Group, position: &dyn Fn(&str) -> [f64; 3], sha
             None => {
                 let branch = (0..path.len() - 1).rev().find(|&i| children.get(path[i]).is_some_and(|c| c.len() > 1)).map_or(0, |i| i + 1);
                 let reach: f64 = path.windows(2).map(|w| norm(sub(position(w[1]), position(w[0])))).sum();
-                // Its own mesh, alone or with the joint it hangs from: arcaneVin's
+                // Its own mesh, alone or with the joint it hangs from: one model's
                 // left cloak panel is a strip only with its fork joint (ribbonC
                 // leaves there), the strap below its box only without it.
                 let strip_like = |bones: &[&str]| {
@@ -152,7 +212,7 @@ pub fn chain(sk: &Skeleton, group: &Group) -> Vec<String> {
 /// Weighted joints a small piece hanging off a strand may have (a braid's tie
 /// or ornament) for `trunk` to still find one strand.
 const SIDE_PIECE_BONES: usize = 2;
-/// A strand's main chain when small pieces hang off it: arcaneVin's braid
+/// A strand's main chain when small pieces hang off it: one model's braid
 /// `plait__jnt1` carries `L/R_plaitA` and `L/R_plaitB` (one weighted bone each)
 /// along its 29 bones. At each fork the chain continues into the branch with
 /// the most weighted joints; every other branch must be a piece of at most
@@ -290,7 +350,7 @@ fn semantic(name: &str) -> Option<Kind> {
 /// Bun names besides the word "bun": お団子 / 団子 (dango), 丸子, 发髻 / 髻, odango.
 const BUN_WORDS: [&str; 5] = ["団子", "だんご", "丸子", "髻", "odango"];
 /// A hair bun: a bun name, or one round piece of hair on one weighted bone
-/// (no axis much longer than the others; SiViolet's two buns behind her head).
+/// (no axis much longer than the others, like two buns behind a model's head).
 /// Buns stay still (Rigid) unless the user picks another part type.
 fn hair_bun(name: &str, weighted_bones: usize, shape: [f64; 3]) -> bool {
     let lower = name.to_lowercase();
@@ -360,8 +420,8 @@ fn group_semantic(group: &Group) -> (Option<Kind>, bool) {
 }
 /// How far (torso lengths, head to pelvis) the weighted bones of a breast- or
 /// butt-named group may reach from its root and still be a breast or butt.
-/// Small pieces on a breast (YvvoneHaze's, about 0.2) swing as its charms;
-/// a cape or garment hanging from it reaches much farther (arcaneVin's MMD
+/// Small pieces on a breast (about 0.2 on one model) swing as its charms;
+/// a cape or garment hanging from it reaches much farther (one MMD model's
 /// 胸上2.R carries a cape to the knees, about 2; TangTang's clothes about 1.3).
 const BODY_PART_REACH: f64 = 0.5;
 /// The part type of what hangs from a breast or butt bone that carries a
@@ -427,7 +487,7 @@ fn mirror_key(name: &str) -> Option<String> {
 
 /// A left/right pair is one part on two sides. When one side became a cloth
 /// panel only because its mesh touches a moving group the other side does not
-/// have (SiViolet: the left sleeve and a cord on the left forearm), while its
+/// have (on one model, the left sleeve and a cord on the left forearm), while its
 /// twin is a streamer by its own shape and both chains match, the joined side
 /// takes the twin's type, provided its own shape is a streamer's too. Sheets
 /// joined on both sides (MMD sleeves and skirts) and chosen types never change.
@@ -447,6 +507,7 @@ fn harmonize_mirrors(mut decided: Vec<(Part, Basis)>) -> Vec<Part> {
         part.strips.clear();
         part.roll_locked = true;
         part.review_recommended = false;
+        part.level_rest = None;
         part.reason = format!("Same type as its mirror twin {twin}: a thin, elongated chain whose mesh also touches a moving group the other side does not have");
     }
     decided.into_iter().map(|(p, _)| p).collect()
@@ -550,8 +611,8 @@ pub fn analyze(
         else if on_weapon(sk,&g.anchor)&&!matches!(hint,Some(Kind::Rigid|Kind::Breast|Kind::Butt)){(Kind::Charm,"Hangs from the fitted gun; light charm swing".into(),false)}
         else if let Some(kind)=hint{
             if kind==Kind::Streamer && !(supported&&slender&&flat){
-                // A long, slender but round chain is a cord or a tassel bundle (SiViolet's
-                // right arm tassel): it swings like a streamer. Wide or short ones are cloth.
+                // A long, slender but round chain is a cord or a tassel bundle (such as a
+                // tassel on the right arm): it swings like a streamer. Wide or short ones are cloth.
                 if supported&&slender{(Kind::Streamer,"Ribbon or tassel name on a long, round cord; streamer motion".into(),false)}
                 else{(Kind::Cloth,"Ribbon name, but geometry is not a thin, elongated chain; using cloth support".into(),true)}
             }
@@ -562,7 +623,7 @@ pub fn analyze(
         // often stripped, e.g. F_0_1 ... F_18_1), even when strips join.
         else if g.anchor.eq_ignore_ascii_case("head")&&supported{(Kind::Hair,"Unnamed strand on the head; hair motion".into(),false)}
         // A long hanging sleeve swings like a streamer even where its mesh
-        // joins the rest of the sleeve (SiViolet's floor-length 袖1.L/R).
+        // joins the rest of the sleeve (floor-length sleeves such as 袖1.L/R).
         else if sleeve_named(&g.source_root)&&long_strip(chain.len(),slender,flat){(Kind::Streamer,"Long hanging sleeve; streamer motion".into(),false)}
         else if joined_panel&&long_strip(chain.len(),slender,flat)&&joined_only_to_small_parts(i,&shared,&sizes){(Kind::Streamer,"Long thin strip whose mesh only joins small parts (a cuff or band); streamer motion".into(),false)}
         else if joined_panel{(Kind::Cloth,JOINED_PANEL.into(),false)}
@@ -570,7 +631,7 @@ pub fn analyze(
         else if is_hips(&g.anchor)&&supported&&chain.len()>=4&&slender&&!flat{(Kind::Tail,"Unnamed long round strand on the hips; tail motion".into(),false)}
         else if supported&&slender&&flat{(Kind::Streamer,"Thin, elongated weighted mesh on one connected joint chain".into(),false)}
         else{(Kind::Accessory,"No unambiguous part identity; conservative accessory support".into(),true)};
-        // Hair buns stay still (SiViolet: the right bun flung around).
+        // Hair buns stay still (a moving bun flung around).
         let (kind,mut reason,mut review)=if explicit.is_none()&&kind==Kind::Hair&&hair_bun(&g.source_root,g.weighted_bones.len(),shape)
             {(Kind::Rigid,"Hair bun (one round piece of hair, or a bun name); stays still".into(),false)} else {(kind,reason,review)};
         if carried&&explicit.is_none(){
@@ -583,7 +644,7 @@ pub fn analyze(
             reason.push_str(if kind==Kind::Hair {"; shared hair movement and twist protection need one non-collapsed chain of at least two weighted bones"} else {"; twist protection needs one non-collapsed chain of at least two weighted bones"});
         }
         let basis=Basis{explicit:explicit.is_some(),by_join:reason==JOINED_PANEL,own_streamer:supported&&slender&&flat,bones:chain.len(),length};
-        // Panels whose mesh joins their neighbors stay one sheet (paimonRem's PF_0_*).
+        // Panels whose mesh joins their neighbors stay one sheet (panels such as PF_0_*).
         let strips=if explicit.is_none()&&kind==Kind::Cloth&&reason!=JOINED_PANEL {
             let shape=|bones:&[String]|radii(&bones.iter().flat_map(|b|bone_points.get(b).into_iter().flatten().copied()).collect::<Vec<_>>());
             strips(sk,g,&position,&shape,torso)
@@ -591,7 +652,11 @@ pub fn analyze(
         if !strips.is_empty() {
             reason.push_str(&format!("; {} long hanging strip{} move{} like streamers",strips.len(),if strips.len()==1 {""} else {"s"},if strips.len()==1 {"s"} else {""}));
         }
-        Ok((Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review,strips},basis))
+        let level_rest=if kind==Kind::Tail&&supported {level_rest(&chain.iter().map(|n|position(n)).collect::<Vec<_>>(),GRAVITY_UP)} else {None};
+        if level_rest.is_some() {
+            reason.push_str(LEVEL_TAIL_REASON);
+        }
+        Ok((Part{root:g.source_root.clone(),kind,reason,weighted_chain:chain,chain_length_inches:length,shape_radii_inches:shape,roll_locked:kind==Kind::Streamer||(strand&&supported),review_recommended:review,strips,level_rest},basis))
     }).collect::<Result<Vec<_>>>()?;
     Ok(harmonize_mirrors(decided))
 }
@@ -600,7 +665,7 @@ pub fn analyze(
 mod tests {
     use super::*;
     fn part(root: &str, kind: Kind) -> Part {
-        Part { root: root.into(), kind, reason: String::new(), weighted_chain: vec![], chain_length_inches: 56.2, shape_radii_inches: [0.; 3], roll_locked: kind == Kind::Streamer, review_recommended: false, strips: vec![] }
+        Part { root: root.into(), kind, reason: String::new(), weighted_chain: vec![], chain_length_inches: 56.2, shape_radii_inches: [0.; 3], roll_locked: kind == Kind::Streamer, review_recommended: false, strips: vec![], level_rest: None }
     }
     fn basis(explicit: bool, by_join: bool, own_streamer: bool, bones: usize, length: f64) -> Basis {
         Basis { explicit, by_join, own_streamer, bones, length }
@@ -619,7 +684,7 @@ mod tests {
     }
     #[test]
     fn a_strand_with_small_side_pieces_keeps_its_main_chain() {
-        // arcaneVin's braid: ties hang off joints 2 and 4; joint 3 is an unweighted helper.
+        // A braid whose ties hang off joints 2 and 4; joint 3 is an unweighted helper.
         let (sk, braid) = rig(&[("head", -1), ("plait1", 0), ("plait2", 1), ("tie_L", 2), ("tie_R", 2), ("plait3", 2), ("plait4", 5), ("bead", 6), ("plait5", 6), ("plait6", 8)],
             &["plait1", "plait2", "tie_L", "tie_R", "plait4", "bead", "plait5", "plait6"]);
         assert!(chain(&sk, &braid).is_empty());
@@ -635,7 +700,7 @@ mod tests {
     }
     #[test]
     fn long_panels_inside_a_cloth_part_are_strips() {
-        // arcaneVin's back cloak: a short center strip, a small flap, two long
+        // A back cloak with a short center strip, a small flap, two long
         // panels to the knees, and a short tab that is not a strip.
         let rows = [("spine", -1), ("cape1", 0), ("flap", 1), ("cape2", 1), ("left1", 3), ("left2", 4), ("left3", 5), ("right1", 3), ("right2", 7), ("right3", 8), ("tab1", 1), ("tab2", 10), ("tab3", 11)];
         let weighted: Vec<&str> = rows[1..].iter().map(|r| r.0).collect();
@@ -661,7 +726,7 @@ mod tests {
     }
     #[test]
     fn a_breast_bone_carrying_a_longer_part_takes_that_part_s_type() {
-        // arcaneVin (MMD): a cape hangs from each 胸上2; the left one also
+        // An MMD model with a cape hanging from each 胸上2; the left one also
         // carries ribbons, a phone and a clip.
         assert_eq!(hanging_hint(&group(&["胸上2.R", "R_capeA__jnt1", "R_capeA__jnt5", "胸先.R"])), Some(Kind::Cloth));
         assert_eq!(hanging_hint(&group(&["胸上2.L", "L_capeA__jnt1", "ribbonE_01_jnt", "phone_jnt", "clipA_jnt", "ribbonJ_01_jnt", "胸先.L"])), Some(Kind::Cloth));
@@ -673,7 +738,7 @@ mod tests {
     }
     #[test]
     fn hair_buns_are_round_one_bone_pieces_or_bun_names() {
-        // SiViolet's buns: one weighted bone, about 1.5 x 1.4 x 0.8 in.
+        // Buns on one weighted bone, about 1.5 x 1.4 x 0.8 in.
         assert!(hair_bun("L_hairD_01_jnt", 1, [1.54, 1.38, 0.83]));
         // A strand on one bone is long, not round; strands on several bones move.
         assert!(!hair_bun("ahoge_01", 1, [2.4, 0.5, 0.2]));
@@ -716,7 +781,7 @@ mod tests {
     }
     #[test]
     fn a_side_joined_only_on_its_own_follows_its_streamer_twin() {
-        // SiViolet: the left sleeve touches a cord on the left forearm only.
+        // The left sleeve touches a cord on the left forearm only.
         let parts = harmonize_mirrors(vec![
             (part("L_sleeveD_01_jnt_1", Kind::Cloth), basis(false, true, true, 30, 56.2)),
             (part("R_sleeveD_01_jnt_1", Kind::Streamer), basis(false, false, true, 30, 56.2)),
@@ -863,5 +928,70 @@ mod tests {
         for i in 0..3 {
             assert!((a[i] - b[i]).abs() < 1e-8);
         }
+    }
+    /// Joint positions every `pitch` inches along `direction` from `start`.
+    fn line(start: [f64; 3], direction: [f64; 3], joints: usize, pitch: f64) -> Vec<[f64; 3]> {
+        (0..joints).map(|k| std::array::from_fn(|r| start[r] + direction[r] * pitch * k as f64)).collect()
+    }
+    #[test]
+    fn only_straight_level_tails_hang_from_their_rest_pose() {
+        let up = [0., 0., 1.];
+        // The MMD tail: 8 weighted joints, about 50 in, straight back and almost level.
+        let d = [0., 0.99, -0.11].map(|v: f64| v / (0.99f64 * 0.99 + 0.11 * 0.11).sqrt());
+        let level = level_rest(&line([0., 4., 38.], d, 8, 7.1), up).unwrap();
+        assert!((level.outer_straightness - 1.).abs() < 1e-12 && (level.vertical + 0.11).abs() < 1e-3);
+        // Joints along `segments` (length, direction) from the origin.
+        let path = |segments: &[(f64, [f64; 3])]| {
+            let mut points = vec![[0.; 3]];
+            for (length, d) in segments {
+                let d = d.map(|v| v / norm(*d));
+                let last = points[points.len() - 1];
+                points.push(std::array::from_fn(|r| last[r] + d[r] * length));
+            }
+            points
+        };
+        // That tail's real shape: down and back off the hips, bends of 26° and
+        // 28°, then five level 7.86 in segments. The whole chain is not straight
+        // (0.957–0.960 measured); past its base it is.
+        let mut segments = vec![(4.3, [0., 0.52, -0.85]), (2.5, [0., 0.85, -0.53]), (4.1, [0., 1., -0.08])];
+        segments.extend([(7.86, [0., 1., 0.]); 5]);
+        let real = level_rest(&path(&segments), up).unwrap();
+        assert!(real.outer_straightness > 0.999 && (real.vertical + 0.11).abs() < 0.01, "{real:?}");
+        // A bend at the base passes, a bend in the outer part does not.
+        let mut base = vec![(5., [0., 1., -1.])];
+        base.extend([(5., [0., 1., 0.]); 6]);
+        assert!(level_rest(&path(&base), up).is_some());
+        let mut outer = vec![(5., [0., 1., 0.]); 5];
+        outer.extend([(5., [35f64.to_radians().sin(), 35f64.to_radians().cos(), 0.]); 2]);
+        assert_eq!(level_rest(&path(&outer), up), None);
+        // A J-shaped tail hangs and only its tip curls out level: steep overall.
+        let mut j = vec![(5., [0., 0., -1.]); 6];
+        j.extend([(5., [0., 1., 0.]); 2]);
+        assert_eq!(level_rest(&path(&j), up), None);
+        // Tails modelled hanging (vertical -0.71 to -0.92 on other models).
+        for z in [-0.714f64, -0.921, -1.] {
+            let h = (1. - z * z).sqrt();
+            assert_eq!(level_rest(&line([0., 4., 38.], [0., h, z], 8, 7.1), up), None);
+        }
+        // Pointing up, and level but curled into a quarter circle.
+        assert_eq!(level_rest(&line([0., 4., 38.], [0., 0.5, 0.866], 8, 7.1), up), None);
+        let curl: Vec<[f64; 3]> = (0..8).map(|k| {
+            let a = std::f64::consts::FRAC_PI_2 * k as f64 / 7.;
+            [20. * (1. - a.cos()), 20. * a.sin(), 38.]
+        }).collect();
+        assert_eq!(level_rest(&curl, up), None);
+        // Just inside the limits, and the character's own up direction.
+        assert!(level_rest(&line([0.; 3], [0., 0.87, -0.49], 5, 3.), up).is_some());
+        assert_eq!(level_rest(&line([0.; 3], [0., 0.86, -0.51], 5, 3.), up), None);
+        assert_eq!(level_rest(&line([0.; 3], [0., 1., 0.], 5, 3.), [0., 1., 0.]), None);
+        assert!(level_rest(&line([0.; 3], [0., 0., -1.], 5, 3.), [0., 1., 0.]).is_some());
+        // Too short for an outer part of three joints: the whole chain, 0.98
+        // (a single bend of about 23°).
+        let bent = |angle: f64| vec![[0., 0., 0.], [0., 10., 0.], [0., 10. + 10. * angle.cos(), 10. * angle.sin()]];
+        assert!(level_rest(&bent(0.35), up).is_some());
+        assert_eq!(level_rest(&bent(0.45), up), None);
+        // Collapsed or single-joint chains never hang.
+        assert_eq!(level_rest(&[[0.; 3]], up), None);
+        assert_eq!(level_rest(&[[0.; 3], [0.; 3]], up), None);
     }
 }

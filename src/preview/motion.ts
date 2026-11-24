@@ -5,10 +5,22 @@
 
 export type Vec3 = [number, number, number];
 export interface MotionBone {name:string;parent:number;position:Vec3}
-export interface MotionClip {name:string;sources:string[];fps:number;frames:number;segments:number[];offset:number}
-export interface MotionHeader {bones:MotionBone[];clips:MotionClip[]}
+/** `offset`: the clip's first float in `MotionPacket.data` (frame f, bone b at offset + (f·bones + b)·12).
+ * `runs`: only in a stored packet before `decodeMotion` (see `MotionLayout`). */
+export interface MotionClip {name:string;sources:string[];fps:number;frames:number;segments:number[];offset:number;runs?:[number,number][]}
+/** The stored layout of a packet (Rust `motion_preview::Layout`): every distinct frame once, for the
+ * `stored` bones only (ascending); stored frame s, the k-th stored bone, at (s·stored.length + k)·12.
+ * Each clip names its frames as `runs` of [first stored frame, count]. A bone not stored takes the
+ * matrix of its nearest stored ancestor (identity without one): nothing is skinned to it. */
+export interface MotionLayout {version:number;stored:number[];frames:number}
+/** `speeds`: the hero's speeds in inches per second from the game's definitions (absent when they could not be read). */
+export interface MotionHeader {bones:MotionBone[];clips:MotionClip[];speeds?:{forward:number;back:number;strafe:number};layout?:MotionLayout}
 export interface MotionPacket {header:MotionHeader;data:Float32Array}
-export interface PreviewNode {bone:string;root:string;kind:string;goal:number;drag:number;gravity:number;travel:number}
+/** The stored layout `decodeMotion` reads (Rust `motion_preview::LAYOUT`). */
+export const MOTION_LAYOUT=2;
+/** `max_travel`: a hard maximum of the travel limit after Fine-tune (a breast
+ * with its partner on the same anchor), applied by `capTravel`. */
+export interface PreviewNode {bone:string;root:string;kind:string;goal:number;drag:number;gravity:number;travel:number;max_travel?:number}
 export type Tuning = Partial<Record<'stiffness'|'damping'|'gravity'|'swing', number>>;
 
 export function decodeMotion(buffer:ArrayBuffer):MotionPacket {
@@ -19,8 +31,41 @@ export function decodeMotion(buffer:ArrayBuffer):MotionPacket {
   const start=Math.ceil((4+length)/4)*4;
   const data=new Float32Array(buffer,start,(buffer.byteLength-start)/4);
   const bones=header.bones?.length??0;
+  if(header.layout)return expandMotion(header,data);
   for(const clip of header.clips??[]){if(clip.offset+clip.frames*bones*12>data.length)throw new Error('Truncated movement preview frames.');}
   return {header,data};
+}
+
+/** A stored packet (`MotionLayout`) as every frame of every clip for every bone, in clip order:
+ * the layout the player reads (each clip's `offset` set, `runs` and `layout` dropped). */
+function expandMotion(stored:MotionHeader,data:Float32Array):MotionPacket{
+  const layout=stored.layout!,bones=stored.bones??[],n=bones.length;
+  if(layout.version!==MOTION_LAYOUT)throw new Error('Unknown movement preview layout.');
+  const slot=new Int32Array(n).fill(-1);
+  layout.stored.forEach((b,k)=>{if(!(b>=0&&b<n))throw new Error('Invalid movement preview layout.');slot[b]=k;});
+  const width=layout.stored.length*12;
+  if(layout.frames*width>data.length)throw new Error('Truncated movement preview frames.');
+  // The stored bone each bone takes its matrix from: its own, else its nearest stored ancestor's (parents come first).
+  const source=new Int32Array(n).fill(-1);
+  for(let b=0;b<n;b++){const p=bones[b].parent;source[b]=slot[b]>=0?slot[b]:p>=0&&p<b?source[p]:-1;}
+  const total=(stored.clips??[]).reduce((s,c)=>s+c.frames,0),stride=n*12,out=new Float32Array(total*stride);
+  const identity=[1,0,0,0,0,1,0,0,0,0,1,0];
+  let at=0;
+  const clips=(stored.clips??[]).map(({runs,...clip})=>{
+    const offset=at;
+    let count=0;
+    for(const [first,length] of runs??[]){
+      for(let s=first;s<first+length;s++,count++){
+        if(!(s>=0&&s<layout.frames)||count>=clip.frames)throw new Error('Invalid movement preview layout.');
+        const from=s*width;
+        for(let b=0;b<n;b++,at+=12){const k=source[b];if(k<0)out.set(identity,at);else out.set(data.subarray(from+k*12,from+k*12+12),at);}
+      }
+    }
+    if(count!==clip.frames)throw new Error('Invalid movement preview layout.');
+    return {...clip,offset};
+  });
+  const header:MotionHeader={bones,clips,...(stored.speeds?{speeds:stored.speeds}:{})};
+  return {header,data:out};
 }
 
 /** The rest-to-pose skins of a clip at `time` (seconds, looping), blended between
@@ -45,6 +90,10 @@ export function tune(node:{goal:number;drag:number;gravity:number;travel:number}
     gravity:Math.max(0,toward(node.gravity,k(tuning?.gravity),1.5,0)),
     travel:node.travel>0?node.travel*(s>=0?1+1.5*s:1+.75*s):node.travel,
   };
+}
+/** A travel limit after `tune`, held to `max`; identical to Rust `secondary_auto::cap_travel`. */
+export function capTravel(travel:number,max?:number){
+  return max!==undefined&&travel>0?Math.min(travel,max):travel;
 }
 
 const apply=(m:ArrayLike<number>,p:Vec3,o=0):Vec3=>[0,1,2].map(r=>m[o+r*4]*p[0]+m[o+r*4+1]*p[1]+m[o+r*4+2]*p[2]+m[o+r*4+3]) as Vec3;
@@ -113,7 +162,8 @@ export class MotionRig {
       const parent=this.bones[bone].parent;
       let tip=child>=0?this.bones[child].position:tips.get(bone);
       if(!tip){let back=parent>=0?sub(rest,this.bones[parent].position):[0,0,-1] as Vec3;if(len(back)<.05)back=[0,0,-1];const l=len(back);tip=add(rest,scale(back,Math.min(Math.max(l*.5,1),8)/l));}
-      const values=tune(node,tuning[node.kind]);
+      const tuned=tune(node,tuning[node.kind]);
+      const values={...tuned,travel:capTravel(tuned.travel,node.max_travel)};
       this.nodes.push({bone,tip,length:Math.max(len(sub(tip,rest)),1e-3),...values,p:[0,0,0],v:[0,0,0],pivotBefore:null,tipBefore:null});
     }
     const order=new Map(this.depthOrder.map((b,i)=>[b,i]));

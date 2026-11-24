@@ -3,7 +3,7 @@ use deadlock_project::PreparationOptions;
 use serde_json::{Value,json};
 mod common;
 
-/// The captured Daki rig (private assets), or `None` when it is not checked out.
+/// The Daki rig from the optional data, or `None` when that data is not there.
 fn fixture() -> Option<(Vec<Bone>,Vec<String>,Vec<Bone>)> {
     let v:Value=serde_json::from_str(&common::private_text("fixtures/daki-rig.json")?).unwrap();
     Some((serde_json::from_value(v["source"].clone()).unwrap(),serde_json::from_value(v["weighted"].clone()).unwrap(),serde_json::from_value(v["target"].clone()).unwrap()))

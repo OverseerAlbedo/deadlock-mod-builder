@@ -362,8 +362,8 @@ impl<'a> ModelPipeline<'a> {
             // a readable name and a successful build do not show that.
             let mut target_warning=None;
             if !self.settings.pak.is_empty()&&Path::new(&self.settings.pak).is_file(){
-                let archive=deadlock_vpk::Vpk::open(&self.settings.pak).map_err(vpk_error)?;
-                target_warning=deadlock_components::heroes::GameModels::read(&archive).ok().flatten().and_then(|game|game.target_warning(p.source_model()).ok().flatten());
+                let archive=self.clock.measure("Open the game archive",Some(parent.id()),|_|deadlock_vpk::Vpk::open(&self.settings.pak).map_err(vpk_error))?;
+                target_warning=self.clock.measure("Read the game's hero models",Some(parent.id()),|_|Ok::<_,CoreError>(deadlock_components::heroes::GameModels::read(&archive).ok().flatten().and_then(|game|game.target_warning(p.source_model()).ok().flatten())))?;
                 for material in &summary.materials{
                     self.cancel.check()?;let source=safety::inside(&base,material)?;
                     if !p.source_overlay.is_empty()&&safety::inside(Path::new(&p.source_overlay),material)?.is_file(){continue;}
@@ -372,7 +372,11 @@ impl<'a> ModelPipeline<'a> {
             }
             let effective=self.clock.measure("Prepare effective source overlay",Some(parent.id()),|_|deadlock_materials::effective_sources(&base,optional_path(&p.source_overlay),&root.join("effective-sources"),self.cancel).map_err(material_error))?;
             let source_materials=if !p.source_overlay.is_empty(){Some(deadlock_materials::validate_materials(&summary,&effective,optional_path(&p.material_mapping),optional_path(&p.material_remap)).map_err(material_error)?)}else{None};
-            let model=model::analyze(&original.verified_source(self.cancel)?).map_err(map_error)?;
+            let original_source=original.verified_source(self.cancel)?;
+            let mut model=model::analyze(&original_source).map_err(map_error)?;
+            // Only what the suggested mapping on the page proposes reads this;
+            // the mappings below never do.
+            self.clock.measure("Read carried and gun parts",Some(parent.id()),|_|crate::carried::mark(&mut model,&base,&original_source,self.cancel))?;
             let names:Vec<_>=summary.meshes.iter().map(|m|m.name.clone()).collect();let name_set=names.iter().cloned().collect();
             let (mappings,_)=self.clock.measure("Resolve mesh and LOD mappings",Some(parent.id()),|_|model::suggest_mappings(&model,&names,&p.meshes,p.lod_strategy,p.auto_map).map_err(map_error))?;
             let project_mappings=mappings.clone();let mut mappings=model::equipment::apply_mappings(&model,&mappings,&p.customization,&name_set).map_err(map_error)?;
@@ -443,6 +447,12 @@ impl<'a> ModelPipeline<'a> {
             let secondary_motion = if secondary_waiting_for_mesh_mapping { None } else {
                 deadlock_cloth_authoring::secondary::setup_with(p,&dmx,binding.as_ref(),&hero_sets,self.cancel).map_err(map_error)?
             };
+            // The movement preview's cloth packet: a file of its own, never part
+            // of this report (see `crate::preview_cloth`). It only feeds the
+            // preview, so a failure to write it never stops Analyze.
+            if let Some(setup) = &secondary_motion {
+                let _ = crate::preview_cloth::write(&root, setup);
+            }
             // The movement preview needs the moving parts before mesh mapping is
             // complete: plan them without the binding, for the preview only.
             let motion_preview_nodes = match &secondary_motion {
@@ -475,7 +485,7 @@ impl<'a> ModelPipeline<'a> {
             if original.runtime().is_some_and(|r|r.cloth_nodes>0){warnings.push("Original runtime cloth is present; source ModelDoc alone does not retain its compiled simulation.".into());}
             for(name,previous)in &p.meshes{let missing=previous.targets().map_err(map_error)?.into_iter().filter(|n|!name_set.contains(*n)).collect::<Vec<_>>();if !missing.is_empty(){warnings.push(format!("Previously mapped mesh(es) missing for {name}: {}",missing.join(", ")));}}
             let unused_meshes:Vec<_>=names.iter().filter(|n|!selected.contains(*n)).cloned().collect();
-            if !unused_meshes.is_empty()&&!selected.is_empty(){warnings.push(format!("Not used by any render node, so missing in game: {}. Tick them in Mesh mapping (or use Add to the main node).",unused_meshes.join(", ")));}
+            if !unused_meshes.is_empty()&&!selected.is_empty(){warnings.push(format!("Not used by any render node, so missing in game: {}. Tick {} in Mesh mapping, or use its button “Add {} to … and its lower-detail levels”.",unused_meshes.join(", "),if unused_meshes.len()==1{"it"}else{"them"},if unused_meshes.len()==1{"it"}else{"them"}));}
             if geometry.source_triangles>500000{warnings.push(format!("Replacement source has {} triangles. No new LODs are generated; choose a LOD strategy explicitly.",geometry.source_triangles));}
             let unskinned_meshes:Vec<_>=summary.meshes.iter().filter(|m|selected.contains(&m.name)&&!m.has_skin_weights).map(|m|m.name.clone()).collect();
             if !unskinned_meshes.is_empty()&&!summary.bones.is_empty(){warnings.push(format!("Replacement meshes have no skin weights: {}",unskinned_meshes.join(", ")));}

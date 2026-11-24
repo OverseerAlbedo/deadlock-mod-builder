@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "../models";
 import type { ComponentCatalog, HeroMaterialEntry } from "../components/AssetCatalog";
@@ -45,7 +45,7 @@ const saved = () => JSON.parse(screen.getByTestId("saved").textContent!) as Proj
 const ranges = () => saved().customization.hero_materials?.materials?.[0]?.ranges;
 function openBody() {
   fireEvent.click(screen.getByRole("tab", { name: /Colors/ }));
-  fireEvent.click(screen.getByRole("button", { name: /hazev2/ }));
+  fireEvent.click(within(screen.getByRole("listbox", { name: "Materials" })).getByRole("option", { name: /hazev2/ }));
 }
 
 describe("Hero color ranges", () => {
@@ -55,23 +55,55 @@ describe("Hero color ranges", () => {
     await screen.findAllByAltText("hazev2 base color");
     fireEvent.click(screen.getByRole("button", { name: "Add color range" }));
     expect(ranges()).toEqual([{ enabled: true, ...RANGE_DEFAULTS }]);
-    expect(screen.getByRole("button", { name: "Picking…" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Click the Game preview on the color this range should select.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Show selection")).toBeChecked();
+    // A range that changes nothing yet makes no recolored copy (the build leaves it out).
+    expect(screen.getByText(/its textures stay the game's own/)).toBeInTheDocument();
+    expect(screen.queryByText(/recolored copy/)).toBeNull();
+    // A range added by hand opens its Fine-tune; picking is "Recolor another color" (ColorsRework.test).
+    expect(screen.getByRole("button", { name: /Hide fine-tuning/ })).toHaveAttribute("aria-expanded", "true");
+    expect(within(screen.getByRole("group", { name: "Range 1" })).getByText(/no change yet/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Range 1 hue shift"), { target: { value: "120" } });
     fireEvent.change(screen.getByLabelText("Range 1 saturation from"), { target: { value: "0.8" } });
     fireEvent.change(screen.getByLabelText("Range 1 saturation to"), { target: { value: "0.5" } });
     expect(ranges()?.[0]).toMatchObject({ hue_shift: 120, saturation_range: [0.5, 0.5] });
+    // Typed values: a band and the selected hue width.
+    fireEvent.focus(screen.getByLabelText("Range 1 brightness range value"));
+    fireEvent.change(screen.getByLabelText("Range 1 brightness range value"), { target: { value: "20–90%" } });
+    fireEvent.keyDown(screen.getByLabelText("Range 1 brightness range value"), { key: "Enter" });
+    fireEvent.focus(screen.getByLabelText("Range 1 hue width value"));
+    fireEvent.change(screen.getByLabelText("Range 1 hue width value"), { target: { value: "±25" } });
+    fireEvent.blur(screen.getByLabelText("Range 1 hue width value"));
+    expect(ranges()?.[0]).toMatchObject({ brightness_range: [0.2, 0.9], hue_width: 25 });
+    // Every limit of today: softness 0–1, hue shift ±180, change factors 0–2.
+    expect(screen.getByLabelText("Range 1 softness")).toHaveAttribute("max", "1");
+    expect(screen.getByLabelText("Range 1 hue shift")).toHaveAttribute("min", "-180");
+    expect(screen.getByLabelText("Range 1 saturation")).toHaveAttribute("max", "2");
+    expect(screen.getByLabelText("Range 1 brightness")).toHaveAttribute("max", "2");
     // The material's own Brightness slider stays separate from the range's.
+    fireEvent.click(screen.getByRole("button", { name: /^2\. Whole material/ }), { shiftKey: true });
     fireEvent.change(screen.getByLabelText("Brightness"), { target: { value: "0.5" } });
     expect(saved().customization.hero_materials?.materials?.[0]).toMatchObject({ brightness: 0.5, ranges: [expect.objectContaining({ hue_shift: 120 })] });
+    // A range in use: a recolored copy of the texture is packaged, and nothing says the textures stay the game's.
+    expect(screen.getByText(/adds a recolored copy of its base-color texture/)).toBeInTheDocument();
+    expect(screen.getByText("The mod gets a recolored copy of this material's base-color texture.")).toBeInTheDocument();
+    expect(screen.queryByText(/its textures stay the game's own/)).toBeNull();
     fireEvent.click(screen.getByLabelText("Use"));
     expect(ranges()?.[0].enabled).toBe(false);
-    expect(screen.getByText(/adds a recolored copy of its base-color texture/)).toBeInTheDocument();
+    // No range in use: only the sentence that is true now.
+    expect(screen.getByText(/its textures stay the game's own/)).toBeInTheDocument();
+    expect(screen.queryByText(/recolored copy/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(ranges()).toBeUndefined();
     fireEvent.change(screen.getByLabelText("Brightness"), { target: { value: "1" } });
     expect(saved().customization.hero_materials?.materials).toEqual([]);
+  });
+  it("holds at most eight ranges", () => {
+    const eight = Array.from({ length: 8 }, () => ({ enabled: true, ...RANGE_DEFAULTS }));
+    render(<Harness project={{ ...start, customization: { enabled: true, model_enabled: false, hero_materials: { enabled: true, materials: [{ enabled: true, target: body, ranges: eight }] } } } as Project} />);
+    openBody();
+    // A name the list column cuts carries its full name and its file.
+    expect(within(screen.getByRole("listbox", { name: "Materials" })).getByText("hazev2", { selector: "strong" })).toHaveAttribute("title", `hazev2\n${body}`);
+    expect(screen.getByRole("button", { name: "Add color range" })).toBeDisabled();
+    expect(screen.getByText("A material holds at most 8 color ranges.")).toBeInTheDocument();
   });
   it("says why a base-color texture cannot take color ranges", async () => {
     native.previewExtra.mockResolvedValue(packet({ ranges_unsupported: "Color ranges need a BC7 base-color texture; this one is DXT5." }));

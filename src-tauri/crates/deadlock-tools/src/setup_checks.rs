@@ -237,9 +237,9 @@ impl SdkLayout {
             SdkLayout::Current => "Reduced CSDK 13",
         }
     }
-    /// Whether its compiler builds hero models (checked on November 14, 2026
-    /// with an AG2 hero: same skeleton, AG2 references, attachments and cloth
-    /// as the model toolset's compile).
+    /// Whether its compiler builds hero models (for an AG2 hero it gives the
+    /// same skeleton, AG2 references, attachments and cloth as the model
+    /// toolset's compile).
     pub fn compiles_models(self) -> bool {
         self == SdkLayout::Current
     }
@@ -507,9 +507,79 @@ fn blender(settings: &Settings) -> FieldCheck {
     optional_file("blender", &settings.blender, "blender.exe", "Blender")
 }
 
+/// The `major.minor` version of the Blender at `executable`, read from the
+/// version folder Blender keeps beside its program (`5.3\scripts`), so no
+/// Blender has to start.
+pub fn blender_version_folder(executable: &Path) -> Option<String> {
+    let parent = executable.parent()?;
+    let mut versions: Vec<(u32, u32, String)> = std::fs::read_dir(parent).ok()?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().join("scripts").is_dir())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let (major, minor) = name.split_once('.')?;
+            Some((major.parse().ok()?, minor.parse().ok()?, name))
+        })
+        .collect();
+    versions.sort();
+    versions.pop().map(|(_, _, name)| name)
+}
+/// The folder of a Blender's user extensions, as Blender finds it:
+/// `BLENDER_USER_EXTENSIONS`, then `BLENDER_USER_RESOURCES\extensions`, then
+/// a portable Blender's `portable\extensions` beside the program, then
+/// `%APPDATA%\Blender Foundation\Blender\<version>\extensions`.
+pub fn blender_extensions_folder(executable: &Path, version: &str, env: &dyn Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf> {
+    let set = |name: &str| env(name).filter(|v| !v.is_empty()).map(PathBuf::from);
+    if let Some(folder) = set("BLENDER_USER_EXTENSIONS") {
+        return Some(folder);
+    }
+    if let Some(folder) = set("BLENDER_USER_RESOURCES") {
+        return Some(folder.join("extensions"));
+    }
+    let portable = executable.parent()?.join("portable");
+    if portable.is_dir() {
+        return Some(portable.join("extensions"));
+    }
+    Some(set("APPDATA")?.join("Blender Foundation").join("Blender").join(version).join("extensions"))
+}
+/// The MMD Tools extension in any repository folder (`blender_org`,
+/// `user_default`, ...) of `extensions`.
+pub fn mmd_tools_folder(extensions: &Path) -> Option<PathBuf> {
+    let mut repos: Vec<PathBuf> = std::fs::read_dir(extensions).ok()?
+        .filter_map(|e| e.ok())
+        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .map(|e| e.path().join("mmd_tools"))
+        .filter(|p| p.join("blender_manifest.toml").is_file())
+        .collect();
+    repos.sort();
+    repos.into_iter().next()
+}
+/// MMD Tools for the chosen Blender: only MMD models (.pmx, .pmd) need it, so
+/// this is a note (found, or Optional), never a Warning or a Problem. A hint:
+/// preparation itself turns the add-on on and says so when it cannot.
+fn mmd_tools(settings: &Settings, env: &dyn Fn(&str) -> Option<std::ffi::OsString>) -> Option<FieldCheck> {
+    let executable = Path::new(settings.blender.trim());
+    if settings.blender.trim().is_empty() || !file_named(executable, "blender.exe") {
+        return None;
+    }
+    let version = blender_version_folder(executable)?;
+    let folder = blender_extensions_folder(executable, &version, env)?;
+    Some(match mmd_tools_folder(&folder) {
+        Some(_) => ok("mmd_tools", format!("MMD Tools found for Blender {version}: MMD models (.pmx, .pmd) can be prepared.")),
+        None => check("mmd_tools", State::Optional, format!("{MMD_TOOLS_MISSING} {version}. Only MMD models (.pmx, .pmd) need it: in Blender {version}, open Edit → Preferences → Get Extensions, search for MMD Tools and click Install."), None),
+    })
+}
+/// Start of the note when the add-on is missing (the Settings page and its tests).
+pub const MMD_TOOLS_MISSING: &str = "MMD Tools is not installed for Blender";
+
 /// Every path field of Settings, in the order the Settings page shows them.
 pub fn field_checks(settings: &Settings) -> Vec<FieldCheck> {
-    let mut out = vec![workspace(settings), deadlock(settings), pak(settings), blender(settings), source2viewer(settings), csdk(settings), resourcecompiler(settings)];
+    field_checks_with(settings, &|name| std::env::var_os(name))
+}
+fn field_checks_with(settings: &Settings, env: &dyn Fn(&str) -> Option<std::ffi::OsString>) -> Vec<FieldCheck> {
+    let mut out = vec![workspace(settings), deadlock(settings), pak(settings), blender(settings)];
+    out.extend(mmd_tools(settings, env));
+    out.extend([source2viewer(settings), csdk(settings), resourcecompiler(settings)]);
     out.push(optional_folder("steam", &settings.steam));
     out.extend(model_compiler(settings));
     out.push(optional_folder("optional_cs2", &settings.optional_cs2));
@@ -940,5 +1010,74 @@ mod tests {
         assert_eq!((model.state, model.backend.as_deref()), (State::Problem, Some("auto")));
         assert!(model.message.starts_with("The model compiler is not set up."), "{}", model.message);
         assert_eq!(apply_fixes(&empty).model_backend, "cswin");
+    }
+
+    /// A Blender install: the program and its `5.3\scripts` version folder.
+    fn blender_install(root: &Path, version: &str) -> PathBuf {
+        touch(root, "blender.exe");
+        touch(root, &format!("{version}/scripts/startup/x.py"));
+        // A folder that only looks like a version is not taken.
+        fs::create_dir_all(root.join("9.9")).unwrap();
+        root.join("blender.exe")
+    }
+    fn mmd_checks(blender: &Path, env: &[(&str, &Path)]) -> Option<FieldCheck> {
+        let env: Vec<(String, std::ffi::OsString)> = env.iter().map(|(k, v)| (k.to_string(), v.as_os_str().to_owned())).collect();
+        let lookup = move |name: &str| env.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone());
+        let settings = Settings { blender: text(blender), ..Default::default() };
+        field_checks_with(&settings, &lookup).into_iter().find(|c| c.field == "mmd_tools")
+    }
+
+    #[test]
+    fn mmd_tools_is_found_in_the_installed_blenders_extension_folder() {
+        let t = tempfile::tempdir().unwrap();
+        let exe = blender_install(&t.path().join("Blender 5.2"), "5.2");
+        assert_eq!(blender_version_folder(&exe).as_deref(), Some("5.2"));
+        let appdata = t.path().join("AppData");
+        // Missing: a note, never a Warning or a Problem, and no fix.
+        let missing = mmd_checks(&exe, &[("APPDATA", &appdata)]).unwrap();
+        assert_eq!((missing.state, missing.fix.as_deref()), (State::Optional, None));
+        assert!(missing.message.starts_with("MMD Tools is not installed for Blender 5.2."), "{}", missing.message);
+        assert!(missing.message.contains("Get Extensions") && missing.message.contains(".pmx"), "{}", missing.message);
+        // Another Blender version's copy does not count.
+        touch(&appdata, "Blender Foundation/Blender/5.3/extensions/blender_org/mmd_tools/blender_manifest.toml");
+        assert_eq!(mmd_checks(&exe, &[("APPDATA", &appdata)]).unwrap().state, State::Optional);
+        // Installed from the online repository or from disk (user_default).
+        touch(&appdata, "Blender Foundation/Blender/5.2/extensions/user_default/mmd_tools/blender_manifest.toml");
+        let found = mmd_checks(&exe, &[("APPDATA", &appdata)]).unwrap();
+        assert_eq!(found.state, State::Ok);
+        assert!(found.message.starts_with("MMD Tools found for Blender 5.2"), "{}", found.message);
+        // Blender's own folder variables come first.
+        let own = t.path().join("own");
+        assert_eq!(mmd_checks(&exe, &[("APPDATA", &appdata), ("BLENDER_USER_RESOURCES", &own)]).unwrap().state, State::Optional);
+        touch(&own, "extensions/blender_org/mmd_tools/blender_manifest.toml");
+        assert_eq!(mmd_checks(&exe, &[("APPDATA", &appdata), ("BLENDER_USER_RESOURCES", &own)]).unwrap().state, State::Ok);
+    }
+
+    #[test]
+    fn a_portable_blender_keeps_its_extensions_beside_the_program() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path().join("blender-5.3.0-windows-x64");
+        let exe = blender_install(&root, "5.3");
+        let appdata = t.path().join("AppData");
+        touch(&appdata, "Blender Foundation/Blender/5.3/extensions/blender_org/mmd_tools/blender_manifest.toml");
+        fs::create_dir_all(root.join("portable")).unwrap();
+        let check = mmd_checks(&exe, &[("APPDATA", &appdata)]).unwrap();
+        assert_eq!(check.state, State::Optional, "{}", check.message);
+        assert!(check.message.starts_with("MMD Tools is not installed for Blender 5.3."), "{}", check.message);
+        touch(&root, "portable/extensions/blender_org/mmd_tools/blender_manifest.toml");
+        assert_eq!(mmd_checks(&exe, &[("APPDATA", &appdata)]).unwrap().state, State::Ok);
+    }
+
+    #[test]
+    fn mmd_tools_is_not_checked_without_a_blender() {
+        let empty = Settings::default();
+        assert!(field_checks(&empty).iter().all(|c| c.field != "mmd_tools"));
+        let t = tempfile::tempdir().unwrap();
+        assert!(mmd_checks(&t.path().join("missing/blender.exe"), &[("APPDATA", t.path())]).is_none());
+        // Nothing about it is ever a problem the setup guide reopens for.
+        let exe = blender_install(&t.path().join("b"), "5.2");
+        let check = mmd_checks(&exe, &[("APPDATA", t.path())]).unwrap();
+        assert_ne!(check.state, State::Problem);
+        assert_ne!(check.state, State::Warning);
     }
 }

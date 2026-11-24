@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>TinyBCSharp</id>
+    <version>0.1.2</version>
+    <title>TinyBCSharp</title>
+    <authors>JanDK</authors>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <projectUrl>https://github.com/jandk/TinyBCSharp</projectUrl>
+    <description>A tiny, fast, fully managed library to decode BC1 through BC7</description>
+    <tags>bc1 bc2 bc3 bc4 bc5 bc6 bc7 bcn texture</tags>
+    <repository type="git" url="https://github.com/jandk/TinyBCSharp" commit="5eef47a45c603f00376c4f9c358c730309d058cf" />
+    <dependencies>
+      <group targetFramework="net8.0" />
+    </dependencies>
+  </metadata>
+</package>

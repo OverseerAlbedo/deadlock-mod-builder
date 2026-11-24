@@ -1,6 +1,9 @@
 use deadlock_core::TimingStatus;
 use deadlock_desktop::{app::Application, setup::AcquireAuth};
-use deadlock_project::{Project, Settings};
+use deadlock_project::Settings;
+// Only the test that does not run on Windows reads it.
+#[cfg(not(windows))]
+use deadlock_project::Project;
 use deadlock_tools::manual_setup::Options;
 use std::{fs, path::Path};
 

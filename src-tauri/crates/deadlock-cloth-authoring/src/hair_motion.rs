@@ -11,11 +11,20 @@ use std::collections::BTreeMap;
 
 pub const POLICY: &str = "bounded-length-adaptive-hair-motion-v3";
 
-/// Keep short hair's accepted goals and reduce pose attraction on longer
-/// strands. This is a bounded authoring heuristic, not a prediction of motion.
-/// The reference comes from the character, never the other selected hair
-/// groups, the number of joints, or an export helper's length.
-pub(crate) fn length_adjustment(
+/// An automatic hair strand measured against the body: its length, the
+/// short-hair limit (half the head-to-pelvis length) and the pose-pull
+/// multiplier. Short strands keep their pull (multiplier 1); longer strands get
+/// a lower one (`goal_strength_multiplier < 1`, the long-hair softening). Every
+/// strand gets jump protection from it (`hair_limits::plan`): short hair
+/// without a travel limit rose without bound in a long fall (a model whose 30
+/// strands, 4 to 13.4 in, were all under its 14 in short-hair limit, so none
+/// had a travel limit, a height limit or tethers; full gravity did not hold
+/// them down). This is
+/// a bounded authoring heuristic, not a prediction of motion. The reference
+/// comes from the character, never the other selected hair groups, the number
+/// of joints, or an export helper's length. `None` for other part types, an
+/// explicit movement setting, or a strand that cannot be measured.
+pub(crate) fn reference(
     group: &Group,
     part: &Part,
     sk: &Skeleton,
@@ -47,7 +56,7 @@ pub(crate) fn length_adjustment(
         return None;
     }
     let multiplier = (limit / part.chain_length_inches).clamp(0.25, 1.);
-    (multiplier < 1.).then(|| HairLengthAdjustment {
+    Some(HairLengthAdjustment {
         root: part.root.clone(),
         strand_length_inches: part.chain_length_inches,
         short_hair_limit_inches: limit,
@@ -157,9 +166,26 @@ mod tests {
         let part = Part {
             root: "hair".into(), kind: Kind::Hair, reason: String::new(),
             weighted_chain: sk.names[2..].to_vec(), chain_length_inches: length,
-            shape_radii_inches: [1.; 3], roll_locked: true, review_recommended: false, strips: vec![],
+            shape_radii_inches: [1.; 3], roll_locked: true, review_recommended: false, strips: vec![], level_rest: None,
         };
         (sk, group, part)
+    }
+
+    /// The long-hair softening: `reference` with a multiplier below 1.
+    fn length_adjustment(group: &Group, part: &Part, sk: &Skeleton, state: &BindState, choice: Option<&str>) -> Option<HairLengthAdjustment> {
+        reference(group, part, sk, state, choice).filter(|a| a.goal_strength_multiplier < 1.)
+    }
+
+    #[test]
+    fn every_automatic_strand_is_measured_and_short_ones_keep_their_pull() {
+        for length in [0.5, 4., 12.] {
+            let (sk, group, part) = rig(length);
+            let state = transforms::bind_state(&sk).unwrap();
+            let r = reference(&group, &part, &sk, &state, None).unwrap();
+            assert_eq!((r.strand_length_inches, r.short_hair_limit_inches, r.goal_strength_multiplier), (length, 12., 1.));
+            assert!(length_adjustment(&group, &part, &sk, &state, None).is_none());
+            assert!(reference(&group, &part, &sk, &state, Some("soft")).is_none());
+        }
     }
 
     #[test]

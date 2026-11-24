@@ -12,6 +12,7 @@ use crate::{
     color_ranges::{self, ColorRange},
     fail, icons,
 };
+use deadlock_project::color_parts::{self, PartArea};
 use deadlock_core::text::casefold;
 use deadlock_resource::{Kind, Value};
 
@@ -89,26 +90,59 @@ fn refit_error(error: RefitError) -> crate::CoreError {
 
 /// The texture with `ranges` applied to every mip and to its fallback image.
 pub fn recolor_texture(raw: &[u8], ranges: &[ColorRange], cancel: &CancellationToken) -> Result<RecoloredTexture> {
+    recolor_texture_parts(raw, ranges, &[], cancel)
+}
+/// The fallback image's side in pixels: the game stores it as a square (32 × 32
+/// on every hero texture seen, whatever the texture's own size), so a part's
+/// area is marked on it over the whole image. `None` when its block count is
+/// not a square.
+fn fallback_side(size: usize) -> Option<usize> {
+    let blocks = size / 16;
+    let side = (blocks as f64).sqrt().round() as usize;
+    (side * side == blocks).then_some(side * 4)
+}
+/// `recolor_texture`, where a range with a `part` changes only the texels of
+/// its part's image area (`areas`, from `color_parts::areas`), marked at the size
+/// of every mip and of the fallback image (`color_parts::mask`). Without part
+/// ranges it is exactly `recolor_texture`.
+pub fn recolor_texture_parts(raw: &[u8], ranges: &[ColorRange], areas: &[PartArea], cancel: &CancellationToken) -> Result<RecoloredTexture> {
     if let Some(reason) = unsupported(raw) {
         return Err(fail(reason));
     }
     for range in ranges {
-        range.validate()?;
+        range.validate().map_err(fail)?;
     }
+    if ranges.iter().enumerate().any(|(i, r)| r.part.is_some() && !areas.iter().any(|a| a.range == i)) {
+        return Err(fail(deadlock_project::color_parts::NO_PARTS));
+    }
+    let parted = !areas.is_empty();
     let meta = icons::texture_metadata(raw)?;
     let layout = deadlock_vpk::resource_blocks(raw).map_err(fail)?;
     let data = layout.blocks.iter().find(|b| b.name == "DATA").ok_or_else(|| fail("The texture has no DATA block."))?;
     let mut out = raw.to_vec();
     let mut stats = RecoloredTexture { bytes: vec![], blocks: 0, changed_blocks: 0 };
-    let mut refit = |bytes: &mut [u8], bc3: bool, sums: Option<&mut [[f64; 3]; 2]>| -> Result<()> {
+    // `size`: the image's width and height in texels (blocks beyond it are padding,
+    // which takes the mask wrapped like the texture).
+    let mut refit = |bytes: &mut [u8], bc3: bool, size: (usize, usize), sums: Option<&mut [[f64; 3]; 2]>| -> Result<()> {
         let mut sums = sums;
+        let (width, height) = size;
+        let masks = if parted { color_parts::masks(ranges.len(), areas, width, height) } else { vec![] };
+        let across = width.div_ceil(4);
         for (index, chunk) in bytes.chunks_exact_mut(16).enumerate() {
             if index % 4096 == 0 {
                 cancel.check()?;
             }
             let block: [u8; 16] = (&*chunk).try_into().unwrap();
             let original: Texels = if bc3 { block_refit::decode_bc3(&block) } else { block_refit::decode_bc7(&block) };
-            let target = original.map(|texel| color_ranges::recolor(ranges, texel));
+            let target = if parted {
+                let (bx, by) = (index % across, index / across);
+                std::array::from_fn(|t| {
+                    let at = ((by * 4 + t / 4) % height) * width + (bx * 4 + t % 4) % width;
+                    color_ranges::recolor_where(ranges, original[t], |i| masks[i].as_ref().is_none_or(|mask| mask[at] == 1))
+                })
+            } else {
+                original.map(|texel| color_ranges::recolor(ranges, texel))
+            };
             stats.blocks += 1;
             if target != original {
                 stats.changed_blocks += 1;
@@ -140,11 +174,17 @@ pub fn recolor_texture(raw: &[u8], ranges: &[ColorRange], cancel: &CancellationT
     for level in (0..meta.mips).rev() {
         let size = mip_bytes(&meta, level);
         let top = level == 0;
-        refit(&mut out[offset..offset + size], false, top.then_some(&mut sums))?;
+        let texels = ((usize::from(meta.width) >> level).max(1), (usize::from(meta.height) >> level).max(1));
+        refit(&mut out[offset..offset + size], false, texels, top.then_some(&mut sums))?;
         offset += size;
     }
     if let Some((start, size)) = fallback(raw, data.offset, data.offset + data.size)? {
-        refit(&mut out[start..start + size], true, None)?;
+        let side = match fallback_side(size) {
+            Some(side) => side,
+            None if parted => return Err(fail("The base-color texture's fallback image is not square, so one part of it cannot be marked.")),
+            None => 4,
+        };
+        refit(&mut out[start..start + size], true, (side, side), None)?;
     }
     // Reflectivity: the game's values moved by the change of the mean linear color.
     let texels = (usize::from(meta.width).div_ceil(4) * usize::from(meta.height).div_ceil(4) * 16) as f64;

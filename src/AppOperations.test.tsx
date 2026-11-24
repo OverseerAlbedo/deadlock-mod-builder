@@ -159,6 +159,106 @@ describe('Operation results', () => {
     await waitFor(()=>expect(rows()[0]).toBe('Error: Build failed'));
     expect(region().querySelector('.notification-summary')?.textContent).toBe('✕1 error, 2 successes');
   });
+  it('Build: a project the user never saved stays unsaved, so New still asks', async () => {
+    await start();
+    fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Edited name'}});
+    nav('Build & install'); fireEvent.click(screen.getByRole('button',{name:'Analyze project'})); await screen.findByText('Ready to build',{exact:true});
+    mocks.buildProject.mockImplementation(async project => ({project:{...project,vpk_number:9},path:'C:\\W\\workspace\\project.dmb.json',result:built}));
+    await buildMod();
+    await inList().findByRole('button',{name:/Build completed/});
+    await waitFor(()=>expect(screen.getByRole('button',{name:'New'})).toBeEnabled());
+    mocks.ask.mockClear(); mocks.ask.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button',{name:'New'}));
+    await waitFor(()=>expect(mocks.ask).toHaveBeenCalledWith('This project has unsaved changes. Discard them and continue?',expect.objectContaining({okLabel:'Discard changes',cancelLabel:'Keep editing'})));
+    expect(mocks.newProject).toHaveBeenCalledTimes(1);
+    // The next build still saves into the workspace, never as if the workspace file were the user's.
+    await buildMod();
+    await waitFor(()=>expect(mocks.buildProject).toHaveBeenCalledTimes(2));
+    expect(mocks.buildProject.mock.calls[1][3]).toBeNull();
+  });
+  it('Build: a project with its own file is saved by the build, so New does not ask', async () => {
+    mocks.save.mockResolvedValue('C:\\P\\mod.dmb.json');
+    await start();
+    fireEvent.click(screen.getByRole('button',{name:'Save'}));
+    await screen.findByText('Project saved');
+    fireEvent.change(screen.getByLabelText('Project name'),{target:{value:'Edited name'}});
+    nav('Build & install'); fireEvent.click(screen.getByRole('button',{name:'Analyze project'})); await screen.findByText('Ready to build',{exact:true});
+    mocks.buildProject.mockImplementation(async (project,_o,_i,path) => ({project,path,result:built}));
+    await buildMod();
+    await inList().findByRole('button',{name:/Build completed/});
+    expect(mocks.buildProject.mock.calls[0][3]).toBe('C:\\P\\mod.dmb.json');
+    await waitFor(()=>expect(screen.getByRole('button',{name:'New'})).toBeEnabled());
+    mocks.ask.mockClear();
+    fireEvent.click(screen.getByRole('button',{name:'New'}));
+    await waitFor(()=>expect(mocks.newProject).toHaveBeenCalledTimes(2));
+    expect(mocks.ask).not.toHaveBeenCalledWith('This project has unsaved changes. Discard them and continue?',expect.anything());
+  });
+  it('the status bar says what is being done while it runs, never the failure title', async () => {
+    await analyzed();
+    let finish: (value: unknown) => void = () => undefined;
+    mocks.buildProject.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    await buildMod();
+    const status = () => document.querySelector('.statusbar-text')!.textContent;
+    await waitFor(() => expect(status()).toBe('Building the mod…'));
+    expect(status()).not.toContain('Build did not complete');
+    finish({project:reviewedProject,path:'C:\\P\\mod.dmb.json',result:built});
+    await waitFor(() => expect(status()).toBe('Ready'));
+    // A failure still carries its own title.
+    mocks.buildProject.mockRejectedValueOnce(failure);
+    await buildMod();
+    await waitFor(()=>expect(rows()[0]).toBe('Error: Build failed'));
+  });
+  it('the status bar falls back to a plain Working… for an operation it has no text for', async () => {
+    const { runningText } = await import('./operationText');
+    expect(runningText('Could not select the character')).toBe('Selecting the character…');
+    expect(runningText('Your model could not be prepared automatically')).toBe('Preparing your model…');
+    expect(runningText('Project analysis did not complete')).toBe('Analyzing…');
+    expect(runningText('Something nobody named')).toBe('Working…');
+    expect(runningText(null)).toBe('Working…');
+  });
+  it('Build from the kept list of the last analysis: no second Analyze, and the build is named as the check', async () => {
+    const unacknowledged = {...structuredClone(reviewedProject), review_lods:false};
+    mocks.inspectProject.mockResolvedValueOnce({project:unacknowledged,report:{...inspected,needs_review:true}});
+    mocks.buildProject.mockImplementation(async project => ({project,path:'C:\\P\\mod.dmb.json',result:built}));
+    await start(); nav('Build & install');
+    fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));
+    await screen.findByRole('heading',{name:'1 issue blocking build'});
+    expect(screen.getByRole('button',{name:'Build mod'})).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('I have reviewed the LOD appearance and performance tradeoffs'));
+    expect(screen.getByRole('heading',{name:'Everything on the list from the last analysis is handled'})).toBeInTheDocument();
+    await buildMod();
+    await screen.findByRole('heading',{name:'The last build checked this project'});
+    expect(mocks.inspectProject).toHaveBeenCalledTimes(1);
+    expect(mocks.buildProject).toHaveBeenCalledWith(expect.objectContaining({review_lods:true}),true,false,null);
+    expect(screen.queryByText('Current analysis')).toBeNull();
+  });
+  it('Build refused by its own check from the kept list: Build waits for Analyze; other failures change nothing', async () => {
+    const unacknowledged = {...structuredClone(reviewedProject), review_lods:false};
+    mocks.inspectProject.mockResolvedValueOnce({project:unacknowledged,report:{...inspected,needs_review:true}});
+    await start(); nav('Build & install');
+    fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));
+    await screen.findByRole('heading',{name:'1 issue blocking build'});
+    fireEvent.click(screen.getByLabelText('I have reviewed the LOD appearance and performance tradeoffs'));
+    // A compiler failure leaves the kept list ready.
+    mocks.buildProject.mockRejectedValueOnce(failure);
+    await buildMod();
+    await screen.findByRole('alert');
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Build mod'})).toBeEnabled());
+    expect(screen.getByRole('heading',{name:'Everything on the list from the last analysis is handled'})).toBeInTheDocument();
+    // The build's own check refuses: Build is off and Analyze is the way on.
+    mocks.buildProject.mockRejectedValueOnce({kind:'validation',message:'Review mesh mappings, materials, LODs and unskinned meshes before building. Inspection: C:\\w\\inspection.json',details:''});
+    await buildMod();
+    await screen.findByRole('heading',{name:'The last build found something that still needs a choice'});
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Analyze project'})).toBeEnabled());
+    expect(screen.getByRole('button',{name:'Build mod'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Analyze project'})).toHaveClass('primary');
+    expect(mocks.inspectProject).toHaveBeenCalledTimes(1);
+    // Analyze clears it.
+    fireEvent.click(screen.getByRole('button',{name:'Analyze project'}));
+    await screen.findByText('Ready to build',{exact:true});
+    expect(screen.queryByRole('heading',{name:'The last build found something that still needs a choice'})).toBeNull();
+    expect(screen.getByRole('button',{name:'Build mod'})).toBeEnabled();
+  });
   it('Install: installed and failed', async () => {
     await start(); nav('Build & install');
     mocks.open.mockResolvedValue('C:\\Out\\pak09_dir.vpk');

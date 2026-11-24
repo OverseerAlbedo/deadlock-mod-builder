@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Project, ResourceReplacement } from "../models";
 import type { ComponentCatalog } from "../components/AssetCatalog";
 import { changeCustomization } from "../components/customization";
@@ -8,13 +8,25 @@ import { ExtraIcon } from "./Icons";
 import { AssetPreview, AssetThumbnail } from "./AssetPreview";
 import { ExtraDropzone } from "./Dropzone";
 import { HeroColors } from "./HeroColors";
+import { colorAdapter } from "./colorAdapter";
+import { Sounds } from "./Sounds";
+import { Effects, EffectsReplaceBar, type EffectsView } from "./Effects";
+import { effectEditCounts, pausedRows, savedRows } from "./effectEdits";
+import { Items, keptItemCount } from "./Items";
+import { Objects, keptObjectCount, type Operate } from "./Objects";
+import { objectCounts, pausedObjectRows, savedObjectRows } from "./objectRows";
+import { itemNameCounts, pausedItemNames, savedItemNames } from "./itemNames";
 import { clearExtraMediaCache } from "./media";
+import { NOT_A_PICTURE, NOT_A_PICTURE_STATUS, isNotAPicture, usePictureChecks } from "./pictureChecks";
+import { openTabs } from "./extrasTabs";
+import { hasEdit } from "./soundEdit";
 import {
   assetItems,
   assetLabel,
   detailNumber,
   duration,
   extraKinds,
+  isSilenced,
   replacementStatus,
   specs,
   type AssetItem,
@@ -33,6 +45,12 @@ export interface ExtrasProps {
   canDiscover?: boolean;
   openSetup?: () => void;
   reviewBuild?: () => void;
+  /** Opens Prepare model (Colors with a replacement model that is not prepared yet). */
+  openPreparation?: () => void;
+  /** The app's operation runner (Objects prepares a file with it). */
+  operate?: Operate;
+  /** Settings → Appearance → Load 3D previews automatically (the Objects view). */
+  autoPreviews?: boolean;
 }
 
 export function ExtrasWorkspace({
@@ -45,9 +63,22 @@ export function ExtrasWorkspace({
   canDiscover = true,
   openSetup,
   reviewBuild,
+  openPreparation,
+  operate,
+  autoPreviews = false,
+  fail,
 }: ExtrasProps) {
-  const [kind, setKind] = useState<ExtraKind>("icons"),
-    [colors, setColors] = useState(false),
+  // The tab last open for this project in this session (leaving the page and coming back keeps it).
+  const remembered = openTabs.get(project.id);
+  const [kind, setKind] = useState<ExtraKind>(() => extraKinds.find((k) => k === remembered) ?? "icons"),
+    [colors, setColors] = useState(remembered === "colors"),
+    // Extras → Items (Items.tsx): the game's item icons, read only when opened.
+    [itemsTab, setItemsTab] = useState(remembered === "items"),
+    [, setItemsLoaded] = useState(0),
+    // Extras → Objects (Objects.tsx): mounted when first opened, then kept (hidden) so its view never remounts.
+    [objectsTab, setObjectsTab] = useState(remembered === "objects"),
+    [objectsOpened, setObjectsOpened] = useState(remembered === "objects"),
+    [, setObjectsLoaded] = useState(0),
     [selected, setSelected] = useState(""),
     [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all"),
@@ -58,17 +89,29 @@ export function ExtrasWorkspace({
   const attempted = useRef("");
   const projectRef = useRef(project);
   projectRef.current = project;
+  // A replacement picture found unreadable shows on its row (replacementStatus).
+  usePictureChecks();
   const catalog =
     incoming?.hero_path === project.original_model ? incoming : null;
   const rows = project.customization[kind] ?? [],
     items = assetItems(catalog?.[kind] ?? [], rows),
     spec = specs[kind];
   const heroColors = project.customization.hero_materials?.materials ?? [];
+  const itemRows = project.customization.item_icons ?? [];
   const changed =
     extraKinds.reduce(
       (sum, key) => sum + (project.customization[key] ?? []).length,
       0,
-    ) + heroColors.length;
+    ) +
+    heroColors.length +
+    itemRows.length +
+    itemNameCounts(project).saved +
+    effectEditCounts(project).saved +
+    objectCounts(project).saved;
+  // Colors as the Colors page counts them: hero colors, or with a replacement model its
+  // color rows (Surface changes). Shown, and enough to open Build & install; pausing uses `changed`.
+  const colorChanges = colorAdapter(project, catalog).changed;
+  const shownChanges = changed - heroColors.length + colorChanges;
   const active = Boolean(project.customization.enabled);
   const enabled =
     extraKinds.reduce(
@@ -80,9 +123,19 @@ export function ExtrasWorkspace({
     ) +
     (project.customization.hero_materials?.enabled === false
       ? 0
-      : heroColors.filter((r) => r.enabled !== false).length);
-  const tabs = [...extraKinds, "colors"] as const;
-  const shownTab: (typeof tabs)[number] = colors ? "colors" : kind;
+      : heroColors.filter((r) => r.enabled !== false).length) +
+    itemRows.filter((r) => r.enabled !== false).length +
+    itemNameCounts(project).enabled +
+    effectEditCounts(project).enabled +
+    objectCounts(project).enabled;
+  // Effects: Edit colors (Effects.tsx) or Replace a file (the shared layout below).
+  const [effectsView, setEffectsView] = useState<EffectsView>("colors");
+  const effectsColors: boolean = kind === "effects" && effectsView === "colors";
+  const tabs = [...extraKinds, "colors", "items", "objects"] as const;
+  const shownTab: (typeof tabs)[number] = objectsTab ? "objects" : itemsTab ? "items" : colors ? "colors" : kind;
+  // Sounds has its own library (Sounds.tsx); annotated so the shared layout
+  // below keeps its sound branches type-checked.
+  const soundsTab: boolean = kind === "audio";
   const visible = items.filter(
     (item) =>
       `${assetLabel(item.entry)} ${item.entry.path} ${item.row?.source ?? ""}`
@@ -98,6 +151,8 @@ export function ExtrasWorkspace({
   const hero =
     project.hero_name ||
     basename(project.original_model).replace(/\.vmdl(_c)?$/, "");
+  // Every asset read needs the hero: without one the page asks for it and loads nothing.
+  const noHero = !project.original_model;
   useEffect(() => {
     setSelected("");
     setQuery("");
@@ -108,6 +163,7 @@ export function ExtrasWorkspace({
   useEffect(() => {
     const key = `${project.id}:${project.original_model}`;
     if (
+      !noHero &&
       !catalog &&
       discover &&
       canDiscover &&
@@ -119,6 +175,7 @@ export function ExtrasWorkspace({
       void discover();
     }
   }, [
+    noHero,
     catalog,
     discover,
     canDiscover,
@@ -195,8 +252,12 @@ export function ExtrasWorkspace({
     void discover?.();
   }
   function tab(next: (typeof tabs)[number]) {
+    openTabs.set(project.id, next);
     setColors(next === "colors");
-    if (next !== "colors") setKind(next);
+    setItemsTab(next === "items");
+    setObjectsTab(next === "objects");
+    if (next === "objects") setObjectsOpened(true);
+    if (next !== "colors" && next !== "items" && next !== "objects") setKind(next);
     setSelected("");
     setQuery("");
     setPage(0);
@@ -219,6 +280,14 @@ export function ExtrasWorkspace({
         enabled: true,
         materials: heroColors.map((row) => ({ ...row, enabled: value })),
       };
+    if (project.customization.item_icons)
+      changes.item_icons = itemRows.map((row) => ({ ...row, enabled: value }));
+    if (savedItemNames(project).length)
+      changes.item_names = pausedItemNames(savedItemNames(project), value);
+    if (savedRows(project).length)
+      changes.effect_edits = pausedRows(savedRows(project), value);
+    if (savedObjectRows(project).length)
+      changes.ability_objects = pausedObjectRows(savedObjectRows(project), value);
     update(changeCustomization(project, changes, value));
   }
   return (
@@ -227,21 +296,21 @@ export function ExtrasWorkspace({
         <div>
           <span className="extras-eyebrow">CHARACTER CUSTOMIZATION</span>
           <h1>
-            Extras<span className="extra-hero-chip">{hero}</span>
+            Extras{hero && <span className="extra-hero-chip">{hero}</span>}
           </h1>
-          <p>Find the original. Drop in your replacement. Make it yours.</p>
+          <p>Replace the hero's icons, sounds and effects with your own files, or change its colors.</p>
         </div>
         <div className="extras-heading-actions">
-          {changed > 0 && (
+          {shownChanges > 0 && (
             <span className="extra-change-count">
               <span />
-              {changed} change{changed === 1 ? "" : "s"}
+              {shownChanges} change{shownChanges === 1 ? "" : "s"}
             </span>
           )}
           <button
             className="extra-secondary"
             onClick={reload}
-            disabled={disabled || discovering || !discover || !canDiscover}
+            disabled={disabled || discovering || !discover || !canDiscover || noHero}
           >
             <ExtraIcon name="refresh" size={17} />
             {discovering
@@ -253,7 +322,7 @@ export function ExtrasWorkspace({
           {reviewBuild && (
             <button
               className="extra-primary"
-              disabled={disabled || !changed}
+              disabled={disabled || !(changed || shownChanges)}
               onClick={reviewBuild}
             >
               Build & install
@@ -294,6 +363,21 @@ export function ExtrasWorkspace({
           </button>
         </div>
       )}
+      {noHero ? (
+        <section className="extras-library" aria-label="Choose the hero first">
+          <div className="extra-empty">
+            <div className="extra-empty-symbol">
+              <ExtraIcon name="image" size={32} />
+            </div>
+            <h3>Choose the hero first</h3>
+            <p>
+              Choose the hero your mod replaces in Character & model, then
+              return here to load its icons, sounds, effects and colors.
+            </p>
+          </div>
+        </section>
+      ) : (
+      <>
       <div
         className="extras-tabs"
         role="tablist"
@@ -305,7 +389,7 @@ export function ExtrasWorkspace({
             id={`extras-tab-${key}`}
             role="tab"
             aria-selected={shownTab === key}
-            aria-controls="extras-panel"
+            aria-controls={key === "objects" ? "extras-panel-objects" : "extras-panel"}
             tabIndex={shownTab === key ? 0 : -1}
             onClick={() => tab(key)}
             onKeyDown={(event) => {
@@ -330,19 +414,34 @@ export function ExtrasWorkspace({
               }
             }}
           >
-            {key === "colors" ? (
+            {key === "objects" ? (
+              <>
+                <ExtraIcon name="cube" />
+                Objects
+                <span>{keptObjectCount(project.original_model) ?? "—"}</span>
+                {savedObjectRows(project).length > 0 && <i title="Contains replacements" />}
+              </>
+            ) : key === "items" ? (
+              <>
+                <ExtraIcon name="image" />
+                Items
+                <span>{keptItemCount() ?? "—"}</span>
+                {(itemRows.length > 0 || itemNameCounts(project).saved > 0) && <i title="Contains replacements" />}
+              </>
+            ) : key === "colors" ? (
               <>
                 <ExtraIcon name="palette" />
                 Colors
-                <span>{catalog?.materials?.length ?? "—"}</span>
-                {heroColors.length > 0 && <i title="Contains color changes" />}
+                <span>{modelEnabled(project) ? Object.keys(project.materials).length : catalog?.materials?.length ?? "—"}</span>
+                {colorChanges > 0 && <i title="Contains color changes" />}
               </>
             ) : (
               <>
                 <ExtraIcon name={specs[key].icon} />
                 {specs[key].title}
                 <span>{catalog?.[key].length ?? "—"}</span>
-                {(project.customization[key]?.length ?? 0) > 0 && (
+                {((project.customization[key]?.length ?? 0) > 0 ||
+                  (key === "effects" && savedRows(project).length > 0)) && (
                   <i title="Contains replacements" />
                 )}
               </>
@@ -350,7 +449,34 @@ export function ExtrasWorkspace({
           </button>
         ))}
       </div>
-      {colors ? (
+      {objectsOpened && (
+        <Objects
+          project={project}
+          update={update}
+          disabled={disabled}
+          canLoad={canDiscover}
+          hero={hero}
+          revision={revision}
+          shown={objectsTab}
+          operate={operate}
+          autoPreviews={autoPreviews}
+          openSetup={openSetup}
+          reviewBuild={reviewBuild}
+          fail={fail}
+          loaded={() => setObjectsLoaded((v) => v + 1)}
+        />
+      )}
+      {objectsTab ? null : itemsTab ? (
+        <Items
+          project={project}
+          update={update}
+          disabled={disabled}
+          canLoad={canDiscover}
+          openSetup={openSetup}
+          revision={revision}
+          loaded={() => setItemsLoaded((v) => v + 1)}
+        />
+      ) : colors ? (
         <HeroColors
           project={project}
           update={update}
@@ -360,9 +486,47 @@ export function ExtrasWorkspace({
           canDiscover={canDiscover && Boolean(discover)}
           reload={reload}
           openSetup={openSetup}
+          openPreparation={openPreparation}
           revision={revision}
+          heroName={hero}
+        />
+      ) : soundsTab ? (
+        <Sounds
+          key={`${project.id}:${project.original_model}`}
+          project={project}
+          update={update}
+          disabled={disabled}
+          catalog={catalog}
+          discovering={discovering}
+          canDiscover={canDiscover}
+          canReload={Boolean(discover)}
+          reload={reload}
+          openSetup={openSetup}
+          revision={revision}
+          hero={hero}
+        />
+      ) : effectsColors ? (
+        <Effects
+          key={`${project.id}:${project.original_model}`}
+          project={project}
+          update={update}
+          disabled={disabled}
+          catalog={catalog}
+          discovering={discovering}
+          canDiscover={canDiscover}
+          canReload={Boolean(discover)}
+          reload={reload}
+          openSetup={openSetup}
+          revision={revision}
+          hero={hero}
+          view={effectsView}
+          setView={setEffectsView}
         />
       ) : (
+      <>
+      {kind === "effects" && (
+        <EffectsReplaceBar project={project} revision={revision} view={effectsView} setView={setEffectsView} />
+      )}
       <div
         id="extras-panel"
         role="tabpanel"
@@ -537,7 +701,7 @@ export function ExtrasWorkspace({
                           </span>
                         </div>
                         <span
-                          className={`extra-asset-state ${status === "Replaced" ? "changed" : status === "Needs attention" ? "attention" : ""}`}
+                          className={`extra-asset-state ${status === "Replaced" ? "changed" : status === "Needs attention" || status === NOT_A_PICTURE_STATUS ? "attention" : ""}`}
                         >
                           {item.row ? (
                             <>
@@ -663,6 +827,9 @@ export function ExtrasWorkspace({
           )}
         </aside>
       </div>
+      </>
+      )}
+      </>
       )}
       {catalog?.warnings.length ? (
         <details className="extras-discovery-notes">
@@ -680,12 +847,17 @@ export function ExtrasWorkspace({
           <ExtraIcon name="check" size={17} />
           <span>
             <strong>
-              {active ? enabled : 0} active replacement
-              {enabled === 1 ? "" : "s"}
+              {active ? enabled : 0} active change
+              {(active ? enabled : 0) === 1 ? "" : "s"}
             </strong>
             <small>
-              {modelEnabled(project)
-                ? "Your replacement model stays included"
+              {modelEnabled(project) && !project.dmx
+                ? "No replacement model is chosen yet: add one, or untick Include replacement model and textures in Build options to build only the extras"
+                : modelEnabled(project)
+                ? colorChanges > 0
+                  // The header counts these (the replacement's color rows); Pause all never touches them.
+                  ? `Your replacement model stays included, with its ${colorChanges} color change${colorChanges === 1 ? "" : "s"}, which Pause all extras does not pause`
+                  : "Your replacement model stays included"
                 : "Extras-only project · original model stays included"}
             </small>
           </span>
@@ -755,7 +927,19 @@ export function ExtrasWorkspace({
   );
 }
 
-function ReplacementEditor({
+/** A replacement picture whose file does not read as a picture: said plainly, the cause under it.
+ * Other preview failures keep the usual "Preview unavailable". */
+function pictureError(error: string) {
+  if (!isNotAPicture(error)) return null;
+  return (
+    <div className="extra-preview-placeholder extra-error" role="status">
+      <ExtraIcon name="warning" size={26} />
+      <strong>{NOT_A_PICTURE}</strong>
+      <p>{error}</p>
+    </div>
+  );
+}
+export function ReplacementEditor({
   item,
   kind,
   hero,
@@ -768,7 +952,37 @@ function ReplacementEditor({
   add,
   remove,
   chooseDestination,
+  children,
+  previewKind,
+  eyebrow,
+  title,
+  association,
+  silence,
+  silenceRefusal = "",
+  soundEdit,
+  previewError,
+  heading,
 }: {
+  /** Items only: its own heading (the item's name with Rename) in place of the eyebrow, title and status. */
+  heading?: ReactNode;
+  /** Sounds only: the way into the sound editor; an edited sound shows only it, not the old volume and timing. */
+  soundEdit?: ReactNode;
+  /** Sounds only: shown instead of a replacement preview error when it returns something. */
+  previewError?: (error: string) => ReactNode;
+  /** Sounds only: "Silence this sound" (a row without a file). Others leave it out. */
+  silence?: () => void;
+  /** Why this sound cannot be silenced ("" when it can). */
+  silenceRefusal?: string;
+  /** The heading as given (item names keep their hyphens). */
+  title?: string;
+  /** Shown under the heading (Sounds: tags, variation picker, Replace all). */
+  children?: ReactNode;
+  /** Previews of another catalog than the hero's (Items: the game's item pictures). */
+  previewKind?: "items";
+  /** Replaces "SELECTED ICON" and the like. */
+  eyebrow?: string;
+  /** Replaces the Association line of File details. */
+  association?: string;
   item: AssetItem;
   kind: ExtraKind;
   hero: string;
@@ -782,6 +996,7 @@ function ReplacementEditor({
   remove: () => void;
   chooseDestination: () => void;
 }) {
+  usePictureChecks();
   const { entry, row } = item,
     spec = specs[kind],
     volume = row?.volume_percent ?? 100,
@@ -791,37 +1006,43 @@ function ReplacementEditor({
   const request = {
     hero_path: hero,
     target: entry.target,
-    kind,
+    kind: previewKind ?? kind,
     max_dimension: 512,
   };
   const identity = `${entry.original_sha256 ?? ""}:${revision}`;
   const status = replacementStatus(item, active),
     length = detailNumber(entry, "duration"),
-    previewOnly = !entry.supported && !item.missing;
+    previewOnly = !entry.supported && !item.missing,
+    silenced = kind === "audio" && isSilenced(row),
+    soundEdited = kind === "audio" && !silenced && hasEdit(row);
   const setVolume = (value: number) => {
     if (Number.isFinite(value))
       edit({ volume_percent: Math.min(200, Math.max(0, Math.round(value))) });
   };
   return (
     <>
+      {heading ?? (
       <header className="extra-inspector-heading">
         <div>
           <span className="extras-eyebrow">
-            SELECTED {spec.singular.toUpperCase()}
+            {eyebrow ?? `SELECTED ${spec.singular.toUpperCase()}`}
           </span>
-          <h2>{assetLabel(entry)}</h2>
+          <h2>{title ?? assetLabel(entry)}</h2>
         </div>
-        <span className={`extra-pill ${status === "Replaced" ? "ready" : ""}`}>
+        <span className={`extra-pill ${status === "Replaced" || status === "Silenced" ? "ready" : ""}`}>
           {status}
         </span>
       </header>
+      )}
+      {children}
       {item.missing ? (
         <div className="extra-editor-notice">
           <ExtraIcon name="warning" />
           <strong>Choose an available game destination</strong>
           <p>
-            This saved replacement is not in the loaded catalog. Your source
-            file is retained.
+            {silenced
+              ? "This silenced sound is not in the loaded catalog. It stays silenced once you choose where it goes."
+              : "This saved replacement is not in the loaded catalog. Your source file is retained."}
           </p>
           <button disabled={disabled} onClick={chooseDestination}>
             Choose destination
@@ -856,11 +1077,25 @@ function ReplacementEditor({
                 <span>Your replacement</span>
                 {row && (
                   <small>
-                    {kind === "audio" ? `${volume}% volume` : "Preview"}
+                    {silenced ? "Silenced" : soundEdited ? "Edited" : kind === "audio" ? `${volume}% volume` : "Preview"}
                   </small>
                 )}
               </div>
-              <AssetPreview
+              {silenced ? (
+                <div className="extra-media extra-media-audio">
+                  <div className="extra-preview-placeholder extra-silenced" role="status">
+                    <ExtraIcon name="volume" size={34} />
+                    <span>Silenced: the game plays nothing for this sound.</span>
+                  </div>
+                </div>
+              ) : soundEdited ? (
+                <div className="extra-media extra-media-audio">
+                  <div className="extra-preview-placeholder" role="status">
+                    <ExtraIcon name="volume" size={34} />
+                    <span>Edited: listen to exactly what the game will play in the editor.</span>
+                  </div>
+                </div>
+              ) : <AssetPreview
                 request={
                   source
                     ? {
@@ -874,9 +1109,10 @@ function ReplacementEditor({
                 identity={`${identity}:${sourceRevision}`}
                 kind={kind}
                 label="Replacement"
+                errorView={previewError ?? (kind === "icons" ? pictureError : undefined)}
                 volume={volume}
                 disabled={disabled}
-              />
+              />}
             </section>}
           </div>
           {kind === "effects" && (
@@ -918,6 +1154,25 @@ function ReplacementEditor({
             another.
           </p>
         )}
+        {silence && entry.supported && !item.missing && !silenced && (
+          <div className="extra-silence">
+            <button
+              type="button"
+              className="extra-secondary"
+              disabled={disabled || (!row && full) || Boolean(silenceRefusal)}
+              onClick={silence}
+            >
+              <ExtraIcon name="volume" size={16} />
+              Silence this sound
+            </button>
+            <small>
+              {silenceRefusal ||
+                (row
+                  ? "Instead of your file: the game plays nothing for this sound."
+                  : "No file needed: the game plays nothing for this sound.")}
+            </small>
+          </div>
+        )}
         {entry.supported && row && kind === "icons" && (
           <fieldset className="extra-image-fit">
             <legend>Image fit</legend>
@@ -943,7 +1198,8 @@ function ReplacementEditor({
             </div>
           </fieldset>
         )}
-        {entry.supported && row && kind === "audio" && (
+        {entry.supported && row && kind === "audio" && !silenced && soundEdit}
+        {entry.supported && row && kind === "audio" && !silenced && !(soundEdit && soundEdited) && (
           <div className="extra-volume">
             <div className="extra-volume-heading">
               <label htmlFor="replacement-volume">
@@ -1080,7 +1336,7 @@ function ReplacementEditor({
               onClick={remove}
             >
               <ExtraIcon name="close" size={15} />
-              Remove replacement
+              {silenced ? "Remove silence" : "Remove replacement"}
             </button>
           </div>
         )}
@@ -1105,11 +1361,19 @@ function ReplacementEditor({
                 <dd>{source}</dd>
               </>
             )}
+            {silenced && (
+              <>
+                <dt>Replacement</dt>
+                <dd>Silence (no file)</dd>
+              </>
+            )}
             <dt>Association</dt>
             <dd>
-              {entry.shared
-                ? "Linked resource · potentially shared"
-                : "Selected character’s assets"}
+              {association ?? (entry.association === "other_hero_voice"
+                ? "Another hero’s voice line about this hero · shared"
+                : entry.shared
+                  ? "Linked resource · potentially shared"
+                  : "Selected character’s assets")}
             </dd>
           </dl>
         </details>

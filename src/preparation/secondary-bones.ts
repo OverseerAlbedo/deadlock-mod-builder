@@ -10,9 +10,24 @@ const namedSecondary=(name:string)=>SECONDARY_HINTS.some(s=>name.toLowerCase().i
 export const RIGID_HINTS=['halo','hat','cap','pin','pins','clip','clips','crown','tiara','circlet','horn','horns','helmet','helm','glasses','goggles','goggle','spectacles','visor','mask','earring','earrings','piercing','hairpin','hairclip','barrette','hairband','headband','ornament','accessory','acc','飾','冠','帽','角','眼鏡','メガネ','輪'];
 /** Breast bones move only when breast motion is turned on. */
 export const BREAST_HINTS=['breast','bust','boob','pectoral','oppai','おっぱい','乳'];
+/** Breast names in pinyin, spelled by whole name parts in a row (XiongBu.L, xiong_bu_l, Xiongbu_R; never inside another
+ * word). 乳房 (rufang) is a breast on its own; 胸 and 胸部 (xiong, xiongbu) also name the chest, so like 胸 they count only
+ * with a side, which must follow them directly (xiong_L_01, Xiongbu.R; not XiongMao_L) or come directly before them when
+ * they end the name (L_XiongBu, R_Xiong_Bu_01; not L_XiongMao, L_Xiong_Spine). Keep in sync with secondary_bones.rs and
+ * secondary_bones.py. */
+export const PINYIN_BREAST_HINTS=['rufang'];
+export const PINYIN_SIDED_BREAST_HINTS=['xiong','xiongbu'];
+const SIDE_WORDS=['l','r','left','right'];
+/** A named breast bone may carry a larger branch (a base bone and a ring of surface bones): at most this many bones, all
+ * within NAMED_BREAST_REACH torso lengths of it, none named as another part. Same as secondary_bones.rs. */
+export const NAMED_BREAST_BONES=24;
+export const NAMED_BREAST_REACH=0.4;
 /** Butt bones move only when butt motion is turned on (off by default). ASCII words match whole name parts (Butt_L, glute_r;
  * not Button); 尻 also counts on its own, but never inside 尻尾 (tail). Keep in sync with secondary_bones.rs and secondary_bones.py. */
 export const BUTT_HINTS=['butt','buttock','buttocks','glute','glutes','gluteus','booty','bum','ass','pigu','tunbu','臀','屁股','お尻','おしり','ケツ'];
+/** The pinyin butt words also match as whole name parts in a row, so joined syllables count (PiGu_L, Tun_Bu_R; not PiGuan).
+ * Only these two: a run of the English words would find "bum" in XiongBu_M. Same as secondary_bones.rs. */
+export const PINYIN_BUTT_HINTS=['pigu','tunbu'];
 /** Charms and other small hanging pieces, matched without separators (Key_Chain is keychain). They move anywhere and
  * override the rigid accessory words (a dangle earring moves). Keep in sync with secondary_bones.rs (CHARM_HINTS) and secondary_bones.py. */
 export const CHARM_HINTS=['charm','keychain','keyring','pendant','lanyard','dangle','チャーム','キーホルダー','ペンダント','根付','挂件','掛件','吊坠','吊墜','挂坠','掛墜','吊饰','吊飾'];
@@ -72,8 +87,22 @@ export function removedGuns(options:PreparationOptions,bones:Bone[]):string[]{
   if(weapon.action==='remove')return [...new Set([right,left,...fileGuns].filter(Boolean))];
   return fileGuns.filter(id=>id!==right&&id!==left);
 }
-export const namedButt=(name:string)=>{const words=tokens(name),n=name.toLowerCase();return BUTT_HINTS.some(h=>isAscii(h)?words.includes(h):n.includes(h))||(n.includes('尻')&&!n.includes('尻尾'));};
-export const namedBreast=(name:string)=>{const n=name.toLowerCase();return !namedButt(name)&&(BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>['l','r','left','right'].includes(t)))));};
+export const namedButt=(name:string)=>{const words=tokens(name),n=name.toLowerCase();return BUTT_HINTS.some(h=>isAscii(h)?words.includes(h):n.includes(h))||(n.includes('尻')&&!n.includes('尻尾'))
+  ||words.some((_,i)=>words.slice(i).some((__,k)=>PINYIN_BUTT_HINTS.includes(words.slice(i,i+k+1).join(''))));};
+/** PINYIN_BREAST_HINTS anywhere as whole name parts in a row, or PINYIN_SIDED_BREAST_HINTS followed directly by a side
+ * (or 左/右 in the name with the hint at its end), or ending the name directly after a side. Same as secondary_bones.rs
+ * pinyin_breast. */
+function pinyinBreast(name:string):boolean{
+  const words=tokens(name),sided=name.includes('左')||name.includes('右');
+  for(let i=0;i<words.length;i++)for(let j=i+1;j<=words.length;j++){
+    const run=words.slice(i,j).join('');
+    if(PINYIN_BREAST_HINTS.includes(run))return true;
+    if(PINYIN_SIDED_BREAST_HINTS.includes(run)&&((j<words.length?SIDE_WORDS.includes(words[j])||/^[左右]/.test(words[j]):sided)
+      ||(j===words.length&&i>0&&SIDE_WORDS.includes(words[i-1]))))return true;
+  }
+  return false;
+}
+export const namedBreast=(name:string)=>{const n=name.toLowerCase();return !namedButt(name)&&(BREAST_HINTS.some(h=>n.includes(h))||(n.includes('胸')&&(n.includes('左')||n.includes('右')||tokens(name).some(t=>SIDE_WORDS.includes(t))))||pinyinBreast(name));};
 const distance=(a:Vec3,b:Vec3)=>Math.sqrt(a.reduce((s,v,k)=>s+(v-b[k])**2,0));
 /** A closed loop (halo, crown band, hat brim): the single chain that contains the bone, from below its body anchor, ends close to where it starts. */
 function ringChain(bone:Bone,names:Map<string,Bone>,children:Map<string,string[]>,sourceRoles:Partial<Record<string,string>>):boolean{
@@ -123,12 +152,30 @@ function mirroredPairs(options:Bone[],names:Map<string,Bone>,children:Map<string
   });
   return output;
 }
-/** Breast bones: weighted, short, non-role children of a torso bone that are named as breasts,
+/** A breast word anywhere in the name, side or not: BREAST_HINTS, 胸, or a pinyin breast word as whole name parts in a row. */
+function breastWord(name:string):boolean{
+  const n=name.toLowerCase(),words=tokens(name),pinyin=[...PINYIN_BREAST_HINTS,...PINYIN_SIDED_BREAST_HINTS];
+  if(BREAST_HINTS.some(h=>n.includes(h))||n.includes('胸'))return true;
+  for(let i=0;i<words.length;i++)for(let j=i+1;j<=words.length;j++)if(pinyin.includes(words.slice(i,j).join('')))return true;
+  return false;
+}
+/** Named breast bones that carry a larger branch (a base bone and a ring of surface bones): at most NAMED_BREAST_BONES
+ * bones, all within NAMED_BREAST_REACH torso lengths, none a role, every bone below the root named with a breast word and
+ * not as another part (a breast bone carrying anything else stays as it was). Same as secondary_bones.rs. */
+function branchedBreasts(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>,torso:number):Set<string>{
+  const roleNames=new Set(Object.values(sourceRoles).filter((n):n is string=>Boolean(n))),parents=torsoChain(names,sourceRoles);
+  const compact=(bone:Bone)=>{const branch=[bone.name];for(let at=0;at<branch.length;at++){if(branch.length>NAMED_BREAST_BONES)return false;branch.push(...(children.get(branch[at])??[]));}
+    return branch.length<=NAMED_BREAST_BONES&&branch.every(n=>!roleNames.has(n)&&names.has(n)&&distance(names.get(n)!.position,bone.position)<=NAMED_BREAST_REACH*torso)
+      &&branch.slice(1).every(n=>breastWord(n)&&!namedSecondary(n)&&!rigidNamed(n)&&!namedButt(n));};
+  return new Set(bones.filter(b=>b.parent!==null&&parents.includes(b.parent)&&!roleNames.has(b.name)&&weighted.has(b.name)&&namedBreast(b.name)&&compact(b)).map(b=>b.name));
+}
+/** Breast bones: weighted, short, non-role children of a torso bone that are named as breasts (or carry a compact branch),
  * or form a mirrored pair in front of the chest in the upper torso (never on the pelvis, never a butt). */
 function breastRoots(bones:Bone[],names:Map<string,Bone>,children:Map<string,string[]>,weighted:Set<string>,sourceRoles:Partial<Record<string,string>>):Set<string>{
   const found=bodyPairOptions(bones,names,children,weighted,sourceRoles);if(!found)return new Set();
   const {options,torso,pelvis,high}=found,spine=names.get(sourceRoles.spine??''),low=spine?spine.position[2]:pelvis,floor=Math.max(low,pelvis+0.35*(high-pelvis));
   const output=new Set(options.filter(b=>namedBreast(b.name)).map(b=>b.name));
+  for(const name of branchedBreasts(bones,names,children,weighted,sourceRoles,torso))output.add(name);
   // An unnamed pair whose own name says it is another moving part (chest ribbons over the breasts, hair, a cape) is never a breast.
   const above=options.filter(b=>b.parent!==sourceRoles.pelvis&&!namedButt(b.name)&&!namedSecondary(b.name));
   for(const name of mirroredPairs(above,names,children,sourceRoles,torso,(forward,z)=>forward>=0.02*torso&&z>floor&&z<high))output.add(name);
@@ -203,7 +250,7 @@ export function physicsGroups(bones:Bone[],weighted:string[],options:Preparation
   return removed.length?groups.filter(g=>!removed.some(id=>hangsFromGun(g.root,bones,sourceRoles,id))):groups;
 }
 /** Moving parts on a gun that is left out are dropped from the kept groups; choosing the gun again keeps them again
- * (when motion is automatic). `values` is the Weapon tab's change; the result adds the matching physics roots. */
+ * (when motion is automatic). `values` is the Gun tab's change; the result adds the matching physics roots. */
 export function gunChoiceOptions(bones:Bone[],weighted:string[],options:PreparationOptions,values:Partial<PreparationOptions>):Partial<PreparationOptions>{
   const next={...options,...values},before=removedGuns(options,bones),after=removedGuns(next,bones),roles=next.source_roles??{};
   const same=before.length===after.length&&before.every(id=>after.includes(id));

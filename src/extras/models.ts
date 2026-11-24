@@ -1,10 +1,12 @@
 import type { CatalogEntry } from "../components/AssetCatalog";
 import type { ResourceReplacement } from "../models";
+import { NOT_A_PICTURE_STATUS, isUnreadablePicture } from "./pictureChecks";
 export type ExtraKind = "icons" | "audio" | "effects";
 export interface ExtraPreviewRequest {
   hero_path: string;
   target: string;
-  kind: ExtraKind | "materials";
+  /** `items`: the game's item pictures (Extras → Items), not the hero's catalog. */
+  kind: ExtraKind | "materials" | "items";
   source?: string;
   fit?: string;
   audio_fit?: string;
@@ -114,15 +116,26 @@ export function detailNumber(entry: CatalogEntry, key: string): number | null {
   const value = meta?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+/**
+ * A sound row that silences its game file (Rust `ResourceReplacement::silenced`):
+ * `silence` without a file. A file wins, as an older app may have added one.
+ */
+export function isSilenced(row: ResourceReplacement | undefined): boolean {
+  return row?.silence === true && !(row.source ?? "").trim();
+}
 export function replacementStatus(item: AssetItem, active: boolean) {
   if (!item.row) return "Original";
   if (!active || item.row.enabled === false) return "Paused";
+  // A silenced sound (`silence`) has no source file.
+  const silenced = isSilenced(item.row);
   if (
     item.missing ||
     !item.entry.supported ||
-    !item.row.source ||
+    (!item.row.source && !silenced && !item.row.taken) ||
     (item.entry.shared && !item.row.allow_shared)
   )
     return "Needs attention";
-  return "Replaced";
+  // A picture whose file its preview could not read (a text file named .png).
+  if (isUnreadablePicture(item.row.source)) return NOT_A_PICTURE_STATUS;
+  return silenced ? "Silenced" : "Replaced";
 }

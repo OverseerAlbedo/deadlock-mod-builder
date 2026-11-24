@@ -1,4 +1,4 @@
-"""Take the gun from its own file (the Weapon tab's gun file).
+"""Take the gun from its own file (the Gun tab's gun file).
 
 At inspection and conversion the worker appends the gun file's meshes to the
 temporary character scene, after the character itself was isolated:
@@ -25,6 +25,7 @@ never written; only the staged workspace copy is read.
 from pathlib import Path
 import numpy as np
 import scene_isolation as iso
+import staged_images
 
 POLICY = 'gun-file-v1'
 PREFIX = 'gun_file_'
@@ -38,9 +39,9 @@ def _load(bpy, path):
     if suffix in {'.glb', '.gltf'}:
         properties = bpy.ops.import_scene.gltf.get_rna_type().properties
         optional = {'disable_bone_shape': True} if 'disable_bone_shape' in properties else {}
-        bpy.ops.import_scene.gltf(filepath=path, merge_vertices=False, **optional)
+        staged_images.load(bpy, path, lambda: bpy.ops.import_scene.gltf(filepath=path, merge_vertices=False, **optional))
     elif suffix == '.fbx':
-        bpy.ops.import_scene.fbx(filepath=path, use_anim=False, automatic_bone_orientation=False)
+        staged_images.load(bpy, path, lambda: bpy.ops.import_scene.fbx(filepath=path, use_anim=False, automatic_bone_orientation=False))
     elif suffix == '.blend':
         # Append the scenes as local data (no scripts, no UI) and keep the one
         # holding the most visible geometry.

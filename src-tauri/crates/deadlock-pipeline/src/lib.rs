@@ -1,10 +1,20 @@
 //! Native transaction orchestration. Resource-specific checks are mandatory at
 //! frozen-output and installation boundaries, including install-existing.
 #![forbid(unsafe_code)]
+pub mod ability_objects;
+pub mod carried;
+pub mod hero_meshes;
+pub mod object_cloth;
+pub mod object_glow_shells;
+pub mod object_levels;
+pub mod object_motion;
+pub mod object_states;
 pub mod compilation;
 pub mod motion;
 pub mod secondary_motion;
 pub mod motion_preview;
+pub mod preview_cloth;
+pub mod clip_preview;
 pub mod mod_update;
 pub mod package;
 pub mod sources;

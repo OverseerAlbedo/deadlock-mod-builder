@@ -65,6 +65,10 @@ impl Application {
                 &root,
                 service.model.runner,
             )?;
+            // A picture the build could not stage stops Analyze here, naming its file.
+            service.model.clock.measure("Check replacement pictures", None, |_| {
+                deadlock_components::service::check_pictures(&project, service.model.cancel)
+            })?;
             let report = if project.customization.model_enabled() {
                 let report = service.model.inspect(&mut project)?;
                 project.meshes = report.project_mappings.clone();
@@ -79,7 +83,8 @@ impl Application {
                         clock: service.model.clock,
                         log: service.model.log,
                     }
-                    .inspect(&project)?,
+                    // Color ranges for one part read the hero's own meshes (only when there are some).
+                    .inspect_with(&project, Some(&deadlock_pipeline::hero_meshes::HeroPartMeshes::new(service.model.sources())))?,
                 )
             };
             Ok(ProjectInspection { project, report })
@@ -131,6 +136,9 @@ impl Application {
                         .map_err(|e| deadlock_core::CoreError::Integrity(e.to_string()))
                 })?;
             self.remember_project(&path, &project);
+            if let Some(installed) = &result.installed {
+                self.record_install(&project, installed);
+            }
             if service.model.settings.clear_build_data_after_build {
                 // Optional: caches and compiler folders the next build recreates.
                 let cleared = service.model.clock.measure("Clear rebuildable build data", None, |_| {
@@ -155,9 +163,11 @@ impl Application {
         overwrite: bool,
     ) -> Result<std::path::PathBuf> {
         self.with_pipeline("Install verified package", |service| {
-            service
+            let installed = service
                 .install(&mut project, path, overwrite)
-                .map_err(AppError::from)
+                .map_err(AppError::from)?;
+            self.record_install(&project, &installed);
+            Ok(installed)
         })
     }
     pub fn validate_original(&self, project: Project, compile: bool) -> Result<OriginalValidation> {

@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from algorithms import identify, estimate_landmarks, normalize_weights, deformation_checks, component_count
-from retarget import rest_maps, anatomical_frames, rigid_attachment_map, NEXT, FIT_MODES, FLOOR_MODES, FLOOR_POLICY, FLOOR_TOLERANCE, floor_corrections
+from retarget import rest_maps, anatomical_frames, rigid_attachment_map, NEXT, FIT_MODES, FLOOR_MODES, FLOOR_POLICY, FLOOR_TOLERANCE, floor_corrections, LEG_JOINT_MODES, LEGS_ON_HERO_JOINTS, EVENLY_SCALED, LEG_FLOOR_REFUSED, leg_fit_after_floor
 from exact_bind import rigid_display_matrix, store_bind_metadata, load_correction_bind, METADATA_KEY
 from blend_source import snapshot_blend
 from clothing import validate_garment_binding
@@ -25,12 +25,52 @@ import mesh_export as mx
 from breast_bones import add_breast_bones
 import weapon_fit
 import weapon_source
+import mmd_source
+import staged_images
+import animation_fit
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector, Quaternion
 
 
 def matrix_list(matrix): return [list(row) for row in matrix]
+
+# A mesh weighted to bones whose skeleton is not in the file (deleted, or never
+# saved with the mesh). Without a rig this many weighted groups is a skeleton's
+# worth of weights; one to a few groups are ordinary masks (hair, cloth selections).
+MISSING_SKELETON_POLICY='missing-skeleton-v1'
+MISSING_SKELETON_GROUPS=8
+_SKELETON_SIGNS={'signs':None}
+
+
+def record_skeleton_signs(imported, weapon_model):
+    """Before scene isolation drops armature modifiers without an object: which
+    character meshes have one, and whether the file holds any armature object
+    at all (in this scene, another scene or unlinked). Only for the character
+    source; a gun-only weapon model has no skeleton to miss."""
+    _SKELETON_SIGNS['signs']=None if weapon_model else {
+        'armatures':any(o.type=='ARMATURE' for o in bpy.data.objects),
+        'detached':{o.name for o in imported if o.type=='MESH' and
+                    any(m.type=='ARMATURE' and m.object is None for m in o.modifiers)}}
+
+
+def missing_skeleton(meshes, rigs):
+    """The missing-skeleton record for an inspection, or None.
+
+    Only when no character rig was found and the file has no armature object
+    at all (a rig that was set aside or not chosen is a different situation),
+    and the kept character meshes carry weights: either an armature modifier
+    without its object on one of them (with at least one weighted group), or
+    MISSING_SKELETON_GROUPS or more weighted groups."""
+    signs=_SKELETON_SIGNS['signs']
+    if rigs or signs is None or signs['armatures']:
+        return None
+    used=mx.used_group_names(meshes)
+    detached=sorted(o.name for o in meshes if o.name in signs['detached'])
+    if not used or (not detached and len(used)<MISSING_SKELETON_GROUPS):
+        return None
+    weighted=sorted(o.name for o in meshes if mx.used_group_names([o]) or o.name in signs['detached'])
+    return {'policy':MISSING_SKELETON_POLICY,'groups':len(used),'meshes':weighted,'modifier':bool(detached)}
 
 def select_source_rig(meshes, rigs, reports=None):
     """Resolve render bindings, not scene armature count or largest-object guesses.
@@ -105,9 +145,9 @@ def import_source(path,clear=True,allow_shape_keys=False,helper_reports=None,sce
     if suffix in {'.glb','.gltf'}:
         properties = bpy.ops.import_scene.gltf.get_rna_type().properties
         optional = {'disable_bone_shape': True} if 'disable_bone_shape' in properties else {}
-        bpy.ops.import_scene.gltf(filepath=path, merge_vertices=False, **optional)
+        staged_images.load(bpy, path, lambda: bpy.ops.import_scene.gltf(filepath=path, merge_vertices=False, **optional))
     elif suffix=='.fbx':
-        bpy.ops.import_scene.fbx(filepath=path, use_anim=False, automatic_bone_orientation=False)
+        staged_images.load(bpy, path, lambda: bpy.ops.import_scene.fbx(filepath=path, use_anim=False, automatic_bone_orientation=False))
     elif suffix=='.blend':
         # Both packed source snapshots and workspace corrections disable scripts.
         if clear:
@@ -134,6 +174,8 @@ def import_source(path,clear=True,allow_shape_keys=False,helper_reports=None,sce
     if bpy.context.object and bpy.context.object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
     imported=[o for o in bpy.context.scene.objects if o not in prior]
+    if clear:
+        record_skeleton_signs(imported,weapon_model)
     physics_helpers = mmd_helpers(imported)
     if helper_reports is not None and physics_helpers:
         helper_reports.append(helper_receipt(physics_helpers))
@@ -434,12 +476,14 @@ def import_props(job, meshes):
     return exported,materials,warnings
 
 
-def floor_fit(fit_floor,maps,anchors,meshes,rows_by_mesh,source,parents,source_roles,unit_scale):
+def floor_fit(fit_floor,maps,anchors,meshes,rows_by_mesh,source,parents,source_roles,unit_scale,leg_fit=None,extra=None):
     """Model fitting -> Feet on the floor: measure where the fitted soles stand
     (the 1st percentile height of the vertices mostly weighted to the feet,
     under the rest maps as fitted) and apply retarget.floor_corrections to every
     rest map and to the anchors the kept moving-part bones hang from, so they
-    stay with their mesh. Returns the receipt."""
+    stay with their mesh. Leg joints' offsets (`leg_fit`) are measured again
+    when the maps change. `extra` (rest maps of unweighted bones, never
+    measured) gets the same correction. Returns the receipt."""
     children={}
     for name,parent in parents.items():
         if parent:children.setdefault(parent,[]).append(name)
@@ -485,12 +529,44 @@ def floor_fit(fit_floor,maps,anchors,meshes,rows_by_mesh,source,parents,source_r
         if name in legs:m=leg@m
         return every@m
     if applied:  # 'ankles' (and anything within tolerance) leaves every map untouched
-        for table in (maps,anchors):
+        for table in (maps,anchors)+((extra,) if extra is not None else ()):
             for name in list(table):
                 table[name]=corrected(name,table[name])
+        leg_fit_after_floor(leg_fit,every,leg)
     audit.update(measured=True,sole_inches=round(sole,3),hip_inches=inches(hip),ankle_inches=inches(ankle),
                  applied=bool(applied),vertical_scale=round(float(scale),4),lift_inches=round(float(every[2,3]),3))
     return audit
+
+def leg_fit_intro(audit):
+    """The first sentence of the Preserve source proportions note for the Leg joints choice."""
+    mode=audit.get('mode','pelvis') if audit.get('applied') else 'pelvis'
+    size=f"{audit.get('body_scale',1.)*100:.0f}%"
+    return {'pelvis':'Source torso, head and leg proportions retained after overall scale and alignment. ',
+            'hips':'Source torso, head and leg proportions retained; the body was placed by its hip joints. ',
+            'scaled':f"Source proportions retained; the whole character was scaled to {size} so its legs are as long as the hero's. ",
+            'scaled_joints':f"Source torso and head proportions retained at {size}; the hips, knees and ankles were put on the hero's joints, so the thighs and shins changed length. ",
+            'joints':"Source torso and head proportions retained; the hips, knees and ankles were put on the hero's joints, so the thighs and shins changed length. "}[mode]
+
+
+def kept_size_note(alignment):
+    """Whether Leg joints scaled the whole character (the arm note then says so)."""
+    leg=alignment.get('leg_joint_fit') or {}
+    return bool(leg.get('applied')) and leg.get('mode') in EVENLY_SCALED
+
+
+def leg_fit_note(audit):
+    """The measured Leg joints line, or None."""
+    offsets=audit.get('joint_offsets_inches') or {}
+    knees=[offsets[k] for k in ('knee_L','knee_R') if k in offsets]
+    if not knees:return None
+    note=''
+    if audit.get('ignored_reason'):
+        note='Leg joints is not used for this hero (its unusual proportions have their own fit). '
+    gap=audit.get('knee_gap_at_90_degrees_inches') or 0.
+    return (note+f"Leg joints: the knees sit {max(knees):.1f} in from the hero's knee joints"+
+            (f' (about {gap:.1f} in of stretch in a 90° bend)' if gap>=.05 and max(knees)>=.05 else '')+
+            f"; character size {audit.get('body_scale',1.)*100:.0f}%.")
+
 
 def floor_note(audit):
     """The warning for the Feet on the floor receipt, or None."""
@@ -537,6 +613,7 @@ def prepare(job,meshes,rigs):
     fit_arm_joints=options.get('fit_arm_joints',True)
     fit_finger_curl=options.get('fit_finger_curl',True)
     fit_floor=options.get('fit_floor','ankles')
+    fit_leg_joints=options.get('fit_leg_joints','pelvis')
     arm_skinning=options.get('arm_skinning','source')
     if not isinstance(arm_skinning,str) or arm_skinning not in ARM_SKIN_MODES:
         raise ValueError('Choose a supported Arm skinning option before conversion.')
@@ -548,6 +625,11 @@ def prepare(job,meshes,rigs):
         raise ValueError('Choose a supported Model fitting option before conversion.')
     if not isinstance(fit_floor,str) or fit_floor not in FLOOR_MODES:
         raise ValueError('Choose a supported Feet on the floor option in Model fitting before conversion.')
+    if not isinstance(fit_leg_joints,str) or fit_leg_joints not in LEG_JOINT_MODES:
+        raise ValueError('Choose a supported Leg joints option in Model fitting before conversion.')
+    # Leg joints applies to Preserve source proportions only (Match hero proportions ignores it).
+    if fit_mode=='preserve_proportions' and fit_leg_joints in LEGS_ON_HERO_JOINTS and fit_floor=='legs':
+        raise ValueError(LEG_FLOOR_REFUSED)
     if mode=='rigged_humanoid' and not rigs:raise ValueError('No armature: switch to Unrigged Humanoid.')
     if mode=='unrigged_humanoid' and rigs:raise ValueError('Armature found: switch to Rigged Humanoid.')
     if not options.get('reviewed'):raise ValueError('Confirm bone mapping/landmarks and orientation before preparation.')
@@ -621,7 +703,7 @@ def prepare(job,meshes,rigs):
         for group in kept['groups']:
             anchor, destination = group['source_anchor'], group['target_anchor']
             if group['root'] not in gun_groups:
-                anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl)[0])
+                anchor_transforms.update(rest_maps(source, target_matrices, {anchor: destination}, source_roles, target_roles, parents, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl, fit_leg_joints=fit_leg_joints)[0])
             for name in group['source_bones']:
                 following.pop(name, None)
                 mapping.pop(name, None)
@@ -629,10 +711,19 @@ def prepare(job,meshes,rigs):
         raise ValueError('Review body-following mappings and their loss of independent motion before preparation.')
     maps, alignment_audit = rest_maps(source, target_matrices,
                                       {n: d for n, d in mapping.items() if n in weighted_names}, source_roles, target_roles,
-                                      parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl)
+                                      parents, following, mapping, fit_mode=fit_mode, source_bones=source_bones, target_bones=target, fit_arm_joints=fit_arm_joints, fit_finger_curl=fit_finger_curl, fit_leg_joints=fit_leg_joints)
+    # Making clips from an animation needs this fit saved (animation_fit.py);
+    # guarded, so a failure only leaves the fit file out.
+    fit_extra=None
+    if mode=='rigged_humanoid' and not job.get('correction',False):
+        try:fit_extra=animation_fit.extra_maps(rest_maps,source,target_matrices,mapping,maps,source_roles,target_roles,parents,following,fit_mode=fit_mode,source_bones=source_bones,target_bones=target,fit_arm_joints=fit_arm_joints,fit_finger_curl=fit_finger_curl,fit_leg_joints=fit_leg_joints)
+        except Exception:fit_extra=None
     # Corrections keep their exact prepared bind (no floor step).
     if not job.get('correction',False):
-        alignment_audit['floor']=floor_fit(fit_floor,maps,anchor_transforms,meshes,rows_by_mesh,source,parents,source_roles,unit_scale)
+        alignment_audit['floor']=floor_fit(fit_floor,maps,anchor_transforms,meshes,rows_by_mesh,source,parents,source_roles,unit_scale,alignment_audit.get('leg_joint_fit'),fit_extra)
+    if fit_extra is not None:
+        try:animation_fit.write(job,rig,source,parents,source_roles,target_roles,mapping,following,maps,fit_extra,weighted_names,unit_scale,alignment_audit,target)
+        except Exception:pass
     if kept:
         group_transforms = {}
 
@@ -645,13 +736,19 @@ def prepare(job,meshes,rigs):
         # Feet on the floor squashed or stretched a leg: kept parts on it stay
         # rigid (orthonormal bones) and follow their attachment point.
         floor_scaled = (alignment_audit.get('floor') or {}).get('vertical_scale', 1.) != 1.
+        # Leg joints: kept parts take the body's even scale and, on a leg
+        # scaled along its length only, stay rigid at that scale.
+        leg_fit = alignment_audit.get('leg_joint_fit') or {}
+        leg_fitted = fit_mode == 'preserve_proportions' and leg_fit.get('applied') and leg_fit.get('mode', 'pelvis') != 'pelvis'
+        kept_scale = (float(np.linalg.norm(np.asarray(alignment_audit['body_alignment'], dtype=float)[:3, 0]))
+                      if leg_fitted and leg_fit['mode'] in EVENLY_SCALED else 1.)
         for group in kept['groups']:
             if group['root'] in gun_groups:
                 transform = gun_transform(gun_groups[group['root']])
             else:
                 transform = anchor_transforms[group['source_anchor']]
-                if (fit_mode == 'preserve_proportions' and fit_arm_joints) or floor_scaled:
-                    transform = rigid_attachment_map(transform, np.asarray(source[group['root']])[:3,3])
+                if (fit_mode == 'preserve_proportions' and (fit_arm_joints or leg_fitted)) or floor_scaled:
+                    transform = rigid_attachment_map(transform, np.asarray(source[group['root']])[:3,3], kept_scale)
             group_transforms[group['root']] = transform
             for name in group['source_bones']:
                 maps[name] = transform
@@ -662,13 +759,15 @@ def prepare(job,meshes,rigs):
                                'Automatic pose probes do not establish artistic quality or in-game acceptance.']
     if mode=='rigged_humanoid':warnings.extend(source_info.get('warnings',[]))
     if fit_mode=='preserve_proportions':
-        warnings.append('Source torso, head and leg proportions retained after overall scale and alignment. '+
-                        ('Arms fitted to the hero shoulder, elbow and wrist pivots while retaining limb width. Arm lengths can change. ' if fit_arm_joints else
+        warnings.append(leg_fit_intro(alignment_audit.get('leg_joint_fit') or {})+
+                        ('Arms fitted to the hero shoulder, elbow and wrist pivots while retaining limb width'+(' (at the character\'s size)' if kept_size_note(alignment_audit) else '')+'. Arm lengths can change. ' if fit_arm_joints else
                          'Arm lengths retained; source elbows and wrists can differ from hero animation pivots. ')+
                         'Check joint movement, weapon grip and clothing clearance in game.')
     if ignored:warnings.append(non_skin_notice(ignored))
     if following:warnings.append(f'{len(following)} source bones follow mapped body joints with their rest offsets preserved. Their independent source twist, corrective, facial or physics motion is not transferred.')
     if kept:warnings.append(f"Kept {len(kept['exported_bones'])} existing physics bones in {len(kept['groups'])} groups with their skin weights. This preserves independent rigging only; Source 2 simulation, gravity, spring motion and collisions are not generated.")
+    legs=leg_fit_note(alignment_audit.get('leg_joint_fit') or {}) if fit_mode=='preserve_proportions' else None
+    if legs:warnings.append(legs)
     floor=floor_note(alignment_audit.get('floor') or {})
     if floor:warnings.append(floor)
     warnings+=texture_notes(uv_first,shared)
@@ -676,7 +775,7 @@ def prepare(job,meshes,rigs):
     if hero_fit.get('extremes'):
         what={'arms':'a long or uneven arm','legs':'short legs'}
         warnings.append('This hero has unusual proportions ('+' and '.join(what[e] for e in hero_fit['extremes'])+
-                        '). Keep source proportions scaled the body to the hero\'s hips and shoulders, fitted the legs to the hero and spread the arm length over the whole arm. Some stretching or clipping can remain; check the arms in game.')
+                        '). Preserve source proportions scaled the body to the hero\'s hips and shoulders, fitted the legs to the hero and spread the arm length over the whole arm. Some stretching or clipping can remain; check the arms in game.')
     curl=alignment_audit.get('finger_curl') or {}
     if curl.get('segments'):warnings.append(f"Fingers bent to the hero's resting curl ({len(curl['segments'])} finger segments), so the hero's grip closes them around the gun.")
     if curl.get('skipped'):warnings.append('Finger segments not bent because they point far from their hero finger (check the finger mapping): '+', '.join(s['bone'] for s in curl['skipped'][:6])+'.')
@@ -822,7 +921,7 @@ def prepare_weapon_model(job,meshes,rigs):
         plan_objects=[m.name for m in weapon_meshes]
     else:
         plan=job.get('weapon')
-        if not plan:raise ValueError('Choose the gun in the Weapon tab before converting.')
+        if not plan:raise ValueError('Choose the gun in the Gun tab before converting.')
         body,weapon_meshes=weapon_fit.split(meshes,plan)
         for obj in body:bpy.data.objects.remove(obj,do_unlink=True)
         warnings+=texture_notes([obj.name for obj in weapon_meshes if sampled_uv_first(obj)],weapon_fit.share_materials(weapon_meshes))
@@ -877,6 +976,20 @@ def main():
             report['source_helpers']=helper_reports
             Path(job['result']).write_text(json.dumps(report,allow_nan=False),encoding='utf-8')
             return
+        if job['operation']=='stage_mmd':
+            # An MMD model becomes the packed Blender file a user would save
+            # after importing it with MMD Tools (the add-on's defaults); every
+            # later step reads that file like any other Blender source.
+            bpy.ops.wm.read_factory_settings(use_empty=True)
+            mmd_source.enable(bpy,job['workspace'])
+            mmd_source.import_model(bpy,job['source'])
+            helpers=mmd_helpers(list(bpy.context.scene.objects))
+            if helpers:helper_reports.append(helper_receipt(helpers))
+            report=snapshot_blend(bpy,job['source'],job['destination'])
+            report['source_helpers']=helper_reports
+            report['importer']={'addon':mmd_source.ADDON_ID,'settings':{k:sorted(v) if isinstance(v,set) else v for k,v in mmd_source.IMPORT_SETTINGS.items()}}
+            Path(job['result']).write_text(json.dumps(report,allow_nan=False),encoding='utf-8')
+            return
         scene_choices=job.get('scene') if job['operation']=='inspect' else job.get('options',{}).get('scene')
         if job.get('correction'):
             scene_choices=None
@@ -886,6 +999,8 @@ def main():
             materials,_,warnings=texture_and_materials(meshes,Path(job['workspace'])/'textures',job['hero_root'])
             Path(job['result']).write_text(json.dumps({'status':'ok','materials':materials,'warnings':warnings},allow_nan=False),encoding='utf-8')
             return
+        # Measured on the character meshes alone, before clothing or a gun file joins them.
+        skeleton_gap=missing_skeleton(meshes,rigs) if job['operation']=='inspect' else None
         face_receipt=[];shape_receipt=[]
         if job['operation']=='prepare' and job.get('face'):
             face_receipt=apply_static_face(meshes,job['face'])
@@ -918,6 +1033,8 @@ def main():
             # MMD/VRM spring settings, offered as starting values on the Physics tab.
             if rigs:
                 report['springs']=source_springs(list(bpy.context.scene.objects),rigs[0],job.get('source'))
+            if skeleton_gap:
+                report['missing_skeleton']=skeleton_gap
         elif job.get('mode')=='weapon':
             report=prepare_weapon_model(job,meshes,rigs)
         else:
