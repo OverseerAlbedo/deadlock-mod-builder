@@ -59,10 +59,10 @@ class Page:
 
 HOME = Page(
     path="",
-    title="Deadlock Mod Builder – make Deadlock character mods",
+    title="Deadlock Mod Builder – make Deadlock model swap mods",
     description=(
-        "Free, open-source Windows app that turns a character model from Blender, FBX, glTF or MMD "
-        "into a Deadlock hero replacement mod and installs it as a VPK."
+        "Free, open-source Windows app for Deadlock model swaps: it turns a Blender, FBX, glTF or MMD "
+        "character into a hero replacement mod and installs it as a VPK."
     ),
 )
 
@@ -70,10 +70,10 @@ HOME = Page(
 DOC_PAGES = {
     "docs/FIRST_MOD.md": Page(
         path="make-a-deadlock-character-mod/",
-        title="How to make a Deadlock character mod – step by step",
+        title="How to make a Deadlock character mod (model swap tutorial)",
         description=(
-            "Step-by-step tutorial for making a Deadlock character mod: replace a hero's model with your "
-            "own Blender, FBX, glTF or MMD model and install it as a VPK."
+            "Step-by-step Deadlock model swap tutorial: replace a hero's model with your own Blender, "
+            "FBX, glTF or MMD character and install the mod as a VPK."
         ),
         nav="tutorial",
         label="the step-by-step tutorial",
@@ -153,6 +153,11 @@ def load_config() -> dict:
         raise BuildError("site/site.json: 'baseUrl' must be an https URL ending in '/'")
     config["repoUrl"] = config["repoUrl"].rstrip("/")
     config["basePath"] = urlsplit(config["baseUrl"]).path  # "/deadlock-mod-builder/"
+    repo_name = urlsplit(config["repoUrl"]).path.strip("/")  # "<owner>/<repository>"
+    if not re.fullmatch(r"[^/]+/[^/]+", repo_name):
+        raise BuildError("site/site.json: 'repoUrl' must end in '<owner>/<repository>'")
+    config["repoName"] = repo_name
+    config["repoOwner"] = repo_name.split("/")[0]
     return config
 
 
@@ -416,9 +421,25 @@ def build_home(md, config, readme: str, version: str) -> str:
     repo = config["repoUrl"]
     issues = f"{repo}/issues/new/choose"
     faq = [
+        ("What does Deadlock Mod Builder do?",
+         "<p>It makes a model swap for Deadlock: your own character replaces a hero's model in the game, "
+         "with its guns, materials and moving hair and cloth. People also call this a hero replacement mod "
+         "or a custom skin. The result is a VPK file that the app installs in the game's "
+         "<code>addons</code> folder.</p>"),
+        ("Is it a mod manager?",
+         "<p>No. A mod manager downloads and installs mods that other people made. Deadlock Mod Builder "
+         "makes a mod from your own model file and installs the mods you build with it.</p>"),
+        ("Can it change more than the character model?",
+         "<p>Yes. The Extras replace hero icons, ability images and sounds, recolor ability and weapon "
+         "effects, put your own models on ability objects and give the shop's items new icons and names. "
+         "Motion replaces a hero's animation clips.</p>"),
         ("Is Deadlock Mod Builder free?",
          f'<p>Yes. It is open source under the <a href="{repo}/blob/{config["branch"]}/LICENSE">GNU Affero General Public License v3.0 or later</a>, '
          f'and the source code is on <a href="{repo}">GitHub</a>.</p>'),
+        ("Where is the official download?",
+         f'<p>Installers are published only on the <a href="{repo}/releases/latest">Releases page</a> of '
+         f'the GitHub repository <a href="{repo}">{esc(config["repoName"])}</a>. '
+         "Other Deadlock tools with similar names are separate projects.</p>"),
         ("Which model files can I use?",
          f"<p>{esc(sentence_case(formats.group(1)))}. You can also add a gun from a separate file.</p>"),
         ("Which Blender versions work?",
@@ -773,6 +794,13 @@ def build() -> None:
         "operatingSystem": "Windows 11",
         "applicationCategory": "DeveloperApplication",
         "softwareVersion": version,
+        "author": {
+            "@type": "Person",
+            "name": config["repoOwner"],
+            "url": repo.rsplit("/", 1)[0],
+        },
+        "sameAs": [repo],
+        "releaseNotes": config["baseUrl"] + "changelog/",
         "downloadUrl": f"{repo}/releases/latest",
         "license": "https://www.gnu.org/licenses/agpl-3.0.html",
         "isAccessibleForFree": True,
@@ -797,7 +825,8 @@ def build() -> None:
     write_text("404.html", page_html(config, NOT_FOUND, not_found))
 
     # Sitemap
-    entries = [(HOME.path, git_date("README.md", "package.json"))]
+    # The home page's title, questions and layout live in this script and its template.
+    entries = [(HOME.path, git_date("README.md", "package.json", "site/build.py", "site/templates/home.html"))]
     entries += [(page.path, git_date(source)) for source, page in DOC_PAGES.items()]
     urls = "\n".join(
         f"  <url>\n    <loc>{esc(config['baseUrl'] + path)}</loc>\n    <lastmod>{date}</lastmod>\n  </url>"
