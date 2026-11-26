@@ -1829,7 +1829,7 @@ sealed class Server : IDisposable
                 continue;
             }
 
-            undriven.Add(new JsonObject
+            undriven.Add((JsonNode)new JsonObject
             {
                 ["cp"] = cp,
                 ["readBy"] = EffectRules.ToArray(reads.Take(8)),
@@ -1863,25 +1863,25 @@ sealed class Server : IDisposable
         var cannot = new JsonArray();
         if (plan.Renderers.Count == 0)
         {
-            cannot.Add("This effect draws nothing itself; it only starts or steers other effects in the game.");
+            cannot.Add((JsonNode?)"This effect draws nothing itself; it only starts or steers other effects in the game.");
         }
         else if (plan.Renderers.Keys.All(EffectRules.LightRenderers.Contains))
         {
-            cannot.Add("This effect only gives off light, and the preview has no surfaces for it to light.");
+            cannot.Add((JsonNode?)"This effect only gives off light, and the preview has no surfaces for it to light.");
         }
         else if (!current.Floor && plan.Renderers.Keys.All(k => k == "C_OP_RenderProjected" || EffectRules.LightRenderers.Contains(k)))
         {
-            cannot.Add("This effect is drawn as decals projected onto surfaces, and with the floor switched off the preview has none for them to land on.");
+            cannot.Add((JsonNode?)"This effect is drawn as decals projected onto surfaces, and with the floor switched off the preview has none for them to land on.");
         }
 
         if (plan.NeedsModel != null && current.Yours?.PreviewModel == null)
         {
-            cannot.Add($"Parts of this effect are placed on a character model ({plan.NeedsModel}), and the preview has no model to place them on.");
+            cannot.Add((JsonNode?)$"Parts of this effect are placed on a character model ({plan.NeedsModel}), and the preview has no model to place them on.");
         }
 
         if (screenSpace)
         {
-            cannot.Add("This is a screen effect: in the game it covers the player's view, so it fills the preview frame.");
+            cannot.Add((JsonNode?)"This is a screen effect: in the game it covers the player's view, so it fills the preview frame.");
         }
 
         notes["cannotShow"] = cannot;
@@ -1893,7 +1893,7 @@ sealed class Server : IDisposable
         {
             if (level >= LogLevel.Warning)
             {
-                warnings.Add($"{level}: {text}");
+                warnings.Add((JsonNode?)$"{level}: {text}");
             }
         }
 
@@ -1911,11 +1911,11 @@ sealed class Server : IDisposable
         {
             if (source.EndsWith("(overlay)", StringComparison.Ordinal))
             {
-                overlayFiles.Add(file);
+                overlayFiles.Add((JsonNode?)file);
             }
             else if (source == "NOT FOUND")
             {
-                missing.Add(file);
+                missing.Add((JsonNode?)file);
             }
             else
             {
@@ -1927,17 +1927,17 @@ sealed class Server : IDisposable
         var rules = new JsonArray();
         foreach (var applied in current.Applied)
         {
-            rules.Add(applied);
+            rules.Add((JsonNode?)applied);
         }
 
         if (plan.Ground != null)
         {
-            rules.Add($"ground: a ground plane at z = 0 for {plan.Ground}");
+            rules.Add((JsonNode?)$"ground: a ground plane at z = 0 for {plan.Ground}");
         }
 
         if (plan.Moving is { } moving)
         {
-            rules.Add(FormattableString.Invariant($"moving: control point 0 moves along +X at {moving.Speed:0} units per second, starting over every {moving.Period:0.##} s, for {moving.Reason}"));
+            rules.Add((JsonNode?)FormattableString.Invariant($"moving: control point 0 moves along +X at {moving.Speed:0} units per second, starting over every {moving.Period:0.##} s, for {moving.Reason}"));
         }
 
         return new JsonObject

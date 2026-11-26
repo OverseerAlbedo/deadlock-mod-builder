@@ -1,10 +1,18 @@
+// i18n-area: extras
 import { useEffect, useRef, useState } from "react";
 import { openFor, PURPOSE_OF_KIND } from "../dialogs";
 import { api, basename } from "../api";
+import { m, useT } from "../i18n";
 import type { ExtraKind } from "./models";
 import { specs } from "./models";
 import { ExtraIcon } from "./Icons";
 import { previewError } from "./media";
+
+/** The page's own refusal (kept English in state, drawn translated); other errors come from the backend. */
+const DROP_ONE = m("Drop one replacement file onto the selected asset.");
+/** Whole sentences per kind of asset. */
+const DROP_HERE: Record<ExtraKind, string> = { icons: m("Drop your icon here"), audio: m("Drop your sound here"), effects: m("Drop your effect here") };
+const DIALOG_TITLE: Record<ExtraKind, string> = { icons: m("Choose replacement icon"), audio: m("Choose replacement sound"), effects: m("Choose replacement effect") };
 
 export function ExtraDropzone({
   kind,
@@ -17,6 +25,7 @@ export function ExtraDropzone({
   disabled: boolean;
   change: (path: string) => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null),
     mounted = useRef(true),
     busy = useRef(false);
@@ -34,7 +43,7 @@ export function ExtraDropzone({
   async function commit(paths: string[]) {
     if (latest.current.disabled || busy.current) return;
     if (paths.length !== 1) {
-      setError("Drop one replacement file onto the selected asset.");
+      setError(DROP_ONE);
       return;
     }
     busy.current = true;
@@ -63,7 +72,7 @@ export function ExtraDropzone({
   async function browse() {
     try {
       const path = await openFor(PURPOSE_OF_KIND[spec.sourceKind], {
-        title: `Choose replacement ${spec.singular}`,
+        title: t(DIALOG_TITLE[kind]),
         multiple: false,
         filters: [{ name: spec.formats, extensions: [...spec.extensions] }],
       });
@@ -81,23 +90,23 @@ export function ExtraDropzone({
       <ExtraIcon name={source ? "check" : "upload"} size={26} />
       <strong>
         {checking
-          ? "Checking file…"
+          ? t("Checking file…")
           : source
             ? basename(source)
-            : `Drop your ${spec.singular} here`}
+            : t(DROP_HERE[kind])}
       </strong>
-      <span>{source ? "Drop another file to replace it" : spec.formats}</span>
+      <span>{source ? t("Drop another file to replace it") : spec.formats}</span>
       <button
         className="extra-secondary"
         disabled={disabled || checking}
         onClick={() => void browse()}
       >
         <ExtraIcon name="folder" size={16} />
-        {source ? "Change file" : "Choose file"}
+        {source ? t("Change file") : t("Choose file")}
       </button>
       {error && (
         <p className="extra-error" role="alert">
-          {error}
+          {error === DROP_ONE ? t(DROP_ONE) : error}
         </p>
       )}
     </div>

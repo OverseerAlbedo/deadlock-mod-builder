@@ -1,6 +1,8 @@
 /** Extras → Objects: what the page shows about the catalog (groups, what kind an object is),
  * the fit answer's decoding, and the one-at-a-time fit queue. No fit maths here: the fit is
  * applied in Rust and the answer is already in the game object's frame. */
+// i18n-area: objects
+import { t, tp } from "../i18n";
 import {
   OBJECT_FIT_MIME,
   OBJECTS_NO_BLENDER,
@@ -24,35 +26,36 @@ export interface ObjectItem {
 }
 export interface ObjectGroup { key: string; title: string; items: ObjectItem[] }
 
-/** The ability's heading, in the Effects page's group order. */
+/** The ability's heading, in the Effects page's group order, in the language shown (the
+ * ability's name as it comes). */
 export function groupTitle(row: Pick<ObjectRow, "group" | "ability_name" | "ability">, hero: string): string {
   const name = row.ability_name || readable(row.ability);
   if (row.group >= 101 && row.group <= 104) return `${row.group - 100} · ${name}`;
-  if (row.group === 200) return "Gun";
-  if (row.group === 201) return "Gun · alternate fire";
-  if (row.group === 210) return "Melee";
-  if (row.group === 300) return `Innate · ${name}`;
+  if (row.group === 200) return t("Gun");
+  if (row.group === 201) return t("Gun · alternate fire");
+  if (row.group === 210) return t("Melee");
+  if (row.group === 300) return t("Innate · {name}", { name });
   if (row.group === 350) return hero || name;
   return name;
 }
 const readable = (id: string) => id.replace(/^(citadel_)?(ability_)?/, "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 /** What kind of object it is, in one line: the engine's own words for an object beyond the first
- * kind (`kind.label`); otherwise from its structure, in the order the backend checks what cannot
- * be replaced yet. */
+ * kind (`kind.label`, as it comes); otherwise from its structure, in the order the backend checks
+ * what cannot be replaced yet (in the language shown). */
 export function kindText(row: ObjectRow): string {
   if (row.offered && row.kind) return row.kind.label;
   const s = row.structure;
-  if (row.offered) return "Simple object";
-  if (!s) return "Object";
-  if (s.bones > 0) return s.animated ? "Animated object with a skeleton" : "Object with a skeleton";
-  if (s.physics) return "Object with collision";
-  if (s.hitboxes > 0) return "Object with hitboxes";
-  if (s.animated) return "Animated object";
-  if (s.attachments > 0) return "Object with attachment points";
-  if (s.materials.length !== 1) return s.materials.length ? `Object with ${s.materials.length} materials` : "Object without a material";
-  if (row.drawn !== "particle") return "Object the ability places";
-  return "Object";
+  if (row.offered) return t("Simple object");
+  if (!s) return t("Object");
+  if (s.bones > 0) return s.animated ? t("Animated object with a skeleton") : t("Object with a skeleton");
+  if (s.physics) return t("Object with collision");
+  if (s.hitboxes > 0) return t("Object with hitboxes");
+  if (s.animated) return t("Animated object");
+  if (s.attachments > 0) return t("Object with attachment points");
+  if (s.materials.length !== 1) return s.materials.length ? tp(s.materials.length, { other: "Object with {count} materials" }) : t("Object without a material");
+  if (row.drawn !== "particle") return t("Object the ability places");
+  return t("Object");
 }
 /** The readable name from a file stem ("haze_dagger_model" → "Haze dagger model"). */
 export const nameFromTarget = (target: string) => {
@@ -82,7 +85,7 @@ export function objectGroups(catalog: ObjectCatalog | null, saved: AbilityObject
   if (extra.length)
     groups.push({
       key: "saved",
-      title: catalog ? "Saved, not listed now" : "Saved replacements",
+      title: catalog ? t("Saved, not listed now") : t("Saved replacements"),
       items: extra.map((r) => ({ key: fold(r.target), target: r.target, entry: null, saved: r })),
     });
   return groups;

@@ -82,6 +82,10 @@ pub struct Settings {
     pub default_fit_mode: String,
     /// Load the 3D previews by themselves when their page is shown (off by default).
     pub auto_previews: bool,
+    /// The interface language (Settings → Appearance → Language): a language tag such as
+    /// "en" or "zh-CN". Empty (also when the field is absent) means not chosen yet; the
+    /// page then decides from the Windows display language. Only the page reads it.
+    pub language: String,
 }
 /// The fits Default fit for new models offers (`PreparationOptions.fit_mode` values).
 pub const DEFAULT_FIT_MODES: [&str; 2] = ["preserve_proportions", "match_target"];
@@ -124,6 +128,7 @@ impl Default for Settings {
             custom_themes: vec![],
             default_fit_mode: DEFAULT_FIT_MODES[0].into(),
             auto_previews: false,
+            language: String::new(),
         }
     }
 }

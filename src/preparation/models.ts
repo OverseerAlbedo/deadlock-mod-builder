@@ -1,5 +1,7 @@
 /** Native preparation IPC. Large prepared vertex/face arrays stay on disk. */
+// i18n-area: prepare
 import type { JsonValue, Material, PropChoices } from '../models';
+import { m, t, tc } from '../i18n';
 export type Vec3 = [number,number,number];
 export type Quat = [number,number,number,number];
 export type Matrix4 = [Quat,Quat,Quat,Quat];
@@ -23,10 +25,11 @@ export const FLOOR_CHOICES: [FloorFit,string][] = [
   ['legs','Shorten or lengthen the legs'],
   ['lift','Move the whole character up or down'],
 ];
+/** The help line of each Feet on the floor card (English; translated where it is drawn). */
 export const FLOOR_HELP: Record<FloorFit,string> = {
-  ankles: 'The fit lines up your model’s ankles with the hero’s, as before. Feet taller than the hero’s (heels, thick soles) then reach below the floor, shorter ones float.',
-  legs: 'Scales everything below the hips up or down so the soles touch the floor. The hips, body and arms stay on the hero’s joints, but your model’s knees and ankles move off the hero’s (up when the legs get shorter), so the ankle movement can look a little off.',
-  lift: 'Moves the whole model up or down so the soles touch the floor. Nothing is stretched, but the body, arms and hands sit that much off the hero’s joints (and the gun).',
+  ankles: m('The fit lines up your model’s ankles with the hero’s, as before. Feet taller than the hero’s (heels, thick soles) then reach below the floor, shorter ones float.'),
+  legs: m('Scales everything below the hips up or down so the soles touch the floor. The hips, body and arms stay on the hero’s joints, but your model’s knees and ankles move off the hero’s (up when the legs get shorter), so the ankle movement can look a little off.'),
+  lift: m('Moves the whole model up or down so the soles touch the floor. Nothing is stretched, but the body, arms and hands sit that much off the hero’s joints (and the gun).'),
 };
 /** Model fitting → Leg joints (Preserve source proportions only); the same choices as `retarget.py LEG_JOINT_MODES` and Rust `fitting::LEG_JOINT_MODES`. */
 export const LEG_JOINT_MODES = ['pelvis','hips','scaled','scaled_joints','joints'] as const;
@@ -40,15 +43,17 @@ export const LEG_JOINT_CHOICES: [LegJointFit,string][] = [
   ['scaled','Hip joints, and resize the character to the hero’s leg length'],
   ['scaled_joints','Hip joints, resize, and legs on the hero’s joints'],
 ];
-/** Shown with the two choices that resize the character. */
-const RESIZE_CAUTION = ' Resizing can stretch the shoulders while the arms are aligned to the hero’s joints, so try it only when the other choices do not suit your character.';
+/** The help line of each Leg joints card (English; translated where it is drawn). The two
+ * choices that resize the character end with the same caution about stretched shoulders. */
 export const LEG_JOINT_HELP: Record<LegJointFit,string> = {
-  pelvis: 'The body is placed by your model’s pelvis bone, as before. When that bone sits away from the hip joints, the body can lean a little and the knees and ankles sit off the hero’s, so knees can stretch in deep bends (jumping, crouching). If they do, try the recommended choice: Hip joints, and legs on the hero’s joints (no resizing).',
-  hips: 'Places and turns the body by its hip joints instead of the pelvis bone. Nothing is resized; the knees and ankles usually come closer to the hero’s, but legs longer or shorter than the hero’s still leave them a little off.',
-  scaled: 'Also scales the whole character evenly so its legs are as long as the hero’s. The character becomes smaller or larger by the ratio of the leg lengths, head and arms included, so the upper body moves relative to the hero’s skeleton and hands and head sit a little differently.'+RESIZE_CAUTION,
-  scaled_joints: 'Scales the character as above and puts the hips, knees and ankles exactly on the hero’s joints. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays), so the knees bend where the hero’s do; the upper body moves relative to the hero’s skeleton.'+RESIZE_CAUTION,
-  joints: 'The one to try when the default leaves the knees stretching. Puts the hips, knees and ankles exactly on the hero’s joints without resizing the character. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays); the upper body keeps its size and moves relative to the hero’s skeleton, so hands and head sit a little differently.',
+  pelvis: m('The body is placed by your model’s pelvis bone, as before. When that bone sits away from the hip joints, the body can lean a little and the knees and ankles sit off the hero’s, so knees can stretch in deep bends (jumping, crouching). If they do, try the recommended choice: Hip joints, and legs on the hero’s joints (no resizing).'),
+  hips: m('Places and turns the body by its hip joints instead of the pelvis bone. Nothing is resized; the knees and ankles usually come closer to the hero’s, but legs longer or shorter than the hero’s still leave them a little off.'),
+  scaled: m('Also scales the whole character evenly so its legs are as long as the hero’s. The character becomes smaller or larger by the ratio of the leg lengths, head and arms included, so the upper body moves relative to the hero’s skeleton and hands and head sit a little differently. Resizing can stretch the shoulders while the arms are aligned to the hero’s joints, so try it only when the other choices do not suit your character.'),
+  scaled_joints: m('Scales the character as above and puts the hips, knees and ankles exactly on the hero’s joints. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays), so the knees bend where the hero’s do; the upper body moves relative to the hero’s skeleton. Resizing can stretch the shoulders while the arms are aligned to the hero’s joints, so try it only when the other choices do not suit your character.'),
+  joints: m('The one to try when the default leaves the knees stretching. Puts the hips, knees and ankles exactly on the hero’s joints without resizing the character. Thighs and shins are lengthened or shortened to the hero’s (their thickness stays); the upper body keeps its size and moves relative to the hero’s skeleton, so hands and head sit a little differently.'),
 };
+/** Two whole sentences shown one after the other (a space in English, none in Chinese). */
+export const nextSentence=(first:string,next:string)=>tc('sentences','{first} {next}',{first,next});
 /** What a conversion measured for Leg joints (`rest_alignment.leg_joint_fit`, inches). */
 export interface LegFitAudit {policy:string;mode:LegJointFit;applied:boolean;ignored_reason?:string|null;body_scale:number;length_scale?:Record<string,number>;lean_degrees?:number;joint_offsets_inches:Record<string,number>;knee_gap_at_90_degrees_inches?:number|null;measured_after_floor?:boolean}
 /** One plain line about the measured leg fit, or null without measurements. */
@@ -58,9 +63,12 @@ export function legFitLine(audit:LegFitAudit|null|undefined):string|null{
   if(!knees.length)return null;
   const knee=Math.max(...knees),gap=audit.knee_gap_at_90_degrees_inches??0,size=Math.round((audit.body_scale??1)*100);
   const lengths=audit.length_scale??{},thigh=lengths.thigh_L,shin=lengths.shin_L;
-  const legs=audit.mode==='scaled_joints'||audit.mode==='joints'?typeof thigh==='number'&&typeof shin==='number'?` Thighs ${Math.round(thigh*100)}%, shins ${Math.round(shin*100)}% of their length.`:'':'';
-  const ignored=audit.ignored_reason?' Leg joints is not used for this hero (its unusual proportions have their own fit).':'';
-  return `This conversion: knees ${knee.toFixed(1)} in from the hero’s knee joints${gap>=0.05&&knee>=0.05?`, about ${gap.toFixed(1)} in of stretch in a 90° bend`:''}. Character size ${size}%.${legs}${ignored}`;
+  const values={knee:knee.toFixed(1),gap:gap.toFixed(1),size};
+  let line=gap>=0.05&&knee>=0.05?t('This conversion: knees {knee} in from the hero’s knee joints, about {gap} in of stretch in a 90° bend. Character size {size}%.',values)
+    :t('This conversion: knees {knee} in from the hero’s knee joints. Character size {size}%.',values);
+  if((audit.mode==='scaled_joints'||audit.mode==='joints')&&typeof thigh==='number'&&typeof shin==='number')line=nextSentence(line,t('Thighs {thigh}%, shins {shin}% of their length.',{thigh:Math.round(thigh*100),shin:Math.round(shin*100)}));
+  if(audit.ignored_reason)line=nextSentence(line,t('Leg joints is not used for this hero (its unusual proportions have their own fit).'));
+  return line;
 }
 /** A small triangle mesh: x, y, z per vertex and three vertex indices per triangle. */
 export interface Shape {positions:number[];triangles:number[]}

@@ -95,6 +95,22 @@ function checkEffectPlayer(resources) {
     console.log(`Effect player notices: ${deps.missing_texts.length} license text(s) not included yet: ${deps.missing_texts.map(m => `${m.what} (${m.license})`).join('; ')}.`);
   }
 }
+// The interface-language catalogs (scripts/i18n-check.mjs, plain run: every problem except
+// missing entries fails). It reads the sources with the TypeScript package, which this
+// script cannot count on (it runs before npm ci); without it the check says so and the UI
+// test src/i18n/catalogs.test.ts runs the same check after npm ci.
+async function checkLanguages() {
+  let ts;
+  try { ts = (await import('typescript')).default; }
+  catch { console.log('Language catalogs: not checked here (the typescript package is not installed yet); the UI tests check them.'); return; }
+  const { checkI18n } = await import('./i18n-check.mjs');
+  const result = await checkI18n({ ts });
+  if (result.failed) {
+    for (const line of result.lines) console.log(line);
+    assert.fail('The language catalogs have problems; run node scripts/i18n-check.mjs');
+  }
+  console.log(result.lines.at(-1));
+}
 export function checkRepository() {
   const version = readJson('package.json').version;
   assert.equal(readJson('package-lock.json').version, version);
@@ -135,4 +151,4 @@ export function checkRepository() {
   console.log(`Repository preflight passed: ${version}; versions, required resources and reader trust pins match.`);
   return version;
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) checkRepository();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) { checkRepository(); await checkLanguages(); }

@@ -445,7 +445,7 @@ sealed class ModelMaterialVars : IDisposable
                 fromColour++;
             }
 
-            parts.Add(new JsonObject
+            parts.Add((JsonNode)new JsonObject
             {
                 ["part"] = binding.Part,
                 ["variables"] = EffectRules.ToArray(binding.Variables.Values.Select(v => v.Field is { } f ? $"{v.Name} from {f}{(v.Scale != 1f ? FormattableString.Invariant($" x {v.Scale:0.###}") : "")}" : FormattableString.Invariant($"{v.Name} = {v.Scale:0.###}"))),

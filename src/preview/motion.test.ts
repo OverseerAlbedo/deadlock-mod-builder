@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { MOTION_LAYOUT, MotionRig, capTravel, decodeMotion, sampleSkins, travel, tune, turnAbout, type MotionHeader, type MotionPacket, type PreviewNode } from './motion';

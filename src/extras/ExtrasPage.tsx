@@ -1,5 +1,9 @@
+// i18n-area: extras
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Project, ResourceReplacement } from "../models";
+import { m, t, tc, tp, useT } from "../i18n";
+import { shownHero } from "../i18n/gameNames";
+import { sentences } from "../build/words";
 import type { ComponentCatalog } from "../components/AssetCatalog";
 import { changeCustomization } from "../components/customization";
 import { modelEnabled } from "../build/readiness";
@@ -33,6 +37,34 @@ import {
   type ExtraKind,
 } from "./models";
 import "./extras.css";
+
+/** Whole sentences per kind of asset (the kind is an identifier; these are only shown). */
+const KIND_WORDS: Record<ExtraKind, { assets: string; library: string; search: string; placeholder: string; choose: string; selected: string; notAvailable: string; keepOriginal: string }> = {
+  icons: {
+    assets: m("Icons assets"), library: m("Icons library"), search: m("Search icons"), placeholder: m("Search icons…"),
+    choose: m("Choose an icon from the library to compare it with your replacement."), selected: m("SELECTED ICON"),
+    notAvailable: m("No action needed. Replacement is not available for this icon."),
+    keepOriginal: m("Remove it or turn off “Include in build” below to keep using the original icon."),
+  },
+  audio: {
+    assets: m("Sounds assets"), library: m("Sounds library"), search: m("Search sounds"), placeholder: m("Search sounds…"),
+    choose: m("Choose a sound from the library to compare it with your replacement."), selected: m("SELECTED SOUND"),
+    notAvailable: m("No action needed. Replacement is not available for this sound."),
+    keepOriginal: m("Remove it or turn off “Include in build” below to keep using the original sound."),
+  },
+  effects: {
+    assets: m("Effects assets"), library: m("Effects library"), search: m("Search effects"), placeholder: m("Search effects…"),
+    choose: m("Choose an effect from the library to compare it with your replacement."), selected: m("SELECTED EFFECT"),
+    notAvailable: m("No action needed. Replacement is not available for this effect."),
+    keepOriginal: m("Remove it or turn off “Include in build” below to keep using the original effect."),
+  },
+};
+/** Image fit choices: the value is saved; the label and hint are shown. */
+const IMAGE_FITS = [
+  ["contain", m("Fit inside"), m("Keep the full image")],
+  ["cover", m("Fill & crop"), m("Fill the original frame")],
+  ["stretch", m("Stretch"), m("Match its dimensions")],
+] as const;
 
 export interface ExtrasProps {
   project: Project;
@@ -68,6 +100,7 @@ export function ExtrasWorkspace({
   autoPreviews = false,
   fail,
 }: ExtrasProps) {
+  const t = useT();
   // The tab last open for this project in this session (leaving the page and coming back keeps it).
   const remembered = openTabs.get(project.id);
   const [kind, setKind] = useState<ExtraKind>(() => extraKinds.find((k) => k === remembered) ?? "icons"),
@@ -148,8 +181,10 @@ export function ExtrasWorkspace({
     pageCount = Math.max(1, Math.ceil(visible.length / pageSize)),
     shownPage = Math.min(page, pageCount - 1);
   const selection = items.find((item) => item.key === selected) ?? null;
+  // Only shown (the chip, the sentences and the tabs' own sentences): the game's name of the
+  // hero in the interface language.
   const hero =
-    project.hero_name ||
+    shownHero(project.hero_name) ||
     basename(project.original_model).replace(/\.vmdl(_c)?$/, "");
   // Every asset read needs the hero: without one the page asks for it and loads nothing.
   const noHero = !project.original_model;
@@ -294,17 +329,17 @@ export function ExtrasWorkspace({
     <div className="extras-shell">
       <header className="extras-heading">
         <div>
-          <span className="extras-eyebrow">CHARACTER CUSTOMIZATION</span>
+          <span className="extras-eyebrow">{t("CHARACTER CUSTOMIZATION")}</span>
           <h1>
-            Extras{hero && <span className="extra-hero-chip">{hero}</span>}
+            {t("Extras")}{hero && <span className="extra-hero-chip">{hero}</span>}
           </h1>
-          <p>Replace the hero's icons, sounds and effects with your own files, or change its colors.</p>
+          <p>{t("Replace the hero's icons, sounds and effects with your own files, or change its colors.")}</p>
         </div>
         <div className="extras-heading-actions">
           {shownChanges > 0 && (
             <span className="extra-change-count">
               <span />
-              {shownChanges} change{shownChanges === 1 ? "" : "s"}
+              {tp(shownChanges, { one: "{count} change", other: "{count} changes" })}
             </span>
           )}
           <button
@@ -314,10 +349,10 @@ export function ExtrasWorkspace({
           >
             <ExtraIcon name="refresh" size={17} />
             {discovering
-              ? "Loading assets…"
+              ? t("Loading assets…")
               : catalog
-                ? "Reload assets"
-                : "Load character assets"}
+                ? t("Reload assets")
+                : t("Load character assets")}
           </button>
           {reviewBuild && (
             <button
@@ -325,7 +360,7 @@ export function ExtrasWorkspace({
               disabled={disabled || !(changed || shownChanges)}
               onClick={reviewBuild}
             >
-              Build & install
+              {t("Build & install")}
               <ExtraIcon name="arrow" size={17} />
             </button>
           )}
@@ -333,46 +368,44 @@ export function ExtrasWorkspace({
       </header>
       <div className="extras-guide">
         <span>
-          <b>1</b>Choose an asset
+          <b>1</b>{t("Choose an asset")}
         </span>
         <i />
         <span>
-          <b>2</b>Preview & replace
+          <b>2</b>{t("Preview & replace")}
         </span>
         <i />
         <span>
-          <b>3</b>Build & install
+          <b>3</b>{t("Build & install")}
         </span>
-        <small>Save your project to keep your changes</small>
+        <small>{t("Save your project to keep your changes")}</small>
       </div>
       {!active && changed > 0 && (
         <div className="extra-banner">
           <ExtraIcon name="pause" />
           <div>
-            <strong>Your saved extras are paused</strong>
+            <strong>{t("Your saved extras are paused")}</strong>
             <p>
-              Project customization is off. Enable it to include your saved
-              changes in the next build.
+              {t("Project customization is off. Enable it to include your saved changes in the next build.")}
             </p>
           </div>
           <button
             disabled={disabled}
             onClick={() => update(changeCustomization(project, {}))}
           >
-            Enable customization
+            {t("Enable customization")}
           </button>
         </div>
       )}
       {noHero ? (
-        <section className="extras-library" aria-label="Choose the hero first">
+        <section className="extras-library" aria-label={t("Choose the hero first")}>
           <div className="extra-empty">
             <div className="extra-empty-symbol">
               <ExtraIcon name="image" size={32} />
             </div>
-            <h3>Choose the hero first</h3>
+            <h3>{t("Choose the hero first")}</h3>
             <p>
-              Choose the hero your mod replaces in Character & model, then
-              return here to load its icons, sounds, effects and colors.
+              {t("Choose the hero your mod replaces in Character & model, then return here to load its icons, sounds, effects and colors.")}
             </p>
           </div>
         </section>
@@ -381,7 +414,7 @@ export function ExtrasWorkspace({
       <div
         className="extras-tabs"
         role="tablist"
-        aria-label="Extras categories"
+        aria-label={t("Extras categories")}
       >
         {tabs.map((key, index) => (
           <button
@@ -417,32 +450,32 @@ export function ExtrasWorkspace({
             {key === "objects" ? (
               <>
                 <ExtraIcon name="cube" />
-                Objects
+                {t("Objects")}
                 <span>{keptObjectCount(project.original_model) ?? "—"}</span>
-                {savedObjectRows(project).length > 0 && <i title="Contains replacements" />}
+                {savedObjectRows(project).length > 0 && <i title={t("Contains replacements")} />}
               </>
             ) : key === "items" ? (
               <>
                 <ExtraIcon name="image" />
-                Items
+                {t("Items")}
                 <span>{keptItemCount() ?? "—"}</span>
-                {(itemRows.length > 0 || itemNameCounts(project).saved > 0) && <i title="Contains replacements" />}
+                {(itemRows.length > 0 || itemNameCounts(project).saved > 0) && <i title={t("Contains replacements")} />}
               </>
             ) : key === "colors" ? (
               <>
                 <ExtraIcon name="palette" />
-                Colors
+                {t("Colors")}
                 <span>{modelEnabled(project) ? Object.keys(project.materials).length : catalog?.materials?.length ?? "—"}</span>
-                {colorChanges > 0 && <i title="Contains color changes" />}
+                {colorChanges > 0 && <i title={t("Contains color changes")} />}
               </>
             ) : (
               <>
                 <ExtraIcon name={specs[key].icon} />
-                {specs[key].title}
+                {t(specs[key].title)}
                 <span>{catalog?.[key].length ?? "—"}</span>
                 {((project.customization[key]?.length ?? 0) > 0 ||
                   (key === "effects" && savedRows(project).length > 0)) && (
-                  <i title="Contains replacements" />
+                  <i title={t("Contains replacements")} />
                 )}
               </>
             )}
@@ -533,36 +566,36 @@ export function ExtrasWorkspace({
         aria-labelledby={`extras-tab-${kind}`}
         className="extras-layout"
       >
-        <section className="extras-library" aria-label={`${spec.title} assets`}>
+        <section className="extras-library" aria-label={t(KIND_WORDS[kind].assets)}>
           <div className="extras-library-heading">
             <div>
-              <h2>{spec.title} library</h2>
-              <p>{spec.description}</p>
+              <h2>{t(KIND_WORDS[kind].library)}</h2>
+              <p>{t(spec.description)}</p>
             </div>
             <span className="extra-library-count">
-              {catalog ? `${items.length} assets` : "From your game"}
+              {catalog ? tp(items.length, { one: "{count} assets", other: "{count} assets" }) : t("From your game")}
             </span>
           </div>
           <div className="extras-search">
             <ExtraIcon name="search" size={18} />
             <input
-              aria-label={`Search ${spec.title.toLowerCase()}`}
-              placeholder={`Search ${spec.title.toLowerCase()}…`}
+              aria-label={t(KIND_WORDS[kind].search)}
+              placeholder={t(KIND_WORDS[kind].placeholder)}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             {query && (
-              <button aria-label="Clear search" onClick={() => setQuery("")}>
+              <button aria-label={t("Clear search")} onClick={() => setQuery("")}>
                 <ExtraIcon name="close" size={16} />
               </button>
             )}
           </div>
           <div className="extras-filters">
-            <div role="group" aria-label="Asset filter">
+            <div role="group" aria-label={t("Asset filter")}>
               {[
-                ["all", "All assets"],
-                ["changed", `Changed (${rows.length})`],
-                ["available", "Replaceable"],
+                ["all", t("All assets")],
+                ["changed", t("Changed ({count})", { count: rows.length })],
+                ["available", t("Replaceable")],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -578,22 +611,21 @@ export function ExtrasWorkspace({
                 className="extra-text-button"
                 onClick={() => setBinding(null)}
               >
-                Cancel destination change
+                {t("Cancel destination change")}
               </button>
             )}
           </div>
           {binding !== null && (
             <p className="extra-inline-note">
-              Choose a replaceable asset without an existing replacement to
-              assign your saved file.
+              {t("Choose a replaceable asset without an existing replacement to assign your saved file.")}
             </p>
           )}
           {discovering ? (
             <div className="extra-empty">
               <span className="extra-spinner" />
-              <h3>Finding {hero}’s assets</h3>
+              <h3>{t("Finding {hero}’s assets", { hero })}</h3>
               <p>
-                Reading icons, sound files and effects from your game archive.
+                {t("Reading icons, sound files and effects from your game archive.")}
               </p>
             </div>
           ) : !catalog && filter !== "changed" ? (
@@ -603,13 +635,13 @@ export function ExtrasWorkspace({
               </div>
               <h3>
                 {canDiscover
-                  ? "Load your character’s assets"
-                  : "Connect your game to get started"}
+                  ? t("Load your character’s assets")
+                  : t("Connect your game to get started")}
               </h3>
               <p>
                 {canDiscover
-                  ? "Browse the original assets before choosing what to replace. Your saved replacements stay in Changed."
-                  : "Choose the original game VPK in Setup, then return here to load this character’s icons, sounds and effects."}
+                  ? t("Browse the original assets before choosing what to replace. Your saved replacements stay in Changed.")
+                  : t("Choose the original game VPK in Setup, then return here to load this character’s icons, sounds and effects.")}
               </p>
               {canDiscover ? (
                 <button
@@ -617,13 +649,13 @@ export function ExtrasWorkspace({
                   onClick={reload}
                   disabled={disabled || !discover}
                 >
-                  Load character assets
+                  {t("Load character assets")}
                   <ExtraIcon name="arrow" size={16} />
                 </button>
               ) : (
                 openSetup && (
                   <button className="extra-primary" onClick={openSetup}>
-                    Open Setup
+                    {t("Open Setup")}
                     <ExtraIcon name="arrow" size={16} />
                   </button>
                 )
@@ -634,17 +666,17 @@ export function ExtrasWorkspace({
               <ExtraIcon name={query ? "search" : spec.icon} size={32} />
               <h3>
                 {query
-                  ? "No matching assets"
+                  ? t("No matching assets")
                   : filter === "changed"
-                    ? "No replacements yet"
-                    : "No assets found in this category"}
+                    ? t("No replacements yet")
+                    : t("No assets found in this category")}
               </h3>
               <p>
                 {query
-                  ? "Try another name or clear your filters."
+                  ? t("Try another name or clear your filters.")
                   : filter === "changed"
-                    ? "Select an original asset in All assets, then drop in a replacement."
-                    : "Discovery uses the selected model, known character aliases and linked game resources."}
+                    ? t("Select an original asset in All assets, then drop in a replacement.")
+                    : t("Discovery uses the selected model, known character aliases and linked game resources.")}
               </p>
               {(query || filter !== "all") && (
                 <button
@@ -653,7 +685,7 @@ export function ExtrasWorkspace({
                     setFilter("all");
                   }}
                 >
-                  Show all assets
+                  {t("Show all assets")}
                 </button>
               )}
             </div>
@@ -692,11 +724,11 @@ export function ExtrasWorkspace({
                           <strong>{assetLabel(item.entry)}</strong>
                           <span>
                             {item.missing
-                              ? "Saved destination unavailable"
+                              ? t("Saved destination unavailable")
                               : kind === "icons"
                                 ? `${item.entry.width ?? "—"} × ${item.entry.height ?? "—"}`
                                 : kind === "audio" && seconds !== null
-                                  ? `${duration(seconds)} · ${detailNumber(item.entry, "channels") === 2 ? "Stereo" : "Mono"}`
+                                  ? `${duration(seconds)} · ${detailNumber(item.entry, "channels") === 2 ? t("Stereo") : t("Mono")}`
                                   : item.entry.path.split("/").slice(-2, -1)[0]}
                           </span>
                         </div>
@@ -715,12 +747,12 @@ export function ExtrasWorkspace({
                                 }
                                 size={13}
                               />
-                              {status}
+                              {t(status)}
                             </>
                           ) : !item.entry.supported ? (
-                            "View only"
+                            t("View only")
                           ) : item.entry.shared ? (
-                            "Shared"
+                            t("Shared")
                           ) : (
                             ""
                           )}
@@ -734,32 +766,32 @@ export function ExtrasWorkspace({
           {visible.length > pageSize && (
             <div className="extras-pagination">
               <button
-                aria-label="Previous assets page"
+                aria-label={t("Previous assets page")}
                 disabled={shownPage === 0}
                 onClick={() => setPage(shownPage - 1)}
               >
-                Previous
+                {tc("page", "Previous")}
               </button>
               <span>
-                Page {shownPage + 1} of {pageCount}
+                {t("Page {page} of {count}", { page: shownPage + 1, count: pageCount })}
               </span>
               <button
-                aria-label="Next assets page"
+                aria-label={t("Next assets page")}
                 disabled={shownPage + 1 >= pageCount}
                 onClick={() => setPage(shownPage + 1)}
               >
-                Next
+                {tc("page", "Next")}
               </button>
             </div>
           )}
           {catalog && (
             <div className="extras-library-footer">
               <ExtraIcon name="folder" size={15} />
-              <span>Assets for {hero} · shared resources are labeled</span>
+              <span>{t("Assets for {hero} · shared resources are labeled", { hero })}</span>
             </div>
           )}
         </section>
-        <aside className="extras-inspector" aria-label="Replacement editor">
+        <aside className="extras-inspector" aria-label={t("Replacement editor")}>
           {selection ? (
             <ReplacementEditor
               key={`${kind}:${selection.key}`}
@@ -796,31 +828,25 @@ export function ExtrasWorkspace({
                   <ExtraIcon name="upload" size={30} />
                 </div>
               </div>
-              <span className="extras-eyebrow">PREVIEW & REPLACE</span>
-              <h2>Start with the original</h2>
+              <span className="extras-eyebrow">{t("PREVIEW & REPLACE")}</span>
+              <h2>{t("Start with the original")}</h2>
               <p>
-                Choose{" "}
-                {kind === "icons"
-                  ? "an icon"
-                  : kind === "audio"
-                    ? "a sound"
-                    : "an effect"}{" "}
-                from the library to compare it with your replacement.
+                {t(KIND_WORDS[kind].choose)}
               </p>
               <ul>
                 <li>
                   <ExtraIcon name="check" size={16} />
-                  Preview before you change anything
+                  {t("Preview before you change anything")}
                 </li>
                 <li>
                   <ExtraIcon name="check" size={16} />
-                  Drop a file or browse your computer
+                  {t("Drop a file or browse your computer")}
                 </li>
                 <li>
                   <ExtraIcon name="check" size={16} />
                   {kind === "audio"
-                    ? "Listen and adjust volume from 0–200%"
-                    : "Pause or remove changes at any time"}
+                    ? t("Listen and adjust volume from 0–200%")
+                    : t("Pause or remove changes at any time")}
                 </li>
               </ul>
             </div>
@@ -835,7 +861,7 @@ export function ExtrasWorkspace({
         <details className="extras-discovery-notes">
           <summary>
             <ExtraIcon name="warning" size={16} />
-            Discovery notes ({catalog.warnings.length})
+            {t("Discovery notes ({count})", { count: catalog.warnings.length })}
           </summary>
           {catalog.warnings.map((warning, index) => (
             <p key={index}>{warning}</p>
@@ -847,18 +873,17 @@ export function ExtrasWorkspace({
           <ExtraIcon name="check" size={17} />
           <span>
             <strong>
-              {active ? enabled : 0} active change
-              {(active ? enabled : 0) === 1 ? "" : "s"}
+              {tp(active ? enabled : 0, { one: "{count} active change", other: "{count} active changes" })}
             </strong>
             <small>
               {modelEnabled(project) && !project.dmx
-                ? "No replacement model is chosen yet: add one, or untick Include replacement model and textures in Build options to build only the extras"
+                ? t("No replacement model is chosen yet: add one, or untick Include replacement model and textures in Build options to build only the extras")
                 : modelEnabled(project)
                 ? colorChanges > 0
                   // The header counts these (the replacement's color rows); Pause all never touches them.
-                  ? `Your replacement model stays included, with its ${colorChanges} color change${colorChanges === 1 ? "" : "s"}, which Pause all extras does not pause`
-                  : "Your replacement model stays included"
-                : "Extras-only project · original model stays included"}
+                  ? tp(colorChanges, { one: "Your replacement model stays included, with its {count} color change, which Pause all extras does not pause", other: "Your replacement model stays included, with its {count} color changes, which Pause all extras does not pause" })
+                  : t("Your replacement model stays included")
+                : t("Extras-only project · original model stays included")}
             </small>
           </span>
         </div>
@@ -869,13 +894,13 @@ export function ExtrasWorkspace({
               disabled={disabled}
               onClick={pauseAll}
             >
-              {enabled ? "Pause all extras" : "Resume all extras"}
+              {enabled ? t("Pause all extras") : t("Resume all extras")}
             </button>
           )}
           <details className="extras-settings">
             <summary>
               <ExtraIcon name="settings" size={17} />
-              Build options
+              {t("Build options")}
             </summary>
             <div>
               <label>
@@ -896,11 +921,10 @@ export function ExtrasWorkspace({
                     )
                   }
                 />
-                Enable project customization
+                {t("Enable project customization")}
               </label>
               <p>
-                This shared setting also controls saved physics, surface and
-                equipment changes.
+                {t("This shared setting also controls saved physics, surface and equipment changes.")}
               </p>
               <label>
                 <input
@@ -917,7 +941,7 @@ export function ExtrasWorkspace({
                     )
                   }
                 />
-                Include replacement model and textures
+                {t("Include replacement model and textures")}
               </label>
             </div>
           </details>
@@ -934,7 +958,7 @@ function pictureError(error: string) {
   return (
     <div className="extra-preview-placeholder extra-error" role="status">
       <ExtraIcon name="warning" size={26} />
-      <strong>{NOT_A_PICTURE}</strong>
+      <strong>{t(NOT_A_PICTURE)}</strong>
       <p>{error}</p>
     </div>
   );
@@ -996,9 +1020,9 @@ export function ReplacementEditor({
   remove: () => void;
   chooseDestination: () => void;
 }) {
+  const t = useT();
   usePictureChecks();
   const { entry, row } = item,
-    spec = specs[kind],
     volume = row?.volume_percent ?? 100,
     source = row?.source ?? "",
     [volumeDraft, setVolumeDraft] = useState(String(volume));
@@ -1025,12 +1049,12 @@ export function ReplacementEditor({
       <header className="extra-inspector-heading">
         <div>
           <span className="extras-eyebrow">
-            {eyebrow ?? `SELECTED ${spec.singular.toUpperCase()}`}
+            {eyebrow ?? t(KIND_WORDS[kind].selected)}
           </span>
           <h2>{title ?? assetLabel(entry)}</h2>
         </div>
         <span className={`extra-pill ${status === "Replaced" || status === "Silenced" ? "ready" : ""}`}>
-          {status}
+          {t(status)}
         </span>
       </header>
       )}
@@ -1038,14 +1062,14 @@ export function ReplacementEditor({
       {item.missing ? (
         <div className="extra-editor-notice">
           <ExtraIcon name="warning" />
-          <strong>Choose an available game destination</strong>
+          <strong>{t("Choose an available game destination")}</strong>
           <p>
             {silenced
-              ? "This silenced sound is not in the loaded catalog. It stays silenced once you choose where it goes."
-              : "This saved replacement is not in the loaded catalog. Your source file is retained."}
+              ? t("This silenced sound is not in the loaded catalog. It stays silenced once you choose where it goes.")
+              : t("This saved replacement is not in the loaded catalog. Your source file is retained.")}
           </p>
           <button disabled={disabled} onClick={chooseDestination}>
-            Choose destination
+            {t("Choose destination")}
           </button>
         </div>
       ) : (
@@ -1055,12 +1079,12 @@ export function ReplacementEditor({
           >
             <section>
               <div className="extra-preview-label">
-                <span>Original</span>
+                <span>{t("Original")}</span>
                 <small>
                   {kind === "icons"
                     ? `${entry.width ?? "—"} × ${entry.height ?? "—"}`
                     : length !== null
-                      ? `${length.toFixed(2)}s`
+                      ? t("{value}s", { value: length.toFixed(2) })
                       : ""}
                 </small>
               </div>
@@ -1074,10 +1098,10 @@ export function ReplacementEditor({
             </section>
             {(!previewOnly || row) && <section>
               <div className="extra-preview-label">
-                <span>Your replacement</span>
+                <span>{t("Your replacement")}</span>
                 {row && (
                   <small>
-                    {silenced ? "Silenced" : soundEdited ? "Edited" : kind === "audio" ? `${volume}% volume` : "Preview"}
+                    {silenced ? t("Silenced") : soundEdited ? t("Edited") : kind === "audio" ? t("{volume}% volume", { volume }) : t("Preview")}
                   </small>
                 )}
               </div>
@@ -1085,14 +1109,14 @@ export function ReplacementEditor({
                 <div className="extra-media extra-media-audio">
                   <div className="extra-preview-placeholder extra-silenced" role="status">
                     <ExtraIcon name="volume" size={34} />
-                    <span>Silenced: the game plays nothing for this sound.</span>
+                    <span>{t("Silenced: the game plays nothing for this sound.")}</span>
                   </div>
                 </div>
               ) : soundEdited ? (
                 <div className="extra-media extra-media-audio">
                   <div className="extra-preview-placeholder" role="status">
                     <ExtraIcon name="volume" size={34} />
-                    <span>Edited: listen to exactly what the game will play in the editor.</span>
+                    <span>{t("Edited: listen to exactly what the game will play in the editor.")}</span>
                   </div>
                 </div>
               ) : <AssetPreview
@@ -1117,23 +1141,21 @@ export function ReplacementEditor({
           </div>
           {kind === "effects" && (
             <p className="extra-inline-note">
-              This viewer shows particle structure. Check the animated effect in
-              game after building.
+              {t("This viewer shows particle structure. Check the animated effect in game after building.")}
             </p>
           )}
           {previewOnly && !row && (
             <p className="extra-original-kept">
-              <strong>Original kept</strong>
-              No action needed. Replacement is not available for this {spec.singular}.
+              <strong>{t("Original kept")}</strong>
+              {t(KIND_WORDS[kind].notAvailable)}
             </p>
           )}
           {previewOnly && row && (
             <div className="extra-editor-notice">
               <ExtraIcon name="warning" />
-              <strong>This saved replacement is unavailable</strong>
+              <strong>{t("This saved replacement is unavailable")}</strong>
               <p>
-                Remove it or turn off “Include in build” below to keep using
-                the original {spec.singular}.
+                {t(KIND_WORDS[kind].keepOriginal)}
               </p>
             </div>
           )}
@@ -1150,8 +1172,7 @@ export function ReplacementEditor({
         />}
         {entry.supported && !row && full && (
           <p className="extra-error">
-            This category already has 128 replacements. Remove one before adding
-            another.
+            {t("This category already has {count} replacements. Remove one before adding another.", { count: 128 })}
           </p>
         )}
         {silence && entry.supported && !item.missing && !silenced && (
@@ -1163,25 +1184,21 @@ export function ReplacementEditor({
               onClick={silence}
             >
               <ExtraIcon name="volume" size={16} />
-              Silence this sound
+              {t("Silence this sound")}
             </button>
             <small>
               {silenceRefusal ||
                 (row
-                  ? "Instead of your file: the game plays nothing for this sound."
-                  : "No file needed: the game plays nothing for this sound.")}
+                  ? t("Instead of your file: the game plays nothing for this sound.")
+                  : t("No file needed: the game plays nothing for this sound."))}
             </small>
           </div>
         )}
         {entry.supported && row && kind === "icons" && (
           <fieldset className="extra-image-fit">
-            <legend>Image fit</legend>
+            <legend>{t("Image fit")}</legend>
             <div>
-              {[
-                ["contain", "Fit inside", "Keep the full image"],
-                ["cover", "Fill & crop", "Fill the original frame"],
-                ["stretch", "Stretch", "Match its dimensions"],
-              ].map(([value, label, hint]) => (
+              {IMAGE_FITS.map(([value, label, hint]) => (
                 <button
                   key={value}
                   type="button"
@@ -1191,8 +1208,8 @@ export function ReplacementEditor({
                     edit({ fit: value as ResourceReplacement["fit"] })
                   }
                 >
-                  <strong>{label}</strong>
-                  <small>{hint}</small>
+                  <strong>{t(label)}</strong>
+                  <small>{t(hint)}</small>
                 </button>
               ))}
             </div>
@@ -1204,11 +1221,11 @@ export function ReplacementEditor({
             <div className="extra-volume-heading">
               <label htmlFor="replacement-volume">
                 <ExtraIcon name="volume" size={18} />
-                Replacement volume
+                {t("Replacement volume")}
               </label>
               <div>
                 <input
-                  aria-label="Replacement volume percent"
+                  aria-label={t("Replacement volume percent")}
                   type="number"
                   min="0"
                   max="200"
@@ -1247,7 +1264,7 @@ export function ReplacementEditor({
                   disabled={disabled || volume === 100}
                   onClick={() => setVolume(100)}
                 >
-                  Reset
+                  {t("Reset")}
                 </button>
               </div>
             </div>
@@ -1262,13 +1279,13 @@ export function ReplacementEditor({
               onChange={(e) => setVolume(Number(e.target.value))}
             />
             <div className="extra-volume-scale">
-              <span>0% · Silent</span>
-              <span>100% · Original level</span>
+              <span>{t("0% · Silent")}</span>
+              <span>{t("100% · Original level")}</span>
               <span>200% · 2×</span>
             </div>
-            <p>Applied to your replacement preview and the built mod.</p>
+            <p>{t("Applied to your replacement preview and the built mod.")}</p>
             <div className="extra-audio-timing">
-              <label htmlFor="extra-audio-fit">Sound timing</label>
+              <label htmlFor="extra-audio-fit">{t("Sound timing")}</label>
               <select
                 id="extra-audio-fit"
                 value={row.audio_fit ?? "exact"}
@@ -1281,16 +1298,15 @@ export function ReplacementEditor({
                 }
               >
                 <option value="pad">
-                  Match original timing · pad shorter audio
+                  {t("Match original timing · pad shorter audio")}
                 </option>
                 <option value="trim">
-                  Match original timing · allow trimming longer audio
+                  {t("Match original timing · allow trimming longer audio")}
                 </option>
-                <option value="exact">Exact source format and length</option>
+                <option value="exact">{t("Exact source format and length")}</option>
               </select>
               <small>
-                Preserves the original game timing and loop points.{" "}
-                {length !== null && `Target: ${length.toFixed(2)} seconds.`}
+                {sentences(t("Preserves the original game timing and loop points."), length !== null ? t("Target: {seconds} seconds.", { seconds: length.toFixed(2) }) : "")}
               </small>
             </div>
           </div>
@@ -1299,10 +1315,9 @@ export function ReplacementEditor({
           <div className="extra-shared">
             <ExtraIcon name="warning" size={18} />
             <div>
-              <strong>Shared game resource</strong>
+              <strong>{t("Shared game resource")}</strong>
               <p>
-                Replacing this asset can also change other characters that use
-                it.
+                {t("Replacing this asset can also change other characters that use it.")}
               </p>
               {row && (
                 <label>
@@ -1312,7 +1327,7 @@ export function ReplacementEditor({
                     disabled={disabled}
                     onChange={(e) => edit({ allow_shared: e.target.checked })}
                   />
-                  Include this shared replacement
+                  {t("Include this shared replacement")}
                 </label>
               )}
             </div>
@@ -1328,7 +1343,7 @@ export function ReplacementEditor({
                 onChange={(e) => edit({ enabled: e.target.checked })}
               />
               <span aria-hidden="true" />
-              <strong>Include in build</strong>
+              <strong>{t("Include in build")}</strong>
             </label>
             <button
               className="extra-remove"
@@ -1336,44 +1351,45 @@ export function ReplacementEditor({
               onClick={remove}
             >
               <ExtraIcon name="close" size={15} />
-              {silenced ? "Remove silence" : "Remove replacement"}
+              {silenced ? t("Remove silence") : t("Remove replacement")}
             </button>
           </div>
         )}
         <details className="extra-file-details">
           <summary>
-            File details
+            {t("File details")}
             <ExtraIcon name="folder" size={15} />
           </summary>
           <dl>
             {previewOnly && <>
-              <dt>Why replacement is unavailable</dt>
+              <dt>{t("Why replacement is unavailable")}</dt>
               <dd>
-                {(entry.reason || "This format is not supported for replacement yet.")
-                  .replace(/^Integrity check failed:\s*/, "")}
+                {entry.reason
+                  ? entry.reason.replace(/^Integrity check failed:\s*/, "")
+                  : t("This format is not supported for replacement yet.")}
               </dd>
             </>}
-            <dt>Game destination</dt>
-            <dd>{entry.target || "Not assigned"}</dd>
+            <dt>{t("Game destination")}</dt>
+            <dd>{entry.target || t("Not assigned")}</dd>
             {source && (
               <>
-                <dt>Replacement source</dt>
+                <dt>{t("Replacement source")}</dt>
                 <dd>{source}</dd>
               </>
             )}
             {silenced && (
               <>
-                <dt>Replacement</dt>
-                <dd>Silence (no file)</dd>
+                <dt>{t("Replacement")}</dt>
+                <dd>{t("Silence (no file)")}</dd>
               </>
             )}
-            <dt>Association</dt>
+            <dt>{t("Association")}</dt>
             <dd>
               {association ?? (entry.association === "other_hero_voice"
-                ? "Another hero’s voice line about this hero · shared"
+                ? t("Another hero’s voice line about this hero · shared")
                 : entry.shared
-                  ? "Linked resource · potentially shared"
-                  : "Selected character’s assets")}
+                  ? t("Linked resource · potentially shared")
+                  : t("Selected character’s assets"))}
             </dd>
           </dl>
         </details>

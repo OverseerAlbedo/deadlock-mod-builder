@@ -5,6 +5,8 @@
 [![Website](https://img.shields.io/badge/website-overseeralbedo.github.io-blue.svg)](https://overseeralbedo.github.io/deadlock-mod-builder/)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
+**English** · [简体中文](README.zh-CN.md)
+
 Deadlock Mod Builder is a Windows desktop app that turns a character model into a Deadlock hero replacement mod. Pick the hero, add your model, review the guns, materials and movement, then build and install a VPK, all in one app. Blender runs in the background to prepare the model; no separate Python installation is needed.
 
 ![Character & model step](docs/images/character-and-model.png)
@@ -22,6 +24,7 @@ Deadlock Mod Builder is a Windows desktop app that turns a character model into 
 - **Motion:** play the hero's animations on your character and replace a clip, also with one made from your own animation in Blender or with another hero's animation from the game.
 - **Projects:** Undo and Redo, file windows that remember your folders, and a copy of your project for another hero.
 - **Installed mods:** Build & install says what every VPK in the game's addons folder changes, with labels of your own, and repairs hero models compiled before the game's October 2026 camera attachment change, keeping a backup.
+- **Languages:** the interface is available in English and Simplified Chinese (简体中文), with heroes and items named as the game's own text names them. Choose the language in Settings → Appearance.
 
 ## What you need
 

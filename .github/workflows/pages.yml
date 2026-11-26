@@ -9,6 +9,7 @@ on:
       - site/**
       - docs/**
       - README.md
+      - README.zh-CN.md
       - CHANGELOG.md
       - package.json
       - .github/workflows/pages.yml

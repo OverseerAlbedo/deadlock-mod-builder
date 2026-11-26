@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -28,18 +29,34 @@ static class LibraryAccess
 
     static readonly FieldInfo? ParticleRendererField = typeof(ParticleSceneNode).GetField("particleRenderer", Private);
     static readonly Type? ParticleRendererType = ParticleRendererField?.FieldType;
-    static readonly PropertyInfo? SimulationProperty = ParticleRendererType?.GetProperty("Simulation");
-    static readonly FieldInfo? RenderersField = ParticleRendererType?.GetField("renderers", Private);
-    static readonly FieldInfo? ChildRenderersField = ParticleRendererType?.GetField("childRenderers", Private);
-    static readonly MethodInfo? SkippedMethod = ParticleRendererType?.GetMethod("EnumerateSkippedRendererClasses");
+    static readonly PropertyInfo? SimulationProperty = PublicProperty(ParticleRendererType, "Simulation");
+    static readonly FieldInfo? RenderersField = PrivateField(ParticleRendererType, "renderers");
+    static readonly FieldInfo? ChildRenderersField = PrivateField(ParticleRendererType, "childRenderers");
+    static readonly MethodInfo? SkippedMethod = PublicMethod(ParticleRendererType, "EnumerateSkippedRendererClasses");
 
     static readonly MethodInfo? PinRandomSeedMethod = typeof(ParticleSystemSimulation).GetMethod("PinRandomSeed", Private);
 
     static readonly Type? RenderModelsType = typeof(ValveResourceFormat.Renderer.Renderer).Assembly.GetType("ValveResourceFormat.Renderer.Particles.Renderers.RenderModels");
-    static readonly FieldInfo? PoolField = RenderModelsType?.GetField("pool", Private);
-    static readonly PropertyInfo? PoolColumnProperty = PoolField?.FieldType.GetProperty("Column");
-    static readonly FieldInfo? PoolSlotsField = PoolField?.FieldType.GetField("slots", Private);
+    static readonly FieldInfo? PoolField = PrivateField(RenderModelsType, "pool");
+    static readonly PropertyInfo? PoolColumnProperty = PublicProperty(PoolField?.FieldType, "Column");
+    static readonly FieldInfo? PoolSlotsField = PrivateField(PoolField?.FieldType, "slots");
     static readonly FieldInfo? HandleColumnsField = typeof(ParticleCollection).GetField("handleColumns", Private);
+
+    // The three lookups below take types the trimmer cannot follow: the declared type of
+    // ParticleSceneNode.particleRenderer (ParticleRenderer), RenderModels (found by name) and the
+    // declared type of RenderModels.pool (ParticleHandlePool<T>). All three are declared in the
+    // Renderer assembly, which the project keeps whole (TrimmerRootAssembly in EffectPlayer.csproj),
+    // so none of their members is trimmed away.
+    const string KeptWhole = "Only called with types declared in the Renderer assembly, which EffectPlayer.csproj keeps whole as a TrimmerRootAssembly, so the members looked up are not trimmed; a member missing for another reason gives null, which every caller handles.";
+
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = KeptWhole)]
+    static PropertyInfo? PublicProperty(Type? type, string name) => type?.GetProperty(name);
+
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = KeptWhole)]
+    static FieldInfo? PrivateField(Type? type, string name) => type?.GetField(name, Private);
+
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = KeptWhole)]
+    static MethodInfo? PublicMethod(Type? type, string name) => type?.GetMethod(name);
 
     /// <summary>Whether everything the model material variables need was found.</summary>
     public static bool CanReadModelNodes =>

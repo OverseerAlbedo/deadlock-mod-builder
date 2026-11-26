@@ -1,4 +1,7 @@
+// i18n-area: prepare
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { t, tc, tp, useLanguage, useT } from '../i18n';
+import { T } from '../i18n/T';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Box3, BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -11,7 +14,7 @@ import { MappingMotion } from './mapping-motion';
 import { checkMapping, type MappingChecks } from './mapping-checks';
 import { roleLabel } from './mapping';
 import { BUTTON_NAMES } from './pageNames';
-import { ROLES, type Bone, type PreparationOptions, type Role } from './models';
+import { nextSentence, ROLES, type Bone, type PreparationOptions, type Role } from './models';
 import { BoneHighlight, litMessage, type LitResult } from './boneHighlight';
 import { ModelLabels, ModelLabelTracker, useLabelLayer, type ModelLabelSet } from '../studio/ModelLabels';
 
@@ -23,6 +26,16 @@ const links:[Role,Role][]=[['pelvis','spine'],['spine','chest'],['chest','neck']
   ['chest',`upperarm_${side}`],[`upperarm_${side}`,`forearm_${side}`],[`forearm_${side}`,`hand_${side}`],['pelvis',`thigh_${side}`],[`thigh_${side}`,`shin_${side}`],[`shin_${side}`,`foot_${side}`],
 ] as [Role,Role][])];
 const emptyBones:Bone[]=[];
+/** How the conversion will change what the movement test shows, by the fitting choice (one whole sentence per case). */
+function fitSentence(options:PreparationOptions):string{
+  if(options.fit_mode!=='preserve_proportions')return t('Conversion fits it to the hero’s rest pose and joint spacing, which can change the silhouette.');
+  switch(options.fit_leg_joints){
+    case 'joints':return t('Your fitting choice keeps the source torso proportions and puts the legs on the hero’s joints. Enabled arm fitting aligns the converted arms to the hero’s joints.');
+    case 'scaled_joints':return t('Your fitting choice keeps the source torso proportions and puts the legs on the hero’s joints, sized to the hero’s leg length. Enabled arm fitting aligns the converted arms to the hero’s joints.');
+    case 'scaled':return t('Your fitting choice keeps the source torso and leg proportions, sized to the hero’s leg length. Enabled arm fitting aligns the converted arms to the hero’s joints.');
+    default:return t('Your fitting choice keeps the source torso and leg proportions. Enabled arm fitting aligns the converted arms to the hero’s joints.');
+  }
+}
 function Controls({bounds,reset}:{bounds:Box3;reset:number}){
   const {camera,gl,invalidate,size}=useThree();
   useEffect(()=>{const controls=new OrbitControls(camera,gl.domElement),center=bounds.getCenter(new Vector3()),span=Math.max(bounds.getSize(new Vector3()).length(),.01);controls.target.copy(center);const vertical=(camera instanceof PerspectiveCamera?camera.fov:40)*Math.PI/360,half=Math.min(vertical,Math.atan(Math.tan(vertical)*size.width/Math.max(size.height,1))),distance=span*.55/Math.sin(half);camera.position.copy(center).add(new Vector3(.35,.2,.9).normalize().multiplyScalar(distance));camera.near=span/10000;camera.far=span*100;if('updateProjectionMatrix' in camera)camera.updateProjectionMatrix();controls.addEventListener('change',()=>invalidate());controls.update();invalidate();return()=>controls.dispose();},[bounds,reset,camera,gl,invalidate,size.width,size.height]);return null;
@@ -43,6 +56,7 @@ export default function MappingViewport({preview,target,sourceBones=emptyBones,o
   /** Optional labels on the character (the page's set for the open tab). */labels?:ModelLabelSet;
   /** Optional: the bone whose skin to light (Show what it moves); null lights nothing. Undefined (a tab that
    * selects no role or bone: Moving parts) hides the switch and the line naming the selected role. */lit?:LitBone|null}){
+  const t=useT(),language=useLanguage();
   const [loaded,setLoaded]=useState<{motion:MappingMotion;bounds:Box3;highlight:BoneHighlight}|null>(null),[error,setError]=useState('');
   const [showLit,setShowLit]=useState(true),[litResult,setLitResult]=useState<LitResult|null>(null);
   const layer=useLabelLayer();
@@ -68,10 +82,10 @@ export default function MappingViewport({preview,target,sourceBones=emptyBones,o
   // The lit bone's weights are written once per choice (never per frame).
   const litBone=lit&&showLit?lit.bone:'';
   useEffect(()=>{if(!loaded)return;const result=loaded.highlight.show(litBone?loaded.motion.bones.get(litBone)??null:null);setLitResult(litBone?result:null);},[loaded,litBone]);
-  const pose=useMemo(()=>{if(!loaded)return null;const result=movement==='secondary'?loaded.motion.bendPreserved(options,secondaryJoint,degrees,axis):loaded.motion.pose(options,movement,degrees,axis),points:Partial<Record<Role,Vector3>>={};for(const role of ROLES){const name=options.source_roles?.[role],point=name?loaded.motion.point(name):null;if(point)points[role]=point;}return {...result,points,highlight:loaded.motion.point(movement==='secondary'?secondaryJoint:selectedBone)};},[loaded,options,movement,degrees,axis,selectedBone,secondaryJoint]);
-  if(error)return <p role="alert">Mapping preview could not be rendered: {error}</p>;
-  if(!loaded||!pose)return <p className="quiet-empty">Loading source geometry and joints…</p>;
-  const span=Math.max(loaded.bounds.getSize(new Vector3()).length(),.01),source=options.source_roles?.[selected]||'Unassigned',destination=options.target_roles?.[selected]||'Unassigned';
+  const pose=useMemo(()=>{if(!loaded)return null;const result=movement==='secondary'?loaded.motion.bendPreserved(options,secondaryJoint,degrees,axis):loaded.motion.pose(options,movement,degrees,axis),points:Partial<Record<Role,Vector3>>={};for(const role of ROLES){const name=options.source_roles?.[role],point=name?loaded.motion.point(name):null;if(point)points[role]=point;}return {...result,points,highlight:loaded.motion.point(movement==='secondary'?secondaryJoint:selectedBone)};},[loaded,options,movement,degrees,axis,selectedBone,secondaryJoint,language]);// eslint-disable-line react-hooks/exhaustive-deps
+  if(error)return <p role="alert">{t('Mapping preview could not be rendered: {error}',{error:t(error)})}</p>;
+  if(!loaded||!pose)return <p className="quiet-empty">{t('Loading source geometry and joints…')}</p>;
+  const span=Math.max(loaded.bounds.getSize(new Vector3()).length(),.01),source=options.source_roles?.[selected]||t('Unassigned'),destination=options.target_roles?.[selected]||t('Unassigned');
   const preservedGroups=loaded.motion.preserved(options),preservedNames=new Set(preservedGroups.flatMap(g=>g.source_bones));
   function probe(role:Role,rotation:'X'|'Y'|'Z',angle:number){setMovement(role);setAxis(rotation);setDegrees(angle);select(role);}
   // Labels sit at the middle of their bones as posed (so they follow a movement test).
@@ -80,29 +94,29 @@ export default function MappingViewport({preview,target,sourceBones=emptyBones,o
   const anchor=(id:string,out:Vector3)=>{let n=0;out.set(0,0,0);for(const name of labelBones.get(id)??[]){const bone=loaded.motion.bones.get(name);if(!bone)continue;out.add(scratch.setFromMatrixPosition(bone.matrixWorld));n++;}if(!n)return false;out.multiplyScalar(1/n);return true;};
   return <div className="preview-shell mapping-preview">
     {lit!==undefined&&<p className="mapping-selection"><strong>{roleLabel(selected)}</strong> · {source} → {destination}</p>}
-    {selectedBone&&<p className="hint">Selected weighted bone: <strong>{selectedBone}</strong> → {preservedNames.has(selectedBone)?'Kept as an independent bone':options.mapping?.[selectedBone]||'Needs a target'}{!preservedNames.has(selectedBone)&&options.mapping_anchors?.[selectedBone]?` · follows ${options.mapping_anchors[selectedBone]}, keeping its offset`:''}</p>}
+    {selectedBone&&<p className="hint"><T text="Selected weighted bone: <strong>{bone}</strong> → {target}" values={{bone:selectedBone,target:preservedNames.has(selectedBone)?t('Kept as an independent bone'):options.mapping?.[selectedBone]||t('Needs a target')}}/>{!preservedNames.has(selectedBone)&&options.mapping_anchors?.[selectedBone]?<>{' · '}{t('follows {anchor}, keeping its offset',{anchor:options.mapping_anchors[selectedBone]})}</>:''}</p>}
     <PreviewBoundary><div className="viewport"><Canvas frameloop="demand" dpr={[1,1.5]} camera={{fov:40,up:[0,1,0]}}><color attach="background" args={['#111519']}/><ambientLight intensity={1.5}/><directionalLight position={[6,10,8]} intensity={2}/><directionalLight position={[-6,4,-8]} intensity={.7}/><Controls bounds={loaded.bounds} reset={reset}/><Scene motion={loaded.motion} points={pose.points} highlight={pose.highlight} span={span} selected={selected} select={select} markers={markers} wireframe={wireframe} litKey={`${litBone}|${litResult?.moved??''}`}/>{shownLabels&&<ModelLabelTracker layer={layer} ids={shownLabels.items.map(item=>item.id)} anchor={anchor} hide={shownLabels.crowd==='hide'?shownLabels.items.filter(item=>item.active).map(item=>item.id):undefined}/>}</Canvas>{shownLabels&&<ModelLabels layer={layer} set={shownLabels}/>}</div></PreviewBoundary>
-    <div className="viewport-toolbar"><div className="row"><Check label="Role markers" value={markers} onChange={setMarkers} disabled={false}/>{lit!==undefined&&<Check label="Show what it moves" value={showLit} onChange={setShowLit} disabled={false}/>}<Check label="Wireframe" value={wireframe} onChange={setWireframe} disabled={false}/><button onClick={()=>setReset(v=>v+1)}>Reset view</button></div><span className="hint">{shownLabels?'Click a label or a marker':'Click a marker'} · Drag to orbit · Scroll to zoom</span></div>
+    <div className="viewport-toolbar"><div className="row"><Check label={t('Role markers')} value={markers} onChange={setMarkers} disabled={false}/>{lit!==undefined&&<Check label={t('Show what it moves')} value={showLit} onChange={setShowLit} disabled={false}/>}<Check label={t('Wireframe')} value={wireframe} onChange={setWireframe} disabled={false}/><button onClick={()=>setReset(v=>v+1)}>{t('Reset view')}</button></div><span className="hint">{shownLabels?t('Click a label or a marker · Drag to orbit · Scroll to zoom'):t('Click a marker · Drag to orbit · Scroll to zoom')}</span></div>
     {lit&&showLit&&litResult&&<p className={`mapping-lit${litResult.moved?'':' none'}`} role="status">{litMessage(lit.name,litResult)}</p>}
-    <p className="hint">White: selected role · Green: left · Orange: right · Blue: torso · Pink: selected weighted bone</p>
-    {!pose.points[selected]&&<p role="status">This role has no matching source joint in the preview.</p>}
-    <fieldset className="mapping-probes" aria-label="Mapping movement tests" disabled={checking}>
-      <button aria-pressed={!movement} onClick={()=>setMovement(null)}>Rest pose</button>
-      <button aria-pressed={movement==='head'} onClick={()=>probe('head','Y',35)}>Turn head</button>
-      <button aria-pressed={movement==='upperarm_L'} onClick={()=>probe('upperarm_L','Z',40)}>Left arm</button>
-      <button aria-pressed={movement==='upperarm_R'} onClick={()=>probe('upperarm_R','Z',-40)}>Right arm</button>
-      <button aria-pressed={movement==='shin_L'} onClick={()=>probe('shin_L','X',-45)}>Left knee</button>
-      <button aria-pressed={movement==='shin_R'} onClick={()=>probe('shin_R','X',-45)}>Right knee</button>
+    <p className="hint">{t('White: selected role · Green: left · Orange: right · Blue: torso · Pink: selected weighted bone')}</p>
+    {!pose.points[selected]&&<p role="status">{t('This role has no matching source joint in the preview.')}</p>}
+    <fieldset className="mapping-probes" aria-label={t('Mapping movement tests')} disabled={checking}>
+      <button aria-pressed={!movement} onClick={()=>setMovement(null)}>{t('Rest pose')}</button>
+      <button aria-pressed={movement==='head'} onClick={()=>probe('head','Y',35)}>{t('Turn head')}</button>
+      <button aria-pressed={movement==='upperarm_L'} onClick={()=>probe('upperarm_L','Z',40)}>{t('Left arm')}</button>
+      <button aria-pressed={movement==='upperarm_R'} onClick={()=>probe('upperarm_R','Z',-40)}>{t('Right arm')}</button>
+      <button aria-pressed={movement==='shin_L'} onClick={()=>probe('shin_L','X',-45)}>{t('Left knee')}</button>
+      <button aria-pressed={movement==='shin_R'} onClick={()=>probe('shin_R','X',-45)}>{t('Right knee')}</button>
     </fieldset>
-    {preservedGroups.length>0&&<div className="editor-fields"><label>Test preserved joint<select aria-label="Test preserved joint" title={secondaryJoint||undefined} disabled={checking} value={secondaryJoint} onChange={e=>{setSecondaryJoint(e.target.value);setMovement(e.target.value?'secondary':null);setDegrees(20);setAxis('X');}}><option value="">Choose a joint to bend…</option>{preservedGroups.map(g=><optgroup key={g.root} label={g.root}>{g.source_bones.filter(n=>loaded.motion.bones.has(n)).map(n=><option key={n} value={n}>{n}</option>)}</optgroup>)}</select></label><p className="hint">Moves the selected joint and its children using the existing skin weights. Source-space diagnostic only; no physics simulation.</p></div>}
-    {movement&&<div className="mapping-angle"><label>Movement angle<input disabled={checking} aria-label="Movement angle" type="range" min={-80} max={80} step={1} value={degrees} onChange={e=>setDegrees(Number(e.target.value))}/><output>{degrees}°</output></label><label>Preview axis<select disabled={checking} aria-label="Preview axis" value={axis} onChange={e=>setAxis(e.target.value as typeof axis)}>{['X','Y','Z'].map(a=><option key={a}>{a}</option>)}</select></label></div>}
+    {preservedGroups.length>0&&<div className="editor-fields"><label>{t('Test preserved joint')}<select aria-label={t('Test preserved joint')} title={secondaryJoint||undefined} disabled={checking} value={secondaryJoint} onChange={e=>{setSecondaryJoint(e.target.value);setMovement(e.target.value?'secondary':null);setDegrees(20);setAxis('X');}}><option value="">{t('Choose a joint to bend…')}</option>{preservedGroups.map(g=><optgroup key={g.root} label={g.root}>{g.source_bones.filter(n=>loaded.motion.bones.has(n)).map(n=><option key={n} value={n}>{n}</option>)}</optgroup>)}</select></label><p className="hint">{t('Moves the selected joint and its children using the existing skin weights. Source-space diagnostic only; no physics simulation.')}</p></div>}
+    {movement&&<div className="mapping-angle"><label>{t('Movement angle')}<input disabled={checking} aria-label={t('Movement angle')} type="range" min={-80} max={80} step={1} value={degrees} onChange={e=>setDegrees(Number(e.target.value))}/><output>{degrees}°</output></label><label>{t('Preview axis')}<select disabled={checking} aria-label={t('Preview axis')} value={axis} onChange={e=>setAxis(e.target.value as typeof axis)}>{['X','Y','Z'].map(a=><option key={a}>{a}</option>)}</select></label></div>}
     <p role="status" className="hint">{pose.message}</p>
-    <div className="mapping-checks"><strong>Automatic movement checks</strong>
-      {checking?<p role="status">Checking head, torso, arms and legs…</p>:<button onClick={()=>setCheckRun(n=>n+1)}>Run movement checks again</button>}
-      {checkError&&<p role="alert">{checkError}</p>}
-      {checks&&<><p>{checks.cases.length} poses checked · {checks.cases.filter(c=>!c.finite||c.severeEdges>0||c.moved===0).length} need visual review.</p><details><summary>Show checked movements</summary><div className="table-scroll"><table><thead><tr><th>Movement</th><th>Moved samples</th><th>Severe edge strain</th></tr></thead><tbody>{checks.cases.map((c,i)=><tr key={i}><td><button disabled={checking} onClick={()=>probe(c.role,c.axis,c.degrees)}>{c.label}</button></td><td>{c.moved.toLocaleString()}</td><td>{c.finite?c.severeEdges.toLocaleString():'Non-finite geometry'}</td></tr>)}</tbody></table></div></details><p className="hint">{checks.sampledVertices.toLocaleString()} vertex samples and {checks.sampledEdges.toLocaleString()} edge samples per pose. Severe strain means over 4× extension or below 0.1× rest length. These checks flag likely distortion; they do not test collisions, final bind conversion or game physics.</p></>}
+    <div className="mapping-checks"><strong>{t('Automatic movement checks')}</strong>
+      {checking?<p role="status">{t('Checking head, torso, arms and legs…')}</p>:<button onClick={()=>setCheckRun(n=>n+1)}>{t('Run movement checks again')}</button>}
+      {checkError&&<p role="alert">{t(checkError)}</p>}
+      {checks&&<><p>{tp(checks.cases.length,{other:'{count} poses checked · {review} need visual review.'},{review:checks.cases.filter(c=>!c.finite||c.severeEdges>0||c.moved===0).length})}</p><details><summary>{t('Show checked movements')}</summary><div className="table-scroll"><table><thead><tr><th>{tc('pose test','Movement')}</th><th>{t('Moved samples')}</th><th>{t('Severe edge strain')}</th></tr></thead><tbody>{checks.cases.map((c,i)=><tr key={i}><td><button disabled={checking} onClick={()=>probe(c.role,c.axis,c.degrees)}>{t(c.label)}</button></td><td>{c.moved.toLocaleString()}</td><td>{c.finite?c.severeEdges.toLocaleString():t('Non-finite geometry')}</td></tr>)}</tbody></table></div></details><p className="hint">{t('{vertices} vertex samples and {edges} edge samples per pose. Severe strain means over 4× extension or below 0.1× rest length. These checks flag likely distortion; they do not test collisions, final bind conversion or game physics.',{vertices:checks.sampledVertices.toLocaleString(),edges:checks.sampledEdges.toLocaleString()})}</p></>}
     </div>
-    <p className="hint">This movement test shows your original model. {options.fit_mode==='preserve_proportions'?`Your fitting choice keeps the source torso${options.fit_leg_joints==='scaled_joints'||options.fit_leg_joints==='joints'?' proportions and puts the legs on the hero’s joints':' and leg proportions'}${options.fit_leg_joints==='scaled'||options.fit_leg_joints==='scaled_joints'?', sized to the hero’s leg length':''}. Enabled arm fitting aligns the converted arms to the hero’s joints.`:'Conversion fits it to the hero’s rest pose and joint spacing, which can change the silhouette.'} Use “{BUTTON_NAMES.showResult}” in Prepared output to review that shape before building. Game animation and cloth simulation are not shown here.</p>
-    {preview.metadata.warnings.length>0&&<details className="technical"><summary>Source preview notes</summary><ul>{preview.metadata.warnings.map((warning,i)=><li key={i}>{warning}</li>)}</ul></details>}
+    <p className="hint">{nextSentence(nextSentence(t('This movement test shows your original model.'),fitSentence(options)),t('Use “{button}” in Prepared output to review that shape before building. Game animation and cloth simulation are not shown here.',{button:t(BUTTON_NAMES.showResult)}))}</p>
+    {preview.metadata.warnings.length>0&&<details className="technical"><summary>{t('Source preview notes')}</summary><ul>{preview.metadata.warnings.map((warning,i)=><li key={i}>{warning}</li>)}</ul></details>}
   </div>;
 }

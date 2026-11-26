@@ -1,4 +1,6 @@
+// i18n-area: prepare
 import { useEffect, useRef, useState } from 'react';
+import { m, useT } from '../i18n';
 import { api } from '../api';
 import type { JsonValue, Project } from '../models';
 import { Section } from '../components/Primitives';
@@ -19,6 +21,7 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
   /** Go to Prepare model and prepare again (a new gun file needs a new inspection). */openPreparation:()=>void;
   separate?:Omit<SeparateGunProps,'project'|'analysis'|'options'|'busy'|'operate'|'change'|'updateProject'>;
 }){
+  const t=useT();
   const updateRef=useRef(update);updateRef.current=update;
   const [analysis,setAnalysis]=useState<PreparationAnalysis|null>(null),[applied,setApplied]=useState(''),[failed,setFailed]=useState('');
   const options=project.preparation_options as PreparationOptions;
@@ -29,7 +32,7 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
     loaded.current=report;
     const known=opened.get(report);
     if(known){setAnalysis(known);setApplied(gunOf(options));setFailed('');return;}
-    await operate('The saved preparation could not be opened',async()=>{
+    await operate(m('The saved preparation could not be opened'),async()=>{
       try{
         const value=await api.preparationResume(project);
         opened.set(report,value.analysis);
@@ -38,8 +41,8 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
     },true);
   }
   useEffect(()=>{if(report&&loaded.current!==report&&!busy){setAnalysis(null);void load();}},[report,busy]);// eslint-disable-line react-hooks/exhaustive-deps
-  if(!report)return <Section title="Weapons" id="weapons"><p className="hint">{project.dmx?'Your model was added as a ready-made DMX, so its gun is used as it is. To replace the hero\'s gun with yours, prepare your Blender, FBX or glTF model in Prepare model.':'Prepare your model first; then you can replace the hero\'s gun here.'}</p></Section>;
-  if(!analysis)return <Section title="Weapons" id="weapons"><p className="hint">{failed?`The saved preparation could not be opened: ${failed}`:'Opening the prepared model\'s gun…'}</p>{failed&&<button disabled={busy} onClick={()=>void load()}>Try again</button>}</Section>;
+  if(!report)return <Section title={t('Weapons')} id="weapons"><p className="hint">{project.dmx?t('Your model was added as a ready-made DMX, so its gun is used as it is. To replace the hero\'s gun with yours, prepare your Blender, FBX or glTF model in Prepare model.'):t('Prepare your model first; then you can replace the hero\'s gun here.')}</p></Section>;
+  if(!analysis)return <Section title={t('Weapons')} id="weapons"><p className="hint">{failed?t('The saved preparation could not be opened: {error}',{error:failed}):t('Opening the prepared model\'s gun…')}</p>{failed&&<button disabled={busy} onClick={()=>void load()}>{t('Try again')}</button>}</Section>;
   const change=(values:Partial<PreparationOptions>)=>{const next={...options,...gunChoiceOptions(analysis.analysis.bones,analysis.analysis.weighted_bones,options,values)};updateRef.current({...project,preparation_options:asOptions(next)} as Project);};
   const pending=gunOf(options)!==applied;
   // The same file may be spelled differently (\\?\ prefix, case, slashes).
@@ -47,7 +50,7 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
   /** Prepare the model again with the new gun choice (same inspection) and use it. */
   async function apply(){
     if(!analysis)return;
-    await operate('The gun change could not be applied',async()=>{
+    await operate(m('The gun change could not be applied'),async()=>{
       const chosen={...options,reviewed:true,...(Object.keys(options.mapping_anchors??{}).length?{follow_motion_reviewed:true}:{})};
       const ready={...project,preparation_options:asOptions(chosen)} as Project;
       const issues=await api.preparationReview(ready,analysis,chosen);
@@ -63,11 +66,11 @@ export function WeaponsSection({project,update,busy,operate,refreshPreview,openP
     },true);
   }
   const shown:PreparationOptions=options.weapon?options:{...options,weapon:weaponDefaults(analysis,undefined)};
-  return <section className="weapons-step" id="weapons" aria-label="Weapons">
+  return <section className="weapons-step" id="weapons" aria-label={t('Weapons')}>
     {/* The apply card sits under the gun summary, beside the fit preview (the shared panel's `actions`). */}
     <div className="prep-workspace"><WeaponPanel project={project} analysis={analysis} options={shown} change={change} busy={busy} operate={operate} reinspect={openPreparation} separate={separate?{...separate,updateProject:value=>updateRef.current(value)}:undefined}
-      actions={(pending||needsInspection)&&<div className="prep-gun-apply" role="status"><div><strong>{needsInspection?'Your gun file changed.':'Your gun changes are not in the model yet.'}</strong><p className="studio-note">{needsInspection?'The new gun file is loaded when the model is prepared again.':'Apply them to prepare the model again with your gun (about a minute); the preview then shows the result on your character.'}</p></div>
-        {needsInspection?<button className="prep-primary" disabled={busy} onClick={openPreparation}>Prepare again with this gun file</button>:<button className="prep-primary" disabled={busy} onClick={()=>void apply()}>Apply gun changes</button>}</div>}/>
+      actions={(pending||needsInspection)&&<div className="prep-gun-apply" role="status"><div><strong>{needsInspection?t('Your gun file changed.'):t('Your gun changes are not in the model yet.')}</strong><p className="studio-note">{needsInspection?t('The new gun file is loaded when the model is prepared again.'):t('Apply them to prepare the model again with your gun (about a minute); the preview then shows the result on your character.')}</p></div>
+        {needsInspection?<button className="prep-primary" disabled={busy} onClick={openPreparation}>{t('Prepare again with this gun file')}</button>:<button className="prep-primary" disabled={busy} onClick={()=>void apply()}>{t('Apply gun changes')}</button>}</div>}/>
     </div>
   </section>;
 }

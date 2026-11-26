@@ -1,8 +1,10 @@
 /** Disposable, source-space diagnostic. Does not retarget bind geometry or simulate cloth. */
+// i18n-area: prepare
 import { Bone as ThreeBone, Matrix4, SkinnedMesh, Vector3, type Skeleton } from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Bone, PreparationOptions, Role } from './models';
 import { physicsGroups } from './secondary-bones';
+import { m, t, tp } from '../i18n';
 
 export function descendants(bones:Bone[],parent:string):Set<string>{
   const result=new Set([parent]);let changed=true;
@@ -27,9 +29,9 @@ export class MappingMotion {
     // An inverse bind is authoritative even when the exported scene has a saved pose.
     for(const skeleton of this.skeletons)for(let i=0;i<skeleton.bones.length;i++){
       const bone=skeleton.bones[i],bind=skeleton.boneInverses[i];
-      if(!Number.isFinite(bind.determinant())||Math.abs(bind.determinant())<1e-15)throw new Error('Preview contains a singular inverse bind.');
+      if(!Number.isFinite(bind.determinant())||Math.abs(bind.determinant())<1e-15)throw new Error(m('Preview contains a singular inverse bind.'));
       const matrix=bind.clone().invert(),previous=this.rest.get(bone);
-      if(previous&&previous.elements.some((v,j)=>Math.abs(v-matrix.elements[j])>1e-5*Math.max(1,Math.abs(v))))throw new Error('Source meshes disagree about a shared joint bind; mapping preview is unavailable.');
+      if(previous&&previous.elements.some((v,j)=>Math.abs(v-matrix.elements[j])>1e-5*Math.max(1,Math.abs(v))))throw new Error(m('Source meshes disagree about a shared joint bind; mapping preview is unavailable.'));
       this.rest.set(bone,matrix);
     }
     for(const bone of this.bones.values()){
@@ -44,20 +46,20 @@ export class MappingMotion {
   bendPreserved(options:PreparationOptions,name:string,degrees:number,axis:'X'|'Y'|'Z'='X'):{affected:number;message:string}{
     this.pose(options,null,0);
     const allowed=new Set(this.preserved(options).flatMap(g=>g.source_bones)),bone=this.bones.get(name);
-    if(!bone||!allowed.has(name))return {affected:0,message:'Choose a preserved physics joint to test.'};
+    if(!bone||!allowed.has(name))return {affected:0,message:t('Choose a preserved physics joint to test.')};
     const branch=descendants(this.source,name),pivot=new Vector3().setFromMatrixPosition(this.rest.get(bone)!);
     const delta=new Matrix4().makeTranslation(pivot.x,pivot.y,pivot.z).multiply(new Matrix4().makeRotationAxis(new Vector3(axis==='X'?1:0,axis==='Y'?1:0,axis==='Z'?1:0),degrees*Math.PI/180)).multiply(new Matrix4().makeTranslation(-pivot.x,-pivot.y,-pivot.z));
     let affected=0;
     for(const child of branch){const joint=this.bones.get(child);if(joint&&allowed.has(child)){joint.matrixWorld.multiplyMatrices(delta,this.rest.get(joint)!);affected++;}}
     this.gltf.scene.updateMatrixWorld(true);for(const skeleton of this.skeletons)skeleton.update();
-    return {affected,message:`Bending ${name} and ${Math.max(0,affected-1)} child joints using existing weights. This is a rig test, not physics simulation.`};
+    return {affected,message:tp(Math.max(0,affected-1),{other:'Bending {name} and {count} child joints using existing weights. This is a rig test, not physics simulation.'},{name})};
   }
   pose(options:PreparationOptions,role:Role|null,degrees:number,axis:'X'|'Y'|'Z'='Y'):{affected:number;message:string}{
     for(const [bone,matrix] of this.rest)bone.matrixWorld.copy(matrix);
-    let affected=0,message='Rest pose';
+    let affected=0,message=t('Rest pose');
     if(role&&degrees!==0){
       const name=options.source_roles?.[role],destination=options.target_roles?.[role],bone=name?this.bones.get(name):undefined;
-      if(!bone||!destination||!this.target.some(b=>b.name===destination))message='Choose valid source and target bones for this movement.';
+      if(!bone||!destination||!this.target.some(b=>b.name===destination))message=t('Choose valid source and target bones for this movement.');
       else {
         const pivot=new Vector3().setFromMatrixPosition(this.rest.get(bone)!),branch=descendants(this.target,destination);
         const rotation=new Matrix4().makeRotationAxis(new Vector3(axis==='X'?1:0,axis==='Y'?1:0,axis==='Z'?1:0),degrees*Math.PI/180);
@@ -68,7 +70,7 @@ export class MappingMotion {
           const sourceBone=this.bones.get(source);if(!sourceBone||!branch.has(target))continue;
           sourceBone.matrixWorld.multiplyMatrices(delta,this.rest.get(sourceBone)!);affected++;
         }
-        message=`${affected} mapped source joints follow this target branch. Unmapped joints stay in the rest pose.`;
+        message=tp(affected,{other:'{count} mapped source joints follow this target branch. Unmapped joints stay in the rest pose.'});
       }
     }
     this.gltf.scene.updateMatrixWorld(true);for(const skeleton of this.skeletons)skeleton.update();

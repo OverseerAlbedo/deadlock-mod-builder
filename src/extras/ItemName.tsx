@@ -2,21 +2,38 @@
 // heading is always the name field (the saved name, else the game's), with Save
 // and Cancel under it. Typing and Cancel write nothing; Save and "Use the game's
 // name" each ask the page for one change.
+// i18n-area: items
 import { useState } from "react";
+import { m, t, useT } from "../i18n";
 import { ExtraIcon } from "./Icons";
 import { cleanName, MAX_NAME_CHARS, type ItemNameRow } from "./itemNames";
 
 /** Said under the name field. */
 export const ITEM_NAME_NOTES = [
-  "Shown for every hero while the mod is installed.",
-  "The shop sorts items by name, so a renamed item moves.",
-  "After a game update that adds items, build the mod again: until then the new items show without a name.",
+  m("Shown for every hero while the mod is installed."),
+  m("The shop sorts items by name, so a renamed item moves."),
+  m("After a game update that adds items, build the mod again: until then the new items show without a name."),
 ];
-export const USE_GAME_NAME = "Use the game's name";
+export const USE_GAME_NAME = m("Use the game's name");
+/** An icon's state word (`replacementStatus` or the heading's own, English) as shown; a word
+ * from elsewhere is shown as it comes. */
+export function statusWord(status: string) {
+  switch (status) {
+    case "Original": return t("Original");
+    case "Paused": return t("Paused");
+    case "Replaced": return t("Replaced");
+    case "Needs attention": return t("Needs attention");
+    case "New icon": return t("New icon");
+    default: return status;
+  }
+}
 
 export interface ItemHeadingProps {
   /** The game's English name of the item. */
   gameName: string;
+  /** The game's name of the item in the interface language (only shown; `gameName` when the
+   * game has none in that language). */
+  shownName?: string;
   /** The saved rename of this item, if any. */
   row: ItemNameRow | null;
   /** Whether the item can be renamed (the game's names file names it). */
@@ -32,16 +49,19 @@ export interface ItemHeadingProps {
   useGame: () => void;
 }
 
-export function ItemHeading({ gameName, row, renamable, status, active, disabled, save, useGame }: ItemHeadingProps) {
+export function ItemHeading({ gameName, shownName = gameName, row, renamable, status, active, disabled, save, useGame }: ItemHeadingProps) {
+  const t = useT();
   // The unsaved draft; null while the field shows the saved name.
   const [draft, setDraft] = useState<string | null>(null);
   const [refused, setRefused] = useState("");
-  const shown = row?.name ?? gameName;
+  // The saved name exactly as typed, else the name the game shows in the interface language.
+  const shown = row?.name ?? shownName;
   // Any outside change of the saved name (an undo, a redo, Remove all…) puts it
-  // into the field and drops an unsaved draft.
-  const [base, setBase] = useState(shown);
-  if (base !== shown) {
-    setBase(shown);
+  // into the field and drops an unsaved draft (the game's names arriving later do not).
+  const saved = row?.name ?? gameName;
+  const [base, setBase] = useState(saved);
+  if (base !== saved) {
+    setBase(saved);
     setDraft(null);
     setRefused("");
   }
@@ -49,8 +69,8 @@ export function ItemHeading({ gameName, row, renamable, status, active, disabled
   const iconPill = status === "Replaced" ? "New icon" : status === "Original" ? (row ? "" : "Original") : status;
   const pills = (
     <div className="items-pills">
-      {row && <span className={`extra-pill ${nameOn ? "ready" : ""}`}>{nameOn ? "Renamed" : "Name paused"}</span>}
-      {iconPill && <span className={`extra-pill ${status === "Replaced" ? "ready" : ""}`}>{iconPill}</span>}
+      {row && <span className={`extra-pill ${nameOn ? "ready" : ""}`}>{nameOn ? t("Renamed") : t("Name paused")}</span>}
+      {iconPill && <span className={`extra-pill ${status === "Replaced" ? "ready" : ""}`}>{statusWord(iconPill)}</span>}
     </div>
   );
 
@@ -58,11 +78,11 @@ export function ItemHeading({ gameName, row, renamable, status, active, disabled
     return (
       <header className="extra-inspector-heading items-heading">
         <div>
-          <span className="extras-eyebrow">SELECTED ITEM</span>
+          <span className="extras-eyebrow">{t("SELECTED ITEM")}</span>
           <div className="items-title-row">
             <h2>{shown}</h2>
           </div>
-          {row && <p className="items-subtitle">{gameName} in the game</p>}
+          {row && <p className="items-subtitle">{t("{name} in the game", { name: shownName })}</p>}
         </div>
         {pills}
       </header>
@@ -92,13 +112,13 @@ export function ItemHeading({ gameName, row, renamable, status, active, disabled
     <header className="extra-inspector-heading items-heading editing">
       <div>
         <div className="items-eyebrow-row">
-          <span className="extras-eyebrow">SELECTED ITEM</span>
+          <span className="extras-eyebrow">{t("SELECTED ITEM")}</span>
           {pills}
         </div>
         <h2 className="sr-only">{shown}</h2>
         <div className="items-name-field">
           <input
-            aria-label="Item name"
+            aria-label={t("Item name")}
             value={value}
             spellCheck={false}
             aria-invalid={Boolean(error)}
@@ -128,13 +148,13 @@ export function ItemHeading({ gameName, row, renamable, status, active, disabled
           </p>
         )}
         <div className="items-name-under">
-          <span className="items-subtitle">{gameName} in the game</span>
+          <span className="items-subtitle">{t("{name} in the game", { name: shownName })}</span>
           <span className="items-name-buttons">
             <button type="button" className="extra-secondary" disabled={!canCancel} onClick={cancel}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button type="button" className="extra-primary" disabled={!canSave} onClick={commit}>
-              Save
+              {t("Save")}
             </button>
           </span>
         </div>
@@ -149,13 +169,13 @@ export function ItemHeading({ gameName, row, renamable, status, active, disabled
             }}
           >
             <ExtraIcon name="undo" size={14} />
-            {USE_GAME_NAME}
+            {t(USE_GAME_NAME)}
           </button>
         )}
         <ul className="items-name-notes">
           {ITEM_NAME_NOTES.map((note) => (
             <li key={note} className="items-note">
-              {note}
+              {t(note)}
             </li>
           ))}
         </ul>

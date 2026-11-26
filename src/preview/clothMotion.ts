@@ -4,6 +4,8 @@
  * game's hero definitions), and which loops are cuts. The view stays centred on
  * the character; the simulation sees the travel. */
 import { RUN_SPEED, type MotionClip, type MotionHeader, type MotionPacket, type Vec3 } from './motion';
+import { mc } from '../i18n';
+// i18n-area: preview
 
 /** Inches per second: forward is the hero's most move speed plus sprint, back and
  * sideways the most move speed (the game's definitions name no other). */
@@ -20,8 +22,8 @@ export const FALL_TOP_SPEED = 1800;
  * starts, stops or changes. */
 export const EASE_SECONDS = .3;
 
-/** The toolbar's motions, in order, with their labels. */
-export const MOTION_LABELS: [string, string][] = [['idle', 'Stand'], ['run', 'Run'], ['back', 'Back'], ['left', 'Left'], ['right', 'Right'], ['stop', 'Stop'], ['jump', 'Jump'], ['fall', 'Fall']];
+/** The toolbar's motions, in order, with their labels (English; shown with `tc('motion', label)`; the clip names are identifiers). */
+export const MOTION_LABELS: [string, string][] = [['idle', mc('motion', 'Stand')], ['run', mc('motion', 'Run')], ['back', mc('motion', 'Back')], ['left', mc('motion', 'Left')], ['right', mc('motion', 'Right')], ['stop', mc('motion', 'Stop')], ['jump', mc('motion', 'Jump')], ['fall', mc('motion', 'Fall')]];
 
 export function speedsOf(header: MotionHeader): {speeds: MotionSpeeds; fromGame: boolean} {
   const s = header.speeds;
@@ -30,7 +32,7 @@ export function speedsOf(header: MotionHeader): {speeds: MotionSpeeds; fromGame:
 }
 
 /** Smoothstep 0..1. */
-export const ease = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+export const ease = (x: number) => { const s = Math.min(1, Math.max(0, x)); return s * s * (3 - 2 * s); };
 
 /** Seconds into the jump clip where the feet leave the ground and where it lands: from
  * shortly before the end of the take-off part to the start of the landing part. */
@@ -91,29 +93,29 @@ export function loopCuts(packet: MotionPacket, clip: MotionClip): boolean {
   return step(clip.frames - 1, 0) > Math.max(3 * frame, .5);
 }
 
-/** One motion as the cloth playback plays it, in its own time `t`: the clip's pose, its
+/** One motion as the cloth playback plays it, in its own time `time`: the clip's pose, its
  * travel along the ground and down a fall from `t0` to `t1` (continuous over loops; a pass
  * that restarts as a cut only adds its own travel), a jump's height above the ground (shown
  * in the view and felt by the cloth), and whether a step crosses a cut. */
 export interface ClothMotion {
   name: string;
-  sample: (t: number, out: Float32Array) => Float32Array;
+  sample: (time: number, out: Float32Array) => Float32Array;
   travel: (t0: number, t1: number) => Vec3;
-  height: (t: number) => number;
+  height: (time: number) => number;
   cut: (t0: number, t1: number) => boolean;
   /** Whether the view shows the floor (a fall keeps the character in view without one). */
   floor: boolean;
 }
-export function clothMotion(packet: MotionPacket, clip: MotionClip, speeds: MotionSpeeds, sample: (clip: MotionClip, t: number, out: Float32Array) => Float32Array): ClothMotion {
-  const length = clip.frames / clip.fps, loop = (t: number) => ((t % length) + length) % length;
+export function clothMotion(packet: MotionPacket, clip: MotionClip, speeds: MotionSpeeds, sample: (clip: MotionClip, time: number, out: Float32Array) => Float32Array): ClothMotion {
+  const length = clip.frames / clip.fps, loop = (time: number) => ((time % length) + length) % length;
   const restarts = clip.name === 'jump' || clip.name === 'fall' || clip.name === 'stop' || loopCuts(packet, clip);
-  const pass = (t: number) => Math.floor(t / length);
+  const pass = (time: number) => Math.floor(time / length);
   // A jump's rise and fall is its height, not travel.
   const ground = (u: number): Vec3 => { const v = travelInLoop(clip, u, speeds); return clip.name === 'jump' ? [v[0], v[1], 0] : v; };
-  const within = (t: number) => ground(loop(t));
+  const within = (time: number) => ground(loop(time));
   return {
     name: clip.name,
-    sample: (t, out) => sample(clip, loop(t), out),
+    sample: (time, out) => sample(clip, loop(time), out),
     travel: (t0, t1) => {
       if (pass(t0) === pass(t1)) { const a = within(t0), b = within(t1); return [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; }
       // Over the wrap: the rest of this pass, then the start of the next.
@@ -121,7 +123,7 @@ export function clothMotion(packet: MotionPacket, clip: MotionClip, speeds: Moti
       if (restarts) return [b[0], b[1], b[2]];
       return [end[0] - a[0] + b[0], end[1] - a[1] + b[1], end[2] - a[2] + b[2]];
     },
-    height: t => clip.name === 'jump' ? travelInLoop(clip, loop(t), speeds)[2] : 0,
+    height: time => clip.name === 'jump' ? travelInLoop(clip, loop(time), speeds)[2] : 0,
     cut: (t0, t1) => restarts && pass(t0) !== pass(t1),
     floor: clip.name !== 'fall',
   };

@@ -1,4 +1,6 @@
+// i18n-area: extras
 import type { ReactNode } from "react";
+import { useT } from "../i18n";
 import { ExtraIcon } from "./Icons";
 import { AudioPlayer } from "./AudioPlayer";
 import { useExtraMedia, useVisible } from "./media";
@@ -14,6 +16,7 @@ export function AssetThumbnail({
   entry: CatalogEntry;
   revision: number;
 }) {
+  const t = useT();
   const { ref, visible } = useVisible();
   const { url, loading, error } = useExtraMedia(
     visible && entry.path
@@ -30,7 +33,7 @@ export function AssetThumbnail({
     <div ref={ref} className={`extra-thumbnail ${loading ? "loading" : ""}`}>
       {url ? <img src={url} alt="" /> : <ExtraIcon name="image" size={30} />}{" "}
       {error && (
-        <span className="extra-thumbnail-error">Preview unavailable</span>
+        <span className="extra-thumbnail-error">{t("Preview unavailable")}</span>
       )}
     </div>
   );
@@ -53,7 +56,12 @@ export function AssetPreview({
   volume?: number;
   disabled: boolean;
 }) {
+  const t = useT();
   const { media, url, loading, error } = useExtraMedia(request, identity);
+  // `label` stays English (callers and tests key on it); each label has its own whole sentences.
+  const original = label === "Original";
+  const loadingText = original ? t("Loading original…") : label === "Replacement" ? t("Loading replacement…") : `Loading ${label.toLowerCase()}…`;
+  const imageText = original ? t("Original icon preview") : label === "Replacement" ? t("Replacement icon preview") : `${label} icon preview`;
   const groups = media?.details.groups as
     | Record<string, { count: number; classes: string[] }>
     | undefined;
@@ -62,13 +70,13 @@ export function AssetPreview({
       {loading && (
         <div className="extra-preview-placeholder" role="status">
           <span className="extra-spinner" />
-          Loading {label.toLowerCase()}…
+          {loadingText}
         </div>
       )}
       {error && errorView?.(error) ? errorView(error) : error && (
         <div className="extra-preview-placeholder extra-error" role="status">
           <ExtraIcon name="warning" size={26} />
-          <strong>Preview unavailable</strong>
+          <strong>{t("Preview unavailable")}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -84,12 +92,12 @@ export function AssetPreview({
             }
             size={34}
           />
-          <span>No file selected</span>
+          <span>{t("No file selected")}</span>
         </div>
       )}
       {url && (
         <div className="extra-image-stage">
-          <img src={url} alt={`${label} icon preview`} />
+          <img src={url} alt={imageText} />
         </div>
       )}
       {media?.mime_type === "audio/wav" && (
@@ -102,17 +110,17 @@ export function AssetPreview({
           />
           {Number(media.details.padded_frames) > 0 && (
             <p className="extra-processing">
-              Padded with silence to match original timing.
+              {t("Padded with silence to match original timing.")}
             </p>
           )}
           {Number(media.details.trimmed_frames) > 0 && (
-            <p className="extra-processing">Trimmed to the original length.</p>
+            <p className="extra-processing">{t("Trimmed to the original length.")}</p>
           )}
           {Boolean(
             media.details.resampled || media.details.channels_converted,
           ) && (
             <p className="extra-processing">
-              Rate and channels matched automatically.
+              {t("Rate and channels matched automatically.")}
             </p>
           )}
         </>
@@ -120,7 +128,7 @@ export function AssetPreview({
       {groups && (
         <div className="extra-effect-structure">
           <ExtraIcon name="sparkles" size={32} />
-          <strong>Particle structure</strong>
+          <strong>{t("Particle structure")}</strong>
           <dl>
             {Object.entries(groups).map(([name, group]) => (
               <div key={name} title={group.classes.join(", ")}>
@@ -132,7 +140,7 @@ export function AssetPreview({
           {Boolean(media?.details.replacement_verified) && (
             <span className="extra-pill ready">
               <ExtraIcon name="check" size={14} />
-              Compatible structure
+              {t("Compatible structure")}
             </span>
           )}
         </div>

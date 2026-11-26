@@ -73,6 +73,24 @@ const RULES: &[Rule] = &[
                  "Click the button next to each item: Refresh the matches (the same as Refresh suggestions using my roles on the Joint matches tab) or Use the detected groups (also on the Moving parts tab). Your body roles stay as you chose them.",
                  "Click Prepare model again."],
         action: Some(("Open Prepare model", "prepare")) },
+    // More kept moving-part bones than the limit (deadlock-preparation
+    // secondary_bones::too_many_bones_message, also raised by secondary_bones.py
+    // inside a Blender run). Older reports and logs hold the earlier sentence that
+    // covered this and shared bones together.
+    Rule { any: &["the kept moving parts have", "selected physics branches overlap or exceed"], all: &[],
+        cause: "The moving parts kept from your model's rig have more bones in total than one model can keep. The message gives the total, the limit and the largest groups.",
+        steps: &["Open Prepare model → Moving parts and read the kept bones count under Detected groups.",
+                 "Untick the largest groups that matter least to you (the message names the largest ones) until the count is at or under the limit. A part that is left out follows the body and stays still.",
+                 "Click Prepare model again."],
+        action: Some(("Open Prepare model", "prepare")) },
+    // Two kept moving parts that share bones (secondary_bones::shared_bones_message,
+    // also raised by secondary_bones.py).
+    Rule { any: &["share bones, so they cannot both be kept"], all: &[],
+        cause: "Two of the kept moving parts contain the same bones, so the app cannot keep both.",
+        steps: &["Open Prepare model → Moving parts and untick one of the two groups the message names.",
+                 "If the list looks out of date, press Use the detected groups (or Load and check only if you changed the model file).",
+                 "Click Prepare model again."],
+        action: Some(("Open Prepare model", "prepare")) },
     // Extras → Items (items.rs, deadlock-components item_icons.rs).
     Rule { any: &["to see the game's items"], all: &[],
         cause: "The app needs the game's archive to list its items.",
@@ -657,6 +675,33 @@ mod tests {
         }
         let blender = help("tool", "Blender preparation failed", &format!("Traceback (most recent call last):\n  File \"worker.py\", line 1\nValueError: {groups}")).unwrap();
         assert_eq!(blender.action.unwrap().page, "prepare");
+    }
+    /// The kept moving parts as a whole: too many bones, or two groups that share
+    /// bones, as the review, a refused conversion and the Blender copy deliver
+    /// them; and the earlier sentence that older reports and logs may hold.
+    #[test]
+    fn kept_bone_limit_and_shared_bones_point_to_the_moving_parts_tab() {
+        use deadlock_preparation::{page_names::{LOAD_AND_CHECK, MOVING_PARTS_TAB, USE_DETECTED_GROUPS}, secondary_bones::{self, PhysicsGroup, MAX_KEPT_BONES}};
+        let group = |root: &str, count: usize| PhysicsGroup { root: root.into(), source_anchor: "head".into(), target_anchor: "head".into(),
+            source_bones: (0..count).map(|i| format!("{root}_{i:03}")).collect(), weighted_bones: vec![] };
+        let groups = [group("hair_a", MAX_KEPT_BONES / 2), group("tail_a", MAX_KEPT_BONES + 1 - MAX_KEPT_BONES / 2)];
+        let too_many = secondary_bones::too_many_bones_message(MAX_KEPT_BONES + 1, &groups);
+        assert_eq!(secondary_bones::kept_bones_problem(&groups).as_deref(), Some(too_many.as_str()));
+        let shared = secondary_bones::shared_bones_message("hair_a", "hair_b");
+        let earlier = format!("Selected physics branches overlap or exceed {MAX_KEPT_BONES} bones.");
+        for (message, cause) in [(too_many.clone(), "more bones in total"), (earlier, "more bones in total"), (shared.clone(), "contain the same bones")] {
+            for (kind, text, details) in [("validation", message.clone(), String::new()),
+                ("validation", format!("Humanoid review needs attention before Blender starts:\nMoving parts: {message}"), String::new()),
+                ("tool", "Blender preparation failed".to_string(), format!("Traceback (most recent call last):\n  File \"worker.py\", line 1\nValueError: {message}"))] {
+                let help = help(kind, &text, &details).unwrap();
+                assert!(help.cause.contains(cause), "{text}: {help:?}");
+                assert_eq!(help.action.as_ref().map(|a| a.page.as_str()), Some("prepare"), "{text}");
+                assert!(help.steps.iter().any(|s| s.contains(MOVING_PARTS_TAB)), "{help:?}");
+            }
+        }
+        assert!(help("validation", &shared, "").unwrap().steps.iter().any(|s| s.contains(USE_DETECTED_GROUPS) && s.contains(LOAD_AND_CHECK)));
+        // The page's count line is what the first step tells the user to read.
+        assert!(help("validation", &too_many, "").unwrap().steps[0].contains("kept bones count"));
     }
     /// Messages copied from real failure logs.
     #[test]

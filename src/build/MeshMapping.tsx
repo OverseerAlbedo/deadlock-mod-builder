@@ -1,4 +1,8 @@
+// i18n-area: build
 import type { InspectionReport } from './models';
+import { tc, tp, useT } from '../i18n';
+import { T } from '../i18n/T';
+import { nameList } from './words';
 
 type Mapping = string | string[];
 type Mappings = Record<string, Mapping>;
@@ -113,42 +117,48 @@ export function suggestedMappings(report: InspectionReport, saved: Mappings, str
 export function MeshMapping({ report, meshes, busy, update, strategy = 'choose' }: {
   report: InspectionReport; meshes: Mappings; busy: boolean; update: (meshes: Mappings) => void; strategy?: string;
 }) {
+  const t = useT();
   const effective = effectiveMappings(report, meshes);
   const sources = report.dmx.meshes.map(mesh => mesh.name);
   const suggestion = suggestedMappings(report, meshes, strategy);
   const suggested = Object.keys(suggestion);
   const unused = unusedSourceMeshes(report, meshes);
   const main = addToMainNode(report, meshes, unused).node;
-  const shown = (name: string) => { const value = suggestion[name]; return value === undefined ? '' : special(value) ? (value === '@keep' ? 'keep original' : 'disable') : mappedTargets(value).join(' + '); };
+  const shown = (name: string) => { const value = suggestion[name]; return value === undefined ? '' : special(value) ? (value === '@keep' ? t('keep original') : t('disable')) : mappedTargets(value).join(' + '); };
+  // The suggestion's first six rows ("node → what it shows"); node and mesh names stay as they come.
+  const list = suggested.slice(0, 6).map(name => `${name} → ${shown(name)}`).join(tc('list separator', '; ')) + (suggested.length > 6 ? ' …' : '');
+  const withoutChoice = suggested.every(name => effective[name] === undefined);
   const set = (name: string, value: Mapping | undefined) => {
     const next = { ...meshes };
     if (value === undefined) delete next[name]; else next[name] = value;
     update(next);
   };
   return <>
-    <p className="hint">Map source meshes to each original render node. A render node can use several source meshes; tick every mesh it should show. Saved mappings are rechecked during preparation.</p>
+    <p className="hint">{t('Map source meshes to each original render node. A render node can use several source meshes; tick every mesh it should show. Saved mappings are rechecked during preparation.')}</p>
     {suggested.length > 0 && <div className="callout mesh-suggestion" role="status">
-      <p><strong>Suggested mapping</strong> for {suggested.length} render node{suggested.length === 1 ? '' : 's'}{suggested.every(name => effective[name] === undefined) ? ' without a choice' : ''}: {suggested.slice(0, 6).map(name => `${name} → ${shown(name)}`).join('; ')}{suggested.length > 6 ? ' …' : ''}.</p>
-      <button disabled={busy} onClick={() => update({ ...meshes, ...suggestion })}>Apply suggested mapping</button>
+      <p>{suggested.length === 1
+        ? withoutChoice ? <T text="<strong>Suggested mapping</strong> for {count} render node without a choice: {list}." values={{count: suggested.length, list}}/> : <T text="<strong>Suggested mapping</strong> for {count} render node: {list}." values={{count: suggested.length, list}}/>
+        : withoutChoice ? <T text="<strong>Suggested mapping</strong> for {count} render nodes without a choice: {list}." values={{count: suggested.length, list}}/> : <T text="<strong>Suggested mapping</strong> for {count} render nodes: {list}." values={{count: suggested.length, list}}/>}</p>
+      <button disabled={busy} onClick={() => update({ ...meshes, ...suggestion })}>{t('Apply suggested mapping')}</button>
     </div>}
     {/* Shown even while a suggestion is pending, so an unused mesh always has its button (issue #6). */}
     {unused.length > 0 && <div className="callout warning mesh-unused" role="status">
-      <p><strong>Not used by any render node, so missing in game:</strong> {unused.join(', ')}</p>
-      {main && <button disabled={busy} onClick={() => update(addToMainNode(report, meshes, unused).meshes)}>Add {unused.length === 1 ? 'it' : 'them'} to {main} and its lower-detail levels</button>}
+      <p><T text="<strong>Not used by any render node, so missing in game:</strong> {names}" values={{names: nameList(unused)}}/></p>
+      {main && <button disabled={busy} onClick={() => update(addToMainNode(report, meshes, unused).meshes)}>{tp(unused.length, { one: 'Add it to {node} and its lower-detail levels', other: 'Add them to {node} and its lower-detail levels' }, { node: main })}</button>}
     </div>}
-    <div className="table-scroll"><table className="mapping-table"><thead><tr><th>Original render node</th><th>Action</th><th>Replacement meshes</th></tr></thead><tbody>
+    <div className="table-scroll"><table className="mapping-table"><thead><tr><th>{t('Original render node')}</th><th>{tc('column', 'Action')}</th><th>{t('Replacement meshes')}</th></tr></thead><tbody>
       {report.model.meshes.map(node => {
         const value = effective[node.name];
         const fromAnalysis = meshes[node.name] === undefined && value !== undefined;
         const selected = mappedTargets(value);
         return <tr key={node.name}>
-          <td>{node.name}{node.lower_lod && <small className="muted"> · Lower detail</small>}{fromAnalysis && <small className="muted"> · Suggested</small>}</td>
-          <td><select aria-label={`Action for ${node.name}`} value={special(value) ? value : 'map'} disabled={busy}
+          <td>{node.name}{node.lower_lod && <small className="muted"> · {t('Lower detail')}</small>}{fromAnalysis && <small className="muted"> · {t('Suggested')}</small>}</td>
+          <td><select aria-label={t('Action for {node}', { node: node.name })} value={special(value) ? value : 'map'} disabled={busy}
             onChange={event => set(node.name, event.target.value === 'map' ? asMapping(selected.length ? selected : sources.slice(0, 1)) : event.target.value)}>
-            <option value="map">Map replacement meshes</option><option value="@keep">Keep original</option><option value="@disable">Disable</option>
+            <option value="map">{t('Map replacement meshes')}</option><option value="@keep">{t('Keep original')}</option><option value="@disable">{t('Disable')}</option>
           </select></td>
-          <td>{special(value) ? <span className="muted">{value === '@keep' ? 'Original geometry retained' : 'Render node disabled'}</span>
-            : <div className="mesh-choices" role="group" aria-label={`Replacement meshes for ${node.name}`}>
+          <td>{special(value) ? <span className="muted">{value === '@keep' ? t('Original geometry retained') : t('Render node disabled')}</span>
+            : <div className="mesh-choices" role="group" aria-label={t('Replacement meshes for {node}', { node: node.name })}>
               {sources.map(source => <label key={source} className="checkbox">
                 <input type="checkbox" checked={selected.includes(source)} disabled={busy}
                   onChange={event => set(node.name, asMapping(event.target.checked ? [...selected, source] : selected.filter(name => name !== source)))} />

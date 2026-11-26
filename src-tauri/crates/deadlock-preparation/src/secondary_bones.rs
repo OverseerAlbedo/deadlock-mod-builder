@@ -509,6 +509,69 @@ pub fn stale_groups_message() -> String {
     use crate::page_names::{LOAD_AND_CHECK, MOVING_PARTS_TAB, USE_DETECTED_GROUPS};
     format!("Some saved moving parts are no longer found in your model. On the {MOVING_PARTS_TAB} tab, press {USE_DETECTED_GROUPS} (or {LOAD_AND_CHECK} if you changed the model file).")
 }
+/// The most moving-part bones one preparation keeps, all kept groups together.
+/// The same number is `MAX_KEPT_BONES` in secondary_bones.py and in
+/// src/preparation/secondary-bones.ts (`tests/kept_bone_limit.rs` compares the
+/// three). The per-chain walk guards (512 steps) are a separate bound.
+pub const MAX_KEPT_BONES: usize = 1024;
+/// How many of the largest kept groups `too_many_bones_message` names.
+pub const LARGEST_NAMED: usize = 5;
+/// One group in `too_many_bones_message`: its root bone and its bone count.
+pub const KEPT_GROUP_SIZE: &str = "{root} ({count})";
+/// Two kept groups that share bones. `{first}` and `{second}` are their root
+/// bones. The same text is SHARED_KEPT_BONES in secondary_bones.py.
+pub fn shared_bones_template() -> String {
+    use crate::page_names::MOVING_PARTS_TAB;
+    format!("The moving parts {{first}} and {{second}} share bones, so they cannot both be kept. On the {MOVING_PARTS_TAB} tab, keep only one of them.")
+}
+/// More kept bones than `MAX_KEPT_BONES`. The same text is TOO_MANY_KEPT_BONES
+/// in secondary_bones.py.
+pub fn too_many_bones_template() -> String {
+    use crate::page_names::MOVING_PARTS_TAB;
+    format!("The kept moving parts have {{total}} bones, more than the limit of {{limit}}. The largest, with their bone counts: {{largest}}. On the {MOVING_PARTS_TAB} tab, leave some of them out until the total is {{limit}} or less; a part that is left out follows the body and stays still.")
+}
+/// Fills `{key}` placeholders in one pass (as Python's str.format does), so a
+/// bone name that holds braces is never filled again.
+fn fill(template: &str, values: &[(&str, String)]) -> String {
+    let mut out = String::new();
+    let mut rest = template;
+    while let Some(start) = rest.find('{') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('}').map(|end| (&after[..end], end)).and_then(|(key, end)| values.iter().find(|(k, _)| *k == key).map(|(_, v)| (v, end))) {
+            Some((value, end)) => { out.push_str(value); rest = &after[end + 1..]; }
+            None => { out.push('{'); rest = after; }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+pub fn shared_bones_message(first: &str, second: &str) -> String {
+    fill(&shared_bones_template(), &[("first", first.into()), ("second", second.into())])
+}
+/// `groups`: the kept groups; the largest `LARGEST_NAMED` are named, by bone
+/// count and then by root name, so Rust and Python give the same line.
+pub fn too_many_bones_message(total: usize, groups: &[PhysicsGroup]) -> String {
+    let mut largest: Vec<&PhysicsGroup> = groups.iter().collect();
+    largest.sort_by(|a, b| b.source_bones.len().cmp(&a.source_bones.len()).then_with(|| a.root.cmp(&b.root)));
+    let largest = largest.iter().take(LARGEST_NAMED)
+        .map(|g| fill(KEPT_GROUP_SIZE, &[("root", g.root.clone()), ("count", g.source_bones.len().to_string())]))
+        .collect::<Vec<_>>().join(", ");
+    fill(&too_many_bones_template(), &[("total", total.to_string()), ("limit", MAX_KEPT_BONES.to_string()), ("largest", largest)])
+}
+/// The check on the kept groups as a whole: groups that share bones (the first
+/// pair in the groups' order), then the total against `MAX_KEPT_BONES`. The
+/// same check is kept_bones_problem in secondary_bones.py.
+pub fn kept_bones_problem(groups: &[PhysicsGroup]) -> Option<String> {
+    for (at, first) in groups.iter().enumerate() {
+        let bones: BTreeSet<&String> = first.source_bones.iter().collect();
+        if let Some(second) = groups[at + 1..].iter().find(|g| g.source_bones.iter().any(|b| bones.contains(b))) {
+            return Some(shared_bones_message(&first.root, &second.root));
+        }
+    }
+    let total: usize = groups.iter().map(|g| g.source_bones.len()).sum();
+    (total > MAX_KEPT_BONES).then(|| too_many_bones_message(total, groups))
+}
 pub fn selection(source: &[Bone], weighted: &[String], target: &[Bone], options: &PreparationOptions) -> Result<Option<PreservationPlan>> {
     selection_for(source, weighted, target, options, None)
 }
@@ -543,6 +606,7 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
             group.target_anchor = hand.anchor.clone();
         }
     }
+    if let Some(problem) = kept_bones_problem(&groups) { return Err(invalid(problem)); }
     let mut exported = BTreeMap::new();
     let names = exported_names(&groups.iter().flat_map(|g| g.source_bones.iter().cloned()).collect::<Vec<_>>());
     for group in &groups {
@@ -550,7 +614,7 @@ pub fn selection_for(source: &[Bone], weighted: &[String], target: &[Bone], opti
         for name in &group.source_bones {
             let output = names[name].clone();
             if output.len() > 63 || output.chars().any(char::is_control) || target.iter().any(|b| b.name == output) { return Err(invalid(format!("A preserved physics bone has a conflicting or unsupported name: {name}"))); }
-            if exported.insert(name.clone(),output).is_some() || exported.len() > 512 { return Err(invalid("Selected physics branches overlap or exceed 512 bones.")); }
+            exported.insert(name.clone(), output);
         }
     }
     let compiled = target.iter().map(|b| &b.name).chain(exported.values());

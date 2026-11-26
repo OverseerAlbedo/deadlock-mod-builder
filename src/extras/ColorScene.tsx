@@ -13,6 +13,8 @@ import { floatBuffer, indexBuffer, type PreviewScene } from "../preview/packet";
 import type { Rgb } from "./colorAdapter";
 import { DIM, dimLevel, fadeOut, glowLevel, prefersReducedMotion, pulsing } from "./colorGlow";
 import { choosePick, samplesAround, SHELL_DEPTH_SHARE, type Cast } from "./colorSample";
+import { T } from "../i18n/T";
+// i18n-area: colors
 
 /** `x`, `y`: where the click was in the view (px); `w`: the view's width. `samples`: the
  * texture coordinates of the small area around the click on the same part (the click's own
@@ -286,14 +288,14 @@ class SceneBoundary extends Component<{ children: ReactNode; fallback: (message:
 }
 export default function ColorScene(props: ColorSceneProps) {
   return (
-    <SceneBoundary fallback={(message) => <div className="color-stage-message" role="alert"><strong>The 3D view could not render</strong><p>{message}</p></div>}>
+    <SceneBoundary fallback={(message) => <div className="color-stage-message" role="alert"><strong><T text="The 3D view could not render" /></strong><p>{message}</p></div>}>
       <Canvas
         className={props.picking ? "picking" : ""}
         frameloop="demand"
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
         camera={{ position: [2, -4, 2], up: [0, 0, 1], fov: 35 }}
-        fallback={<div className="color-stage-message">A WebGL 2 capable graphics driver is required for the 3D view.</div>}
+        fallback={<div className="color-stage-message"><T text="A WebGL 2 capable graphics driver is required for the 3D view." /></div>}
       >
         <Model {...props} />
         <Controls scene={props.scene} reset={props.reset} frame={props.frame} />

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.14.5 — 2026-11-26
+
+### New
+
+- **Simplified Chinese (简体中文).** The app's interface is available in Simplified Chinese. Choose the language at the top of **Settings → Appearance**, or on the first card of the new-user guide; on a first start the app follows the Windows display language. Switching takes effect at once, without a restart, and keeps unsaved work. Hero and item names are shown as the game's own Chinese text names them, and the hero picker and the item search find them by their Chinese or English name. Projects and settings are the same in either language, so a project made in one opens in the other.
+- Still in English while the interface is Chinese: the text of error messages with their help steps, the notes under a check or a preparation result, the log, and names the app makes from the game's file names (sounds, effects, animations, ability objects). File, bone and material names are never translated.
+- The website's home page and tutorial and the README are available in Simplified Chinese, with a language button in the website's header.
+
+### Changed
+
+- **Prepare model → Moving parts: more kept bones.** A model can keep up to 1,024 moving-part bones (512 before). The tab shows the running total of kept bones, and a model over the limit is told its total and its largest groups instead of a general message.
+- The library that reads source package ZIP files was updated to a version without known security problems. Packages import as before, with one difference: file names with non-English letters that a ZIP stores without its Unicode mark are now read correctly, so such a package is no longer refused.
+- The libraries the app is built on (Tauri, React and others) were updated to their latest fix releases.
+
+### Fixed
+
+- If another program asked the app to close while it was minimized (for example the Windows command `taskkill` without `/F`), the app stayed open but could no longer show its questions, so it could not be closed or start a new project until the program was ended. Such a request now closes the app like its own close button, with the usual question about unsaved changes.
+
 ## 0.14.0 — 2026-11-24
 
 - **License:** from this version the app is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later); see LICENSE and NOTICE. Versions up to and including 0.13.0 stay under the MIT License. The app now ships notices for every bundled Rust crate and web package.

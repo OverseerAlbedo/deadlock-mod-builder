@@ -1,7 +1,20 @@
+// i18n-area: sounds
 import { useEffect, useRef, useState } from "react";
+import { m, t, useT } from "../i18n";
 import { ExtraIcon } from "./Icons";
 import { duration } from "./models";
 import { previewError } from "./media";
+
+/** The player's accessible names per `label` (the label stays English: callers and tests key on it). */
+const NAMES: Record<string, { seek: string; play: string; pause: string }> = {
+  original: { seek: m("Seek original"), play: m("Play original"), pause: m("Pause original") },
+  replacement: { seek: m("Seek replacement"), play: m("Play replacement"), pause: m("Pause replacement") },
+};
+function names(label: string) {
+  const known = NAMES[label];
+  if (known) return { seek: t(known.seek), play: t(known.play), pause: t(known.pause) };
+  return { seek: `Seek ${label}`, play: `Play ${label}`, pause: `Pause ${label}` };
+}
 let context: AudioContext | null = null;
 let playEpoch = 0;
 function audioContext() {
@@ -21,6 +34,7 @@ export function AudioPlayer({
   volume?: number;
   disabled?: boolean;
 }) {
+  const t = useT();
   const volume = chosenVolume ?? 100;
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null),
     [peaks, setPeaks] = useState<number[]>([]),
@@ -184,6 +198,7 @@ export function AudioPlayer({
     if (resume) void play();
   }
   const progress = buffer ? position / buffer.duration : 0;
+  const named = names(label);
   return (
     <div className="extra-player">
       <div className="extra-waveform" aria-hidden="true">
@@ -203,11 +218,11 @@ export function AudioPlayer({
             );
           })}
         </svg>
-        {!buffer && !error && <span>Preparing waveform…</span>}
+        {!buffer && !error && <span>{t("Preparing waveform…")}</span>}
       </div>
       <input
         className="extra-seek"
-        aria-label={`Seek ${label}`}
+        aria-label={named.seek}
         type="range"
         min="0"
         max={buffer?.duration ?? 1}
@@ -219,7 +234,7 @@ export function AudioPlayer({
       <div className="extra-player-controls">
         <button
           className="extra-play"
-          aria-label={`${playing ? "Pause" : "Play"} ${label}`}
+          aria-label={playing ? named.pause : named.play}
           disabled={disabled || !buffer}
           onClick={() => void play()}
         >
@@ -227,10 +242,10 @@ export function AudioPlayer({
         </button>
         <span>
           {playing
-            ? "Playing"
+            ? t("Playing")
             : position > 0 && buffer && position < buffer.duration
-              ? "Paused"
-              : "Listen"}
+              ? t("Paused")
+              : t("Listen")}
         </span>
         <time>
           {duration(position)}{" "}
@@ -244,7 +259,7 @@ export function AudioPlayer({
       )}
       {chosenVolume !== undefined && peaks.some((peak) => (peak * volume) / 100 > 1) && (
         <p className="extra-processing extra-caution">
-          Peaks will clip at this volume. Lower it if you hear distortion.
+          {t("Peaks will clip at this volume. Lower it if you hear distortion.")}
         </p>
       )}
     </div>

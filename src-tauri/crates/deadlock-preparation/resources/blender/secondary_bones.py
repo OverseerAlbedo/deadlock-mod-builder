@@ -9,6 +9,16 @@ POLICY = 'preserve-source-physics-bones-v1'
 BINDING_POLICY = 'verified-rigid-body-bone-binding-v1'
 PREFIX = 'dmb_secondary_'
 MAX_BONES = 512
+# The most moving-part bones one preparation keeps, all kept groups together
+# (MAX_BONES bounds the walk along one chain). The same number is
+# MAX_KEPT_BONES in secondary_bones.rs and src/preparation/secondary-bones.ts.
+MAX_KEPT_BONES = 1024
+# The kept-bones messages; the same text as secondary_bones.rs
+# shared_bones_template, too_many_bones_template and KEPT_GROUP_SIZE.
+LARGEST_NAMED = 5
+KEPT_GROUP_SIZE = '{root} ({count})'
+SHARED_KEPT_BONES = 'The moving parts {first} and {second} share bones, so they cannot both be kept. On the Moving parts tab, keep only one of them.'
+TOO_MANY_KEPT_BONES = 'The kept moving parts have {total} bones, more than the limit of {limit}. The largest, with their bone counts: {largest}. On the Moving parts tab, leave some of them out until the total is {limit} or less; a part that is left out follows the body and stays still.'
 
 
 def compiler_spelling(name):
@@ -532,6 +542,24 @@ def removed_guns(gun):
     return ids + ['+'.join(objects) for objects in (gun or {}).get('drop', [])]
 
 
+def kept_bones_problem(groups):
+    """The check on the kept groups as a whole: groups that share bones (the first
+    pair in the groups' order), then the total against MAX_KEPT_BONES, naming the
+    largest groups by bone count and then by root name. Same as secondary_bones.rs
+    kept_bones_problem."""
+    for at, first in enumerate(groups):
+        bones = set(first['source_bones'])
+        second = next((g for g in groups[at + 1:] if any(b in bones for b in g['source_bones'])), None)
+        if second is not None:
+            return SHARED_KEPT_BONES.format(first=first['root'], second=second['root'])
+    total = sum(len(g['source_bones']) for g in groups)
+    if total <= MAX_KEPT_BONES:
+        return None
+    largest = sorted(groups, key=lambda g: (-len(g['source_bones']), g['root']))[:LARGEST_NAMED]
+    return TOO_MANY_KEPT_BONES.format(total=total, limit=MAX_KEPT_BONES, largest=', '.join(
+        KEPT_GROUP_SIZE.format(root=g['root'], count=len(g['source_bones'])) for g in largest))
+
+
 def selection(options, bones, weighted, source_roles, target_roles, target, gun=None):
     """gun: the weapon plan of this conversion. Moving parts hanging from a
     replaced gun hang from its main weapon bone (each hand's plan anchor);
@@ -576,9 +604,10 @@ def selection(options, bones, weighted, source_roles, target_roles, target, gun=
                 if not hand.get('anchor'):
                     raise ValueError('The fitted gun has no weapon bone for its charms. Inspect the source again.')
                 group['target_anchor'] = hand['anchor']
+    problem = kept_bones_problem(groups)
+    if problem:
+        raise ValueError(problem)
     names = [n for g in groups for n in g['source_bones']]
-    if len(names) != len(set(names)) or len(names) > MAX_BONES:
-        raise ValueError('Selected physics branches overlap or exceed 512 bones.')
     target_names = {b['name'] for b in target}
     if any(g['target_anchor'] not in target_names for g in groups):
         raise ValueError('Choose a valid target attachment for source physics bones.')

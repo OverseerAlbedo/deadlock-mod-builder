@@ -21,7 +21,7 @@ The two lockfiles are required. Do not update dependencies while fixing a releas
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | React interface and its tests (`src/theme/` is the Theme Manager and customizer) |
+| `src/` | React interface and its tests (`src/theme/` is the Theme Manager and customizer, `src/i18n/` the [interface languages](#interface-languages)) |
 | `src-tauri/src/` | Tauri desktop host and commands |
 | `src-tauri/crates/` | Rust pipeline: preparation, materials, skeleton/DMX export, cloth, compilation, VPK, storage, tools |
 | `src-tauri/crates/deadlock-preparation/resources/blender/` | Python scripts embedded into the app and run inside Blender |
@@ -34,6 +34,37 @@ The two lockfiles are required. Do not update dependencies while fixing a releas
 | `docs/` | Documentation |
 | `.github/workflows/` | CI: tests and portable build on every push; manual release workflow; the website |
 | `licenses/` | Third-party notices |
+
+## Interface languages
+
+The interface is written in English and can be shown in Simplified Chinese. The English text in the code is the key and the fallback; there are no invented key names. The module is `src/i18n/` and the Chinese text is in `src/i18n/locales/zh-CN/`, one JSON file per area of the app.
+
+A visible string in `src/` goes through one of these, and gets an entry in its area's catalog:
+
+| Call | Use |
+| --- | --- |
+| `t('Save settings')`, `t('Open {page}', {page})` | plain text; `{name}` is filled from the values |
+| `tc('camera', 'View')` | the same English that needs another translation elsewhere; the context comes first |
+| `tp(count, {one: '{count} file', other: '{count} files'})` | text with a number; never build "1 item" / "2 items" yourself |
+| `m('Workspace folder')` | marks text in a constant table; translate where it is drawn, `t(field.label)` |
+| `<T text="Click <strong>Detect tools</strong>." />` | a sentence with markup, translated as one piece |
+
+In a component, call `const t = useT();` once, so it draws again when the language changes. Each source file names its area in a comment, `// i18n-area: settings`, and its keys live in `src/i18n/locales/zh-CN/settings.json`. The same key must have the same translation in every area file that lists it.
+
+Rules:
+
+- Translate only where text is drawn. Anything that is also an identifier stays English where it is used: labels given to `run` / `operate`, `fail()` titles, option values, theme names, React keys, values that are compared.
+- What the app saves, sends or logs stays English or as the user typed it: project and settings files hold no translated text.
+- Text from the Rust side (error messages and help, check notes, names made from file names) is shown as it comes. Never match it by its English wording in TypeScript. Message constants that a Rust test compares with a TypeScript file keep their exact lines.
+- File, bone, material and product names, paths, keys and versions are never translated: `t('Undo ({keys})', {keys: 'Ctrl+Z'})`.
+- A local variable named `t` hides the module's `t`: rename it.
+- Hero and item names come from the game's own text through `src/i18n/gameNames.ts`; identity (what is saved, compared and sent) stays the English roster name.
+
+`node scripts/i18n-check.mjs` reads `src/` and the catalogs and reports unused entries, a key translated two ways, placeholder or markup mismatches, calls built from pieces, and translated text that is compared, used as a key or passed to an operation or the back end. `--update` adds missing keys, empty, to the right area file; `--release` also fails on missing entries. The plain check runs in `node scripts/check-repository.mjs` and in the UI suite, so `npm test` runs it.
+
+Tests: the existing suites run in English and find elements by their English names. A test of the Chinese interface goes in its own file; `src/i18n/chinese.test.tsx` is the pattern. Fonts and the small headings of the Chinese interface are in `src/i18n/lang.css`.
+
+The website has its own table of languages, `site/languages.py`: the Chinese pages are built from `README.zh-CN.md` and `docs/zh-CN/FIRST_MOD.md`, and the site's build fails when a section of `README.md` is missing from the Chinese README. A change to `README.md` or the tutorial needs the same change there.
 
 ## Distribution
 

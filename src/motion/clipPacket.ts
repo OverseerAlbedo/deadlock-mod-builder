@@ -2,7 +2,9 @@
  * length, the JSON header, padding to 4 bytes, then a row-major 3x4 rest-to-pose matrix per frame and
  * bone as f32), holding one clip at its own frame rate. Decoded and sampled here (not through
  * `preview/motion.ts`), so the page does not depend on the movement preview's player. */
+// i18n-area: motion
 import type { ClipPacket, PlayedClip } from './motionTypes';
+import { t } from '../i18n';
 
 export function decodeClipPacket(buffer: ArrayBuffer): ClipPacket {
   if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 4) throw new Error('Invalid clip packet.');
@@ -46,5 +48,5 @@ export function sampleClip(packet: ClipPacket, time: number, out: Float32Array):
 export function readout(clip: PlayedClip, time: number): string {
   const length = shownLength(clip);
   const at = Math.min(Math.max(time, 0), length);
-  return `${at.toFixed(2)} / ${length.toFixed(2)} s · frame ${frameAt(clip, at) + 1} of ${clip.clip_frames}`;
+  return t('{at} / {length} s · frame {frame} of {frames}', { at: at.toFixed(2), length: length.toFixed(2), frame: frameAt(clip, at) + 1, frames: clip.clip_frames });
 }

@@ -1,4 +1,6 @@
+// i18n-area: extras
 import { useSyncExternalStore } from "react";
+import { m } from "../i18n";
 
 /**
  * Replacement pictures (icons and item icons) whose preview could not be read, by
@@ -15,9 +17,9 @@ let version = 0;
 export const PICTURE_NOT_READABLE = "A replacement picture is not a PNG or JPEG image the app can read";
 export const isNotAPicture = (error: string) => error.includes(PICTURE_NOT_READABLE);
 /** The status a replacement row shows when its picture cannot be read. */
-export const NOT_A_PICTURE_STATUS = "Not a picture";
+export const NOT_A_PICTURE_STATUS = m("Not a picture");
 /** The line in the replacement's preview. */
-export const NOT_A_PICTURE = "This file is not a picture the app can read. Choose a PNG or JPEG image.";
+export const NOT_A_PICTURE = m("This file is not a picture the app can read. Choose a PNG or JPEG image.");
 
 const key = (path: string) => path.trim().toLowerCase();
 

@@ -37,6 +37,10 @@ label.prep-switch-row .prep-switch-text { font-weight: 600; cursor: pointer; }
 .prep-switch-hint { color: var(--secondary); font-size: 12.5px; }
 .prep-switch-hint p { margin: 0; }
 .prep-switch-hint .prep-physics-stats { margin: 2px 0 0; padding: 0; border: 0; background: none; color: var(--accent-strong); font-size: 12.5px; }
+/* Moving parts: the kept bones against the limit. Both states keep the same box (a transparent border, room for two
+   lines), so the group rows below never move when it turns into a warning. */
+.prep-kept-count { box-sizing: border-box; display: flex; flex-wrap: wrap; align-content: center; gap: 0 6px; min-height: calc(2.9em + 12px); margin: 0 0 8px; padding: 5px 10px; border: 1px solid transparent; border-radius: 8px; color: var(--secondary); font-size: 12.5px; line-height: 1.45; }
+.prep-kept-count.over { border-color: rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .08); color: var(--warn-text); }
 .prep-workspace .prep-inline-action { min-height: 30px; margin-top: 6px; padding: 3px 10px; font-size: 12px; }
 
 /* The gun panel: the fit preview and its buttons on the left, the settings on the right */

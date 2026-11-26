@@ -9,24 +9,26 @@ import { useVisible } from "./media";
 import { changeSummary, type ColorMaterial, type ColorMode, type Rgb } from "./colorAdapter";
 import { cssColor } from "./colorMath";
 import { rangeSwatches } from "./ColorRangeCard";
+import { m, t, tp, useT } from "../i18n";
+// i18n-area: colors
 
 export type ListFilter = "all" | "changed" | "weapon";
 /** Which materials the weapon is drawn with, and which of them the body uses as well. The page
  * takes both from the 3D view's meshes, whose weapon mark comes from Rust. */
 export interface WeaponMaterials { weapon: ReadonlySet<string>; body: ReadonlySet<string> }
 /** The line a material used by both the weapon and the body shows. */
-export const WEAPON_AND_BODY = "Used by the weapon and the body";
+export const WEAPON_AND_BODY = m("Used by the weapon and the body");
 export const onWeaponAndBody = (id: string, weapon?: WeaponMaterials) => Boolean(weapon?.weapon.has(id) && weapon.body.has(id));
 export const STATE_PILLS: Record<ColorMaterial["state"], string> = {
-  changed: "Changed", paused: "Paused", shared: "Shared", "view-only": "View only", missing: "Unavailable", original: "",
+  changed: m("Changed"), paused: m("Paused"), shared: m("Shared"), "view-only": m("View only"), missing: m("Unavailable"), original: "",
 };
-/** The second line of a row: what changed, or the material's state. */
+/** The second line of a row: what changed, or the material's state (in the language shown). */
 export function stateLine(material: ColorMaterial, mode: ColorMode): string {
   if (material.values) return changeSummary(material.values);
-  if (material.missing) return "Saved material unavailable";
-  if (material.state === "view-only") return "Cannot be recolored";
-  if (material.sharedWith.length) return `Also used by ${material.sharedWith.length} other model${material.sharedWith.length === 1 ? "" : "s"}`;
-  return mode === "hero" ? "Game colors" : "Original colors";
+  if (material.missing) return t("Saved material unavailable");
+  if (material.state === "view-only") return t("Cannot be recolored");
+  if (material.sharedWith.length) return tp(material.sharedWith.length, { one: "Also used by {count} other model", other: "Also used by {count} other models" });
+  return mode === "hero" ? t("Game colors") : t("Original colors");
 }
 /** The color the small dot shows: your tint, else what your first color range turns its color into. */
 export function yourColor(material: ColorMaterial): Rgb | null {
@@ -70,6 +72,7 @@ export function ColorMaterialList({ materials, mode, selected, select, filter: c
   /** Shown instead of the rows (loading, no catalog …). */
   empty?: ReactNode;
 }) {
+  const t = useT();
   const weaponCount = weapon ? materials.filter((m) => weapon.weapon.has(m.id)).length : 0;
   const filter: ListFilter = chosen === "weapon" && !weaponCount ? "all" : chosen;
   const groups = useMemo(() => visibleGroups(materials, filter, query, weapon), [materials, filter, query, weapon]);
@@ -100,32 +103,32 @@ export function ColorMaterialList({ materials, mode, selected, select, filter: c
     point?.(id);
   }
   return (
-    <section className="color-list" aria-label="Materials">
+    <section className="color-list" aria-label={t("Materials")}>
       <div className="color-list-head">
-        <h3>Materials</h3>
-        <div className="color-segmented small" role="radiogroup" aria-label="Show materials">
-          <button type="button" role="radio" aria-checked={filter === "all"} onClick={() => setFilter("all")}>All {materials.length}</button>
-          <button type="button" role="radio" aria-checked={filter === "changed"} onClick={() => setFilter("changed")}>Changed {changed}</button>
-          {weaponCount > 0 && <button type="button" role="radio" aria-checked={filter === "weapon"} onClick={() => setFilter("weapon")}>Weapon {weaponCount}</button>}
+        <h3>{t("Materials")}</h3>
+        <div className="color-segmented small" role="radiogroup" aria-label={t("Show materials")}>
+          <button type="button" role="radio" aria-checked={filter === "all"} onClick={() => setFilter("all")}>{t("All {count}", { count: materials.length })}</button>
+          <button type="button" role="radio" aria-checked={filter === "changed"} onClick={() => setFilter("changed")}>{t("Changed {count}", { count: changed })}</button>
+          {weaponCount > 0 && <button type="button" role="radio" aria-checked={filter === "weapon"} onClick={() => setFilter("weapon")}>{t("Weapon {count}", { count: weaponCount })}</button>}
         </div>
       </div>
       <div className="extras-search color-search">
         <ExtraIcon name="search" size={16} />
-        <input aria-label="Search materials" placeholder="Search materials…" value={query} onChange={(e) => setQuery(e.target.value)} />
-        {query && <button aria-label="Clear search" onClick={() => setQuery("")}><ExtraIcon name="close" size={14} /></button>}
+        <input aria-label={t("Search materials")} placeholder={t("Search materials…")} value={query} onChange={(e) => setQuery(e.target.value)} />
+        {query && <button aria-label={t("Clear search")} onClick={() => setQuery("")}><ExtraIcon name="close" size={14} /></button>}
       </div>
       {empty ?? (flat.length === 0 ? (
         <div className="color-list-empty">
           <ExtraIcon name="search" size={24} />
-          <strong>{query ? "No matching materials" : filter === "changed" ? "No changed materials yet" : "No materials found"}</strong>
-          <p>{query ? "Try another name." : filter === "changed" ? "Choose a material and change its colors." : mode === "hero" ? "The hero's model lists no materials in this game version." : "Prepare your model and analyze its materials on Appearance & weapons."}</p>
+          <strong>{query ? t("No matching materials") : filter === "changed" ? t("No changed materials yet") : t("No materials found")}</strong>
+          <p>{query ? t("Try another name.") : filter === "changed" ? t("Choose a material and change its colors.") : mode === "hero" ? t("The hero's model lists no materials in this game version.") : t("Prepare your model and analyze its materials on Appearance & weapons.")}</p>
         </div>
       ) : (
         <div
           ref={box}
           className="color-list-scroll"
           role="listbox"
-          aria-label="Materials"
+          aria-label={t("Materials")}
           tabIndex={0}
           aria-activedescendant={active ? optionId(active) : undefined}
           onKeyDown={keys}
@@ -154,9 +157,9 @@ export function ColorMaterialList({ materials, mode, selected, select, filter: c
                       {/* A name the column cuts: its full name, and its file to tell two of one name apart. */}
                       <strong title={material.id && material.id !== material.label ? `${material.label}\n${material.id}` : material.label}>{material.label}</strong>
                       <small>{stateLine(material, mode)}</small>
-                      {onWeaponAndBody(material.id, weapon) && <small>{WEAPON_AND_BODY}</small>}
+                      {onWeaponAndBody(material.id, weapon) && <small>{t(WEAPON_AND_BODY)}</small>}
                     </div>
-                    {pill && <span className={`color-pill ${material.state}`}>{pill}</span>}
+                    {pill && <span className={`color-pill ${material.state}`}>{t(pill)}</span>}
                   </div>
                 );
               })}
@@ -165,7 +168,7 @@ export function ColorMaterialList({ materials, mode, selected, select, filter: c
         </div>
       ))}
       {point && !empty && flat.length > 0 && (
-        <p className="color-list-note">Point at a material to see it light up on the character. Pointing at a part of the character marks its material here.</p>
+        <p className="color-list-note">{t("Point at a material to see it light up on the character. Pointing at a part of the character marks its material here.")}</p>
       )}
     </section>
   );

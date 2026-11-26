@@ -2,9 +2,13 @@
 // like the in-game shop (Weapon, Vitality, Spirit, then tiers with their price),
 // plus Legendary (Street Brawl) and Misc. The catalog is read only when this
 // tab opens, and pictures load only for the tiles of the open category.
+// i18n-area: items
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project, ResourceReplacement } from "../models";
 import { api } from "../api";
+import { m, t, tp, useLanguage, useT } from "../i18n";
+import { T } from "../i18n/T";
+import { shownItem, useGameNames } from "../i18n/gameNames";
 import { changeCustomization } from "../components/customization";
 import { ExtraIcon } from "./Icons";
 import { ReplacementEditor } from "./ExtrasPage";
@@ -25,6 +29,7 @@ import {
   SWITCHED_OFF_REASON,
   type ItemCatalog,
   type ItemCategory,
+  type ItemIcon,
   type ItemGroup,
 } from "./itemCatalog";
 import {
@@ -36,23 +41,45 @@ import {
   type ItemNameRow,
   type ItemNamesState,
 } from "./itemNames";
-import { ItemHeading } from "./ItemName";
+import { ItemHeading, statusWord } from "./ItemName";
 import "./items.css";
 
 const NO_ROWS: ResourceReplacement[] = [];
 const NO_NAMES: ItemNameRow[] = [];
-export const MISSING_NAMES_TITLE = "Saved names for items the game no longer has";
-export const UNLISTED_NAMES_TITLE = "Saved names for items this list does not show";
+export const MISSING_NAMES_TITLE = m("Saved names for items the game no longer has");
+export const UNLISTED_NAMES_TITLE = m("Saved names for items this list does not show");
 const fold = (value: string) => value.toLowerCase();
-const words = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const newIcons = (n: number) => tp(n, { one: "{count} new icon", other: "{count} new icons" });
+const nameCount = (n: number) => tp(n, { one: "{count} name", other: "{count} names" });
+/** "Remove 2 new icons and 1 name?" as one sentence per case. */
+function removeQuestion(icons: number, names: number) {
+  if (icons && names) return t("Remove {icons} and {names}?", { icons: newIcons(icons), names: nameCount(names) });
+  return t("Remove {what}?", { what: icons ? newIcons(icons) : nameCount(names) });
+}
+/** A tile's accessible name: the shown name, then whether it is switched off and its icon's state. */
+function tileLabel(name: string, off: boolean, status: string | null) {
+  const state = status === null ? "" : statusWord(status).toLowerCase();
+  if (off && state) return t("{name}, switched off in the game, {state}", { name, state });
+  if (off) return t("{name}, switched off in the game", { name });
+  if (state) return t("{name}, {state}", { name, state });
+  return name;
+}
 /** The item record a tile's rename belongs to: its owner (the record whose name the tile shows). */
 export function nameToken(item: AssetItem): string | null {
   return itemOf(item)?.items[0] ?? null;
 }
-export const ITEM_NOTE =
-  "Item icons are the same for every hero, so this change shows for all heroes while the mod is installed.";
+/** A tile's game name as the game shows it in the interface language (English without one). */
+export function shownItemLabel(item: AssetItem): string {
+  return shownItem(nameToken(item), item.entry.label);
+}
+/** The other item records' names of a picture, as the game shows them in the interface language. */
+function otherNames(entry: ItemIcon): string[] {
+  return entry.names.slice(1).map((name, i) => shownItem(entry.items[i + 1], name));
+}
+export const ITEM_NOTE = m(
+  "Item icons are the same for every hero, so this change shows for all heroes while the mod is installed.");
 /** Under a picture the game's names file names no item for (Misc), once the names were read. */
-export const NO_ITEM_NAME_NOTE = "This picture has no item name in the shop, so only its picture can be replaced.";
+export const NO_ITEM_NAME_NOTE = m("This picture has no item name in the shop, so only its picture can be replaced.");
 
 // The catalog of this session, kept across tab switches (the app keeps it per
 // game archive too, so a new read after Reload assets is cheap).
@@ -106,12 +133,16 @@ function ItemTile({
     `${entry?.original_sha256 ?? ""}:${revision}`,
   );
   usePictureChecks();
+  const t = useT();
+  useGameNames();
   const status = replacementStatus(item, active);
   const off = Boolean(entry?.switched_off);
-  const state = `${off ? ", switched off in the game" : ""}${item.row ? `, ${status.toLowerCase()}` : ""}`;
-  const also = entry && entry.names.length > 1 ? ` · also ${entry.names.slice(1).join(", ")}` : "";
-  const name = renamed === null ? item.entry.label : `${renamed}, renamed from ${item.entry.label}`;
-  const tip = renamed === null ? item.entry.label : `${renamed} · renamed · in the game: ${item.entry.label}`;
+  const others = entry && entry.names.length > 1 ? otherNames(entry).join(", ") : "";
+  // The game's name in the interface language (English when the game has none there).
+  const game = shownItemLabel(item);
+  const name = renamed === null ? game : t("{name}, renamed from {game}", { name: renamed, game });
+  const tip = renamed === null ? game : t("{name} · renamed · in the game: {game}", { name: renamed, game });
+  const withAlso = others ? t("{text} · also {names}", { text: tip, names: others }) : tip;
   return (
     <div role="listitem" ref={ref}>
       <button
@@ -119,8 +150,8 @@ function ItemTile({
         className={`items-tile ${selected ? "selected" : ""} ${item.row ? "replaced" : ""} ${off ? "off" : ""} ${renamed === null ? "" : "renamed"}`}
         data-category={entry?.category ?? "misc"}
         aria-pressed={selected}
-        aria-label={`${name}${state}`}
-        title={`${tip}${also}${off ? ` · ${SWITCHED_OFF_REASON}` : ""}`}
+        aria-label={tileLabel(name, off, item.row ? status : null)}
+        title={off ? t("{text} · {reason}", { text: withAlso, reason: t(SWITCHED_OFF_REASON) }) : withAlso}
         onClick={choose}
       >
         <span className={`items-picture ${loading ? "loading" : ""}`}>
@@ -128,7 +159,7 @@ function ItemTile({
           {item.row && <i className={`items-dot ${status === "Replaced" ? "" : "attention"}`} aria-hidden="true" />}
         </span>
         {renamed === null ? (
-          <span className="items-name">{item.entry.label}</span>
+          <span className="items-name">{game}</span>
         ) : (
           <>
             <span className="items-name">
@@ -137,7 +168,7 @@ function ItemTile({
               </span>
               {renamed}
             </span>
-            <span className="items-was">{item.entry.label}</span>
+            <span className="items-was">{game}</span>
           </>
         )}
       </button>
@@ -158,8 +189,9 @@ function GroupRow({
   choose: (item: AssetItem) => void;
   renamed: (item: AssetItem) => string | null;
 }) {
+  const t = useT();
   return (
-    <section className={`items-tier ${search ? "search" : ""}`} data-category={group.category} aria-label={`${search ? `${categoryLabel(group.category)} · ` : ""}${group.title}`}>
+    <section className={`items-tier ${search ? "search" : ""}`} data-category={group.category} aria-label={search ? t("{category} · {group}", { category: categoryLabel(group.category), group: group.title }) : group.title}>
       <header className="items-tier-label">
         {search && (
           <span className="items-tier-category">
@@ -170,7 +202,7 @@ function GroupRow({
         <strong>{group.title}</strong>
         {group.price !== null ? (
           <span className="items-price">
-            <b>{souls(group.price)}</b> souls
+            <T text="<b>{price}</b> souls" values={{ price: souls(group.price) }} tags={{ b: (chunk) => <b>{chunk}</b> }} />
           </span>
         ) : (
           group.note && <span className="items-tier-note">{group.note}</span>
@@ -204,6 +236,9 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
     [binding, setBinding] = useState<number | null>(null),
     [sourceRevision, setSourceRevision] = useState(0),
     [confirmReset, setConfirmReset] = useState(false);
+  const language = useLanguage();
+  const t = useT();
+  const gameNames = useGameNames();
   const projectRef = useRef(project);
   projectRef.current = project;
   const updateRef = useRef(update);
@@ -227,21 +262,24 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
       return token === null ? null : (byItem.get(fold(token)) ?? null);
     };
   }, [nameRows]);
-  const shown = useMemo(() => filterItems(items, query, replacedOnly, renamedOf), [items, query, replacedOnly, renamedOf]);
+  // Searched by the new name, the English name and the game's name in the interface language.
+  const shown = useMemo(() => filterItems(items, query, replacedOnly, renamedOf), [items, query, replacedOnly, renamedOf, gameNames]);
   const changedCount = useMemo(() => items.filter((i) => i.row || renamedOf(i) !== null).length, [items, renamedOf]);
   // Whether the game's names file names an item record (only then can it be renamed).
   const gameHas = (token: string) => Boolean(names?.found && Object.prototype.hasOwnProperty.call(names.names, fold(token)));
   // Saved names the game does not have now, and names the game has that no tile here carries.
-  const shownTokens = useMemo(() => new Set(items.map(nameToken).filter((t): t is string => t !== null).map(fold)), [items]);
+  const shownTokens = useMemo(() => new Set(items.map(nameToken).filter((token): token is string => token !== null).map(fold)), [items]);
   const missingNames = names?.found ? nameRows.filter((r) => !gameHas(r.item)) : [];
   const unlistedNames = names?.found && catalog ? nameRows.filter((r) => gameHas(r.item) && !shownTokens.has(fold(r.item))) : [];
   const total = catalog ? catalog.items.filter((i) => i.category !== "misc" && !i.switched_off).length : 0;
   // Misc shows only when it has something (rows of the catalog or saved pictures).
   const shownCategories = ITEM_CATEGORIES.filter(({ key }) => key !== "misc" || !catalog || counts.get("misc")!.rows > 0);
   const openCategory: ItemCategory = shownCategories.some((c) => c.key === category) ? category : "weapon";
+  // The group titles are drawn in the language shown: built again when it changes.
   const groups = useMemo(
     () => itemGroups(binding === null ? shown : shown.filter((i) => !i.row && !i.missing && i.entry.supported), searching ? null : openCategory),
-    [shown, searching, openCategory, binding],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the language is read inside
+    [shown, searching, openCategory, binding, language],
   );
   const selection = items.find((i) => i.key === selected) ?? null;
 
@@ -326,10 +364,11 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
   function changeNames(next: ItemNameRow[], activate: boolean) {
     updateRef.current(withItemNameRows(projectRef.current, next, activate));
   }
-  /** Save a checked name for an item record: the game's own name removes the rename. */
+  /** Save a checked name for an item record: the game's own name (in English, or as the game
+   * shows it in the interface language) removes the rename; any other name is saved as typed. */
   function rename(token: string, gameName: string, name: string): string | undefined {
     const rows = savedItemNames(projectRef.current);
-    if (name === gameName) {
+    if (name === gameName || name === shownItem(token, gameName)) {
       if (itemNameOf(rows, token)) changeNames(withoutItemName(rows, token), false);
       return undefined;
     }
@@ -354,28 +393,23 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
   const selectionToken = selection ? nameToken(selection) : null;
   return (
     <div id="extras-panel" role="tabpanel" aria-labelledby="extras-tab-items" className="extras-layout items-layout">
-      <section className="extras-library items-library" aria-label="Item icons">
+      <section className="extras-library items-library" aria-label={t("Item icons")}>
         <div className="extras-library-heading">
           <div>
-            <h2>Items</h2>
+            <h2>{t("Items")}</h2>
             <p>
-              Replace the icons of the shop’s items with your own pictures, or rename them
-              {catalog ? ` · ${total.toLocaleString("en-US")} items from your game` : ""} · icons load when you open this page
+              {catalog
+                ? tp(total, { other: "Replace the icons of the shop’s items with your own pictures, or rename them · {total} items from your game · icons load when you open this page" }, { total: total.toLocaleString("en-US") })
+                : t("Replace the icons of the shop’s items with your own pictures, or rename them · icons load when you open this page")}
             </p>
           </div>
           <div className="items-heading-actions">
-            {saved.length > 0 && <span className="sounds-replaced-count">{words(saved.length, "new icon", "new icons")}</span>}
-            {nameRows.length > 0 && <span className="sounds-replaced-count">{nameRows.length} renamed</span>}
+            {saved.length > 0 && <span className="sounds-replaced-count">{newIcons(saved.length)}</span>}
+            {nameRows.length > 0 && <span className="sounds-replaced-count">{tp(nameRows.length, { other: "{count} renamed" })}</span>}
             {(saved.length > 0 || nameRows.length > 0) &&
               (confirmReset ? (
-                <span className="items-confirm" role="group" aria-label="Remove every item icon and name">
-                  <span>
-                    Remove{" "}
-                    {[saved.length ? words(saved.length, "new icon", "new icons") : "", nameRows.length ? words(nameRows.length, "name", "names") : ""]
-                      .filter(Boolean)
-                      .join(" and ")}
-                    ?
-                  </span>
+                <span className="items-confirm" role="group" aria-label={t("Remove every item icon and name")}>
+                  <span>{removeQuestion(saved.length, nameRows.length)}</span>
                   <button
                     type="button"
                     className="extra-text-button items-confirm-yes"
@@ -386,21 +420,21 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                       setSelected("");
                     }}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                   <button type="button" className="extra-text-button" onClick={() => setConfirmReset(false)}>
-                    Keep
+                    {t("Keep")}
                   </button>
                 </span>
               ) : (
                 <button type="button" className="extra-text-button" disabled={disabled} onClick={() => setConfirmReset(true)}>
-                  Remove all…
+                  {t("Remove all…")}
                 </button>
               ))}
           </div>
         </div>
         <div className="items-toolbar">
-          <div className="items-categories" role="tablist" aria-label="Item categories">
+          <div className="items-categories" role="tablist" aria-label={t("Item categories")}>
             {shownCategories.map(({ key, label }, index) => {
               const count = counts.get(key)!;
               const on = !searching && openCategory === key;
@@ -432,37 +466,37 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                   }}
                 >
                   <i className="items-category-dot" data-category={key} aria-hidden="true" />
-                  {label}
+                  {t(label)}
                   {/* What the game has now; Legendary adds its switched-off items apart. */}
                   <small>{catalog ? (key === "misc" ? count.all + count.off : count.all) : "—"}</small>
                   {catalog && key === "legendary" && count.off > 0 && (
-                    <small className="items-tab-off" title={`${count.off} Street Brawl items the game has switched off`}>
-                      · {count.off} off
+                    <small className="items-tab-off" title={tp(count.off, { other: "{count} Street Brawl items the game has switched off" })}>
+                      {tp(count.off, { other: "· {count} off" })}
                     </small>
                   )}
-                  {catalog && count.replaced > 0 && <i className="items-tab-replaced" title={`${count.replaced} replaced`} aria-label={`${count.replaced} replaced`} />}
+                  {catalog && count.replaced > 0 && <i className="items-tab-replaced" title={tp(count.replaced, { one: "{count} replaced", other: "{count} replaced" })} aria-label={tp(count.replaced, { one: "{count} replaced", other: "{count} replaced" })} />}
                 </button>
               );
             })}
           </div>
           <div className="extras-search items-search">
             <ExtraIcon name="search" size={17} />
-            <input aria-label="Search items" placeholder="Search items by new or game name…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input aria-label={t("Search items")} placeholder={t("Search items by new or game name…")} value={query} onChange={(e) => setQuery(e.target.value)} />
             {query && (
-              <button aria-label="Clear search" onClick={() => setQuery("")}>
+              <button aria-label={t("Clear search")} onClick={() => setQuery("")}>
                 <ExtraIcon name="close" size={15} />
               </button>
             )}
           </div>
           <button type="button" className="sounds-filter" aria-pressed={replacedOnly} onClick={() => setReplacedOnly(!replacedOnly)}>
-            Changed only<small>{changedCount}</small>
+            {t("Changed only")}<small>{changedCount}</small>
           </button>
         </div>
         {binding !== null && (
           <div className="sounds-binding">
-            <p className="extra-inline-note">Choose an item without a replacement to give it your saved picture.</p>
+            <p className="extra-inline-note">{t("Choose an item without a replacement to give it your saved picture.")}</p>
             <button className="extra-text-button" onClick={() => setBinding(null)}>
-              Cancel destination change
+              {t("Cancel destination change")}
             </button>
           </div>
         )}
@@ -472,11 +506,11 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
               <div className="extra-empty-symbol">
                 <ExtraIcon name="image" size={32} />
               </div>
-              <h3>Connect your game to get started</h3>
-              <p>Choose the original game VPK in Setup, then return here to see the game’s items.</p>
+              <h3>{t("Connect your game to get started")}</h3>
+              <p>{t("Choose the original game VPK in Setup, then return here to see the game’s items.")}</p>
               {openSetup && (
                 <button className="extra-primary" onClick={openSetup}>
-                  Open Setup
+                  {t("Open Setup")}
                   <ExtraIcon name="arrow" size={16} />
                 </button>
               )}
@@ -484,16 +518,16 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
           ) : loading && !catalog ? (
             <div className="extra-empty">
               <span className="extra-spinner" />
-              <h3>Reading the game’s items</h3>
-              <p>Item names, tiers and prices come from your game’s own files.</p>
+              <h3>{t("Reading the game’s items")}</h3>
+              <p>{t("Item names, tiers and prices come from your game’s own files.")}</p>
             </div>
           ) : error && !catalog ? (
             <div className="extra-empty">
               <ExtraIcon name="warning" size={32} />
-              <h3>The game’s items could not be read</h3>
+              <h3>{t("The game’s items could not be read")}</h3>
               <p>{error}</p>
               <button className="extra-primary" disabled={loading} onClick={() => load(true)}>
-                Try again
+                {t("Try again")}
               </button>
             </div>
           ) : groups.length === 0 ? (
@@ -501,17 +535,17 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
               <ExtraIcon name={searching ? "search" : "image"} size={32} />
               <h3>
                 {searching
-                  ? "No matching items"
+                  ? t("No matching items")
                   : replacedOnly
-                    ? `No changed ${categoryLabel(category)} items`
-                    : `No ${categoryLabel(category)} items in your game`}
+                    ? t("No changed {category} items", { category: categoryLabel(category) })
+                    : t("No {category} items in your game", { category: categoryLabel(category) })}
               </h3>
               <p>
                 {searching
-                  ? "Try another name or clear the search."
+                  ? t("Try another name or clear the search.")
                   : replacedOnly
-                    ? "Turn off Changed only to see every item, then drop in a picture or rename one."
-                    : "Your game lists none in this category."}
+                    ? t("Turn off Changed only to see every item, then drop in a picture or rename one.")
+                    : t("Your game lists none in this category.")}
               </p>
               {(searching || replacedOnly) && (
                 <button
@@ -520,7 +554,7 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                     setReplacedOnly(false);
                   }}
                 >
-                  Show all items
+                  {t("Show all items")}
                 </button>
               )}
             </div>
@@ -528,7 +562,7 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
             <>
               {searching && (
                 <p className="sounds-shown">
-                  {shown.length} {shown.length === 1 ? "item" : "items"} match “{query.trim()}” in every category
+                  {tp(shown.length, { one: "{count} item match “{query}” in every category", other: "{count} items match “{query}” in every category" }, { query: query.trim() })}
                 </p>
               )}
               {groups.map((group) => (
@@ -556,8 +590,8 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
           [UNLISTED_NAMES_TITLE, unlistedNames],
         ].map(([title, rows]) =>
           (rows as ItemNameRow[]).length ? (
-            <section key={title as string} className="items-saved-names" aria-label={title as string}>
-              <h3>{title as string}</h3>
+            <section key={title as string} className="items-saved-names" aria-label={t(title as string)}>
+              <h3>{t(title as string)}</h3>
               <ul>
                 {(rows as ItemNameRow[]).map((row) => (
                   <li key={row.item}>
@@ -566,11 +600,11 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                     <button
                       type="button"
                       className="extra-text-button"
-                      aria-label={`Remove the name ${row.name}`}
+                      aria-label={t("Remove the name {name}", { name: row.name })}
                       disabled={disabled}
                       onClick={() => changeNames(withoutItemName(savedItemNames(projectRef.current), row.item), false)}
                     >
-                      Remove
+                      {t("Remove")}
                     </button>
                   </li>
                 ))}
@@ -585,18 +619,19 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
           </div>
         ) : null}
       </section>
-      <aside className="extras-inspector items-inspector" data-category={entry?.category} aria-label="Replacement editor">
+      <aside className="extras-inspector items-inspector" data-category={entry?.category} aria-label={t("Replacement editor")}>
         {selection ? (
           <ReplacementEditor
             key={`items:${selection.key}`}
             item={selection}
             kind="icons"
             previewKind="items"
-            eyebrow="SELECTED ITEM"
-            title={selection.entry.label}
+            eyebrow={t("SELECTED ITEM")}
+            title={shownItemLabel(selection)}
             heading={
               <ItemHeading
                 gameName={selectionToken ? (names?.names[fold(selectionToken)] ?? selection.entry.label) : selection.entry.label}
+                shownName={shownItem(selectionToken, selectionToken ? (names?.names[fold(selectionToken)] ?? selection.entry.label) : selection.entry.label)}
                 row={selectionToken ? itemNameOf(nameRows, selectionToken) : null}
                 renamable={Boolean(selectionToken && gameHas(selectionToken))}
                 status={replacementStatus(selection, active)}
@@ -608,7 +643,7 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                 useGame={() => selectionToken && changeNames(withoutItemName(savedItemNames(projectRef.current), selectionToken), false)}
               />
             }
-            association="Item icon · the same for every hero"
+            association={t("Item icon · the same for every hero")}
             hero=""
             revision={revision}
             sourceRevision={sourceRevision}
@@ -631,27 +666,27 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                   {categoryLabel(entry.category)}
                 </span>
                 <span className="items-chip">{placeText(entry)}</span>
-                {entry.switched_off && <span className="items-chip off">Switched off in the game</span>}
+                {entry.switched_off && <span className="items-chip off">{t("Switched off in the game")}</span>}
                 {entry.category === "misc" && entry.slot && entry.tier && (
                   <span className="items-chip">
-                    Was {categoryLabel(entry.slot)} · tier {entry.tier}
+                    {t("Was {category} · tier {tier}", { category: categoryLabel(entry.slot), tier: entry.tier })}
                   </span>
                 )}
               </div>
             )}
             {entry?.switched_off && (
               <p className="items-off-note">
-                <strong>Not in the game now.</strong> {SWITCHED_OFF_REASON} Your icon is still built, ready in case the item comes back.
+                <T text="<strong>Not in the game now.</strong> {reason} Your icon is still built, ready in case the item comes back." values={{ reason: t(SWITCHED_OFF_REASON) }} />
               </p>
             )}
             {entry && entry.names.length > 1 && (
               <p className="items-used-by">
-                <span>Also named by</span>{" "}
-                {entry.names.slice(1).filter((n, i, all) => all.indexOf(n) === i).join(", ")}
+                <span>{t("Also named by")}</span>{" "}
+                {otherNames(entry).filter((n, i, all) => all.indexOf(n) === i).join(", ")}
               </p>
             )}
-            {names?.found && !(selectionToken && gameHas(selectionToken)) && <p className="items-note">{NO_ITEM_NAME_NOTE}</p>}
-            <p className="items-note">{ITEM_NOTE}</p>
+            {names?.found && !(selectionToken && gameHas(selectionToken)) && <p className="items-note">{t(NO_ITEM_NAME_NOTE)}</p>}
+            <p className="items-note">{t(ITEM_NOTE)}</p>
           </ReplacementEditor>
         ) : (
           <div className="extra-editor-empty">
@@ -664,21 +699,21 @@ export function Items({ project, update, disabled, canLoad, openSetup, revision,
                 <ExtraIcon name="upload" size={30} />
               </div>
             </div>
-            <span className="extras-eyebrow">PREVIEW & REPLACE</span>
-            <h2>Pick an item</h2>
-            <p>Choose an item to compare its game icon with your picture.</p>
+            <span className="extras-eyebrow">{t("PREVIEW & REPLACE")}</span>
+            <h2>{t("Pick an item")}</h2>
+            <p>{t("Choose an item to compare its game icon with your picture.")}</p>
             <ul>
               <li>
                 <ExtraIcon name="check" size={16} />
-                PNG or JPG · square works best
+                {t("PNG or JPG · square works best")}
               </li>
               <li>
                 <ExtraIcon name="check" size={16} />
-                The same icon for every hero
+                {t("The same icon for every hero")}
               </li>
               <li>
                 <ExtraIcon name="check" size={16} />
-                Pause or remove changes at any time
+                {t("Pause or remove changes at any time")}
               </li>
             </ul>
           </div>

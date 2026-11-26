@@ -10,6 +10,8 @@ import { api } from '../api';
 import type { Project } from '../models';
 import { adjustPixels } from './colorAdjust';
 import { recolorPixels, withDefaults, type ColorRange } from '../extras/heroColorRanges';
+import { m, t } from '../i18n';
+// i18n-area: preview
 
 /** A material's colour edit (Appearance → Surface changes, Extras → Colors): its enabled colour
  * ranges (defaults filled in) and the hue shift, saturation and brightness after them. */
@@ -18,7 +20,10 @@ export interface TextureEdit { ranges: ColorRange[]; hue: number; saturation: nu
 export interface TextureRequest { material: string; path: string; edit: TextureEdit | null }
 /** Previewed image size, as the still view has always loaded them. */
 export const PREVIEW_TEXTURE_SIZE = 1024;
-export const NO_TEXTURES = 'No assigned color images could be loaded. Assign a PNG or JPEG color texture first.';
+export const NO_TEXTURES = m('No assigned color images could be loaded. Assign a PNG or JPEG color texture first.');
+/** A texture state's message as shown: this file's own sentence translated, the loaders' error
+ * messages (one line per failed image) as they come. */
+export const shownTextureMessage = (message: string) => message === NO_TEXTURES ? t(NO_TEXTURES) : message;
 
 /** The colour edit for each material (Surface changes rows: colour ranges, hue, saturation,
  * brightness); only rows that are on and that change something. The last row for a material wins. */

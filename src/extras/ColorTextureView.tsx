@@ -10,6 +10,8 @@ import { rangeWeight, hsv, type ColorRange } from "./heroColorRanges";
 import { selectionKey } from "./colorCoverage";
 import { rangeMasks, type MaterialParts } from "./colorParts";
 import type { Rgb } from "./colorAdapter";
+import { useT } from "../i18n";
+// i18n-area: colors
 
 /** Draws `recipe` over the pixels into a canvas, at most once per animation frame. */
 function RecipeCanvas({ pixels, recipe, label, live, parts }: { pixels: Pixels; recipe: PixelRecipe; label: string; live: boolean; parts: MaterialParts | null }) {
@@ -98,6 +100,7 @@ export function ColorTextureView({ label, originalLabel, url, pixels, original, 
   /** The material's parts, for ranges that change one part (colorParts.ts). */
   parts?: MaterialParts | null;
 }) {
+  const t = useT();
   function choose(event: MouseEvent<HTMLElement>) {
     if (!picking || !pixels) return;
     // The image is fitted whole inside its element (object-fit: contain): read the click against
@@ -118,21 +121,21 @@ export function ColorTextureView({ label, originalLabel, url, pixels, original, 
         return (
           <section key={view}>
             <div className="color-texture-label">
-              <span>{first ? originalLabel : "Yours"}</span>
-              {!first && <small>{approximate ? "Approximate" : "As built"}</small>}
+              <span>{first ? originalLabel : t("Yours")}</span>
+              {!first && <small>{approximate ? t("Approximate") : t("As built")}</small>}
             </div>
             <div className={`color-texture-stage ${picking ? "picking" : ""}`} onClick={choose}>
               {pixels ? (
-                <RecipeCanvas pixels={pixels} recipe={first ? original : yours} live={live && !first} parts={parts} label={`${label} ${first ? "base color" : "base color with your colors"}`} />
+                <RecipeCanvas pixels={pixels} recipe={first ? original : yours} live={live && !first} parts={parts} label={first ? t("{material} base color", { material: label }) : t("{material} base color with your colors", { material: label })} />
               ) : url ? (
-                <img src={url} alt={`${label} base color`} style={{ filter: cssFilter(view) }} />
+                <img src={url} alt={t("{material} base color", { material: label })} style={{ filter: cssFilter(view) }} />
               ) : (
                 <div className="color-texture-blank" />
               )}
               {pixels && selection && <SelectionCanvas pixels={pixels} range={selection.range} color={selection.color} parts={parts} />}
-              <span className="color-texture-tint" title="Tint" style={{ background: cssColor(shownTint) }} />
-              {loading && <span className="extra-spinner" role="status" aria-label="Loading preview" />}
-              {error && <small className="extra-thumbnail-error">Preview unavailable</small>}
+              <span className="color-texture-tint" title={t("Tint")} style={{ background: cssColor(shownTint) }} />
+              {loading && <span className="extra-spinner" role="status" aria-label={t("Loading preview")} />}
+              {error && <small className="extra-thumbnail-error">{t("Preview unavailable")}</small>}
             </div>
           </section>
         );

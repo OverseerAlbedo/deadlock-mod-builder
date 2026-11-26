@@ -3,6 +3,8 @@ import { openFor, PURPOSE_OF_KIND } from '../dialogs';
 import { api } from '../api';
 import type { PathKind } from '../models';
 import { CompactPathField } from './Paths';
+import { m, useT } from '../i18n';
+// i18n-area: common
 
 /** Same lists as Rust `intake.rs` (MMD models only as the character and as a gun file). */
 export const extensions: Record<PathKind, string[]> = {
@@ -10,9 +12,12 @@ export const extensions: Record<PathKind, string[]> = {
   animation:['vnmclip_c','vnmclip'],effect:['vpcf_c'],audio:['wav','mp3','flac','ogg','vsnd_c'],
   prop:['blend','glb','gltf','fbx'],variant_project:['json'],weapon:['blend','glb','gltf','fbx','pmx','pmd'],
 };
-export function FilePathInput({label,value,kind,update,disabled,fail}: {
-  label:string;value:string;kind:PathKind;update:(path:string)=>void;disabled:boolean;fail:(title:string,error:unknown)=>void;
+/** `label`: the field's name as it is shown (and the file window's title); `name`: its English
+ * name for the failure title, when `label` is translated (the label by default). */
+export function FilePathInput({label,name=label,value,kind,update,disabled,fail}: {
+  label:string;name?:string;value:string;kind:PathKind;update:(path:string)=>void;disabled:boolean;fail:(title:string,error:unknown)=>void;
 }) {
+  const t = useT();
   const node = useRef<HTMLDivElement>(null);
   const [draft,setDraft] = useState(value), [validating,setValidating] = useState(false);
   useEffect(()=>setDraft(value),[value]);
@@ -21,16 +26,16 @@ export function FilePathInput({label,value,kind,update,disabled,fail}: {
     if (!path.trim()) {update('');setDraft('');return;}
     setValidating(true);
     try {const checked = await api.validateAssetPath(path.trim(),kind);update(checked);setDraft(checked);}
-    catch(error){setDraft(value);fail(`Could not select ${label.toLowerCase()}`,error);}
+    catch(error){setDraft(value);fail(`Could not select ${name.toLowerCase()}`,error);}
     finally{setValidating(false);}
   };
   const commitRef=useRef(commit); useEffect(()=>{commitRef.current=commit;});
   useEffect(()=>{
     const element=node.current;
-    const drop=(event:Event)=>{const paths=(event as CustomEvent<string[]>).detail;if(paths.length===1)void commitRef.current(paths[0]);else fail('Choose one source','Drop one local file or folder for this field.');};
+    const drop=(event:Event)=>{const paths=(event as CustomEvent<string[]>).detail;if(paths.length===1)void commitRef.current(paths[0]);else fail(m('Choose one source'),'Drop one local file or folder for this field.');};
     element?.addEventListener('dmb-file-drop',drop);
     return()=>element?.removeEventListener('dmb-file-drop',drop);
   },[fail]);
-  async function browse(){try{const path=await openFor(PURPOSE_OF_KIND[kind],{title:label,multiple:false,directory:kind==='texture_directory',...(extensions[kind].length?{filters:[{name:label,extensions:extensions[kind]}]}:{})});if(typeof path==='string')await commit(path);}catch(error){fail(`Could not select ${label.toLowerCase()}`,error);}}
-  return <div className="path-field asset-path" ref={node} data-native-drop={disabled?undefined:kind}><CompactPathField folder={kind==='texture_directory'} label={label} value={draft} committed={value} update={setDraft} browse={browse} disabled={disabled||validating} checking={validating} placeholder={kind==='texture_directory'?'Drop a folder here or browse…':'Drop a file here or browse…'} onBlur={()=>{if(draft!==value)void commit(draft);}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();void commit(draft);}}}/></div>;
+  async function browse(){try{const path=await openFor(PURPOSE_OF_KIND[kind],{title:label,multiple:false,directory:kind==='texture_directory',...(extensions[kind].length?{filters:[{name:label,extensions:extensions[kind]}]}:{})});if(typeof path==='string')await commit(path);}catch(error){fail(`Could not select ${name.toLowerCase()}`,error);}}
+  return <div className="path-field asset-path" ref={node} data-native-drop={disabled?undefined:kind}><CompactPathField folder={kind==='texture_directory'} label={label} value={draft} committed={value} update={setDraft} browse={browse} disabled={disabled||validating} checking={validating} placeholder={kind==='texture_directory'?t('Drop a folder here or browse…'):t('Drop a file here or browse…')} onBlur={()=>{if(draft!==value)void commit(draft);}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();void commit(draft);}}}/></div>;
 }

@@ -91,6 +91,8 @@ export interface Settings {
   default_fit_mode?: string;
   /** Load the 3D previews by themselves when their page is shown (absent: off). Saved at once. */
   auto_previews?: boolean;
+  /** The interface language ("en", "zh-CN"); absent or empty: not chosen yet (the first start follows Windows). Saved at once. */
+  language?: string;
 }
 export type DefaultFit = 'preserve_proportions' | 'match_target';
 /** Settings → Appearance → Default fit for new models, read like Rust `Settings::default_fit`. */

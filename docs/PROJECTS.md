@@ -55,9 +55,17 @@ your model file again in the copy.
 
 ## Appearance preferences in Settings
 
-**Settings → Appearance** holds two preferences besides the theme. Both are
+**Settings → Appearance** holds three preferences besides the theme. Each is
 saved at once.
 
+- **Language (语言):** English or Simplified Chinese (简体中文). On a first
+  start the app follows the Windows display language, and the new-user guide
+  asks on its first card. Switching takes effect at once, without a restart,
+  and keeps unsaved work. With the Chinese interface, heroes and items are
+  named as the game's own Chinese text names them. Error messages with their
+  help steps, the notes under a check or a result, the log, and names made
+  from the game's file names (sounds, effects, animations, ability objects)
+  stay in English. Projects and settings are the same in either language.
 - **Default fit for new models:** the Model fitting a model starts on when it is
   checked for the first time in a project, *Preserve source proportions* (the
   default) or *Match hero proportions*. It applies to rigged models and to

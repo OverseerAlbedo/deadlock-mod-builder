@@ -1,10 +1,13 @@
+// i18n-area: prepare
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { m, tp, tpc, useLanguage, useT } from '../i18n';
+import { shownHero } from '../i18n/gameNames';
 import { openFor } from '../dialogs';
 import { api, basename } from '../api';
 import type { DefaultFit, Project } from '../models';
 import { idOf, useAutoLoad } from '../preview/autoLoad';
 import { FLOOR_CHOICES, LEGS_ON_HERO_JOINTS, legFitLine, ROLES, type IssueKind, type MappingEntry, type PreparationAnalysis, type PreparationOptions, type PreparationResult, type ReviewIssue, type Role, type Suggestions, type Vec3 } from './models';
-import { applySuggestions, changeRole, pendingFollowing, roleLabel, roleWarnings } from './mapping';
+import { applySuggestions, boneLabelText, changeRole, pendingFollowing, roleLabel, roleWarnings } from './mapping';
 import type { ModelLabelSet } from '../studio/ModelLabels';
 import type { LitBone } from './MappingViewport';
 import { roleRowId } from './panels/RolesPanel';
@@ -61,6 +64,7 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   /** Where the project is saved (a separate gun model's project is saved next to it). */projectPath?:string|null;
   /** Saves the project when it was never saved; resolves to its path. */saveProject?:()=>Promise<string|undefined>;
   /** Continue to the next step (Appearance & weapons) once the model is prepared. */next?:()=>void}){
+  const t=useT(),language=useLanguage();
   // Long operations update the project more than once: always use the newest updater.
   const updateRef=useRef(update);updateRef.current=update;
   const [preview,setPreview]=useState<GltfPreview|null>(null),[mappingPreview,setMappingPreview]=useState<GltfPreview|null>(null),[preparedPreview,setPreparedPreview]=useState<PreviewScene|null>(null);
@@ -91,8 +95,10 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   function changeOptions(values:Partial<PreparationOptions>){invalidate();const next={...options,...values};update({...project,preparation_options:asOptions(analysis?withRoleChange(analysis.analysis.bones,analysis.analysis.weighted_bones,options,next):next)});}
   function selectRole(role:Role){setSelectedRole(role);setSelectedBone('');}
   function setRole(side:'source'|'target',role:Role,name:string){selectRole(role);changeOptions(changeRole(options,side,role,name));}
-  async function browse(){await operate('Could not choose the source model',async()=>{const path=await openFor('model-source',{title:'Choose source for preparation',multiple:false,filters:[{name:'Source models',extensions:[...SOURCE_EXTENSIONS]}]});if(typeof path==='string')sourceChanged(path);});}
-  async function loadPreview(mapping=false,auto=false){const version=generation.current;let started=false;await operate('Source preview did not complete',async()=>{started=true;const value=decodeGltfPreview(await api.previewSource(mapping&&analysis?analysis.source:source));if(version!==generation.current)return;if(mapping&&analysis&&value.metadata.source_sha256!==analysis.source_sha256)throw new Error('Source changed since inspection. Inspect it again before reviewing the mapping.');if(mapping)setMappingPreview(value);else setPreview(value);},true,true,auto);return started;}
+  // The file window's own title and filter name are only shown.
+  const sourceDialog=()=>({title:t('Choose source for preparation'),multiple:false,filters:[{name:t('Source models'),extensions:[...SOURCE_EXTENSIONS]}]});
+  async function browse(){const dialog=sourceDialog();await operate(m('Could not choose the source model'),async()=>{const path=await openFor('model-source',dialog);if(typeof path==='string')sourceChanged(path);});}
+  async function loadPreview(mapping=false,auto=false){const version=generation.current;let started=false;await operate(m('Source preview did not complete'),async()=>{started=true;const value=decodeGltfPreview(await api.previewSource(mapping&&analysis?analysis.source:source));if(version!==generation.current)return;if(mapping&&analysis&&value.metadata.source_sha256!==analysis.source_sha256)throw new Error('Source changed since inspection. Inspect it again before reviewing the mapping.');if(mapping)setMappingPreview(value);else setPreview(value);},true,true,auto);return started;}
   // Choices that only take effect through a new inspection (the gun file and Scene objects),
   // as they were when the current analysis was made.
   const choicesKey=(o:PreparationOptions)=>JSON.stringify([o.weapon_source??'',o.scene??null]);
@@ -191,38 +197,39 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
     updateRef.current(accepted);
     return true;
   }
-  async function inspect(auto=false){const version=++generation.current;setSkeletonAsk(false);await operate(auto?'Your model could not be prepared automatically':'Source preparation inspection did not complete',async()=>{
+  async function inspect(auto=false){const version=++generation.current;setSkeletonAsk(false);await operate(auto?m('Your model could not be prepared automatically'):m('Source preparation inspection did not complete'),async()=>{
     const inspected=await runInspect(version);
     if(!inspected||!auto)return;
     if(await runPrepare(inspected.analysis,inspected.project,version,!expert))next?.();
   },true);}
   // Clicking Prepare model (or Continue with automatic weights) is the choice for a file without its skeleton.
-  async function prepareModel(){if(!analysis)return;const version=generation.current;setSkeletonAsk(false);if(analysis.analysis.missing_skeleton)continueWithoutSkeleton(project.id,analysis.source_sha256);await operate('Your model could not be prepared',async()=>{if(await runPrepare(analysis,project,version))next?.();},true);}
+  async function prepareModel(){if(!analysis)return;const version=generation.current;setSkeletonAsk(false);if(analysis.analysis.missing_skeleton)continueWithoutSkeleton(project.id,analysis.source_sha256);await operate(m('Your model could not be prepared'),async()=>{if(await runPrepare(analysis,project,version))next?.();},true);}
   /** Choose another model file from the no-skeleton stop: it is checked and prepared automatically, as from step 1. */
-  async function chooseAnother(){await operate('Could not choose the source model',async()=>{const path=await openFor('model-source',{title:'Choose source for preparation',multiple:false,filters:[{name:'Source models',extensions:[...SOURCE_EXTENSIONS]}]});if(typeof path==='string'){sourceChanged(path);setAutoSource(path);}});}
+  async function chooseAnother(){const dialog=sourceDialog();await operate(m('Could not choose the source model'),async()=>{const path=await openFor('model-source',dialog);if(typeof path==='string'){sourceChanged(path);setAutoSource(path);}});}
   /** Re-detect body mapping (`resetRoles`) or Refresh suggestions using my roles (the roles stay). */
-  async function suggestions(resetRoles=true){if(!analysis)return;const version=++generation.current;await operate('Automatic mapping did not complete',async()=>{const value=await api.preparationSuggest(analysis,resetRoles?{...options,source_roles:{},target_roles:{}}:options);if(version===generation.current)acceptSuggestions(analysis,value,options,project,!resetRoles);});}
-  async function review(){if(!analysis)return;const version=generation.current;await operate('Preparation review did not complete',async()=>{const fresh=await consistentChoices(analysis,project,version);if(!fresh)return;const checked=await api.preparationReview(fresh.project,fresh.analysis,fresh.project.preparation_options as PreparationOptions);if(version===generation.current){setIssues(checked);setReviewKey(keyOf(fresh.project,fresh.analysis));}});}
+  async function suggestions(resetRoles=true){if(!analysis)return;const version=++generation.current;await operate(m('Automatic mapping did not complete'),async()=>{const value=await api.preparationSuggest(analysis,resetRoles?{...options,source_roles:{},target_roles:{}}:options);if(version===generation.current)acceptSuggestions(analysis,value,options,project,!resetRoles);});}
+  async function review(){if(!analysis)return;const version=generation.current;await operate(m('Preparation review did not complete'),async()=>{const fresh=await consistentChoices(analysis,project,version);if(!fresh)return;const checked=await api.preparationReview(fresh.project,fresh.analysis,fresh.project.preparation_options as PreparationOptions);if(version===generation.current){setIssues(checked);setReviewKey(keyOf(fresh.project,fresh.analysis));}});}
   /** The one-click fix next to a check result, then the check again. */
-  async function fixIssue(kind:IssueKind){if(!analysis)return;invalidate();const version=generation.current;await operate('Preparation review did not complete',async()=>{
+  async function fixIssue(kind:IssueKind){if(!analysis)return;invalidate();const version=generation.current;await operate(m('Preparation review did not complete'),async()=>{
     let value=analysis,current=project;
     if(kind==='stale_following'){const reply=await api.preparationSuggest(value,options);if(version!==generation.current)return;({analysis:value,project:current}=acceptSuggestions(value,reply,options,current,true));}
     else{current={...project,preparation_options:asOptions({...options,...keepDetectedGroups(physics,options)})} as Project;updateRef.current(current);}
     const checked=await api.preparationReview(current,value,current.preparation_options as PreparationOptions);
     if(version===generation.current){setIssues(checked);setReviewKey(keyOf(current,value));}
   });}
-  async function savePreset(){if(!analysis||!reviewed)return;const version=generation.current;await operate('Mapping preset could not be saved',async()=>{await api.preparationSaveMappingPreset(analysis,options);if(version===generation.current)setSavedPreset(key);});}
-  async function convert(correction=false){if(!analysis)return;const version=generation.current;await operate('Model conversion did not complete',async()=>{const checked=await api.preparationReview(project,analysis,options);if(version!==generation.current)return;setIssues(checked);setReviewKey(key);if(checked.length)return;const confirmed={...options,reviewed:true,...(Object.keys(options.mapping_anchors??{}).length?{follow_motion_reviewed:true}:{})};const correctionBlend=result?.blend,conversionProject={...(correction&&result?{...project,preparation_blend:result.blend,preparation_report:result.report}:project),preparation_options:asOptions(confirmed)} as Project;setResult(null);setPreparedPreview(null);const value=await api.preparationConvert(conversionProject,analysis,confirmed,correction,correction?correctionBlend:undefined);if(version===generation.current)setResult(value);},true);}
-  async function accept(){if(result)await operate('Prepared model could not be accepted',async()=>update(await api.preparationAccept(project,result)),true);}
-  async function resume(){const version=++generation.current;setSkeletonAsk(false);await operate('Saved preparation could not be resumed',async()=>{const value=await api.preparationResume(project);if(version!==generation.current)return;setInspections(n=>n+1);setSource(value.analysis.source_original);setRotation(value.analysis.rotation);setAnalysis(value.analysis);inspectedWith.current=choicesKey(options);setMappingPreview(null);setPreparedPreview(null);setResult(value.result);setIssues(null);},true);}
-  async function previewPrepared(auto=false){if(!result)return false;const version=generation.current;let started=false;await operate('Prepared model preview did not complete',async()=>{started=true;const value=decodePreview(await api.preview(result.dmx));if(version===generation.current)setPreparedPreview(value);},true,true,auto);return started;}
+  async function savePreset(){if(!analysis||!reviewed)return;const version=generation.current;await operate(m('Mapping preset could not be saved'),async()=>{await api.preparationSaveMappingPreset(analysis,options);if(version===generation.current)setSavedPreset(key);});}
+  async function convert(correction=false){if(!analysis)return;const version=generation.current;await operate(m('Model conversion did not complete'),async()=>{const checked=await api.preparationReview(project,analysis,options);if(version!==generation.current)return;setIssues(checked);setReviewKey(key);if(checked.length)return;const confirmed={...options,reviewed:true,...(Object.keys(options.mapping_anchors??{}).length?{follow_motion_reviewed:true}:{})};const correctionBlend=result?.blend,conversionProject={...(correction&&result?{...project,preparation_blend:result.blend,preparation_report:result.report}:project),preparation_options:asOptions(confirmed)} as Project;setResult(null);setPreparedPreview(null);const value=await api.preparationConvert(conversionProject,analysis,confirmed,correction,correction?correctionBlend:undefined);if(version===generation.current)setResult(value);},true);}
+  async function accept(){if(result)await operate(m('Prepared model could not be accepted'),async()=>update(await api.preparationAccept(project,result)),true);}
+  async function resume(){const version=++generation.current;setSkeletonAsk(false);await operate(m('Saved preparation could not be resumed'),async()=>{const value=await api.preparationResume(project);if(version!==generation.current)return;setInspections(n=>n+1);setSource(value.analysis.source_original);setRotation(value.analysis.rotation);setAnalysis(value.analysis);inspectedWith.current=choicesKey(options);setMappingPreview(null);setPreparedPreview(null);setResult(value.result);setIssues(null);},true);}
+  async function previewPrepared(auto=false){if(!result)return false;const version=generation.current;let started=false;await operate(m('Prepared model preview did not complete'),async()=>{started=true;const value=decodePreview(await api.preview(result.dmx));if(version===generation.current)setPreparedPreview(value);},true,true,auto);return started;}
   // The buttons' loads (the panels take a plain promise).
   const showSource=async(mapping=false)=>{await loadPreview(mapping);},showPrepared=async()=>{await previewPrepared();};
   const labels=analysis?.suggestions.assistance?.labels??{};
   const entries=useMemo(()=>{
     const assist=new Map((analysis?.suggestions.assistance?.entries??[]).map(e=>[e.source,e]));
-    return (analysis?.analysis.weighted_bones??[]).map(name=>assist.get(name)??{source:name,target:null,group:'Other bones',label:name,reason:'Choose and review a target bone.',automatic:false} as MappingEntry);
-  },[analysis]);
+    // A bone the suggestions left out: its group stays English (it is a filter value); its reason is only shown.
+    return (analysis?.analysis.weighted_bones??[]).map(name=>assist.get(name)??{source:name,target:null,group:'Other bones',label:name,reason:t('Choose and review a target bone.'),automatic:false} as MappingEntry);
+  },[analysis,language]);// eslint-disable-line react-hooks/exhaustive-deps
   const physics=physicsGroups(analysis?.analysis.bones??[],analysis?.analysis.weighted_bones??[],options),kept=keptPhysicsBones(physics,options);
   const bodyEntries=entries.filter(e=>!kept.has(e.source));
   const unmapped=bodyEntries.filter(e=>!options.mapping?.[e.source]).length,groups=[...new Set(entries.map(e=>e.group))].sort();
@@ -230,14 +237,14 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   const proposed=bodyEntries.filter(e=>e.follow&&!options.mapping?.[e.source]);
   const rolesChanged=Boolean(analysis)&&rolesDiffer(options,analysis!.suggestions);
   const staleMatches=issues?.find(issue=>issue.kind==='stale_following')?.bones?.length??0;
-  const roleProblems=[...(analysis?.suggestions.source?.errors??[]).map(error=>`Source: ${error}`),...(analysis?.suggestions.target.errors??[]).map(error=>`Hero: ${error}`)];
+  const roleProblems=[...(analysis?.suggestions.source?.errors??[]).map(error=>t('Source: {error}',{error})),...(analysis?.suggestions.target.errors??[]).map(error=>t('Hero: {error}',{error}))];
   const allFollowing=rolesChanged?[]:pendingFollowing(options,bodyEntries);
   const pelvisFollowing=!rolesChanged&&options.target_roles?.pelvis?pendingFollowing(options,bodyEntries,options.target_roles.pelvis):[];
   const offsetUpgrades=bodyEntries.filter(e=>e.follow?.automatic&&options.mapping?.[e.source]===e.follow.target&&!options.mapping_anchors?.[e.source]);
   const proposalGroups=[...new Set(proposed.map(e=>e.follow!.group))].sort();
   const visible=entries.filter(e=>(filter==='all'||(filter==='following'?!kept.has(e.source)&&Boolean(options.mapping_anchors?.[e.source]):!kept.has(e.source)&&!options.mapping?.[e.source]))&&(group==='all'||e.group===group)&&`${e.source} ${e.label} ${options.mapping?.[e.source]??''}`.toLowerCase().includes(search.toLowerCase()));
   const pageCount=Math.max(1,Math.ceil(visible.length/30)),currentPage=Math.min(page,pageCount-1),warnings=roleWarnings(options);
-  const boneLabel=(name:string)=>labels[name]?`${name} — ${labels[name]}`:name;
+  const boneLabel=(name:string)=>labels[name]?`${name} — ${boneLabelText(labels[name])}`:name;
   // Simple mode picks the panel that needs attention (or Fit & review); Expert starts on Body roles.
   const [panel,setPanel]=useState<PrepPanel|null>(expert?'roles':null);
   const [matchesOpen,setMatchesOpen]=useState(false),[view,setView]=useState<'model'|'joints'|'result'>('joints');
@@ -251,7 +258,8 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   const chosen:PrepPanel=hiddenPanels.includes(wanted)?'review':wanted;
   const activePanel:PrepPanel=weaponOnly?(chosen==='review'?'review':'weapon'):project.model_input_mode!=='rigged_humanoid'&&(chosen==='physics'||chosen==='mapping')?'roles':chosen==='weapon'&&!weaponTab?'roles':chosen;
   const shownRoles=ROLES.filter(role=>roleGroup==='all'||(roleGroup==='torso'?!role.includes('_'):roleGroup==='arms'?/upperarm|forearm|hand/.test(role):/thigh|shin|foot/.test(role)));
-  const hero=project.hero_name||basename(project.original_model).replace(/\.vmdl(_c)?$/,'');
+  // Only shown: the game's name of the hero in the interface language.
+  const hero=shownHero(project.hero_name)||basename(project.original_model).replace(/\.vmdl(_c)?$/,'');
   function jump(id:string){document.getElementById(id)?.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
   function showPanel(next:PrepPanel){setPanel(next);}
   useEffect(()=>{if(issues)document.getElementById('prep-check-results')?.scrollIntoView?.({block:'nearest'});},[issues]);
@@ -305,16 +313,17 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   const missingGroups=analysis&&options.preserve_physics_bones?undetectedRoots(physics,options).length:0;
   const keptRoots=Array.isArray(options.physics_roots)?options.physics_roots.length:0;
   const word=(status:string,tone:StudioTone)=>({status,tone});
-  const fixWord=(id:PrepPanel)=>{const n=toFix(id);return n?word(`${n} to fix`,'attention'):null;};
+  const fixWord=(id:PrepPanel)=>{const n=toFix(id);return n?word(tp(n,{other:'{count} to fix'}),'attention'):null;};
   const tabWords:Record<PrepPanel,{status:string;tone:StudioTone}>={
-    roles:fixWord('roles')??(roleProblems.length||warnings.length?word('Needs your choice','attention'):rolesChanged?word('changed','changed'):word('✓','ok')),
-    physics:fixWord('physics')??(missingGroups?word('Needs your choice','attention'):options.preserve_physics_bones&&keptRoots?word(`${keptRoots} kept`,'ok'):physics.length?word('Off','quiet'):word('None found','quiet')),
-    mapping:fixWord('mapping')??(unmapped?word(`${unmapped} to match`,'attention'):staleMatches?word(`${staleMatches} to refresh`,'attention'):rolesChanged?word('refresh','changed'):word('✓','ok')),
+    roles:fixWord('roles')??(roleProblems.length||warnings.length?word(t('Needs your choice'),'attention'):rolesChanged?word(t('changed'),'changed'):word('✓','ok')),
+    physics:fixWord('physics')??(missingGroups?word(t('Needs your choice'),'attention'):options.preserve_physics_bones&&keptRoots?word(tp(keptRoots,{other:'{count} kept'}),'ok'):physics.length?word(t('Off'),'quiet'):word(t('None found'),'quiet')),
+    mapping:fixWord('mapping')??(unmapped?word(tp(unmapped,{other:'{count} to match'}),'attention'):staleMatches?word(tp(staleMatches,{other:'{count} to refresh'}),'attention'):rolesChanged?word(t('refresh'),'changed'):word('✓','ok')),
     weapon:fixWord('weapon')??word('✓','ok'),
-    review:fixWord('review')??(shapeNeeded||floorConflict?word('Needs your choice','attention'):word('✓','ok')),
+    review:fixWord('review')??(shapeNeeded||floorConflict?word(t('Needs your choice'),'attention'):word('✓','ok')),
   };
-  const tabs:StudioTab<PrepPanel>[]=offered.map(id=>({id,label:TAB_NAMES[id],...tabWords[id]}));
-  const attention=analysis?.analysis.missing_skeleton?'No skeleton':roleProblems.length?'Needs your choice':null;
+  const tabs:StudioTab<PrepPanel>[]=offered.map(id=>({id,label:t(TAB_NAMES[id]),...tabWords[id]}));
+  // English here; the top bar translates it where it is drawn.
+  const attention=analysis?.analysis.missing_skeleton?m('No skeleton'):roleProblems.length?m('Needs your choice'):null;
   const notesShown=expert||showMatches;
   // Labels on the character and the lit bone for the open tab (shown only once the Joint check
   // view is loaded; nothing is loaded for them). Body roles labels the chosen region's joints and
@@ -325,13 +334,13 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
   const sourceOf=(role:Role)=>options.source_roles?.[role];
   const labelRoles=[...new Set<Role>([...shownRoles,selectedRole])].filter(role=>Boolean(sourceOf(role)));
   const keptGroups=options.preserve_physics_bones?physics.filter(g=>keptRoots&&(options.physics_roots as string[]).includes(g.root)):[];
-  const viewLabels:ModelLabelSet|undefined=activePanel==='roles'?{label:'Body joints on the model',crowd:'hide',items:labelRoles.map(role=>({id:role,text:roleLabel(role),active:role===selectedRole,bones:[sourceOf(role)!]})),select:id=>{selectRole(id as Role);reveal(roleRowId(id as Role));}}
-    :activePanel==='mapping'&&selectedBone?{label:'Selected bone on the model',items:[{id:selectedBone,text:selectedBone,detail:'selected',active:true,bones:[selectedBone]}],select:id=>reveal(matchRowId(id))}
-    :activePanel==='physics'&&keptGroups.length?{label:'Kept moving parts on the model',crowd:'hide',items:keptGroups.map(g=>({id:g.root,text:g.root,detail:`${g.source_bones.length} bones`,active:g.root===markedGroup,bones:g.source_bones})),select:id=>{setMarkedGroup(id);reveal(groupRowId(id));}}
+  const viewLabels:ModelLabelSet|undefined=activePanel==='roles'?{label:t('Body joints on the model'),crowd:'hide',items:labelRoles.map(role=>({id:role,text:roleLabel(role),active:role===selectedRole,bones:[sourceOf(role)!]})),select:id=>{selectRole(id as Role);reveal(roleRowId(id as Role));}}
+    :activePanel==='mapping'&&selectedBone?{label:t('Selected bone on the model'),items:[{id:selectedBone,text:selectedBone,detail:t('selected'),active:true,bones:[selectedBone]}],select:id=>reveal(matchRowId(id))}
+    :activePanel==='physics'&&keptGroups.length?{label:t('Kept moving parts on the model'),crowd:'hide',items:keptGroups.map(g=>({id:g.root,text:g.root,detail:tpc('model label',g.source_bones.length,{other:'{count} bones'}),active:g.root===markedGroup,bones:g.source_bones})),select:id=>{setMarkedGroup(id);reveal(groupRowId(id));}}
     :undefined;
   const litRole=sourceOf(selectedRole);
   const lit:LitBone|null|undefined=activePanel==='roles'?(litRole?{bone:litRole,name:roleLabel(selectedRole)}:null):activePanel==='mapping'?(selectedBone?{bone:selectedBone,name:selectedBone}:null):undefined;
-  const labelHint=activePanel==='roles'?'click a label to select that joint':activePanel==='physics'?'click a label to find it in the list':undefined;
+  const labelHint=activePanel==='roles'?t('click a label to select that joint'):activePanel==='physics'?t('click a label to find it in the list'):undefined;
   const sourceFields=<SourceFields analysis={analysis} source={source} busy={busy} sourceChanged={sourceChanged} browse={browse} options={options} operate={operate} changeOptions={changeOptions} rotation={rotation} invalidate={invalidate} setRotation={setRotation} setAnalysis={setAnalysis} setMappingPreview={setMappingPreview} project={project} setPanel={setPanel} expert={expert} inspect={inspect} setView={setView} loadPreview={showSource}/>;
   const menuContent={
     model:sourceFields,
@@ -340,17 +349,17 @@ export function PreparationPage({project,update,busy,operate,projectPath,savePro
     notes:analysis?<NotesPanel details={notesShown} busy={busy} suggestions={suggestions} unmapped={unmapped} analysis={analysis} prepared={Boolean(result)}/>:null,
   };
   return <div className="prep-workspace">
-    <header className="prep-heading"><div><span className="prep-eyebrow">STEP 2 OF 5</span><h1>Prepare model<span className="prep-hero-chip">{hero}</span></h1><p>Your model is fitted to {hero}'s skeleton so it moves with the hero's animations. Most models are ready in one click.</p></div><button className="prep-secondary" disabled={busy||!project.preparation_report} onClick={()=>void resume()}><PrepIcon name="refresh" size={17}/>Reopen the last preparation</button></header>
-    {!analysis&&project.dmx&&<section className="prep-card prep-done" role="status"><PrepIcon name="check"/><div><strong>{prepared?'Your model is prepared.':'Your model is already game-ready (DMX), so it does not need preparing.'}</strong><p className="hint">{prepared?`${basename(project.dmx)} is in use. Prepare again only to change the fit, the gun or the moving parts.`:'You can go straight to Appearance & weapons.'}</p></div><div className="row">{next&&<button className="prep-primary" disabled={busy} onClick={next}>Continue to Appearance & weapons<PrepIcon name="arrow" size={18}/></button>}{prepared&&<button className="prep-secondary" disabled={busy} onClick={()=>void resume()}>Change the preparation</button>}</div></section>}
-    <StudioFrame label="Prepare model" className="prep-studio">
+    <header className="prep-heading"><div><span className="prep-eyebrow">{t('STEP {step} OF {count}',{step:2,count:5})}</span><h1>{t('Prepare model')}<span className="prep-hero-chip">{hero}</span></h1><p>{t("Your model is fitted to {hero}'s skeleton so it moves with the hero's animations. Most models are ready in one click.",{hero})}</p></div><button className="prep-secondary" disabled={busy||!project.preparation_report} onClick={()=>void resume()}><PrepIcon name="refresh" size={17}/>{t('Reopen the last preparation')}</button></header>
+    {!analysis&&project.dmx&&<section className="prep-card prep-done" role="status"><PrepIcon name="check"/><div><strong>{prepared?t('Your model is prepared.'):t('Your model is already game-ready (DMX), so it does not need preparing.')}</strong><p className="hint">{prepared?t('{file} is in use. Prepare again only to change the fit, the gun or the moving parts.',{file:basename(project.dmx)}):t('You can go straight to Appearance & weapons.')}</p></div><div className="row">{next&&<button className="prep-primary" disabled={busy} onClick={next}>{t('Continue to Appearance & weapons')}<PrepIcon name="arrow" size={18}/></button>}{prepared&&<button className="prep-secondary" disabled={busy} onClick={()=>void resume()}>{t('Change the preparation')}</button>}</div></section>}
+    <StudioFrame label={t('Prepare model')} className="prep-studio">
       <PrepTopBar source={source} analysis={analysis} unmapped={unmapped} mode={project.model_input_mode} attention={attention} notesShown={notesShown} content={menuContent} menus={menus} sceneChoices={options.scene??{}}/>
       {preview&&!analysis&&<SourcePreview preview={preview} setPreview={setPreview}/>}
-      {reinspectReason&&<p className="prep-reinspect" role="status">{reinspectReason==='gun'?'Loading the gun file…':'Checking your model again with the new Scene objects choices…'}</p>}
+      {reinspectReason&&<p className="prep-reinspect" role="status">{reinspectReason==='gun'?t('Loading the gun file…'):t('Checking your model again with the new Scene objects choices…')}</p>}
       {analysis&&<>
         <FoundNotices analysis={analysis} unmapped={unmapped} choice={skeletonAsk?{busy,proceed:()=>void prepareModel(),another:()=>void chooseAnother()}:undefined}/>
         <div id="prep-review-workspace" className="prep-review-workspace">
-          {!showMatches&&!weaponOnly&&<p className={analysis.analysis.missing_skeleton?'prep-matched prep-matched-warn':'prep-matched'} role="status"><PrepIcon name={analysis.analysis.missing_skeleton?'info':'check'} size={16}/>{analysis.analysis.missing_skeleton?'No bones to match: this file has no skeleton.':`All ${bodyEntries.length.toLocaleString()} bones matched to ${hero}.`} <button className="tertiary" disabled={busy} onClick={()=>{setMatchesOpen(true);setPanel('roles');}}>Edit matches</button></p>}
-          <StudioTabs label="Preparation review sections" base="prep" tabs={tabs} active={activePanel} onSelect={showPanel}/>
+          {!showMatches&&!weaponOnly&&<p className={analysis.analysis.missing_skeleton?'prep-matched prep-matched-warn':'prep-matched'} role="status"><PrepIcon name={analysis.analysis.missing_skeleton?'info':'check'} size={16}/>{analysis.analysis.missing_skeleton?t('No bones to match: this file has no skeleton.'):tp(bodyEntries.length,{other:'All {count} bones matched to {hero}.'},{count:bodyEntries.length.toLocaleString(),hero})} <button className="tertiary" disabled={busy} onClick={()=>{setMatchesOpen(true);setPanel('roles');}}>{t('Edit matches')}</button></p>}
+          <StudioTabs label={t('Preparation review sections')} base="prep" tabs={tabs} active={activePanel} onSelect={showPanel}/>
           <div className="prep-studio-grid">
             <div className="prep-studio-view"><ViewColumn view={view} setView={setView} result={result} preparedPreview={preparedPreview} previewPrepared={showPrepared} mappingPreview={mappingPreview} analysis={analysis} options={options} selectedRole={selectedRole} selectRole={selectRole} selectedBone={selectedBone} busy={busy} loadPreview={showSource} preview={preview} source={source} project={project} rotation={rotation} labels={viewLabels} lit={lit} labelHint={labelHint}/></div>
             <div className="prep-studio-panels">

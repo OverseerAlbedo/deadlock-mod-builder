@@ -3,8 +3,13 @@
  * writes a project. A made row is `{enabled, source: <animation file>, target, allow_shared: false,
  * made}`; `made` holds only the keys of the saved format (`deadlock-project made_clip.rs`), in its
  * order, with `mode` and `bones` always written and `part_start_seconds`, `loop_blend_seconds` and
- * `in_place` written only when they differ from the engine's defaults, exactly as Rust saves them. */
+ * `in_place` written only when they differ from the engine's defaults, exactly as Rust saves them.
+ * The words for the report come in the interface language and are only drawn; bone names and the
+ * kinds of bones the engine names stay as they come. */
+// i18n-area: motion
 import type { ResourceReplacement } from '../models';
+import { t, tc, tp } from '../i18n';
+import { nameList } from '../build/words';
 import {
   ANIMATION_FILE_SUFFIXES, MAX_ACTION_CHARS, MAX_LOOP_BLEND, MAX_PART_START,
   type ActionInfo, type ActionList, type ClipBones, type ClipMode, type MadeClip, type MadeReport,
@@ -110,19 +115,19 @@ export const loopBlend = (value: number, clipSeconds: number) => Number(clamp(ro
 
 /** Frames of an action, counted the way the clip list counts them (both ends included). */
 export const actionFrames = (action: Pick<ActionInfo, 'frame_start' | 'frame_end'>) => Math.max(1, Math.round(action.frame_end - action.frame_start) + 1);
-const secs = (value: number) => `${value.toFixed(2)} s`;
+const secs = (value: number) => t('{value} s', { value: value.toFixed(2) });
 /** "Wave · 2.00 s · 61 frames". */
-export const actionLabel = (action: ActionInfo) => `${action.name} · ${secs(action.length_seconds)} · ${actionFrames(action)} ${actionFrames(action) === 1 ? 'frame' : 'frames'}`;
+export const actionLabel = (action: ActionInfo) => `${action.name} · ${secs(action.length_seconds)} · ${tp(actionFrames(action), { one: '{count} frame', other: '{count} frames' })}`;
 
 /** How the speed changes, in words, from the report. */
 export function speedWords(report: Pick<MadeReport, 'stretch' | 'clip_seconds' | 'action_seconds' | 'plays_from' | 'plays_to'>, stretched: boolean): string {
   const clip = secs(report.clip_seconds);
-  if (!stretched) return `The game fixes this clip’s length at ${clip}. Your animation plays at its own speed, from ${secs(report.plays_from)} to ${secs(report.plays_to)}.`;
+  if (!stretched) return t('The game fixes this clip’s length at {clip}. Your animation plays at its own speed, from {from} to {to}.', { clip, from: secs(report.plays_from), to: secs(report.plays_to) });
   const s = report.stretch;
-  const head = `The game fixes this clip’s length at ${clip}. Your ${secs(report.action_seconds)} animation`;
-  if (!(s > 0) || Math.abs(s - 1) < 0.005) return `${head} fits it at its own speed.`;
-  if (s > 1) return s < 1.15 ? `${head} plays a little faster to fit it.` : `${head} plays ${s.toFixed(1)} times as fast to fit it.`;
-  return s > 1 / 1.15 ? `${head} plays a little slower to fit it.` : `${head} plays at ${Math.round(s * 100)}% of its speed to fit it.`;
+  const values = { clip, action: secs(report.action_seconds) };
+  if (!(s > 0) || Math.abs(s - 1) < 0.005) return t('The game fixes this clip’s length at {clip}. Your {action} animation fits it at its own speed.', values);
+  if (s > 1) return s < 1.15 ? t('The game fixes this clip’s length at {clip}. Your {action} animation plays a little faster to fit it.', values) : t('The game fixes this clip’s length at {clip}. Your {action} animation plays {factor} times as fast to fit it.', { ...values, factor: s.toFixed(1) });
+  return s > 1 / 1.15 ? t('The game fixes this clip’s length at {clip}. Your {action} animation plays a little slower to fit it.', values) : t('The game fixes this clip’s length at {clip}. Your {action} animation plays at {percent}% of its speed to fit it.', { ...values, percent: Math.round(s * 100) });
 }
 
 const SIDES: Record<string, string> = { l: 'left', r: 'right', left: 'left', right: 'right' };
@@ -136,25 +141,29 @@ export function readableBone(name: string): string {
 /** Up to `count` readable names, "…" when there are more. */
 export function someBones(names: string[], count = 4): string {
   const shown = names.slice(0, count).map(readableBone);
-  return names.length > count ? `${shown.join(', ')}, …` : shown.join(', ');
+  return names.length > count ? `${nameList(shown)}${tc('list separator', ', ')}…` : nameList(shown);
 }
-const bones = (n: number) => `${n} ${n === 1 ? 'bone' : 'bones'}`;
 
 /** One line of "What the app makes". */
 export interface MakesLine { id: string; mark: 'kept' | 'yours' | 'note'; text: string; side?: string }
 /** "What the app makes", only from the report. A made clip always keeps the game's length, events
  * and root motion, so there is no pass or fail here. */
 export function makesLines(report: MadeReport): MakesLine[] {
-  const out: MakesLine[] = [{ id: 'kept', mark: 'kept', text: 'Length, events and root motion are the game’s own', side: 'kept by the app' }];
-  out.push({ id: 'follow', mark: 'yours', text: `${bones(report.follow.length)} ${report.follow.length === 1 ? 'follows' : 'follow'} your animation${report.follow.length ? ` (${someBones(report.follow)})` : ''}`, side: 'from your file' });
-  if (report.carried.length) out.push({ id: 'carried', mark: 'note', text: `${bones(report.carried.length)} ${report.carried.length === 1 ? 'is' : 'are'} carried with them, as the game’s clip carries them (${someBones(report.carried, 3)})` });
-  if (report.between.length) out.push({ id: 'between', mark: 'note', text: `${bones(report.between.length)} between them ${report.between.length === 1 ? 'stays' : 'stay'} at the hero’s rest: your file has no bone for ${report.between.length === 1 ? 'it' : 'them'} (${someBones(report.between, 3)})` });
+  const fromFile = t('from your file');
+  const out: MakesLine[] = [{ id: 'kept', mark: 'kept', text: t('Length, events and root motion are the game’s own'), side: t('kept by the app') }];
+  out.push({ id: 'follow', mark: 'yours', text: report.follow.length
+    ? tp(report.follow.length, { one: '{count} bone follows your animation ({bones})', other: '{count} bones follow your animation ({bones})' }, { bones: someBones(report.follow) })
+    : tp(0, { one: '{count} bone follows your animation', other: '{count} bones follow your animation' }), side: fromFile });
+  if (report.carried.length) out.push({ id: 'carried', mark: 'note', text: tp(report.carried.length, { one: '{count} bone is carried with them, as the game’s clip carries them ({bones})', other: '{count} bones are carried with them, as the game’s clip carries them ({bones})' }, { bones: someBones(report.carried, 3) }) });
+  if (report.between.length) out.push({ id: 'between', mark: 'note', text: tp(report.between.length, { one: '{count} bone between them stays at the hero’s rest: your file has no bone for it ({bones})', other: '{count} bones between them stay at the hero’s rest: your file has no bone for them ({bones})' }, { bones: someBones(report.between, 3) }) });
   // Kinds by count, "other" last (it names no kind).
   const kinds = Object.entries(report.kept_kinds).filter(([kind, n]) => n > 0 && kind !== 'other').sort((a, b) => b[1] - a[1]).map(([kind]) => kind);
   if ((report.kept_kinds.other ?? 0) > 0 && kinds.length) kinds.push('other');
-  if (report.kept_count > 0) out.push({ id: 'game', mark: 'note', text: `${bones(report.kept_count)} keep the game’s motion${kinds.length ? ` (${kinds.join(', ')})` : ''}`, side: 'unchanged' });
-  if (report.still_made_moving.length) out.push({ id: 'moving', mark: 'note', text: `${bones(report.still_made_moving.length)} the game holds still ${report.still_made_moving.length === 1 ? 'now moves' : 'now move'} (${someBones(report.still_made_moving, 3)})`, side: 'from your file' });
-  if (report.still_new_fixed_value.length) out.push({ id: 'fixed', mark: 'note', text: `${bones(report.still_new_fixed_value.length)} the game holds still ${report.still_new_fixed_value.length === 1 ? 'gets' : 'get'} a new fixed position (${someBones(report.still_new_fixed_value, 3)})`, side: 'from your file' });
+  if (report.kept_count > 0) out.push({ id: 'game', mark: 'note', text: kinds.length
+    ? tp(report.kept_count, { one: '{count} bone keep the game’s motion ({kinds})', other: '{count} bones keep the game’s motion ({kinds})' }, { kinds: nameList(kinds) })
+    : tp(report.kept_count, { one: '{count} bone keep the game’s motion', other: '{count} bones keep the game’s motion' }), side: t('unchanged') });
+  if (report.still_made_moving.length) out.push({ id: 'moving', mark: 'note', text: tp(report.still_made_moving.length, { one: '{count} bone the game holds still now moves ({bones})', other: '{count} bones the game holds still now move ({bones})' }, { bones: someBones(report.still_made_moving, 3) }), side: fromFile });
+  if (report.still_new_fixed_value.length) out.push({ id: 'fixed', mark: 'note', text: tp(report.still_new_fixed_value.length, { one: '{count} bone the game holds still gets a new fixed position ({bones})', other: '{count} bones the game holds still get a new fixed position ({bones})' }, { bones: someBones(report.still_new_fixed_value, 3) }), side: fromFile });
   const lift = liftLine(report);
   if (lift) out.push({ id: 'lift', mark: 'note', text: lift });
   const feet = feetLine(report);
@@ -168,7 +177,7 @@ export function liftLine(report: Pick<MadeReport, 'floor_lift_inches'>): string 
   if (typeof lift !== 'number' || !Number.isFinite(lift)) return null;
   const amount = Math.abs(lift).toFixed(1);
   if (amount === '0.0') return null;
-  return `${lift > 0 ? 'Raised' : 'Lowered'} by ${amount} in so the feet stand on the floor`;
+  return lift > 0 ? t('Raised by {amount} in so the feet stand on the floor', { amount }) : t('Lowered by {amount} in so the feet stand on the floor', { amount });
 }
 
 /** "In this clip the feet end 0.8 in below the floor", when more than a quarter of an inch. */
@@ -177,16 +186,16 @@ export function feetLine(report: Pick<MadeReport, 'feet_lowest_inches'>): string
   // goes deeper than the limit, above only when it never comes nearer than the limit.
   const low = report.feet_lowest_inches;
   if (typeof low !== 'number') return null;
-  if (low < -FEET_INCHES) return `In this clip the feet end ${(-low).toFixed(1)} in below the floor`;
-  if (low > FEET_INCHES) return `In this clip the feet end ${low.toFixed(1)} in above the floor`;
+  if (low < -FEET_INCHES) return t('In this clip the feet end {amount} in below the floor', { amount: (-low).toFixed(1) });
+  if (low > FEET_INCHES) return t('In this clip the feet end {amount} in above the floor', { amount: low.toFixed(1) });
   return null;
 }
 
 /** The loop's gap before the blend, in words. */
 export function gapWords(report: Pick<MadeReport, 'loop_gap_degrees' | 'loop_gap_inches'>): string {
   const deg = report.loop_gap_degrees, inch = report.loop_gap_inches;
-  if (deg < 0.5 && inch < 0.05) return 'Your animation already ends where it starts.';
-  return `Before the blend, its last frame is ${deg.toFixed(deg < 10 ? 1 : 0)}° and ${inch.toFixed(1)} in away from its first.`;
+  if (deg < 0.5 && inch < 0.05) return t('Your animation already ends where it starts.');
+  return t('Before the blend, its last frame is {degrees}° and {inches} in away from its first.', { degrees: deg.toFixed(deg < 10 ? 1 : 0), inches: inch.toFixed(1) });
 }
 
 /** The error's message (Tauri errors are objects with `message`). */

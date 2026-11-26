@@ -4,6 +4,8 @@
  * the page's own: arrows move one step, Shift + arrow the fine step, Page Up/Down ten steps,
  * Home/End the ends. A typed value keeps its exact place; dragging snaps to the step. */
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { t } from "../i18n";
+// i18n-area: colors
 
 export interface Unit {
   /** The value as shown in the box and read out (aria-valuetext). */
@@ -177,7 +179,7 @@ export function GradientSlider({ label, name, value, onChange, handle, band, min
         />
       </div>
       <ValueBox
-        label={`${accessible} value`}
+        label={t("{name} value", { name: accessible })}
         text={unit.format(value)}
         disabled={disabled}
         commit={(text) => {
@@ -220,7 +222,7 @@ export function GradientRange({ label, name, rangeLabel, values, onChange, handl
       step={fine}
       value={values[side]}
       disabled={disabled}
-      aria-label={`${accessible} ${side ? "to" : "from"}`}
+      aria-label={side ? t("{name} to", { name: accessible }) : t("{name} from", { name: accessible })}
       aria-valuetext={unit.format(values[side])}
       style={{ "--handle": handles?.[side] ?? "transparent", zIndex: (side === 0) === lowerOnTop ? 2 : 1 } as CSSProperties}
       onPointerDown={drag.onPointerDown}
@@ -248,7 +250,7 @@ export function GradientRange({ label, name, rangeLabel, values, onChange, handl
         {input(0)}{input(1)}
       </div>
       <ValueBox
-        label={`${accessible} ${rangeLabel ? rangeLabel + " " : ""}value`}
+        label={rangeLabel ? t("{name} {range} value", { name: accessible, range: t(rangeLabel) }) : t("{name} value", { name: accessible })}
         text={text}
         disabled={disabled}
         commit={(typed) => {

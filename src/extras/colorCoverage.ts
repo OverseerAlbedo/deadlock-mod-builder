@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { hsv, rangeWeight, withDefaults, type ColorRangeValues } from "./heroColorRanges";
 import { rangeMasks, type MaterialParts } from "./colorParts";
 import type { Rgb } from "./colorAdapter";
+import { t } from "../i18n";
+// i18n-area: colors
 
 export interface ImageLike { data: Uint8ClampedArray; width: number; height: number }
 export interface Coverage {
@@ -75,12 +77,12 @@ export function percentText(fraction: number) {
   if (fraction < 0.01) return "<1%";
   return `${Math.round(fraction * 100)}%`;
 }
-/** Why a range selects nothing, when it can be known (null: it selects something). */
+/** Why a range selects nothing, when it can be known (null: it selects something), in the language shown. */
 export function nothingReason(coverage: Coverage): string | null {
   if (coverage.fraction >= NOTHING) return null;
   return coverage.hueFraction < NOTHING
-    ? "the image has no color in that hue: grey and white areas have no hue to select."
-    : "the image's colors in that hue are paler, darker or brighter than its Saturation and Brightness ranges.";
+    ? t("the image has no color in that hue: grey and white areas have no hue to select.")
+    : t("the image's colors in that hue are paler, darker or brighter than its Saturation and Brightness ranges.");
 }
 
 const frame = (callback: () => void) =>

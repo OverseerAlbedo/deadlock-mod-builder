@@ -1,5 +1,7 @@
+// i18n-area: extras
 import type { CatalogEntry } from "../components/AssetCatalog";
 import type { ResourceReplacement } from "../models";
+import { m } from "../i18n";
 import { NOT_A_PICTURE_STATUS, isUnreadablePicture } from "./pictureChecks";
 export type ExtraKind = "icons" | "audio" | "effects";
 export interface ExtraPreviewRequest {
@@ -27,31 +29,31 @@ export interface AssetItem {
 export const extraKinds: ExtraKind[] = ["icons", "audio", "effects"];
 export const specs = {
   icons: {
-    title: "Icons",
+    title: m("Icons"),
     singular: "icon",
     icon: "image",
     sourceKind: "icon",
     formats: "PNG · JPG",
     extensions: ["png", "jpg", "jpeg"],
-    description: "Portraits, abilities and character artwork.",
+    description: m("Portraits, abilities and character artwork."),
   },
   audio: {
-    title: "Sounds",
+    title: m("Sounds"),
     singular: "sound",
     icon: "audio",
     sourceKind: "audio",
     formats: "WAV · MP3 · FLAC · OGG · VSND",
     extensions: ["wav", "mp3", "flac", "ogg", "vsnd_c"],
-    description: "Voices, abilities and other character sounds.",
+    description: m("Voices, abilities and other character sounds."),
   },
   effects: {
-    title: "Effects",
+    title: m("Effects"),
     singular: "effect",
     icon: "sparkles",
     sourceKind: "effect",
     formats: "Compiled VPCF",
     extensions: ["vpcf_c"],
-    description: "Particle effects and their game dependencies.",
+    description: m("Particle effects and their game dependencies."),
   },
 } as const;
 export function assetItems(
@@ -123,6 +125,9 @@ export function detailNumber(entry: CatalogEntry, key: string): number | null {
 export function isSilenced(row: ResourceReplacement | undefined): boolean {
   return row?.silence === true && !(row.source ?? "").trim();
 }
+/** The status words `replacementStatus` and the Sounds rows give (identifiers, compared in
+ * English); they are translated where they are drawn, with `t(status)`. */
+export const STATUS_WORDS = [m("Original"), m("Paused"), m("Needs attention"), m("Silenced"), m("Replaced"), m("Changed"), m("View only"), m("Shared")] as const;
 export function replacementStatus(item: AssetItem, active: boolean) {
   if (!item.row) return "Original";
   if (!active || item.row.enabled === false) return "Paused";

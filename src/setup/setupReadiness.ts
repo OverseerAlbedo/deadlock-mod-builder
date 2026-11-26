@@ -1,4 +1,6 @@
+// i18n-area: guide
 import type { Settings, SetupStatus } from '../models';
+import { m } from '../i18n';
 
 const requiredFiles = ['Deadlock', 'Original VPK', 'CSDK', 'Resource compiler', 'Source 2 Viewer CLI'];
 /** The Community SDK as "Still needed" names it; it brings the resource and model compilers. */
@@ -24,10 +26,13 @@ export function setupReadiness(settings: Settings, status: SetupStatus | null, d
   missing.push(...wrong.map(label => `${label} (wrong path)`));
   const ready = Boolean(status && !dirty && missing.length === 0);
   // Blender never blocks setup (a prepared DMX builds without it), but most models need it.
-  const blender = settings.blender?.trim() ? '' : ' Blender is not set yet: it is needed to prepare Blender, FBX, glTF and MMD models.';
+  const blenderNote = settings.blender?.trim() ? '' : m('Blender is not set yet: it is needed to prepare Blender, FBX, glTF and MMD models.');
+  const sentence = ready ? m('App setup is finished. You can stop here or follow the optional first-project guide. Each project still runs its compiler and compatibility checks.') : dirty ? m('Save and check tools before finishing. Your current project will be kept.') : !status ? m('Save and check tools to see what is available. You can also finish for now and return to Settings later.') : m('Fix the fields marked in red (each says what is wrong and offers the right path when it can find it). You can finish for now and return to Settings later.');
   return {
     ready, missing,
-    title: dirty ? 'Save your settings to finish this stage' : !status ? 'Check your tool locations' : ready ? 'Tool locations checked · settings saved' : 'Some tools still need attention',
-    description: (ready ? 'App setup is finished. You can stop here or follow the optional first-project guide. Each project still runs its compiler and compatibility checks.' : dirty ? 'Save and check tools before finishing. Your current project will be kept.' : !status ? 'Save and check tools to see what is available. You can also finish for now and return to Settings later.' : 'Fix the fields marked in red (each says what is wrong and offers the right path when it can find it). You can finish for now and return to Settings later.') + blender,
+    title: dirty ? m('Save your settings to finish this stage') : !status ? m('Check your tool locations') : ready ? m('Tool locations checked · settings saved') : m('Some tools still need attention'),
+    description: sentence + (blenderNote ? ` ${blenderNote}` : ''),
+    /** `description` in its two parts, each translated where it is shown. */
+    sentence, blenderNote,
   };
 }

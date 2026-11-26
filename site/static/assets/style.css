@@ -325,3 +325,101 @@ h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
+
+/* Language menu: a <details> element, so it opens and closes without JavaScript
+   and with the keyboard (Tab to the button, Enter or Space). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.site-nav { margin-left: auto; }
+.lang-menu { position: relative; }
+.lang-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.lang-menu > summary::-webkit-details-marker { display: none; }
+.lang-menu > summary::after {
+  content: "";
+  width: 0.4em;
+  height: 0.4em;
+  margin-left: 0.1rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-0.15em) rotate(45deg);
+}
+.lang-menu[open] > summary::after { transform: translateY(0.1em) rotate(-135deg); }
+.lang-menu > summary:hover,
+.lang-menu[open] > summary { color: var(--text); background: var(--elevated); border-color: var(--muted); }
+.lang-globe { display: block; flex: none; }
+.lang-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 10rem;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+.lang-list li + li { margin-top: 0.15rem; }
+.lang-list a {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  color: var(--secondary);
+  text-decoration: none;
+}
+.lang-list a:hover { color: var(--text); background: var(--surface); }
+.lang-list a[aria-current="true"] { color: var(--text); font-weight: 650; }
+.lang-list a[aria-current="true"]::after { content: "\2713"; color: var(--accent-light); }
+.nav-note { font-size: 0.85em; color: var(--muted); }
+
+/* Narrow windows: the language button stays beside the name, the links go below.
+   Name, links and button need about 945px in one row in English, 985px in Chinese. */
+@media (max-width: 960px) {
+  .lang-menu { order: 2; margin-left: auto; }
+  .site-nav { order: 3; flex-basis: 100%; margin-left: 0; }
+}
+@media (max-width: 1000px) {
+  body:lang(zh) .lang-menu { order: 2; margin-left: auto; }
+  body:lang(zh) .site-nav { order: 3; flex-basis: 100%; margin-left: 0; }
+}
+@media (max-width: 600px) {
+  .header-inner { column-gap: 0.75rem; }
+  .lang-menu > summary { gap: 0.3rem; padding: 0.3rem 0.45rem; }
+}
+
+/* Simplified Chinese: system fonts with Chinese glyphs on Windows, macOS and
+   iOS, Android and Linux, after the Latin ones; no web fonts. */
+:root {
+  --font-zh: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC",
+    "WenQuanYi Micro Hei", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+body:lang(zh), .lang-list a:lang(zh), .lang-current:lang(zh) { font-family: var(--font-zh); }
+body:lang(zh) { line-height: 1.75; }
+body:lang(zh) h1, body:lang(zh) h2, body:lang(zh) h3, body:lang(zh) h4 { letter-spacing: 0; }

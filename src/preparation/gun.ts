@@ -1,3 +1,5 @@
+// i18n-area: prepare
+import { t, tp } from '../i18n';
 import type { Hand, PreparationAnalysis, Shape, Vec3, WeaponCandidate, WeaponChoice, WeaponHand, WeaponReference } from './models';
 
 /** How the hero carries its gun, as the Gun tab explains it. */
@@ -21,13 +23,14 @@ const fileName=(path:string)=>path.split(/[\\/]/).pop()??path;
 /** A gun named for people: its file and hand, or its object, instead of every part name. */
 export function gunName(candidate:WeaponCandidate,gunFile?:string):string{
   const parts=candidate.objects.length;
-  const count=parts===1?'1 part':`${parts.toLocaleString()} parts`;
   if(candidate.gun_file){
-    const hand=candidate.side==='left'?'Left gun':candidate.side==='right'?'Right gun':'Gun';
-    return `${hand} from ${gunFile?fileName(gunFile):'your gun file'} · ${count}`;
+    const values={file:gunFile?fileName(gunFile):'',count:parts.toLocaleString()};
+    if(candidate.side==='left')return gunFile?tp(parts,{one:'Left gun from {file} · {count} part',other:'Left gun from {file} · {count} parts'},values):tp(parts,{one:'Left gun from your gun file · {count} part',other:'Left gun from your gun file · {count} parts'},values);
+    if(candidate.side==='right')return gunFile?tp(parts,{one:'Right gun from {file} · {count} part',other:'Right gun from {file} · {count} parts'},values):tp(parts,{one:'Right gun from your gun file · {count} part',other:'Right gun from your gun file · {count} parts'},values);
+    return gunFile?tp(parts,{one:'Gun from {file} · {count} part',other:'Gun from {file} · {count} parts'},values):tp(parts,{one:'Gun from your gun file · {count} part',other:'Gun from your gun file · {count} parts'},values);
   }
-  const first=candidate.objects[0]??'Gun';
-  return parts===1?`${first} (in your character file)`:`${first} and ${parts-1} more part${parts===2?'':'s'} (in your character file)`;
+  const first=candidate.objects[0]??t('Gun');
+  return parts===1?t('{name} (in your character file)',{name:first}):tp(parts-1,{one:'{name} and {count} more part (in your character file)',other:'{name} and {count} more parts (in your character file)'},{name:first});
 }
 
 /** The gun-file guns and the character's own guns of an inspection. */

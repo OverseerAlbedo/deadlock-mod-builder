@@ -2,6 +2,8 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import './studio.css';
+import { useT } from '../i18n';
+// i18n-area: common
 
 /** One label on the model: plain text, a short detail (a count), a tooltip, and whether it is the
  * selected one. `bones` / `point` say where it sits: the middle of those bones (rest pose, or the
@@ -27,13 +29,14 @@ export function useLabelLayer() { return useState(() => new LabelLayer())[0]; }
 /** The labels over a canvas: absolutely placed buttons in a layer that fills the canvas's parent
  * (which must be positioned). Hidden until the tracker has placed them. Tab order follows `items`. */
 export function ModelLabels({layer, set}: {layer: LabelLayer; set: ModelLabelSet}) {
+  const t = useT();
   const key = set.items.map(item => `${item.id}:${item.text}:${item.detail ?? ''}`).join('|');
   // Sizes are read once per label set (and again by the tracker while still unknown), never per frame.
   useLayoutEffect(() => {
     layer.sizes.clear();
     for (const [id, element] of layer.buttons) if (element.offsetWidth) layer.sizes.set(id, [element.offsetWidth, element.offsetHeight]);
   }, [layer, key]);
-  return <div className="model-labels" role="group" aria-label={set.label ?? 'Labels on the model'}>
+  return <div className="model-labels" role="group" aria-label={set.label ?? t('Labels on the model')}>
     {set.items.map(item => <Fragment key={item.id}>
       <span className="model-label-dot" aria-hidden="true" ref={element => { if (element) layer.dots.set(item.id, element); else layer.dots.delete(item.id); }}/>
       <button type="button" className="model-label" aria-pressed={Boolean(item.active)} title={item.title} onClick={() => set.select(item.id)}
@@ -61,7 +64,7 @@ export function placeLabels(points: (Point | null)[], sizes: [number, number][],
   const order = points.flatMap((point, i) => point ? [i] : []).sort((a, b) => points[a]!.y - points[b]!.y || a - b);
   const boxes: {l: number; t: number; r: number; b: number}[] = [];
   if (hide) {
-    const hits = (l: number, t: number, w: number, h: number) => boxes.some(box => l < box.r + gap && l + w + gap > box.l && t < box.b + gap && t + h + gap > box.t);
+    const hits = (l: number, at: number, w: number, h: number) => boxes.some(box => l < box.r + gap && l + w + gap > box.l && at < box.b + gap && at + h + gap > box.t);
     const ranked = [...order.filter(i => hide.first[i]), ...order.filter(i => !hide.first[i])];
     for (const i of ranked) {
       const {x, y} = points[i]!, [w, h] = sizes[i];

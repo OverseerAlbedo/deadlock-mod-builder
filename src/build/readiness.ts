@@ -1,16 +1,22 @@
+// i18n-area: build
 import { basename } from '../api';
-import { heroLabel } from '../components/HeroPicker';
+import { heroLabel, shownPickerLabel } from '../components/HeroPicker';
 import type { StateTone } from '../components/Primitives';
 import type { Project } from '../models';
+import { m, t, tp } from '../i18n';
 import type { InspectionReport, ProjectInspection } from './models';
+import { nameList } from './words';
 
 export type ReviewDestination = 'project' | 'appearance' | 'physics' | 'motion' | 'extras' | 'build';
+/** A row's `label`, `action` and `status` and an issue's `action` stay English (they are compared
+ * and read as names); they are translated where they are drawn. `value`, `text`, `title` and
+ * `description` are only ever drawn and come translated. */
 export interface ReadinessRow { key: string; label: string; value: string; tone: StateTone; page?: ReviewDestination; action?: string; section?: string; status?: string }
 export interface ReviewIssue { text: string; page?: ReviewDestination; section?: string; action?: string;
   /** A second way on, beside `action`: build the extras without a replacement model (`model_enabled: false`). */
   withoutModel?: string }
 /** Build & install's second action when no replacement model is chosen; the same switch as Extras → Colors' "Recolor the game's own … instead". */
-export const BUILD_WITHOUT_MODEL = 'Build the extras without a replacement model';
+export const BUILD_WITHOUT_MODEL = m('Build the extras without a replacement model');
 export const modelEnabled = (project: Project) => !project.customization.enabled || project.customization.model_enabled !== false;
 /** Enabled hero colors (Extras → Colors) that the next build includes. */
 export const heroColorCount = (project: Project): number => !project.customization.enabled || project.customization.hero_materials?.enabled === false ? 0 : (project.customization.hero_materials?.materials ?? []).filter(row => row.enabled !== false).length;
@@ -78,17 +84,17 @@ type Draft = ReviewItem & { backend?: (p: Project) => unknown[]; acknowledged?: 
 function reviewItems(inspection: InspectionReport, project: Project, materials: Project['materials']): Draft[] {
   const items: Draft[] = [];
   const open = 'open' as const;
-  inspection.vertex_preflight.errors.forEach((text, index) => items.push({ key: `preflight:${index}`, state: open, backend: preflightInputs, text, page: 'appearance', section: 'model-processing', action: 'Configure meshes' }));
+  inspection.vertex_preflight.errors.forEach((text, index) => items.push({ key: `preflight:${index}`, state: open, backend: preflightInputs, text, page: 'appearance', section: 'model-processing', action: m('Configure meshes') }));
   const unresolved = inspection.unresolved_meshes.length;
-  if (unresolved) items.push({ key: 'unresolved', state: open, backend: mappingInputs, text: `${unresolved} model mapping${unresolved === 1 ? '' : 's'} need a choice.`, section: 'mesh-mapping', action: 'Configure mappings' });
+  if (unresolved) items.push({ key: 'unresolved', state: open, backend: mappingInputs, text: tp(unresolved, { one: '{count} model mapping need a choice.', other: '{count} model mappings need a choice.' }), section: 'mesh-mapping', action: m('Configure mappings') });
   const leftOut = inspection.secondary_meshes_left_out ?? [];
-  if (leftOut.length) items.push({ key: 'left-out', state: open, backend: leftOutInputs, text: `Moving-part bones kept from your rig are only in meshes left out of the build: ${leftOut.join(', ')}. Add ${leftOut.length === 1 ? 'it' : 'them'} in Mesh mapping.`, section: 'mesh-mapping', action: 'Configure mappings' });
+  if (leftOut.length) items.push({ key: 'left-out', state: open, backend: leftOutInputs, text: tp(leftOut.length, { one: 'Moving-part bones kept from your rig are only in meshes left out of the build: {names}. Add it in Mesh mapping.', other: 'Moving-part bones kept from your rig are only in meshes left out of the build: {names}. Add them in Mesh mapping.' }, { names: nameList(leftOut) }), section: 'mesh-mapping', action: m('Configure mappings') });
   const materialReview = materialReviewCount(materials);
-  if (materialReview) items.push({ key: 'materials', state: open, text: `${materialReview} material assignment${materialReview === 1 ? '' : 's'} need review.`, page: 'appearance', section: 'materials', action: 'Configure materials' });
-  if (project.lod_strategy === 'choose' || ((inspection.model.lod_groups > 1 || inspection.geometry.source_triangles > 500000) && !project.review_lods)) items.push({ key: 'lod', state: open, text: 'Review the detail-level strategy and acknowledge its appearance and performance tradeoffs.', section: 'build-settings', action: 'Configure detail levels' });
+  if (materialReview) items.push({ key: 'materials', state: open, text: tp(materialReview, { one: '{count} material assignment need review.', other: '{count} material assignments need review.' }), page: 'appearance', section: 'materials', action: m('Configure materials') });
+  if (project.lod_strategy === 'choose' || ((inspection.model.lod_groups > 1 || inspection.geometry.source_triangles > 500000) && !project.review_lods)) items.push({ key: 'lod', state: open, text: t('Review the detail-level strategy and acknowledge its appearance and performance tradeoffs.'), section: 'build-settings', action: m('Configure detail levels') });
   // The frozen list depends on the selected meshes: only the acknowledgement ticks it
   // off, and changed mappings leave it to the next check.
-  if (inspection.unskinned_meshes.length && inspection.dmx.bones.length && !project.allow_unskinned) items.push({ key: 'unskinned', state: open, backend: mappingInputs, acknowledged: true, text: 'Review meshes without skin weights in Model processing.', page: 'appearance', section: 'model-processing', action: 'Configure meshes' });
+  if (inspection.unskinned_meshes.length && inspection.dmx.bones.length && !project.allow_unskinned) items.push({ key: 'unskinned', state: open, backend: mappingInputs, acknowledged: true, text: t('Review meshes without skin weights in Model processing.'), page: 'appearance', section: 'model-processing', action: m('Configure meshes') });
   return items;
 }
 
@@ -129,13 +135,13 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   const hasInputs = Boolean(project.original_model && (!model || project.dmx));
   const issues: ReviewIssue[] = [];
   const items: ReviewItem[] = [];
-  if (!project.original_model) issues.push({ text: 'Choose the character you want to replace.', page: 'project', section: 'character-selection', action: 'Choose character' });
-  if (model && !project.dmx) issues.push({ text: 'Add a replacement model.', page: 'appearance', section: 'replacement-model', action: 'Add model', withoutModel: BUILD_WITHOUT_MODEL });
+  if (!project.original_model) issues.push({ text: t('Choose the character you want to replace.'), page: 'project', section: 'character-selection', action: m('Choose character') });
+  if (model && !project.dmx) issues.push({ text: t('Add a replacement model.'), page: 'appearance', section: 'replacement-model', action: m('Add model'), withoutModel: BUILD_WITHOUT_MODEL });
   const materials = inspection?.materials ?? project.materials;
   const materialReview = materialReviewCount(materials);
   if (inspection) {
     reviewItems(inspection, project, materials).forEach(item => issues.push(asIssue(item)));
-    if (inspection.needs_review && !issues.length) issues.push({ text: 'Review the native analysis notes before building.', section: 'analysis-details', action: 'View analysis notes' });
+    if (inspection.needs_review && !issues.length) issues.push({ text: t('Review the native analysis notes before building.'), section: 'analysis-details', action: m('View analysis notes') });
   }
   // A kept report's frozen needs_review adds nothing: every reason for it is an item.
   if (keptReport && previous?.analyzed) {
@@ -145,9 +151,9 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   }
   const packaging = project.build_vpk && (!model || project.compile_model);
   const invalidSlot = packaging && (!Number.isInteger(project.vpk_number) || project.vpk_number < 2 || project.vpk_number > 99);
-  if (invalidSlot) issues.push({text:'Choose a VPK slot from 2 to 99 before packaging.',section:'output-settings',action:'Configure output'});
+  if (invalidSlot) issues.push({text:t('Choose a VPK slot from 2 to 99 before packaging.'),section:'output-settings',action:m('Configure output')});
   const slotTaken = Boolean(packaging && !invalidSlot && slots && slots.configured_slot === project.vpk_number && slots.configured_slot_occupied);
-  if (slotTaken && !replaceInstalled) issues.push({text:`VPK slot ${project.vpk_number} is in use by another mod in the game's addons folder${slots?.available_slot ? ` (slot ${slots.available_slot} is free)` : ''}.`,section:'output-settings',action:'Choose free slot'});
+  if (slotTaken && !replaceInstalled) issues.push({text:slots?.available_slot ? t("VPK slot {slot} is in use by another mod in the game's addons folder (slot {free} is free).", {slot: project.vpk_number, free: slots.available_slot}) : t("VPK slot {slot} is in use by another mod in the game's addons folder.", {slot: project.vpk_number}),section:'output-settings',action:m('Choose free slot')});
   // Output issues are live; on a kept list they are items like the others.
   if (kept) issues.slice(issues.length - Number(Boolean(invalidSlot)) - Number(slotTaken && !replaceInstalled)).forEach((issue, index) => items.push({ ...issue, key: `output:${index}`, state: 'open' }));
   // A kept analysis with nothing open may build: the build analyzes the project again
@@ -161,36 +167,40 @@ export function projectReadiness(project: Project, report: ProjectInspection | n
   const heroColors = heroColorCount(project);
   const skeleton = inspection?.source_identity;
   const deferredSkeleton = skeleton?.identity?.required && !skeleton.identity.passed && !skeleton.extension;
-  const keptCheck = verified ? 'Project changed since the last analysis · the last build checked it' : 'Project changed since the last analysis · Build checks it again first';
+  const keptCheck = verified ? t('Project changed since the last analysis · the last build checked it') : t('Project changed since the last analysis · Build checks it again first');
+  const assignments = Object.keys(materials).length, mappings = Object.keys(inspection?.mappings ?? project.meshes).length;
+  const processingIssues = inspection?.vertex_preflight.errors.length ?? 0;
+  const motionName = project.customization.secondary_motion?.preset==='tangtang_r2' ? t('TangTang R2 tuned') : t('Automatic secondary motion');
+  const slotNote = slotTaken ? replaceInstalled ? t('slot in use by another mod, will be replaced') : t('slot in use by another mod') : slots && slots.configured_slot === project.vpk_number ? t('slot free') : '';
   const rows: ReadinessRow[] = [
-    { key: 'character', label: 'Character', value: project.original_model ? heroLabel({ name: project.hero_name, path: project.original_model, likely_hero: true }) : 'Choose a character', tone: project.original_model ? 'ready' : 'attention', page: 'project' },
-    { key: 'model', label: 'Replacement model', value: !model ? 'Original model kept · extras only' : project.dmx ? basename(project.dmx) : 'Add a model', tone: !model ? 'neutral' : project.dmx ? 'ready' : 'attention', page: 'appearance' },
-    { key: 'skeleton', label: 'Compatibility', value: !model ? current ? 'Extra assets inspected · build validates outputs' : 'Analyze extra assets before building' : kept ? keptCheck : !inspection ? 'Analyze to check compatibility' : deferredSkeleton ? 'Compiled skeleton check required' : 'Source preflight complete', tone: !current || deferredSkeleton ? 'neutral' : 'ready', page: 'build', status: kept ? verified ? 'Checked by the last build' : 'Build checks again' : !current ? 'Not analyzed' : deferredSkeleton ? 'Build check required' : 'Ready' },
-    { key: 'materials', label: 'Materials', value: !model ? heroColors ? `${heroColors} hero color${heroColors === 1 ? '' : 's'} · game textures kept` : 'Original materials kept' : materialReview ? `${materialReview} need review` : `${Object.keys(materials).length} assignment${Object.keys(materials).length === 1 ? '' : 's'}${inspection ? ' checked' : ' saved'}`, tone: !model ? 'neutral' : materialReview ? 'attention' : inspection ? 'ready' : 'neutral', page: 'appearance' },
-    { key: 'mapping', label: 'Model mapping', value: !model ? 'No model replacement' : inspection?.unresolved_meshes.length ? `${inspection.unresolved_meshes.length} unresolved` : `${Object.keys(inspection?.mappings ?? project.meshes).length} mapping${Object.keys(inspection?.mappings ?? project.meshes).length === 1 ? '' : 's'}${inspection ? ' checked' : ' saved'}`, tone: !model ? 'neutral' : inspection?.unresolved_meshes.length ? 'attention' : inspection ? 'ready' : 'neutral', page: 'build' },
-    { key: 'processing', label: 'Mesh processing', value: !model ? 'No model processing' : inspection?.vertex_preflight.errors.length ? `${inspection.vertex_preflight.errors.length} processing issue${inspection.vertex_preflight.errors.length === 1 ? '' : 's'}` : project.auto_split ? 'Automatic splitting enabled' : 'Automatic splitting disabled', tone: inspection?.vertex_preflight.errors.length ? 'attention' : model && (project.auto_split || inspection) ? 'ready' : 'neutral', page: 'appearance' },
-    { key: 'physics', label: 'Physics', value: !model ? 'Original physics kept' : generated ? `${project.customization.secondary_motion?.preset==='tangtang_r2'?'TangTang R2 tuned':'Automatic secondary motion'}${inspection?.secondary_motion?' · groups checked':''}` : tested ? physics?.source ? `Replacement cloth setup${inspection ? ' · reference checked' : ' selected'}` : 'Choose a tested reference' : 'Preserve original physics', tone: generated ? inspection?.secondary_motion?'ready':'neutral' : tested && !physics?.source ? 'attention' : tested && !inspection ? 'neutral' : 'ready', page: 'physics' },
-    { key: 'motion', label: 'Motion', value: animations ? `${animations} animation replacement${animations === 1 ? '' : 's'} enabled` : project.animation_policy === 'preserve' ? 'Original animations preserved' : 'Legacy animation references disabled', tone: animations || project.animation_policy !== 'preserve' ? 'neutral' : 'ready', page: 'motion' },
-    { key: 'output', label: 'Output', value: invalidSlot ? 'Select a VPK slot (2–99)' : model && !project.compile_model ? 'Source preparation only' : !project.build_vpk ? 'Compile only · no VPK' : `pak${String(project.vpk_number).padStart(2, '0')}_dir.vpk · ${project.install ? 'build and install' : 'build only'}${slotTaken ? replaceInstalled ? ' · slot in use by another mod, will be replaced' : ' · slot in use by another mod' : slots && slots.configured_slot === project.vpk_number ? ' · slot free' : ''}`, tone: invalidSlot || (slotTaken && !replaceInstalled) ? 'attention' : 'neutral', status: invalidSlot || (slotTaken && !replaceInstalled) ? 'Needs attention' : 'Configured', page: 'build' },
+    { key: 'character', label: m('Character'), value: project.original_model ? shownPickerLabel(heroLabel({ name: project.hero_name, path: project.original_model, likely_hero: true })) : t('Choose a character'), tone: project.original_model ? 'ready' : 'attention', page: 'project' },
+    { key: 'model', label: m('Replacement model'), value: !model ? t('Original model kept · extras only') : project.dmx ? basename(project.dmx) : t('Add a model'), tone: !model ? 'neutral' : project.dmx ? 'ready' : 'attention', page: 'appearance' },
+    { key: 'skeleton', label: m('Compatibility'), value: !model ? current ? t('Extra assets inspected · build validates outputs') : t('Analyze extra assets before building') : kept ? keptCheck : !inspection ? t('Analyze to check compatibility') : deferredSkeleton ? t('Compiled skeleton check required') : t('Source preflight complete'), tone: !current || deferredSkeleton ? 'neutral' : 'ready', page: 'build', status: kept ? verified ? m('Checked by the last build') : m('Build checks again') : !current ? m('Not analyzed') : deferredSkeleton ? m('Build check required') : m('Ready') },
+    { key: 'materials', label: m('Materials'), value: !model ? heroColors ? tp(heroColors, { one: '{count} hero color · game textures kept', other: '{count} hero colors · game textures kept' }) : t('Original materials kept') : materialReview ? tp(materialReview, { one: '{count} need review', other: '{count} need review' }) : inspection ? tp(assignments, { one: '{count} assignment checked', other: '{count} assignments checked' }) : tp(assignments, { one: '{count} assignment saved', other: '{count} assignments saved' }), tone: !model ? 'neutral' : materialReview ? 'attention' : inspection ? 'ready' : 'neutral', page: 'appearance' },
+    { key: 'mapping', label: m('Model mapping'), value: !model ? t('No model replacement') : inspection?.unresolved_meshes.length ? tp(inspection.unresolved_meshes.length, { one: '{count} unresolved', other: '{count} unresolved' }) : inspection ? tp(mappings, { one: '{count} mapping checked', other: '{count} mappings checked' }) : tp(mappings, { one: '{count} mapping saved', other: '{count} mappings saved' }), tone: !model ? 'neutral' : inspection?.unresolved_meshes.length ? 'attention' : inspection ? 'ready' : 'neutral', page: 'build' },
+    { key: 'processing', label: m('Mesh processing'), value: !model ? t('No model processing') : processingIssues ? tp(processingIssues, { one: '{count} processing issue', other: '{count} processing issues' }) : project.auto_split ? t('Automatic splitting enabled') : t('Automatic splitting disabled'), tone: inspection?.vertex_preflight.errors.length ? 'attention' : model && (project.auto_split || inspection) ? 'ready' : 'neutral', page: 'appearance' },
+    { key: 'physics', label: m('Physics'), value: !model ? t('Original physics kept') : generated ? inspection?.secondary_motion ? t('{name} · groups checked', { name: motionName }) : motionName : tested ? physics?.source ? inspection ? t('Replacement cloth setup · reference checked') : t('Replacement cloth setup selected') : t('Choose a tested reference') : t('Preserve original physics'), tone: generated ? inspection?.secondary_motion?'ready':'neutral' : tested && !physics?.source ? 'attention' : tested && !inspection ? 'neutral' : 'ready', page: 'physics' },
+    { key: 'motion', label: m('Motion'), value: animations ? tp(animations, { one: '{count} animation replacement enabled', other: '{count} animation replacements enabled' }) : project.animation_policy === 'preserve' ? t('Original animations preserved') : t('Legacy animation references disabled'), tone: animations || project.animation_policy !== 'preserve' ? 'neutral' : 'ready', page: 'motion' },
+    { key: 'output', label: m('Output'), value: invalidSlot ? t('Select a VPK slot (2–99)') : model && !project.compile_model ? t('Source preparation only') : !project.build_vpk ? t('Compile only · no VPK') : [`pak${String(project.vpk_number).padStart(2, '0')}_dir.vpk`, project.install ? t('build and install') : t('build only'), slotNote].filter(Boolean).join(' · '), tone: invalidSlot || (slotTaken && !replaceInstalled) ? 'attention' : 'neutral', status: invalidSlot || (slotTaken && !replaceInstalled) ? m('Needs attention') : m('Configured'), page: 'build' },
   ];
   const actions: Record<string, [string, string?]> = {
-    character: [project.original_model ? 'Change' : 'Choose', 'character-selection'],
-    model: [project.dmx ? 'Change' : model ? 'Add model' : 'View', 'replacement-model'],
-    skeleton: [current ? 'Re-analyze' : kept ? 'Analyze again' : 'Analyze'], materials: ['Configure', 'materials'],
-    mapping: ['Configure', 'mesh-mapping'], processing: ['Configure', 'model-processing'],
-    physics: ['Change'], motion: ['Change'], output: ['Configure', 'output-settings'],
+    character: [project.original_model ? m('Change') : m('Choose'), 'character-selection'],
+    model: [project.dmx ? m('Change') : model ? m('Add model') : m('View'), 'replacement-model'],
+    skeleton: [current ? m('Re-analyze') : kept ? m('Analyze again') : m('Analyze')], materials: [m('Configure'), 'materials'],
+    mapping: [m('Configure'), 'mesh-mapping'], processing: [m('Configure'), 'model-processing'],
+    physics: [m('Change')], motion: [m('Change')], output: [m('Configure'), 'output-settings'],
   };
   rows.forEach(row => {
     [row.action, row.section] = actions[row.key];
-    if (!model && row.key === 'materials' && heroColors) { row.page = 'extras'; row.action = 'Change'; row.section = undefined; }
-    else if (!model && ['model', 'materials', 'mapping', 'processing'].includes(row.key)) row.status = 'Not applicable';
+    if (!model && row.key === 'materials' && heroColors) { row.page = 'extras'; row.action = m('Change'); row.section = undefined; }
+    else if (!model && ['model', 'materials', 'mapping', 'processing'].includes(row.key)) row.status = m('Not applicable');
   });
   return {
     rows, issues, ready, hasInputs, current, model: inspection,
     /** The report is kept as the working list (`items`); `verified`: a build checked the live project since. */
     kept, verified, refused, items, open,
     tone: !hasInputs || issues.length ? 'attention' as const : ready ? 'ready' as const : 'neutral' as const,
-    title: !hasInputs ? 'Set up your project' : kept ? open || refused ? 'Needs attention' : model && !project.compile_model ? 'Ready to prepare sources' : 'Ready to build' : !current ? report ? 'Project changed · analyze again' : 'Ready to analyze' : ready ? model && !project.compile_model ? 'Ready to prepare sources' : 'Ready to build' : 'Needs attention',
-    description: !hasInputs ? 'Choose a character and add the inputs needed for this project.' : kept ? refused ? 'The last build found something that still needs a choice. Analyze to see what is left.' : open ? 'Resolve the items below. Build checks the project again before it starts.' : verified ? 'The last build checked this project. Analyze again is optional.' : 'The project changed since the last analysis. Build checks it again before it starts; Analyze again is optional.' : !current ? 'Analyze the current project to check compatibility, materials and mappings.' : ready ? 'Build rechecks the current files and validates outputs before publishing.' : 'Resolve the items below, then analyze again.',
+    title: !hasInputs ? t('Set up your project') : kept ? open || refused ? t('Needs attention') : model && !project.compile_model ? t('Ready to prepare sources') : t('Ready to build') : !current ? report ? t('Project changed · analyze again') : t('Ready to analyze') : ready ? model && !project.compile_model ? t('Ready to prepare sources') : t('Ready to build') : t('Needs attention'),
+    description: !hasInputs ? t('Choose a character and add the inputs needed for this project.') : kept ? refused ? t('The last build found something that still needs a choice. Analyze to see what is left.') : open ? t('Resolve the items below. Build checks the project again before it starts.') : verified ? t('The last build checked this project. Analyze again is optional.') : t('The project changed since the last analysis. Build checks it again before it starts; Analyze again is optional.') : !current ? t('Analyze the current project to check compatibility, materials and mappings.') : ready ? t('Build rechecks the current files and validates outputs before publishing.') : t('Resolve the items below, then analyze again.'),
   };
 }

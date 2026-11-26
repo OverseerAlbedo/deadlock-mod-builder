@@ -9,6 +9,8 @@ export default defineConfig({
   build: { target: 'es2022' },
   // Full-app UI tests take several seconds on 2-core CI runners; the 5 s
   // default made them fail by chance there. Only test files under src/ are
-  // collected.
-  test: { environment: 'jsdom', setupFiles: './src/test-setup.ts', restoreMocks: true, testTimeout: 30000, include: ['src/**/*.test.{ts,tsx}'] },
+  // collected. Since Vitest 4, restoreMocks only restores vi.spyOn spies;
+  // mockReset also resets every vi.fn() before each test, as restoreMocks
+  // alone did before.
+  test: { environment: 'jsdom', setupFiles: './src/test-setup.ts', restoreMocks: true, mockReset: true, testTimeout: 30000, include: ['src/**/*.test.{ts,tsx}'] },
 });

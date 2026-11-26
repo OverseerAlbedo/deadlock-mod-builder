@@ -1,0 +1,577 @@
+{
+  "In use by another VPK in the game’s addons folder": "已被游戏 addons 文件夹中的另一个 VPK 占用",
+  "Your installed build of this project · Install replaces it": "本项目已安装的构建 · 安装时将替换它",
+  "Free · your earlier build of this project uses it": "空闲 · 本项目之前的构建使用此槽位",
+  "vpk slot|Free": "空闲",
+  "Project changed. Analyze the current inputs again.": "项目已更改。请重新分析当前输入。",
+  "Analyze the project to check compatibility, materials and mappings.": "分析项目以检查兼容性、材质和映射。",
+  "Analyze project": "分析项目",
+  "View details": "查看详情",
+  "#|{count} issues blocking build": {
+    "other": "{count} 个问题阻止构建"
+  },
+  "Analyze to see what the last build found, then build again.": "请分析以查看上次构建发现的问题，然后重新构建。",
+  "Resolve the items above before building.": "构建前请先解决上面的各项。",
+  "The last build checked this project. Build checks it again and validates outputs before publishing.": "上次构建已检查过此项目。构建时会再次检查，并在发布前验证输出。",
+  "The project changed since the last analysis: Build checks it again before it starts and validates outputs before publishing.": "自上次分析后项目已更改：构建开始前会再次检查，并在发布前验证输出。",
+  "Current files and compiled outputs are rechecked before publication.": "发布前会重新检查当前文件和编译输出。",
+  "The last build found something that still needs a choice": "上次构建发现仍有需要你选择的内容",
+  "{open} of {total} left on the list from the last analysis": "上次分析的清单中还剩 {open} 项（共 {total} 项）",
+  "The last build checked this project": "上次构建已检查过此项目",
+  "Everything on the list from the last analysis is handled": "上次分析清单中的各项均已处理",
+  "Project changed since the last analysis": "自上次分析后项目已更改",
+  "Done": "完成",
+  "Changed · checked again by Build or Analyze": "已更改 · 构建或分析时会再次检查",
+  "Analyze to see what is left.": "请分析以查看剩余内容。",
+  "Analyze again to refresh the whole list.": "再次分析以刷新整个清单。",
+  "Analyze again to refresh the analysis details (optional).": "再次分析以刷新分析详情（可选）。",
+  "Everything on the list is handled. Build checks the project again before it starts; Analyze again is optional.": "清单中的各项均已处理。构建开始前会再次检查项目；再次分析是可选的。",
+  "Build checks the project again before it starts; Analyze again is optional.": "构建开始前会再次检查项目；再次分析是可选的。",
+  "Analyzing…": "正在分析…",
+  "Step {step} of {total}": "第 {step} 步，共 {total} 步",
+  "Build & install": "构建与安装",
+  "Check your project, make the mod and add it to the game. Anything that needs a choice is listed here.": "检查你的项目，制作模组并将其添加到游戏中。所有需要你选择的内容都列在这里。",
+  "Last completed build": "上次完成的构建",
+  "Build completed": "构建完成",
+  "Build finished": "构建已结束",
+  "No VPK": "无 VPK",
+  "installed": "已安装",
+  "not installed": "未安装",
+  "Open output folder": "打开输出文件夹",
+  "Check in game": "在游戏中检查",
+  "Re-analyze project": "重新分析项目",
+  "Re-analyze": "重新分析",
+  "Analyze again": "重新分析",
+  "Build readiness": "构建准备情况",
+  "Project checklist": "项目检查清单",
+  "Current analysis": "当前分析",
+  "Last analysis · project changed since": "上次分析 · 此后项目已更改",
+  "Analysis required": "需要分析",
+  "Current project validation": "当前项目验证",
+  "column|Item": "项目",
+  "column|Status": "状态",
+  "column|Details": "详情",
+  "column|Action": "操作",
+  "Analyze": "分析",
+  "Processing": "处理中",
+  "Ready": "就绪",
+  "Needs attention": "需要处理",
+  "Not checked": "未检查",
+  "{action} {item}": "{action}{item}",
+  "Build decision": "构建决定",
+  "Choose the required inputs above to enable analysis.": "请在上方选择所需的输入以启用分析。",
+  "Build mod": "构建模组",
+  "Changes since the last build": "自上次构建以来的更改",
+  "Since the last build · {time}": "自上次构建以来 · {time}",
+  "Nothing changed.": "没有更改。",
+  "Output": "输出",
+  "Completed": "已完成",
+  "Prepare source files only": "仅准备源文件",
+  "Compile model": "编译模型",
+  "Build extra assets": "构建附加资源",
+  "Package after validation": "验证后打包",
+  "Install after success": "成功后安装",
+  "Extras included: {extras}": "包含的附加内容：{extras}",
+  "Model compilation": "模型编译",
+  "Not performed": "未执行",
+  "Not packaged": "未打包",
+  "Installation": "安装",
+  "Not installed": "未安装",
+  "Receipt": "回执",
+  "No package manifest": "无包清单",
+  "Prepared workspace": "已准备的工作区",
+  "Validate and install this VPK": "验证并安装此 VPK",
+  "What you replaced ({extras}) in the hero select screen and in a match": "你替换的内容（{extras}）在英雄选择界面和对局中的表现",
+  "Your extras in the hero select screen and in a match": "你的附加内容在英雄选择界面和对局中的表现",
+  "The character in the hero select screen and in a match": "角色在英雄选择界面和对局中的表现",
+  "Arms and elbows while running, aiming and using abilities": "奔跑、瞄准和使用技能时的手臂和手肘",
+  "The gun in the hand, and the fingers around it": "手中的枪械以及握枪的手指",
+  "Hair, cloth, tails and other moving parts, breast and butt bounce": "头发、布料、尾巴和其他活动部件，以及胸部和臀部的晃动",
+  "Hair, cloth, tails and other moving parts": "头发、布料、尾巴和其他活动部件",
+  "Clipping through the body": "穿模",
+  "Analysis details": "分析详情",
+  "#|{count} review notes · full inspection available": {
+    "other": "{count} 条检查备注 · 可查看完整检查结果"
+  },
+  "Previous analysis · run Analyze project to refresh": "之前的分析 · 运行“分析项目”以刷新",
+  "Project changed since this analysis · Build checks it again": "自此次分析后项目已更改 · 构建时会再次检查",
+  "Project changed · analyze again": "项目已更改 · 请再次分析",
+  "Blocking problems found": "发现阻止构建的问题",
+  "Analysis needs review": "分析结果需要检查",
+  "Analysis passed · compilation still required": "分析通过 · 仍需编译",
+  "<strong>{count}</strong> bones": "<strong>{count}</strong> 根骨骼",
+  "<strong>{count}</strong> source meshes": "<strong>{count}</strong> 个源网格",
+  "<strong>{count}</strong> source triangles": "<strong>{count}</strong> 个源三角面",
+  "Extra assets inspected · compilation still required": "已检查附加资源 · 仍需编译",
+  "#analysis counts|{count} icons": {
+    "other": "{count} 个图标"
+  },
+  "#|{count} item icons": {
+    "other": "{count} 个物品图标"
+  },
+  "#|{count} item names": {
+    "other": "{count} 个物品名称"
+  },
+  "#analysis counts|{count} animations": {
+    "other": "{count} 个动画"
+  },
+  "#analysis counts|{count} effects": {
+    "other": "{count} 个特效"
+  },
+  "#|{count} effect edits": {
+    "other": "{count} 项特效编辑"
+  },
+  "#analysis counts|{count} audio replacements": {
+    "other": "{count} 个音频替换"
+  },
+  "#|{count} ability objects": {
+    "other": "{count} 个技能物体"
+  },
+  "#|{count} hero colors": {
+    "other": "{count} 个英雄颜色"
+  },
+  "Complete native inspection receipt": "完整的检查记录",
+  "Extra asset inspection receipt": "附加资源检查回执",
+  "Mesh mapping": "网格映射",
+  "#|{count} original render nodes · keep, replace or disable": {
+    "other": "{count} 个原版渲染节点 · 保留、替换或停用"
+  },
+  "Customize build": "自定义构建",
+  "Detail levels, VPK slot, compile, package and install": "细节层级、VPK 槽位、编译、打包和安装",
+  "Build settings": "构建设置",
+  "Detail levels and LOD acknowledgement": "细节层级和 LOD 确认",
+  "LOD strategy": "LOD 策略",
+  "Choose a strategy…": "选择策略…",
+  "Reuse replacement at original levels": "在原有层级复用替换模型",
+  "Preserve original lower-detail meshes": "保留原有的低细节网格",
+  "Single level": "单一层级",
+  "Disable additional levels": "停用其他层级",
+  "Use custom mesh mappings": "使用自定义网格映射",
+  "I have reviewed the LOD appearance and performance tradeoffs": "我已了解 LOD 在外观和性能上的取舍",
+  "No simplified geometry is generated by changing this strategy. Original lower-detail meshes can restore the original appearance at a distance.": "更改此策略不会生成简化的几何体。原有的低细节网格可以在远处恢复原来的外观。",
+  "Output settings": "输出设置",
+  "Slot {slot} · compilation, packaging and installation": "槽位 {slot} · 编译、打包和安装",
+  "VPK slot": "VPK 槽位",
+  "Choose free slot": "选择空闲槽位",
+  "The game’s addons folder is checked again every time the slot changes, you come back to the app or the project is analyzed, so a VPK you deleted frees its slot at once.": "每次更改槽位、返回本应用或分析项目时，都会重新检查游戏的 addons 文件夹，因此你删除的 VPK 会立即空出其槽位。",
+  "Compile replacement model": "编译替换模型",
+  "Package a VPK after validation": "验证后打包 VPK",
+  "Install after successful validation and packaging": "验证并打包成功后安装",
+  "Replace existing output": "替换现有输出",
+  "Replace an existing installed VPK at the selected slot": "替换所选槽位中已安装的 VPK",
+  "Developer / compiler tools": "开发者 / 编译器工具",
+  "Source preparation, compiler tests and existing VPK installation": "源文件准备、编译器测试和安装现有 VPK",
+  "Compiler preparation": "编译器准备",
+  "Prepare source files": "准备源文件",
+  "Prepare offline source workspace": "准备离线源文件工作区",
+  "Preparation writes compiler sources without compiling, packaging or installing.": "准备只写入编译器源文件，不编译、不打包也不安装。",
+  "Content": "内容",
+  "Compiled output directory": "编译输出目录",
+  "output|Model": "模型",
+  "Generated materials": "生成的材质",
+  "Original model test": "原版模型测试",
+  "Inspect compiler plan": "检查编译计划",
+  "Compile original test": "编译原版模型测试",
+  "Test the original character with the selected toolchain. The result is not packaged or installed.": "用所选工具链测试原版英雄。结果不会打包或安装。",
+  "Original test compiled": "原版模型测试已编译",
+  "Original compiler plan inspected": "已检查原版模型的编译计划",
+  "Original test receipt": "原版模型测试回执",
+  "Install an existing VPK": "安装现有 VPK",
+  "Choose VPK to validate and install…": "选择要验证并安装的 VPK…",
+  "The selected VPK is copied privately and checked against the current game before installation.": "所选 VPK 会先复制到私有位置，并在安装前根据当前游戏进行检查。",
+  "Installed": "已安装",
+  "Hero": "英雄",
+  "Prepared model": "准备好的模型",
+  "Model file": "模型文件",
+  "Materials": "材质",
+  "Detail levels": "细节层级",
+  "Texture folder": "贴图文件夹",
+  "Animation settings": "动画设置",
+  "Model fitting": "模型适配",
+  "Finger bend": "手指弯曲",
+  "Feet on the floor": "双脚贴地",
+  "Leg joints": "腿部关节",
+  "Arm skinning": "手臂蒙皮",
+  "Gun choice": "枪械选择",
+  "Gun file": "枪械文件",
+  "Moving parts kept": "保留的活动部件",
+  "Moving part types": "活动部件类型",
+  "Breast bones": "胸部骨骼",
+  "Butt bones": "臀部骨骼",
+  "Joint matches": "关节匹配",
+  "Scene objects": "场景对象",
+  "Shape keys": "形态键",
+  "Physics and moving parts": "物理与活动部件",
+  "Cloth reference": "布料参考",
+  "Colors and surfaces": "颜色与表面",
+  "Equipment": "装备",
+  "Face": "面部",
+  "Clothing": "服装",
+  "Cloth setup": "布料配置",
+  "Icons": "图标",
+  "Item icons": "物品图标",
+  "Item names": "物品名称",
+  "Animations": "动画",
+  "Effects": "特效",
+  "Audio": "音频",
+  "Customization on or off": "自定义开关",
+  "Character model on or off": "角色模型开关",
+  "Color ranges": "颜色范围",
+  "Preparation choices": "准备选项",
+  "#|{count} icons": {
+    "other": "{count} 个图标"
+  },
+  "#|{count} sounds": {
+    "other": "{count} 个声音"
+  },
+  "#|{count} animations": {
+    "other": "{count} 个动画"
+  },
+  "#|{count} effect files": {
+    "other": "{count} 个特效文件"
+  },
+  "Update {file} in the game's addons folder? The hero models inside take the game's current attachment values; the previous files are kept as backups.": "要更新游戏 addons 文件夹中的 {file} 吗？其中的英雄模型将采用游戏当前的挂点数值；之前的文件会保留为备份。",
+  "#|Update {count} mods in the game's addons folder? The hero models inside take the game's current attachment values; the previous files are kept as backups.": {
+    "other": "要更新游戏 addons 文件夹中的 {count} 个模组吗？其中的英雄模型将采用游戏当前的挂点数值；之前的文件会保留为备份。"
+  },
+  "Update installed mods": "更新已安装的模组",
+  "filter|All": "全部",
+  "Made here": "在此制作",
+  "From elsewhere": "来自其他来源",
+  "Installed mods": "已安装的模组",
+  "Checking…": "正在检查…",
+  "Scan again": "重新扫描",
+  "Check installed mods": "检查已安装的模组",
+  "Open the addons folder": "打开 addons 文件夹",
+  "Updating…": "正在更新…",
+  "#|Update {count} mods": {
+    "other": "更新 {count} 个模组"
+  },
+  "Every VPK in the game's addons folder, named by what is inside it: the heroes and the kind of change are read from the paths in each file, so the list stays right when a mod loader renames or renumbers files. Mods built before the game update of October 16, 2026 show the camera 90 degrees off in a match; those can be updated in place here, whichever tool made them, and the previous files are kept as backups.": "游戏 addons 文件夹中的每个 VPK，都按其内容命名：英雄和更改类型是从每个文件内的路径读取的，因此即使模组加载器重命名或重新编号文件，列表也依然正确。在 2026 年 10 月 16 日游戏更新之前构建的模组，在对局中镜头会偏转 90 度；无论是由哪个工具制作的，都可以在这里就地更新，之前的文件会保留为备份。",
+  "Updated {list}. Start the game and check the camera in a match; the previous files are in the app's backups folder.": "已更新 {list}。请启动游戏并在对局中检查镜头；之前的文件位于本应用的备份文件夹中。",
+  "#|{file} ({count} models)": {
+    "other": "{file}（{count} 个模型）"
+  },
+  "No mods are installed in the game's addons folder.": "游戏的 addons 文件夹中没有安装任何模组。",
+  "#|{count} files · {size}": {
+    "other": "{count} 个文件 · {size}"
+  },
+  "Read from the files themselves just now": "刚刚从文件本身读取",
+  "#|{count} need an update": {
+    "other": "{count} 个需要更新"
+  },
+  "#|{count} change the same game files": {
+    "other": "{count} 个更改了相同的游戏文件"
+  },
+  "Search hero, file or label": "搜索英雄、文件或标签",
+  "Search hero, file or label…": "搜索英雄、文件或标签…",
+  "filter|Items": "物品",
+  "filter|Other": "其他",
+  "Made by": "制作来源",
+  "File": "文件",
+  "Hero and your label": "英雄和你的标签",
+  "What it changes": "更改内容",
+  "column|State": "状态",
+  "No installed file matches these filters.": "没有已安装的文件符合这些筛选条件。",
+  "Label of {file}: {label}. Edit": "{file} 的标签：{label}。编辑",
+  "Add a label to {file}": "为 {file} 添加标签",
+  "Label: <name>{label}</name>": "标签：<name>{label}</name>",
+  "Add a label": "添加标签",
+  "No label without a readable file": "文件无法读取，不能添加标签",
+  "Update {file}": "更新 {file}",
+  "Update": "更新",
+  "Details": "详情",
+  "#|{name} ({count} files)": {
+    "other": "{name}（{count} 个文件）"
+  },
+  "#|and {count} more": {
+    "other": "以及另外 {count} 个"
+  },
+  "by this app from the project {name} for {hero}": "由本应用根据项目“{name}”为 {hero} 构建",
+  "by this app from the project {name}": "由本应用根据项目“{name}”构建",
+  "by this app from the project whose name is no longer recorded for {hero}": "由本应用根据一个名称已不再记录的项目为 {hero} 构建",
+  "by this app from the project whose name is no longer recorded": "由本应用根据一个名称已不再记录的项目构建",
+  "{built}; the project is not on this PC": "{built}；该项目不在此电脑上",
+  "{built} (the same files as a VPK in that project's output folder)": "{built}（与该项目输出文件夹中某个 VPK 的文件相同）",
+  "Details of {file}": "{file} 的详情",
+  "Open its project": "打开其项目",
+  "Show its project file": "显示其项目文件",
+  "Show in folder": "在文件夹中显示",
+  "Close": "关闭",
+  "#|{count} files for every hero": {
+    "other": "{count} 个文件用于所有英雄"
+  },
+  "#|{count} without a hero": {
+    "other": "{count} 个不属于任何英雄"
+  },
+  "Contents": "内容",
+  "Not readable as a VPK: {reason}": "无法作为 VPK 读取：{reason}",
+  "Ability objects": "技能物体",
+  "{name} ({users})": "{name}（{users}）",
+  "every hero": "所有英雄",
+  "no hero the game data names": "游戏数据未指明任何英雄",
+  "list separator|; ": "；",
+  "Built": "构建",
+  "by this app: VPKs in the output folders of several projects hold these same files, so no one project is named": "由本应用构建：多个项目的输出文件夹中的 VPK 包含这些相同的文件，因此无法指明是哪一个项目",
+  "Not made by this app, or installed by it before it kept a record of installs": "不是本应用制作的，或者是本应用在开始记录安装之前安装的",
+  "Your label": "你的标签",
+  "For example: main skin": "例如：主皮肤",
+  "Saving…": "正在保存…",
+  "Saved.": "已保存。",
+  "Kept with the file's contents, so it stays when the file is renumbered or renamed.": "标签与文件内容一起保存，因此文件被重新编号或重命名后仍会保留。",
+  "A file that cannot be read cannot be labelled.": "无法读取的文件不能添加标签。",
+  "Same game files": "相同的游戏文件",
+  "These files are also in other VPKs, with other contents. Which version a match uses is not decided here.": "这些文件也存在于其他 VPK 中，但内容不同。对局中使用哪个版本不由这里决定。",
+  "#|{count} files also in {file}": {
+    "other": "{count} 个文件也在 {file} 中"
+  },
+  "Files by kind": "按类型列出的文件",
+  "#|{count} character models": {
+    "other": "{count} 个英雄模型"
+  },
+  "#|{count} guns": {
+    "other": "{count} 把枪械"
+  },
+  "#|{count} other models": {
+    "other": "{count} 个其他模型"
+  },
+  "#|{count} model data files": {
+    "other": "{count} 个模型数据文件"
+  },
+  "#|{count} materials": {
+    "other": "{count} 个材质"
+  },
+  "#|{count} textures": {
+    "other": "{count} 张贴图"
+  },
+  "#|{count} sound event files": {
+    "other": "{count} 个声音事件文件"
+  },
+  "#|{count} item names files": {
+    "other": "{count} 个物品名称文件"
+  },
+  "#|{count} effects": {
+    "other": "{count} 个特效"
+  },
+  "#|{count} game data files": {
+    "other": "{count} 个游戏数据文件"
+  },
+  "#|{count} map files": {
+    "other": "{count} 个地图文件"
+  },
+  "#|{count} menu files": {
+    "other": "{count} 个菜单文件"
+  },
+  "#|{count} text files": {
+    "other": "{count} 个文本文件"
+  },
+  "#|{count} other files": {
+    "other": "{count} 个其他文件"
+  },
+  "character model": "英雄模型",
+  "gun": "枪械",
+  "file kind|map": "地图",
+  "file kind|menu": "菜单",
+  "file kind|game data": "游戏数据",
+  "file kind|text": "文本",
+  "#|{count} files": {
+    "other": "{count} 个文件"
+  },
+  "Could not be read": "无法读取",
+  "Every hero": "所有英雄",
+  "No hero": "无英雄",
+  "#|A few files each for {count} heroes": {
+    "other": "{count} 位英雄各有少量文件"
+  },
+  "#|{names} + {count} more": {
+    "other": "{names} 等另外 {count} 位"
+  },
+  "#|item names · {count} languages": {
+    "other": "物品名称 · {count} 种语言"
+  },
+  "item names ({language})": "物品名称（{language}）",
+  "item names": "物品名称",
+  "Not readable as a VPK": "无法作为 VPK 读取",
+  "No files": "没有文件",
+  "#|{first} and {second} files ({count} files)": {
+    "other": "{first}和{second}文件（{count} 个文件）"
+  },
+  "#|{kind} files ({count} files)": {
+    "other": "{kind}文件（{count} 个文件）"
+  },
+  "Other files ({count})": "其他文件（{count}）",
+  "#|shared by {count} heroes": {
+    "other": "由 {count} 位英雄共用"
+  },
+  "Ability object: {name} ({users})": "技能物体：{name}（{users}）",
+  "Ability object: {name}": "技能物体：{name}",
+  "Not made by this app": "不是本应用制作的",
+  "Made here · the same files as builds of several projects": "在此制作 · 与多个项目的构建文件相同",
+  "a project of this app": "本应用的某个项目",
+  "Made here · {name} (extras only)": "在此制作 · {name}（仅附加内容）",
+  "Made here · {name}": "在此制作 · {name}",
+  "Made here · {name} (extras only) · project not on this PC": "在此制作 · {name}（仅附加内容）· 项目不在此电脑上",
+  "Made here · {name} · project not on this PC": "在此制作 · {name} · 项目不在此电脑上",
+  "#|Changes {count} of the same game files as {file}": {
+    "other": "与 {file} 更改了 {count} 个相同的游戏文件"
+  },
+  "#|Changes some of the same game files as {count} other files": {
+    "other": "与另外 {count} 个文件更改了部分相同的游戏文件"
+  },
+  "Up to date": "已是最新",
+  "Needs an update for the current game": "需要针对当前游戏更新",
+  "Rebuild needed": "需要重新构建",
+  "Left alone": "未做处理",
+  "Not checked: no character model": "未检查：没有英雄模型",
+  "keep original": "保留原样",
+  "disable": "停用",
+  "Map source meshes to each original render node. A render node can use several source meshes; tick every mesh it should show. Saved mappings are rechecked during preparation.": "将源网格映射到每个原版渲染节点。一个渲染节点可以使用多个源网格；请勾选它应显示的每个网格。已保存的映射会在准备时重新检查。",
+  "<strong>Suggested mapping</strong> for {count} render node without a choice: {list}.": "为 {count} 个尚未选择的渲染节点提供<strong>建议的映射</strong>：{list}。",
+  "<strong>Suggested mapping</strong> for {count} render node: {list}.": "为 {count} 个渲染节点提供<strong>建议的映射</strong>：{list}。",
+  "<strong>Suggested mapping</strong> for {count} render nodes without a choice: {list}.": "为 {count} 个尚未选择的渲染节点提供<strong>建议的映射</strong>：{list}。",
+  "<strong>Suggested mapping</strong> for {count} render nodes: {list}.": "为 {count} 个渲染节点提供<strong>建议的映射</strong>：{list}。",
+  "Apply suggested mapping": "应用建议的映射",
+  "<strong>Not used by any render node, so missing in game:</strong> {names}": "<strong>没有任何渲染节点使用，因此游戏中会缺失：</strong>{names}",
+  "#|Add them to {node} and its lower-detail levels": {
+    "other": "将它们添加到 {node} 及其低细节层级"
+  },
+  "Original render node": "原版渲染节点",
+  "Replacement meshes": "替换网格",
+  "Lower detail": "低细节",
+  "Suggested": "建议",
+  "Action for {node}": "{node} 的操作",
+  "Map replacement meshes": "映射替换网格",
+  "Keep original": "保留原版",
+  "Disable": "停用",
+  "Original geometry retained": "保留原版几何体",
+  "Render node disabled": "渲染节点已停用",
+  "Replacement meshes for {node}": "{node} 的替换网格",
+  "Build the extras without a replacement model": "不使用替换模型，仅构建附加内容",
+  "Configure meshes": "配置网格",
+  "#|{count} model mappings need a choice.": {
+    "other": "{count} 个网格映射需要你选择。"
+  },
+  "Configure mappings": "配置映射",
+  "#|Moving-part bones kept from your rig are only in meshes left out of the build: {names}. Add them in Mesh mapping.": {
+    "other": "从你的骨架保留的活动部件骨骼只存在于未加入构建的网格中：{names}。请在“网格映射”中添加它们。"
+  },
+  "#|{count} material assignments need review.": {
+    "other": "{count} 个材质分配需要检查。"
+  },
+  "Configure materials": "配置材质",
+  "Review the detail-level strategy and acknowledge its appearance and performance tradeoffs.": "请检查细节层级策略，并确认其在外观和性能上的取舍。",
+  "Configure detail levels": "配置细节层级",
+  "Review meshes without skin weights in Model processing.": "请在“模型处理”中检查没有蒙皮权重的网格。",
+  "Choose the character you want to replace.": "请选择你要替换的英雄。",
+  "Choose character": "选择英雄",
+  "Add a replacement model.": "请添加替换模型。",
+  "Add model": "添加模型",
+  "Review the native analysis notes before building.": "构建前请检查原生分析备注。",
+  "View analysis notes": "查看分析备注",
+  "Choose a VPK slot from 2 to 99 before packaging.": "打包前请选择 2 到 99 之间的 VPK 槽位。",
+  "Configure output": "配置输出",
+  "VPK slot {slot} is in use by another mod in the game's addons folder (slot {free} is free).": "VPK 槽位 {slot} 已被游戏 addons 文件夹中的另一个模组占用（槽位 {free} 空闲）。",
+  "VPK slot {slot} is in use by another mod in the game's addons folder.": "VPK 槽位 {slot} 已被游戏 addons 文件夹中的另一个模组占用。",
+  "Project changed since the last analysis · the last build checked it": "自上次分析后项目已更改 · 上次构建已检查过",
+  "Project changed since the last analysis · Build checks it again first": "自上次分析后项目已更改 · 构建时会先再次检查",
+  "TangTang R2 tuned": "TangTang R2 调校",
+  "Automatic secondary motion": "自动物理摆动",
+  "slot in use by another mod, will be replaced": "槽位已被另一个模组占用，将被替换",
+  "slot in use by another mod": "槽位已被另一个模组占用",
+  "slot free": "槽位空闲",
+  "Character": "英雄",
+  "Choose a character": "选择英雄",
+  "Replacement model": "替换模型",
+  "Original model kept · extras only": "保留原版模型 · 仅附加内容",
+  "Add a model": "添加模型",
+  "Compatibility": "兼容性",
+  "Extra assets inspected · build validates outputs": "已检查附加资源 · 构建时会验证输出",
+  "Analyze extra assets before building": "构建前请分析附加资源",
+  "Analyze to check compatibility": "分析以检查兼容性",
+  "Compiled skeleton check required": "需要检查编译后的骨架",
+  "Source preflight complete": "源文件预检完成",
+  "Checked by the last build": "上次构建已检查",
+  "Build checks again": "构建时会再次检查",
+  "Not analyzed": "未分析",
+  "Build check required": "需要构建检查",
+  "#|{count} hero colors · game textures kept": {
+    "other": "{count} 个英雄颜色 · 保留游戏贴图"
+  },
+  "Original materials kept": "保留原版材质",
+  "#|{count} need review": {
+    "other": "{count} 项需要检查"
+  },
+  "#|{count} assignments checked": {
+    "other": "{count} 项分配已检查"
+  },
+  "#|{count} assignments saved": {
+    "other": "{count} 项分配已保存"
+  },
+  "Model mapping": "网格映射",
+  "No model replacement": "不替换模型",
+  "#|{count} unresolved": {
+    "other": "{count} 个未解决"
+  },
+  "#|{count} mappings checked": {
+    "other": "已检查 {count} 个映射"
+  },
+  "#|{count} mappings saved": {
+    "other": "已保存 {count} 个映射"
+  },
+  "Mesh processing": "网格处理",
+  "No model processing": "不处理模型",
+  "#|{count} processing issues": {
+    "other": "{count} 个处理问题"
+  },
+  "Automatic splitting enabled": "已启用自动拆分",
+  "Automatic splitting disabled": "已禁用自动拆分",
+  "Physics": "物理",
+  "Original physics kept": "保留原版物理",
+  "{name} · groups checked": "{name} · 已检查分组",
+  "Replacement cloth setup · reference checked": "替换布料配置 · 已检查参考",
+  "Replacement cloth setup selected": "已选择替换布料配置",
+  "Choose a tested reference": "选择已验证的参考",
+  "Preserve original physics": "保留原版物理",
+  "Motion": "动作",
+  "#|{count} animation replacements enabled": {
+    "other": "已启用 {count} 个动画替换"
+  },
+  "Original animations preserved": "保留原版动画",
+  "Legacy animation references disabled": "已停用旧版动画引用",
+  "Select a VPK slot (2–99)": "选择 VPK 槽位（2–99）",
+  "Source preparation only": "仅准备源文件",
+  "Compile only · no VPK": "仅编译 · 不生成 VPK",
+  "build and install": "构建并安装",
+  "build only": "仅构建",
+  "Configured": "已配置",
+  "Change": "更改",
+  "Choose": "选择",
+  "View": "查看",
+  "Configure": "配置",
+  "Not applicable": "不适用",
+  "Set up your project": "设置你的项目",
+  "Ready to prepare sources": "可以准备源文件",
+  "Ready to build": "可以构建",
+  "Ready to analyze": "可以分析",
+  "Choose a character and add the inputs needed for this project.": "请选择英雄，并添加此项目所需的输入。",
+  "The last build found something that still needs a choice. Analyze to see what is left.": "上次构建发现仍有需要你选择的内容。请分析以查看剩余内容。",
+  "Resolve the items below. Build checks the project again before it starts.": "请解决下面的各项。构建开始前会再次检查项目。",
+  "The last build checked this project. Analyze again is optional.": "上次构建已检查过此项目。再次分析是可选的。",
+  "The project changed since the last analysis. Build checks it again before it starts; Analyze again is optional.": "自上次分析后项目已更改。构建开始前会再次检查；再次分析是可选的。",
+  "Analyze the current project to check compatibility, materials and mappings.": "分析当前项目以检查兼容性、材质和映射。",
+  "Build rechecks the current files and validates outputs before publishing.": "构建时会重新检查当前文件，并在发布前验证输出。",
+  "Resolve the items below, then analyze again.": "请解决下面的各项，然后再次分析。",
+  "list separator|, ": "、",
+  "Hero name": "英雄名称",
+  "Allow unskinned": "允许无蒙皮",
+  "Auto split": "自动拆分",
+  "Split target": "拆分目标",
+  "Auto map": "自动映射",
+  "Generate materials": "生成材质",
+  "Auto decompile": "自动反编译",
+  "Face layers": "面部图层",
+  "Hero materials": "英雄材质",
+  "Effect edits": "特效编辑",
+  "{first} {second}": "{first}{second}",
+  "count separator|, ": "，"
+}

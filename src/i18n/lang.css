@@ -1,0 +1,34 @@
+/* Language-dependent type. `<html lang>` follows the interface language (src/i18n).
+   Colours stay the theme's: nothing here sets one. */
+
+/* Chinese: Latin text keeps the app's fonts; Chinese characters use the system's
+   Chinese UI fonts, Microsoft YaHei UI first on Windows. */
+:root:lang(zh), [lang^="zh"] {
+  font-family: Inter, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+}
+
+/* The small letter-spaced capitals headings: Chinese has no capitals, and spaced-out
+   characters at 10–11 px are hard to read, so no spacing and a little larger. */
+:root:lang(zh) :is(.studio-eyebrow, .studio-workspace .eyebrow, .prep-eyebrow, .extras-eyebrow) {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12px;
+}
+:root:lang(zh) :is(.nav-group-label, .studio-card h4, .studio-barmenu-panel-head h3, .motion-studio-label,
+  .prep-card-heading h3, .prep-section-heading, .prep-studio .prep-output .section-heading h2,
+  .prep-gun-settings .prep-weapon-actions legend, .theme-editor-fields h3, .tune-chip small,
+  .color-list-group-name, .color-section-label, .installed-head, .objects-studio h3,
+  .motion-graph-options h4, .clip-group h4, .clip-card h4, .taken-sep, .validation-table thead th,
+  .error-help .error-help-title, .prep-file-types, .prep-workspace thead th, .hero-color-range-group,
+  .sounds-group, .items-tier-label strong, .sound-edit-caption) {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12.5px;
+}
+
+/* The English name the hero lists show after the game's Chinese name. */
+:root:lang(zh) .taken-option-text .hero-english { margin-left: 6px; font-weight: 400; }
+
+/* A field's example path and the download link after it: a half-width space between a monospace
+   path and Chinese text reads as no gap, so the link gets the width of a Chinese character. */
+:root:lang(zh) .tool-field-help .field-example code { margin-right: 0.5em; }

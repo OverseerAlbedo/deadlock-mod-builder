@@ -5,6 +5,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import type { Project } from '../models';
 import { changesSince } from '../build/changes';
 import { ProjectHistory } from './projectHistory';
+import { t, useT } from '../i18n';
+// i18n-area: shell
 
 export interface HistoryControls {
   canUndo: boolean;
@@ -26,6 +28,13 @@ export function stepLabel(before: Project, after: Project): string {
   const labels = changesSince(before, after);
   if (!labels.length) return before.name !== after.name ? 'Project name' : '';
   return labels.length > 2 ? `${labels.slice(0, 2).join(', ')} and more` : labels.join(', ');
+}
+/** The same in the interface language, for the toast (the words come from `changesSince`). */
+export function shownStepLabel(before: Project, after: Project): string {
+  const labels = changesSince(before, after).map(label => t(label));
+  if (!labels.length) return before.name !== after.name ? t('Project name') : '';
+  if (labels.length > 2) return t('{first}, {second} and more', { first: labels[0], second: labels[1] });
+  return labels.length === 2 ? t('{first}, {second}', { first: labels[0], second: labels[1] }) : labels[0];
 }
 
 /** One history for the open project.
@@ -53,8 +62,10 @@ export function useProjectHistory({ read, write, notify, blocked = false }: {
       if (!write(target)) return;
       if (direction === 'undo') history.undone(); else history.redone();
       bump();
-      const label = stepLabel(step.before, step.after);
-      notify?.(`${direction === 'undo' ? 'Undone' : 'Redone'}${label ? `: ${label}` : ''}`);
+      const label = shownStepLabel(step.before, step.after);
+      notify?.(direction === 'undo'
+        ? (label ? t('Undone: {what}', { what: label }) : t('Undone'))
+        : (label ? t('Redone: {what}', { what: label }) : t('Redone')));
     };
     return {
       canUndo: history.canUndo && !blocked,
@@ -100,8 +111,9 @@ export function useUndoKeys(controls: HistoryControls | null) {
 
 /** Undo and Redo in the app's header. */
 export function HistoryButtons({ controls }: { controls: HistoryControls }) {
-  return <div className="history-controls" role="group" aria-label="Undo and redo">
-    <button type="button" className="topbar-button history-button" disabled={!controls.canUndo} aria-keyshortcuts="Control+Z" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={controls.undo}><span aria-hidden="true">↶</span></button>
-    <button type="button" className="topbar-button history-button" disabled={!controls.canRedo} aria-keyshortcuts="Control+Y Control+Shift+Z" title="Redo (Ctrl+Y or Ctrl+Shift+Z)" aria-label="Redo" onClick={controls.redo}><span aria-hidden="true">↷</span></button>
+  const t = useT();
+  return <div className="history-controls" role="group" aria-label={t('Undo and redo')}>
+    <button type="button" className="topbar-button history-button" disabled={!controls.canUndo} aria-keyshortcuts="Control+Z" title={t('Undo ({keys})', {keys: 'Ctrl+Z'})} aria-label={t('Undo')} onClick={controls.undo}><span aria-hidden="true">↶</span></button>
+    <button type="button" className="topbar-button history-button" disabled={!controls.canRedo} aria-keyshortcuts="Control+Y Control+Shift+Z" title={t('Redo ({keys} or {other})', {keys: 'Ctrl+Y', other: 'Ctrl+Shift+Z'})} aria-label={t('Redo')} onClick={controls.redo}><span aria-hidden="true">↷</span></button>
   </div>;
 }

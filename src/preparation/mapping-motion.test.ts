@@ -1,4 +1,5 @@
 // @vitest-environment node
+/// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 import { Bone as ThreeBone, BufferGeometry, Float32BufferAttribute, Group, Matrix4, MeshBasicMaterial, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';

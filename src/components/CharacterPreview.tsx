@@ -1,4 +1,7 @@
+// i18n-area: physics
 import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { t, tp, useLanguage, useT } from '../i18n';
+import { sentences } from '../build/words';
 import type { Project } from '../models';
 import type { ProjectInspection } from '../build/models';
 import type { PreviewScene } from '../preview/packet';
@@ -9,8 +12,8 @@ import { StudioView } from '../studio/Studio';
 import type { ModelLabelItem, ModelLabelSet } from '../studio/ModelLabels';
 import { PhysicsLabelsContext } from './physicsLabels';
 import { PreviewLinkContext, STOPPED_BEFORE_MOVING_PARTS, stoppedBeforeMovingParts } from './previewLink';
-import { KIND_LABELS, type TuningKind } from './MotionTuning';
-import { hasColorImages, usePreviewTextures } from '../preview/textures';
+import { KIND_LABELS, kindName } from './MotionTuning';
+import { hasColorImages, shownTextureMessage, usePreviewTextures } from '../preview/textures';
 import { modelIdentity, viewChoices } from '../preview/viewChoices';
 import { idOf, useAutoLoad } from '../preview/autoLoad';
 const Viewport = lazy(() => import('../preview/Viewport'));
@@ -25,6 +28,8 @@ export function CharacterPreview({ project, preview, load, busy, report = null, 
   /** Analyze project (records the moving parts the movement preview swings); runs by itself when Movement opens without them. A returned promise ends when the analysis has finished. */analyze?: () => void | Promise<unknown>; analyzing?: boolean;
   /** Settings → Load 3D previews automatically is on: loads the character (resolves to false when it did not start). */autoLoad?: () => Promise<boolean>;
   /** False when the shown preview belongs to an earlier prepared model of this project (it loads again by itself). */previewCurrent?: boolean }) {
+  const t = useT();
+  const language = useLanguage();
   const model = modelIdentity(project);
   // Load 3D previews automatically: Movement was the last choice for this prepared model, but its
   // clips cannot be reused (the preview was loaded again): they load by themselves once the
@@ -108,26 +113,26 @@ export function CharacterPreview({ project, preview, load, busy, report = null, 
   useEffect(() => { link?.report({mode, loaded: Boolean(preview), nodes: nodes.length, analyzed, analyzing, canMove, ...(stopped ? {stopped} : {})}); }, [link, mode, preview, nodes.length, analyzed, analyzing, canMove, stopped]);
   useEffect(() => () => link?.report(null), [link]);
   useEffect(() => { if (link) link.actions.current = {showMovement: () => void showMovement(), load}; });
-  const switcher = <div className="segmented" role="radiogroup" aria-label="Character view">
-    <button type="button" role="radio" aria-checked={mode === 'still'} onClick={() => { setMode('still'); setMovementWanted(false); }}>Still</button>
-    <button type="button" role="radio" aria-checked={mode === 'movement'} disabled={busy || !project.dmx} onClick={() => void showMovement()}>Movement</button>
+  const switcher = <div className="segmented" role="radiogroup" aria-label={t('Character view')}>
+    <button type="button" role="radio" aria-checked={mode === 'still'} onClick={() => { setMode('still'); setMovementWanted(false); }}>{t('Still')}</button>
+    <button type="button" role="radio" aria-checked={mode === 'movement'} disabled={busy || !project.dmx} onClick={() => void showMovement()}>{t('Movement')}</button>
   </div>;
   // Labels on the character: one per part type the last Analyze recorded, only where the page asks
   // for them (Automatic mode) and only on a loaded preview. Nothing is loaded or analyzed for them.
   const physicsLabels = useContext(PhysicsLabelsContext);
-  const labels = useMemo<ModelLabelSet | null>(() => physicsLabels && nodes.length ? partLabels(nodes, physicsLabels.active, physicsLabels.select) : null, [physicsLabels, nodes]);
+  const labels = useMemo<ModelLabelSet | null>(() => physicsLabels && nodes.length ? partLabels(nodes, physicsLabels.active, physicsLabels.select) : null, [physicsLabels, nodes, language]); // eslint-disable-line react-hooks/exhaustive-deps
   // The movement view puts its toolbar into the view's bar and its notes into the footer.
   const [barSlot, setBarSlot] = useState<HTMLElement | null>(null);
   const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
-  return <StudioView title="Your character" className={`character-preview mode-${mode}`} bar={switcher} barRef={setBarSlot} footRef={setFootSlot}
-    barEnd={<button className={preview ? '' : 'primary'} disabled={busy || !project.dmx} onClick={load}>{preview ? 'Reload preview' : 'Show my character'}</button>}
-    footer={preview && shading === null && images && failed && textures.message ? <p className="hint">Showing Solid: the textures could not be loaded. {textures.message}</p> : null}>
-    {mode === 'movement' && !nodes.length && <div className="capability-notice" role="status"><strong>{analyzing ? 'Analyzing your moving parts…' : stopped ? 'Mesh mappings needed a choice' : analyzed ? 'No moving parts to swing' : 'Moving parts not analyzed yet'}</strong><p>{analyzing ? 'Hair, cloth and tails start swinging here as soon as the analysis finishes.' : stopped ? STOPPED_BEFORE_MOVING_PARTS : analyzed ? 'The analysis found no moving parts for this model: choose Automatic secondary motion under Physics mode and keep hair, cloth and tails as moving parts in Prepare model, then Analyze again.' : 'The movement preview swings the parts recorded by Analyze project; until then the character plays the clips with everything still.'}</p>{analyze && !analyzing && <button className="primary" disabled={busy} onClick={analyze}>{analyzed ? 'Analyze again' : 'Analyze now'}</button>}</div>}
+  return <StudioView title={t('Your character')} className={`character-preview mode-${mode}`} bar={switcher} barRef={setBarSlot} footRef={setFootSlot}
+    barEnd={<button className={preview ? '' : 'primary'} disabled={busy || !project.dmx} onClick={load}>{preview ? t('Reload preview') : t('Show my character')}</button>}
+    footer={preview && shading === null && images && failed && textures.message ? <p className="hint">{sentences(t('Showing Solid: the textures could not be loaded.'), shownTextureMessage(textures.message))}</p> : null}>
+    {mode === 'movement' && !nodes.length && <div className="capability-notice" role="status"><strong>{analyzing ? t('Analyzing your moving parts…') : stopped ? t('Mesh mappings needed a choice') : analyzed ? t('No moving parts to swing') : t('Moving parts not analyzed yet')}</strong><p>{analyzing ? t('Hair, cloth and tails start swinging here as soon as the analysis finishes.') : stopped ? t(STOPPED_BEFORE_MOVING_PARTS) : analyzed ? t('The analysis found no moving parts for this model: choose Automatic secondary motion under Physics mode and keep hair, cloth and tails as moving parts in Prepare model, then Analyze again.') : t('The movement preview swings the parts recorded by Analyze project; until then the character plays the clips with everything still.')}</p>{analyze && !analyzing && <button className="primary" disabled={busy} onClick={analyze}>{analyzed ? t('Analyze again') : t('Analyze now')}</button>}</div>}
     {mode === 'movement'
-      ? (preview && packet ? <Suspense fallback={<p className="hint">Loading the 3D view…</p>}><MovementViewport scene={preview} packet={packet} nodes={nodes} tuning={tuning} project={project} shading={shown === 'weights' ? 'solid' : shown} onShading={setShading} shared={textures} toolbarSlot={barSlot} footSlot={footSlot} labels={labels} cloth={cloth.packet} clothNote={nodes.length ? clothNote(proxy, cloth.status) : null} onAnalyze={analyze && !analyzing && !busy ? analyze : undefined}/></Suspense>
-        : <p className="hint studio-view-wait">{loading || !preview ? 'Loading your character and the hero’s stand, run and jump clips…' : 'Loading…'}</p>)
-      : preview ? <Suspense fallback={<p className="hint">Loading the 3D view…</p>}><Viewport scene={preview} project={project} disabled={busy} shading={shown} onShading={setShading} shared={textures} labels={labels} toolbarSlot={barSlot} footSlot={footSlot}/></Suspense>
-        : <p className="hint studio-view-wait">{project.dmx ? 'See your prepared character in 3D, with its gun, its texture colours and moving parts. Movement plays the hero’s stand, run and jump clips with hair, cloth and other moving parts swinging.' : 'Prepare your model first (step 2).'}</p>}
+      ? (preview && packet ? <Suspense fallback={<p className="hint">{t('Loading the 3D view…')}</p>}><MovementViewport scene={preview} packet={packet} nodes={nodes} tuning={tuning} project={project} shading={shown === 'weights' ? 'solid' : shown} onShading={setShading} shared={textures} toolbarSlot={barSlot} footSlot={footSlot} labels={labels} cloth={cloth.packet} clothNote={nodes.length ? clothNote(proxy, cloth.status) : null} onAnalyze={analyze && !analyzing && !busy ? analyze : undefined}/></Suspense>
+        : <p className="hint studio-view-wait">{loading || !preview ? t('Loading your character and the hero’s stand, run and jump clips…') : t('Loading…')}</p>)
+      : preview ? <Suspense fallback={<p className="hint">{t('Loading the 3D view…')}</p>}><Viewport scene={preview} project={project} disabled={busy} shading={shown} onShading={setShading} shared={textures} labels={labels} toolbarSlot={barSlot} footSlot={footSlot}/></Suspense>
+        : <p className="hint studio-view-wait">{project.dmx ? t('See your prepared character in 3D, with its gun, its texture colours and moving parts. Movement plays the hero’s stand, run and jump clips with hair, cloth and other moving parts swinging.') : t('Prepare your model first (step 2).')}</p>}
   </StudioView>;
 }
 
@@ -166,9 +171,9 @@ function useClothPacket(project: Project, proxy: string | null, analysis: number
 
 /** The quiet line under the movement view when it shows the simple swing instead of the game's cloth model. */
 export function clothNote(proxy: string | null, status: ClothStatus): {text: string; analyze: boolean} | null {
-  if (!proxy) return {text: 'Moving parts swing by a simple approximation here; the game’s cloth simulation is shown for Automatic secondary motion.', analyze: false};
-  if (status === 'none') return {text: 'Moving parts swing by a simple approximation: Analyze again to see the game’s cloth simulation.', analyze: true};
-  if (status === 'failed') return {text: 'Moving parts swing by a simple approximation: the cloth data of the last Analyze could not be read. Analyze again to see the game’s cloth simulation.', analyze: true};
+  if (!proxy) return {text: t('Moving parts swing by a simple approximation here; the game’s cloth simulation is shown for Automatic secondary motion.'), analyze: false};
+  if (status === 'none') return {text: t('Moving parts swing by a simple approximation: Analyze again to see the game’s cloth simulation.'), analyze: true};
+  if (status === 'failed') return {text: t('Moving parts swing by a simple approximation: the cloth data of the last Analyze could not be read. Analyze again to see the game’s cloth simulation.'), analyze: true};
   return null;
 }
 
@@ -184,8 +189,8 @@ export function partLabels(nodes: PreviewNode[], active: string | null, select: 
   }
   const order = Object.keys(KIND_LABELS);
   const items: ModelLabelItem[] = [...kinds].sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).map(([kind, {roots, bones}]) => {
-    const text = KIND_LABELS[kind as TuningKind] ?? kind.replaceAll('_', ' ');
-    return {id: kind, text, detail: `${roots.size} ${roots.size === 1 ? 'part' : 'parts'}`, title: `Fine-tune ${text.toLowerCase()}`, active: kind === active, bones};
+    const text = kind in KIND_LABELS ? kindName(kind) : kind.replaceAll('_', ' ');
+    return {id: kind, text, detail: tp(roots.size, {one: '{count} part', other: '{count} parts'}), title: t('Fine-tune {kind}', {kind: text.toLowerCase()}), active: kind === active, bones};
   });
-  return items.length ? {items, select, legend: 'Moving parts · click a label to fine-tune that type', label: 'Moving part types'} : null;
+  return items.length ? {items, select, legend: t('Moving parts · click a label to fine-tune that type'), label: t('Moving part types')} : null;
 }

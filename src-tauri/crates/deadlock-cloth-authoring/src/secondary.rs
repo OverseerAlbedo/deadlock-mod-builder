@@ -8,6 +8,7 @@ use crate::{
 };
 use deadlock_core::CancellationToken;
 use deadlock_dmx::Dmx;
+use deadlock_preparation::secondary_bones::MAX_KEPT_BONES;
 use deadlock_project::Project;
 use deadlock_skeleton::{extensions::SourceBinding, transforms};
 use serde::{Deserialize, Serialize};
@@ -216,10 +217,10 @@ pub fn reviewed_groups(d: &Dmx, roots: &[String], source: &SourceBinding) -> Res
         let mut pending = vec![root];
         let mut branch = vec![];
         while let Some(at) = pending.pop() {
-            if !allowed.contains(&sk.names[at]) || !occupied.insert(at) || occupied.len() > 512 {
-                return Err(invalid(
-                    "Secondary groups overlap, include a body bone or exceed 512 bones.",
-                ));
+            if !allowed.contains(&sk.names[at]) || !occupied.insert(at) || occupied.len() > MAX_KEPT_BONES {
+                return Err(invalid(format!(
+                    "Secondary groups overlap, include a body bone or exceed {MAX_KEPT_BONES} bones."
+                )));
             }
             branch.push(sk.names[at].clone());
             pending.extend(children[at].iter().rev());

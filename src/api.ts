@@ -37,6 +37,8 @@ export const api = {
   itemCatalog: (reload = false) => invoke<import('./extras/itemCatalog').ItemCatalog>('item_catalog',{reload}),
   /** Extras → Items, renamed items: the game's item names (token → English name), the languages a build writes, and each saved row's state (`src/extras/itemNames.ts`). No lease; kept per game names folder. */
   itemNamesState: (rows: import('./extras/itemNames').ItemNameRow[]) => invoke<import('./extras/itemNames').ItemNamesState>('item_names_state',{rows}),
+  /** Hero and item names as the game writes them in an interface language (`src/i18n/gameNames.ts`), for display only. Lease-free and never an error: English, an unknown language or a game that is not set up give empty maps. Never called while the interface is English. */
+  gameNames: (language: string) => invoke<import('./i18n/gameNames').GameNames>('game_names',{language}),
   /** Extras → Objects: the hero's ability objects (`src/extras/objectTypes.ts`), read when the page opens and kept per game archive and hero; no lease. `reload` reads them again. */
   abilityObjectCatalog: (project:Project, reload = false) => invoke<import('./extras/objectTypes').ObjectCatalog>('ability_object_catalog',{project,reload}),
   /** Prepares the user's file for one offered ability object (stages it and runs Blender; takes the operation lease). A current preparation of the same file is reused at once. */

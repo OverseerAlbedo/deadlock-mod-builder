@@ -8,6 +8,7 @@ use crate::app::{AppError, Application, Result};
 use crate::catalogs::ExtraPreviewRequest;
 use deadlock_components::item_icons::{self, ItemCatalog};
 use deadlock_components::item_names;
+use deadlock_components::shown_names::{self, ShownNames};
 use deadlock_core::{text::casefold, CancellationToken};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -148,6 +149,42 @@ impl Application {
         Ok(ItemNamesState { game: (*game).clone(), rows, unknown })
     }
 
+    /// Hero and item names as the game writes them in an interface language
+    /// (`shown_names`), for display only. Read-only and lease-free, and never an
+    /// error: without a game archive, names files or a game language for `id`
+    /// the maps are empty. Kept per archive and language while the archive and
+    /// the four names files keep their size and modified time.
+    pub fn game_names(&self, id: &str) -> Result<ShownNames> {
+        let empty = || ShownNames { language: id.to_owned(), ..Default::default() };
+        let Some(language) = shown_names::game_language(id) else { return Ok(empty()) };
+        let Ok(settings) = self.settings() else { return Ok(empty()) };
+        if settings.pak.is_empty() || !Path::new(&settings.pak).is_file() {
+            return Ok(empty());
+        }
+        let archive = Path::new(&settings.pak);
+        let file_stamp = |path: &Path| {
+            let meta = std::fs::metadata(path).ok();
+            let modified = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_nanos()).unwrap_or(0);
+            (meta.map(|m| m.len()).unwrap_or(0), modified)
+        };
+        let mut stamps = vec![file_stamp(archive)];
+        stamps.extend(shown_names::files(archive, language).iter().map(|p| file_stamp(p)));
+        type Kept = Vec<((String, &'static str, Vec<(u64, u128)>), Arc<ShownNames>)>;
+        static KEPT: Mutex<Kept> = Mutex::new(Vec::new());
+        let key = (settings.pak.clone(), language, stamps);
+        if let Some((_, kept)) = KEPT.lock().unwrap_or_else(|e| e.into_inner()).iter().find(|(k, _)| *k == key) {
+            return Ok(ShownNames { language: id.to_owned(), ..(**kept).clone() });
+        }
+        let roster = deadlock_components::heroes::roster().unwrap_or_default();
+        let answer = Arc::new(shown_names::read(archive, id, &roster, || {
+            deadlock_vpk::Vpk::open(archive).ok().and_then(|vpk| deadlock_components::heroes::GameModels::read(&vpk).ok().flatten())
+        }));
+        let mut kept = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+        kept.retain(|(k, _)| !(k.0 == key.0 && k.1 == key.1));
+        kept.push((key, answer.clone()));
+        Ok((*answer).clone())
+    }
+
     /// One item picture (or the user's image fitted to it) for the Items page.
     /// Read-only and bounded like the other Extras previews: no operation lease.
     pub fn preview_item_icon(&self, request: &ExtraPreviewRequest) -> Result<Vec<u8>> {
@@ -199,6 +236,13 @@ pub mod commands {
     pub async fn item_names_state(state: State<'_>, rows: Vec<deadlock_project::item_names::ItemNameRow>) -> Result<ItemNamesState> {
         let app = state.inner().clone();
         tauri::async_runtime::spawn_blocking(move || app.item_names_state(&rows))
+            .await
+            .map_err(|e| AppError::new("internal", "The native catalog worker stopped", e))?
+    }
+    #[tauri::command]
+    pub async fn game_names(state: State<'_>, language: String) -> Result<ShownNames> {
+        let app = state.inner().clone();
+        tauri::async_runtime::spawn_blocking(move || app.game_names(&language))
             .await
             .map_err(|e| AppError::new("internal", "The native catalog worker stopped", e))?
     }

@@ -1,0 +1,232 @@
+{
+  "Seek original": "定位原版",
+  "Play original": "播放原版",
+  "Pause original": "暂停原版",
+  "Seek replacement": "定位替换",
+  "Play replacement": "播放替换",
+  "Pause replacement": "暂停替换",
+  "Preparing waveform…": "正在生成波形…",
+  "Playing": "正在播放",
+  "Paused": "已暂停",
+  "Listen": "试听",
+  "Peaks will clip at this volume. Lower it if you hear distortion.": "此音量下峰值会削波。如果听到失真，请调低音量。",
+  "{label} value": "{label}数值",
+  "Volume held at {volume}: louder would clip, so the loudest peak stays just below full scale.": "音量限制在 {volume}：再大会削波，因此最响的峰值保持在满刻度以下。",
+  "This sound loops: fade out is not used (it would dip on every loop), and fade in ends where the loop starts.": "此声音会循环：不使用淡出（否则每次循环都会变弱），淡入在循环开始处结束。",
+  "A fade is longer than the part of your file that plays, so it is held to that part.": "淡入淡出比文件中播放的部分更长，因此限制在该部分之内。",
+  "An earlier volume of {percent}% ({volume}) also applies. Reset edits sets it back to 100%.": "之前设置的 {percent}% 音量（{volume}）同样生效。“重置编辑”会将其恢复为 100%。",
+  "An earlier volume of {percent}% also applies. Reset edits sets it back to 100%.": "之前设置的 {percent}% 音量同样生效。“重置编辑”会将其恢复为 100%。",
+  "Sound editor": "声音编辑器",
+  "Sounds": "声音",
+  "Replaced": "已替换",
+  "Back to sounds": "返回声音",
+  "Waveforms": "波形",
+  "Your file <code>{file}</code>": "你的文件 <code>{file}</code>",
+  "The game’s": "游戏原版",
+  "Yours": "你的",
+  "What the game will play": "游戏将播放的内容",
+  "Your file ({file}) is longer than the game’s sound ({game}), so nothing plays yet. Drag the frame, or use the part in it as it is.": "你的文件（{file}）比游戏的声音（{game}）长，因此暂时不会播放。请拖动选框，或直接使用选框中的部分。",
+  "Use the part in the frame": "使用选框中的部分",
+  "Rendering…": "正在渲染…",
+  "with your volume and fades": "含你的音量和淡入淡出",
+  "The game’s sound, for comparison": "游戏的声音，供对比",
+  "Edit": "编辑",
+  "Changes are heard right away with ▶ Yours.": "点击“▶ 你的”即可立即听到更改。",
+  "Starts at": "起始位置",
+  "Where in your file the sound begins.": "声音在你的文件中开始的位置。",
+  "Volume": "音量",
+  "Louder or quieter than your file.": "比原文件更响或更小声。",
+  "Fade in": "淡入",
+  "A soft start.": "柔和开始。",
+  "Fade out": "淡出",
+  "Not used: this sound loops.": "不使用：此声音会循环。",
+  "A soft end.": "柔和结束。",
+  "Sets Volume so the part that plays measures as loud as the game’s sound (BS.1770 loudness).": "设置音量，使播放部分的响度与游戏的声音一致（BS.1770 响度）。",
+  "Match the game’s loudness": "匹配游戏响度",
+  "Reset edits": "重置编辑",
+  "Matched as far as it goes without clipping: the game’s sound is louder still.": "已在不削波的范围内尽量匹配：游戏的声音仍然更响。",
+  "Matched as far as the Volume range goes.": "已在音量范围内尽量匹配。",
+  "<strong>The game fixes this sound’s length: {length}.</strong> A replacement cannot be longer or shorter, so “trimming” means choosing which {length} of your file plays. If your file is shorter, silence fills the rest.": "<strong>游戏固定了此声音的长度：{length}。</strong>替换文件不能更长或更短，因此“裁剪”是指选择你的文件中哪 {length} 被播放。如果你的文件更短，其余部分以静音补齐。",
+  "Used by the next build. The edits are kept in the project; your file is not changed.": "下一次构建时使用。编辑保存在项目中，不会更改你的文件。",
+  "Also here": "其他操作",
+  "#|Replace all {count} variations with this part": {
+    "other": "用此部分替换全部 {count} 个变体"
+  },
+  "Silence this sound": "将此声音静音",
+  "Replace all variations with this part": "用此部分替换全部变体",
+  "Every variation gets this file with the same start, volume and fades. A fade longer than a shorter variation is held to it.": "每个变体都会使用此文件，并采用相同的起始位置、音量和淡入淡出。比较短变体更长的淡入淡出会限制在该变体之内。",
+  "#|Also replace the shared variations ({count}). This can also change other heroes.": {
+    "other": "同时替换共享的变体（{count} 个）。这也可能改变其他英雄。"
+  },
+  "#|Replace {count} variations": {
+    "other": "替换 {count} 个变体"
+  },
+  "Reading your file…": "正在读取你的文件…",
+  "Part that plays": "播放的部分",
+  "From {start} to {end}": "从 {start} 到 {end}",
+  "Loop start (the game's)": "循环开始（游戏设定）",
+  "Loop end (the game's)": "循环结束（游戏设定）",
+  "loop": "循环",
+  "end": "结束",
+  "Drag the frame to choose the part that plays · it is always {length} long": "拖动选框选择播放的部分 · 其长度始终为 {length}",
+  "Your file is not longer than the game’s sound ({length}): all of it plays, then silence": "你的文件不比游戏的声音（{length}）长：会完整播放，之后为静音",
+  "#|{count} replaced": {
+    "other": "已替换 {count} 个"
+  },
+  "#|{count} silenced": {
+    "other": "已静音 {count} 个"
+  },
+  "#|{count} changed": {
+    "other": "已更改 {count} 项"
+  },
+  "Stereo": "立体声",
+  "Mono": "单声道",
+  "#|{count} channels": {
+    "other": "{count} 声道"
+  },
+  "Game file": "游戏文件",
+  "Variation": "变体",
+  "{number} of {count} · silenced": "第 {number} / {count} 个 · 已静音",
+  "{number} of {count} · replaced": "第 {number} / {count} 个 · 已替换",
+  "{number} of {count}": "第 {number} / {count} 个",
+  "#|Replace all {count} variations with one file": {
+    "other": "用一个文件替换全部 {count} 个变体"
+  },
+  "#|Silence all {count} variations": {
+    "other": "将全部 {count} 个变体静音"
+  },
+  "The game picks one of these at random. Each can be replaced on its own.": "游戏会从中随机选择一个。每个都可以单独替换。",
+  "Numbered copies of one sound (this is {number} of {count}). Each can be replaced on its own.": "同一声音的编号副本（这是第 {number} / {count} 个）。每个都可以单独替换。",
+  "Replace all variations": "替换全部变体",
+  "Every variation gets the same file. Each one can still be changed on its own afterwards. Volume and timing you already set are kept.": "每个变体都会使用同一个文件。之后仍可单独更改每一个。已设置的音量和时长会保留。",
+  "Silence all variations": "将全部变体静音",
+  "The game plays nothing for any of them. Each one can still be changed on its own afterwards.": "游戏不会为其中任何一个播放内容。之后仍可单独更改每一个。",
+  "#|Also silence the shared variations ({count}). This can also change other heroes.": {
+    "other": "同时将共享的变体静音（{count} 个）。这也可能改变其他英雄。"
+  },
+  "#|Silence {count} variations": {
+    "other": "将 {count} 个变体静音"
+  },
+  "Sounds assets": "声音资源",
+  "Replace or silence the hero’s voice, ability and weapon sounds": "替换英雄的语音、技能和武器声音，或将其静音",
+  "#|{count} sounds from your game": {
+    "other": "来自你游戏的 {count} 个声音"
+  },
+  "From your game": "来自你的游戏",
+  "Search sounds": "搜索声音",
+  "Search sounds, for example “reload”, “kill” or “ping”…": "搜索声音，例如“reload”、“kill”或“ping”…",
+  "Clear search": "清空搜索",
+  "Show": "显示",
+  "Replaced only": "仅显示已替换",
+  "Replaceable only": "仅显示可替换",
+  "Clear": "清空",
+  "Voice line kinds": "语音类型",
+  "Choose a replaceable sound without an existing replacement to assign your saved file.": "选择一个尚无替换的可替换声音，将你保存的文件指定给它。",
+  "Cancel destination change": "取消更改目标",
+  "Finding {hero}’s sounds": "正在查找 {hero} 的声音",
+  "Reading sound files and sound events from your game archive.": "正在从游戏资源包读取声音文件和声音事件。",
+  "Load your character’s assets": "加载英雄资源",
+  "Connect your game to get started": "连接游戏以开始使用",
+  "Browse the original sounds before choosing what to replace. Your saved replacements stay in Replaced only.": "先浏览原版声音，再决定替换哪些。你保存的替换会保留在“仅显示已替换”中。",
+  "Choose the original game VPK in Setup, then return here to load this character’s icons, sounds and effects.": "请在“设置”中选择原版游戏 VPK，然后回到这里加载此英雄的图标、声音和特效。",
+  "Load character assets": "加载英雄资源",
+  "Open Setup": "打开设置",
+  "No matching sounds": "没有匹配的声音",
+  "No replacements yet": "暂无替换",
+  "No sounds with these tags": "没有带这些标签的声音",
+  "No assets found in this category": "此类别中未找到资源",
+  "Try another name or clear your filters.": "请尝试其他名称，或清除筛选条件。",
+  "Select an original sound, then drop in a replacement.": "选择一个原版声音，然后拖入替换文件。",
+  "Discovery uses the selected model, known character aliases and linked game resources.": "查找会使用所选模型、已知的英雄别名和关联的游戏资源。",
+  "Show all sounds": "显示全部声音",
+  "{from}–{to} of {total}": "第 {from}–{to} 个，共 {total} 个",
+  "Previous sounds page": "上一页声音",
+  "Page {page} of {count}": "第 {page} / {count} 页",
+  "Next sounds page": "下一页声音",
+  "Sounds for {hero} · shared resources are labeled": "{hero} 的声音 · 共享资源已标注",
+  "Replacement editor": "替换编辑器",
+  "#|{done} of {count} variations are now silenced": {
+    "other": "{count} 个变体中已有 {done} 个静音"
+  },
+  "#|{done} of {count} variations now use {file}": {
+    "other": "{count} 个变体中已有 {done} 个使用 {file}"
+  },
+  "Not set:": "未设置：",
+  "Dismiss": "关闭",
+  "This file is longer than the game’s sound: choose the part that plays.": "此文件比游戏的声音长：请选择播放的部分。",
+  "Choose the part that plays": "选择播放的部分",
+  "Edit the part, volume and fades": "编辑播放部分、音量和淡入淡出",
+  "From {start} · {volume} · fade in {fadeIn}, fade out {fadeOut}": "从 {start} 开始 · {volume} · 淡入 {fadeIn}，淡出 {fadeOut}",
+  "Choose which part of your file plays, how loud, and how it fades.": "选择文件中播放的部分、音量以及淡入淡出方式。",
+  "PREVIEW & REPLACE": "预览并替换",
+  "Start with the original": "从原版开始",
+  "Choose a sound from the library to compare it with your replacement.": "从库中选择一个声音，与你的替换文件进行对比。",
+  "Preview before you change anything": "更改前先预览",
+  "Drop a file or browse your computer": "拖放文件或浏览电脑",
+  "Choose the part that plays, its volume and fades": "选择播放的部分、音量和淡入淡出",
+  "Saved destination unavailable": "保存的目标不可用",
+  "#|{count} lines · the game picks one at random": {
+    "other": "{count} 条语音 · 游戏随机选择一条"
+  },
+  "#|{count} lines": {
+    "other": "{count} 条语音"
+  },
+  "#|{count} variations · the game picks one at random": {
+    "other": "{count} 个变体 · 游戏随机选择一个"
+  },
+  "#|{count} variations": {
+    "other": "{count} 个变体"
+  },
+  "#|{count} sounds": {
+    "other": "{count} 个声音"
+  },
+  "Stop original": "停止原版",
+  "Stop": "停止",
+  "Play the original": "播放原版",
+  "Preview unavailable: {error}": "无法预览：{error}",
+  "sound tag|Hero": "英雄",
+  "sound tag|Ability": "技能",
+  "sound tag|Weapon": "武器",
+  "sound tag|Voice": "语音",
+  "sound tag|Other": "其他",
+  "Pings": "标记",
+  "Emotes and efforts": "表情与发力声",
+  "Ability lines": "技能语音",
+  "Match start": "对局开始",
+  "Kills": "击杀",
+  "Hero select": "英雄选择",
+  "Other heroes about this hero": "其他英雄谈及此英雄",
+  "Other sounds": "其他声音",
+  "Saved replacements to place again": "需要重新放置的已保存替换",
+  "tagged {tag}": "标签为“{tag}”",
+  "that are both {first} and {second}": "同时带有“{first}”和“{second}”标签",
+  "that are all of {list} and {last}": "同时带有“{list}”和“{last}”标签",
+  "list|, ": "、",
+  "({kinds})": "（{kinds}）",
+  "list| or ": "或",
+  "with a replacement": "有替换",
+  "matching “{query}”": "匹配“{query}”",
+  "#|{count} files with their variations": {
+    "other": "含变体共 {count} 个文件"
+  },
+  "#|Showing {count} sounds": {
+    "other": "显示 {count} 个声音"
+  },
+  "between filter clauses| ": "，",
+  "{done} of {total} replaced": "已替换 {done}/{total}",
+  "{done} of {total} silenced": "已静音 {done}/{total}",
+  "{done} of {total} changed": "已更改 {done}/{total}",
+  "this sound cannot be replaced yet": "此声音暂不能替换",
+  "this sound cannot be changed yet": "此声音暂不能更改",
+  "A compiled .vsnd_c file only fits the sound it was made for. Choose a WAV, MP3, FLAC or OGG file to replace every variation.": "编译好的 .vsnd_c 文件只适用于它所针对的声音。要替换每个变体，请选择 WAV、MP3、FLAC 或 OGG 文件。",
+  "Its game format cannot take a converted file. Replace it on its own with a matching .vsnd_c.": "它的游戏格式无法使用转换后的文件。请用匹配的 .vsnd_c 单独替换它。",
+  "Shared with other heroes. Tick “Also replace the shared variations” to include it.": "与其他英雄共享。勾选“同时替换共享的变体”即可包含它。",
+  "Shared with other heroes. Tick “Also silence the shared variations” to include it.": "与其他英雄共享。勾选“同时将共享的变体静音”即可包含它。",
+  "Its game format cannot be rewritten, so it cannot be silenced.": "它的游戏格式无法重写，因此不能静音。",
+  "View only: {reason}": "仅供查看：{reason}",
+  "Sounds already have {count} replacements. Remove one before adding another.": "声音已有 {count} 个替换。请先移除一个，再添加新的。",
+  "page|Previous": "上一页",
+  "page|Next": "下一页",
+  "{value} s": "{value} 秒",
+  "{low}–{high} s": "{low}–{high} 秒"
+}

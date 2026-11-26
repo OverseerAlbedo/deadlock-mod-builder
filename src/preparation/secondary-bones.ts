@@ -290,6 +290,10 @@ export function automaticPhysicsOptions(bones:Bone[],weighted:string[],options:P
   const fresh=groups.map(g=>g.root).filter(root=>!offered.has(root)&&!roots.includes(root));
   return withCharmKinds(bones,fresh.length?{...options,physics_roots:[...roots,...fresh]}:options,groups);
 }
+/** The most moving-part bones one preparation keeps, all kept groups together (the Moving parts tab counts against it;
+ * Prepare model's own check decides). The same number is MAX_KEPT_BONES in secondary_bones.rs and secondary_bones.py
+ * (deadlock-preparation tests/kept_bone_limit.rs reads this line). The 512-step chain walks above are a separate bound. */
+export const MAX_KEPT_BONES=1024;
 export function keptPhysicsBones(groups:PhysicsGroup[],options:PreparationOptions):Set<string>{
   return new Set(options.preserve_physics_bones?groups.filter(g=>options.physics_roots?.includes(g.root)).flatMap(g=>g.source_bones):[]);
 }

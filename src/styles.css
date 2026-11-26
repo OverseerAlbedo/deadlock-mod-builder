@@ -371,6 +371,8 @@ tr:hover td { background: var(--surface-secondary); }
 .hero-tag.unplayable { background: rgba(214, 150, 84, .18); color: #f0c48f; }
 .hero-results strong { font-size: 14px; font-weight: 500; }
 .hero-results span { font-size: 12px; color: var(--secondary); overflow-wrap: anywhere; }
+.hero-results .hero-english { margin-left: 6px; font-weight: 400; }
+.hero-name .hero-english { margin-left: 10px; font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--secondary); }
 .number-field { display: grid; grid-template-columns: minmax(180px,1fr) 116px; align-items: center; gap: 16px; margin: 14px 0; max-width: 420px; color: var(--text); font-size: 13px; }
 .number-field input { width: 100%; text-align: right; font-variant-numeric: tabular-nums; }
 .color-field { display: flex; align-items: center; gap: 12px; margin: 16px 0; }

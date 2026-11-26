@@ -1,8 +1,11 @@
 // Extras → Items: the game's item catalog (Rust `item_icons::ItemCatalog`) and
 // how the page groups it: category tabs, then tier rows (shop and Legendary)
 // or Misc groups, in the order the catalog gives.
+// i18n-area: items
 import type { ResourceReplacement } from "../models";
 import type { CatalogEntry } from "../components/AssetCatalog";
+import { m, t } from "../i18n";
+import { shownItem } from "../i18n/gameNames";
 import { assetItems, type AssetItem } from "./models";
 
 export type ItemCategory = "weapon" | "vitality" | "spirit" | "legendary" | "misc";
@@ -31,35 +34,37 @@ export interface ItemCatalog {
   warnings: string[];
 }
 export const ITEM_CATEGORIES: { key: ItemCategory; label: string }[] = [
-  { key: "weapon", label: "Weapon" },
-  { key: "vitality", label: "Vitality" },
-  { key: "spirit", label: "Spirit" },
-  { key: "legendary", label: "Legendary" },
-  { key: "misc", label: "Misc" },
+  { key: "weapon", label: m("Weapon") },
+  { key: "vitality", label: m("Vitality") },
+  { key: "spirit", label: m("Spirit") },
+  { key: "legendary", label: m("Legendary") },
+  { key: "misc", label: m("Misc") },
 ];
 /** Misc groups (Rust `item_icons::MISC_GROUPS`, same keys and order). */
 export const MISC_GROUPS: { key: string; label: string; note: string }[] = [
-  { key: "unsold", label: "Items not in the shop now", note: "Switched off, in development or test items" },
-  { key: "seasonal", label: "Seasonal pictures", note: "From the game's seasonal item folder" },
-  { key: "unused", label: "Pictures no item uses", note: "In the item folders, named by no item" },
-  { key: "saved", label: "Saved, not in the game now", note: "Your saved item icons whose picture the game no longer lists" },
+  { key: "unsold", label: m("Items not in the shop now"), note: m("Switched off, in development or test items") },
+  { key: "seasonal", label: m("Seasonal pictures"), note: m("From the game's seasonal item folder") },
+  { key: "unused", label: m("Pictures no item uses"), note: m("In the item folders, named by no item") },
+  { key: "saved", label: m("Saved, not in the game now"), note: m("Your saved item icons whose picture the game no longer lists") },
 ];
 export const MAX_ITEM_ICONS = 512;
 /** The Legendary group of Street Brawl items the game switches off (Rust group "off"). */
-export const SWITCHED_OFF = { label: "Switched off in the game", note: "Not in Street Brawl now · you can still prepare an icon" };
+export const SWITCHED_OFF = { label: m("Switched off in the game"), note: m("Not in Street Brawl now · you can still prepare an icon") };
 /** Said of a switched-off item: on its tile, in its chips and in the editor. */
-export const SWITCHED_OFF_REASON = "The game has switched this item off, so it does not show it now.";
+export const SWITCHED_OFF_REASON = m("The game has switched this item off, so it does not show it now.");
 
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
+/** "Tier II", in the language shown. */
 export function tierName(tier: number | null | string) {
   const n = Number(tier);
-  return `Tier ${ROMAN[n] ?? n}`;
+  return t("Tier {tier}", { tier: ROMAN[n] ?? n });
 }
 export function souls(price: number) {
   return price.toLocaleString("en-US");
 }
+/** A category's name, in the language shown (the game's own words). */
 export function categoryLabel(key: string) {
-  return ITEM_CATEGORIES.find((c) => c.key === key)?.label ?? "Misc";
+  return t(ITEM_CATEGORIES.find((c) => c.key === key)?.label ?? "Misc");
 }
 export function itemOf(item: AssetItem): ItemIcon | null {
   return item.missing ? null : (item.entry as ItemIcon);
@@ -69,9 +74,9 @@ export function categoryOf(item: AssetItem): ItemCategory {
 }
 /** "Tier I · 800 souls", "Street Brawl item", "Older item icons" … */
 export function placeText(entry: ItemIcon) {
-  if (entry.category === "legendary") return `${tierName(entry.tier ?? 5)} · Street Brawl`;
-  if (entry.category === "misc") return MISC_GROUPS.find((g) => g.key === entry.group)?.label ?? "Misc";
-  return entry.price ? `${tierName(entry.tier)} · ${souls(entry.price)} souls` : tierName(entry.tier);
+  if (entry.category === "legendary") return t("{tier} · Street Brawl", { tier: tierName(entry.tier ?? 5) });
+  if (entry.category === "misc") return t(MISC_GROUPS.find((g) => g.key === entry.group)?.label ?? "Misc");
+  return entry.price ? t("{tier} · {price} souls", { tier: tierName(entry.tier), price: souls(entry.price) }) : tierName(entry.tier);
 }
 
 export function itemAssets(catalog: ItemCatalog | null, rows: ResourceReplacement[]) {
@@ -106,9 +111,9 @@ export function itemGroups(items: AssetItem[], category: ItemCategory | null): I
       group = {
         key,
         category: cat,
-        title: misc ? misc.label : tierName(entry?.tier ?? entry?.group ?? ""),
+        title: misc ? t(misc.label) : tierName(entry?.tier ?? entry?.group ?? ""),
         price: cat === "legendary" || cat === "misc" ? null : entry?.price ?? null,
-        note: misc ? misc.note : cat === "legendary" ? "Street Brawl" : "",
+        note: misc ? t(misc.note) : cat === "legendary" ? t("Street Brawl") : "",
         items: [],
       };
       groups.set(key, group);
@@ -128,9 +133,10 @@ export function matches(item: AssetItem, query: string, also: string[] = []) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const entry = itemOf(item);
-  // Names and the game's internal item names; not the file path, whose folder
-  // (items/spirit/…) would match every item of a category.
-  const text = [item.entry.label, ...also, ...(entry?.names ?? []), ...(entry?.items ?? []), ...(entry ? [] : [item.entry.target])]
+  // Names, the game's names in the interface language, and the game's internal item names;
+  // not the file path, whose folder (items/spirit/…) would match every item of a category.
+  const shown = (entry?.items ?? []).map((token) => shownItem(token, "")).filter(Boolean);
+  const text = [item.entry.label, ...also, ...(entry?.names ?? []), ...(entry?.items ?? []), ...(entry ? [] : [item.entry.target]), ...shown]
     .join(" ")
     .toLowerCase();
   return q.split(/\s+/).every((word) => text.includes(word));

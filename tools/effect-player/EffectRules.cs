@@ -548,7 +548,7 @@ static class EffectRules
         var array = new JsonArray();
         foreach (var v in values)
         {
-            array.Add(v);
+            array.Add((JsonNode?)v);
         }
 
         return array;

@@ -174,7 +174,7 @@ static class ControlPointScan
         var array = new JsonArray();
         foreach (var use in uses)
         {
-            array.Add(new JsonObject
+            array.Add((JsonNode)new JsonObject
             {
                 ["file"] = use.File,
                 ["function"] = use.Function,
@@ -204,7 +204,7 @@ static class ControlPointScan
             var drivers = new JsonArray();
             foreach (var driver in configuration.GetArray("m_drivers") ?? [])
             {
-                drivers.Add(new JsonObject
+                drivers.Add((JsonNode)new JsonObject
                 {
                     ["cp"] = driver.GetInt32Property("m_iControlPoint"),
                     ["attachType"] = driver.GetStringProperty("m_iAttachType") ?? "",
@@ -214,7 +214,7 @@ static class ControlPointScan
                 });
             }
 
-            result.Add(new JsonObject
+            result.Add((JsonNode)new JsonObject
             {
                 ["name"] = configuration.GetStringProperty("m_name") ?? "",
                 ["drivers"] = drivers,

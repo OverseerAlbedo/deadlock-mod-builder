@@ -1,16 +1,18 @@
+// i18n-area: prepare
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { m, tc, useT } from '../i18n';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Box3, BufferAttribute, BufferGeometry, DoubleSide, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PreviewBoundary } from '../preview/PreviewBoundary';
-import type { Hand, Shape, Vec3, WeaponFit, WeaponHandPreview, WeaponPreview } from './models';
+import { nextSentence, type Hand, type Shape, type Vec3, type WeaponFit, type WeaponHandPreview, type WeaponPreview } from './models';
 import type { PreviewShapes } from './gun';
 
 type View='angle'|'front'|'side'|'top';
 type Zoom='guns'|'hand'|'body';
 type Pose='held'|'rest';
 /** Camera directions in hero model space: heroes face +X with +Z up, the right hand at -Y. */
-const VIEWS:[View,string,Vec3][]=[['angle','Angled',[1,-.75,.45]],['front','Front',[1,0,.12]],['side','Side',[0,-1,.12]],['top','Top',[0,0,1]]];
+const VIEWS:[View,string,Vec3][]=[['angle',m('Angled'),[1,-.75,.45]],['front',m('Front'),[1,0,.12]],['side',m('Side'),[0,-1,.12]],['top',m('Top'),[0,0,1]]];
 const COLORS:Record<Hand,string>={right:'#ffb02e',left:'#4fd1c5'};
 
 function cloud(points:Vec3[]){const geometry=new BufferGeometry();geometry.setAttribute('position',new BufferAttribute(new Float32Array(points.flat()),3));geometry.computeBoundingBox();return geometry;}
@@ -74,6 +76,7 @@ function handsOf(preview:WeaponPreview):WeaponHandPreview[]{
  * inspection has no shapes. With a holding pose, everything is shown as the hero holds
  * the gun in game (each gun moves with its hand); Rest shows the hero's rest pose. */
 export default function WeaponViewport({preview,shapes,focus='right'}:{preview:WeaponPreview;shapes?:PreviewShapes;focus?:Hand|'both'}){
+  const t=useT();
   const hands=handsOf(preview),dual=hands.length>1;
   const [view,setView]=useState<View>('angle'),[zoom,setZoom]=useState<Zoom>('hand');
   const stance=shapes?.stance,[pose,setPose]=useState<Pose>('held'),held=Boolean(stance)&&pose==='held';
@@ -101,12 +104,13 @@ export default function WeaponViewport({preview,shapes,focus='right'}:{preview:W
   },[scene,zoom,focus]);
   const span=Math.max(bounds.getSize(new Vector3()).length(),.01);
   const solidAll=scene.guns.every(g=>(!g.gun||g.gun.solid)&&g.original.solid);
-  const zooms:[Zoom,string][]=dual?[['hand',focus==='both'?'Both hands':focus==='left'?'Left hand':'Right hand'],['guns','Both guns'],['body','Whole body']]:[['hand','Gun'],['body','Whole body']];
-  return <PreviewBoundary><div className="prep-weapon-viewport" aria-label="Weapon fit preview">
-    <div className="prep-weapon-view" role="toolbar" aria-label="Preview view">
-      <span>View</span>{VIEWS.map(([key,label])=><button key={key} type="button" aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}
-      <span>Show</span>{zooms.map(([key,label])=><button key={key} type="button" aria-pressed={zoom===key} onClick={()=>setZoom(key)}>{label}</button>)}
-      {stance&&<><span>Pose</span>{([['held','Holding'],['rest','Rest']] as [Pose,string][]).map(([key,label])=><button key={key} type="button" aria-pressed={pose===key} title={key==='held'?'The hero standing with the gun ready, as in game':'The hero\'s rest pose the fit is measured in'} onClick={()=>setPose(key)}>{label}</button>)}</>}
+  const arrows=t("Arrows show where shots go: white from the original muzzle (shots keep leaving from there), coloured from your gun's muzzle. Your gun's front should point along them; if it points back, use Flip direction. Drag to turn, scroll to zoom.");
+  const zooms:[Zoom,string][]=dual?[['hand',focus==='both'?t('Both hands'):focus==='left'?t('Left hand'):t('Right hand')],['guns',t('Both guns')],['body',t('Whole body')]]:[['hand',t('Gun')],['body',t('Whole body')]];
+  return <PreviewBoundary><div className="prep-weapon-viewport" aria-label={t('Weapon fit preview')}>
+    <div className="prep-weapon-view" role="toolbar" aria-label={t('Preview view')}>
+      <span>{tc('camera', 'View')}</span>{VIEWS.map(([key,label])=><button key={key} type="button" aria-pressed={view===key} onClick={()=>setView(key)}>{t(label)}</button>)}
+      <span>{t('Show')}</span>{zooms.map(([key,label])=><button key={key} type="button" aria-pressed={zoom===key} onClick={()=>setZoom(key)}>{label}</button>)}
+      {stance&&<><span>{t('Pose')}</span>{([['held',m('Holding')],['rest',m('Rest')]] as [Pose,string][]).map(([key,label])=><button key={key} type="button" aria-pressed={pose===key} title={key==='held'?t('The hero standing with the gun ready, as in game'):t('The hero\'s rest pose the fit is measured in')} onClick={()=>setPose(key)}>{t(label)}</button>)}</>}
     </div>
     <div className="prep-weapon-canvas">
       <Canvas frameloop="demand" camera={{fov:40}} dpr={[1,2]}>
@@ -129,7 +133,7 @@ export default function WeaponViewport({preview,shapes,focus='right'}:{preview:W
         </group>)}
       </Canvas>
     </div>
-    <p className="hint"><span className="swatch grey"/>Original gun{dual?'s':''} (see-through) <span className="swatch amber"/>Your {dual?'right-hand ':''}gun{dual&&<><span className="swatch teal"/>Your left-hand gun</>}{scene.body?' · the hero\'s body is shown faintly':''}{held?' · Holding: the hero\'s idle pose with the gun; your gun moves with the hand as in game':''}</p>
-    <p className="hint">Arrows show where shots go: white from the original muzzle (shots keep leaving from there), coloured from your gun's muzzle. Your gun's front should point along them; if it points back, use Flip direction. Drag to turn, scroll to zoom.{solidAll?'':' Solid shapes appear after the model is prepared again.'}</p>
+    <p className="hint"><span className="swatch grey"/>{dual?t('Original guns (see-through)'):t('Original gun (see-through)')}{' '}<span className="swatch amber"/>{dual?t('Your right-hand gun'):t('Your gun')}{dual&&<><span className="swatch teal"/>{t('Your left-hand gun')}</>}{scene.body?<>{' · '}{t('the hero\'s body is shown faintly')}</>:''}{held?<>{' · '}{t('Holding: the hero\'s idle pose with the gun; your gun moves with the hand as in game')}</>:''}</p>
+    <p className="hint">{solidAll?arrows:nextSentence(arrows,t('Solid shapes appear after the model is prepared again.'))}</p>
   </div></PreviewBoundary>;
 }

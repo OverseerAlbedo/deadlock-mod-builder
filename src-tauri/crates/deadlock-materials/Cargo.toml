@@ -21,9 +21,12 @@ regex = "1"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tga", "tiff", "exr"] }
 tiff = { version = "0.11.3", default-features = false }
 crc32fast = "1"
-bzip2 = { version = "0.5.2", default-features = false, features = ["libbz2-rs-sys"] }
+# Deflate in ZIP files through the pure-Rust backend; zip's own "deflate" feature would select zlib-rs.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 lzma-rs = { version = "0.3", features = ["stream"] }
 tempfile = "3"
-zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "lzma"] }
+# bzip2 0.6 reads through the pure-Rust libbz2-rs-sys by default. LZMA entries are
+# decoded by source_zip.rs through lzma-rs, so zip's own LZMA decoder is not built.
+zip = { version = "9.8.2", default-features = false, features = ["deflate-flate2", "deflate-zopfli", "bzip2"] }
 
 [dev-dependencies]

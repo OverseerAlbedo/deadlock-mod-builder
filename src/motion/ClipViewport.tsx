@@ -1,3 +1,4 @@
+// i18n-area: motion
 import { useEffect, useMemo, type MutableRefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Bone, BufferAttribute, BufferGeometry, Matrix4, MeshStandardMaterial, PerspectiveCamera, Skeleton, SkinnedMesh, Vector3 } from 'three';
@@ -6,6 +7,7 @@ import { floatBuffer, indexBuffer, type PreviewScene } from '../preview/packet';
 import { PreviewBoundary } from '../preview/PreviewBoundary';
 import { packetLength, sampleClip } from './clipPacket';
 import type { ClipPacket } from './motionTypes';
+import { useT } from '../i18n';
 
 /** The player's time, shared by the controls and the render loop (never React state per frame). */
 export interface PlayerClock {
@@ -131,13 +133,14 @@ function Camera({scene}: {scene: PreviewScene}) {
 /** The prepared character playing one clip, with the game's clip as a see-through second figure in
  * Both. The clip plays in place (root motion is not applied). */
 export default function ClipViewport({scene, main, ghost, clock}: {scene: PreviewScene; main: ClipPacket; ghost: ClipPacket | null; clock: MutableRefObject<PlayerClock>}) {
+  const t = useT();
   const geometries = useGeometry(scene);
   const {min, max} = scene.metadata.bounds;
   const center = new Vector3(...min).add(new Vector3(...max)).multiplyScalar(.5);
   const span = Math.max(new Vector3(...max).distanceTo(new Vector3(...min)), .01);
   const floor = Math.min(min[2], 0);
   return <PreviewBoundary><div className="clip-canvas" data-testid="clip-canvas">
-    <Canvas frameloop="always" camera={{fov: 35}} dpr={[1, 1.5]} fallback={<div className="empty-state">A WebGL 2 capable graphics driver is required for this preview.</div>}>
+    <Canvas frameloop="always" camera={{fov: 35}} dpr={[1, 1.5]} fallback={<div className="empty-state">{t('A WebGL 2 capable graphics driver is required for this preview.')}</div>}>
       <color attach="background" args={['#12171b']}/>
       <hemisphereLight args={['#f4f7f9', '#20272c', 1.4]}/>
       <directionalLight position={[60, -40, 120]} intensity={1.8}/>

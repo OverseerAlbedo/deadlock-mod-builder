@@ -2,14 +2,17 @@ import { useId, type PropsWithChildren, type ReactNode } from 'react';
 import { useState as useCopyState } from 'react';
 import type { ErrorHelp, StepStatus } from '../models';
 import { scrubUser } from '../api';
+import { mc, t, tc, useT } from '../i18n';
+// i18n-area: common
 
 const statuses: Record<StepStatus, [string, string]> = {
-  running: ['●', 'Running'], succeeded: ['✓', 'Complete'], failed: ['×', 'Failed'],
-  cancelled: ['−', 'Cancelled'], cached: ['↺', 'Cached'], skipped: ['—', 'Skipped'],
+  running: ['●', mc('step status', 'Running')], succeeded: ['✓', mc('step status', 'Complete')], failed: ['×', mc('step status', 'Failed')],
+  cancelled: ['−', mc('step status', 'Cancelled')], cached: ['↺', mc('step status', 'Cached')], skipped: ['—', mc('step status', 'Skipped')],
 };
 export function Status({ status }: { status: StepStatus }) {
-  const [icon, label] = statuses[status] ?? ['?', 'Unknown'];
-  return <span className={`status status-${status}`}><span aria-hidden="true">{icon}</span> {label}</span>;
+  useT();
+  const [icon, label] = statuses[status] ?? ['?', mc('step status', 'Unknown')];
+  return <span className={`status status-${status}`}><span aria-hidden="true">{icon}</span> {tc('step status', label)}</span>;
 }
 export function PageTitle({ title, subtitle, action, eyebrow }: { title: string; subtitle: string; action?: ReactNode; eyebrow?: string }) {
   return <header className="page-title"><div>{eyebrow&&<span className="studio-eyebrow">{eyebrow}</span>}<h1>{title}</h1><p>{subtitle}</p></div>{action}</header>;
@@ -34,17 +37,20 @@ export function Field({ label, value, onChange, hint, disabled = false }: {
 }
 /** An error with what went wrong in plain words, the steps to fix it and a
  * button to the page where the fix happens (help from troubleshooting.rs). */
-export function ErrorNotice({ title, details, dismiss, help, go }: { title: string; details: string; dismiss?: () => void; help?: ErrorHelp | null; go?: (page: string) => void }) {
+/** `shownTitle` / `shownDetails`: what is drawn when it differs from what is copied (the app's own
+ * words in the interface language); Copy for support always copies `title` and `details`. */
+export function ErrorNotice({ title, details, dismiss, help, go, shownTitle = title, shownDetails = details }: { title: string; details: string; dismiss?: () => void; help?: ErrorHelp | null; go?: (page: string) => void; shownTitle?: string; shownDetails?: string }) {
+  useT();
   const [copied, setCopied] = useCopyState(false);
   // Copied text never carries the Windows user name; it is meant to be shared.
   const copy = () => { void navigator.clipboard?.writeText(scrubUser([title, help?.cause, details].filter(Boolean).join('\n\n'))).then(() => setCopied(true)).catch(() => setCopied(false)); };
-  return <div className="error-notice" role="alert"><div className="row"><strong>{title}</strong><div className="row"><button className="tertiary" onClick={copy}>{copied ? 'Copied' : 'Copy for support'}</button>{dismiss && <button className="tertiary" onClick={dismiss}>Dismiss</button>}</div></div>
+  return <div className="error-notice" role="alert"><div className="row"><strong>{shownTitle}</strong><div className="row"><button className="tertiary" onClick={copy}>{copied ? t('Copied') : t('Copy for support')}</button>{dismiss && <button className="tertiary" onClick={dismiss}>{t('Dismiss')}</button>}</div></div>
     {help && <div className="error-help">
       <p className="error-cause">{help.cause}</p>
-      {help.steps.length > 0 && <><p className="error-help-title">What to do</p><ol>{help.steps.map(step => <li key={step}>{step}</li>)}</ol></>}
+      {help.steps.length > 0 && <><p className="error-help-title">{t('What to do')}</p><ol>{help.steps.map(step => <li key={step}>{step}</li>)}</ol></>}
       {help.action && go && <button className="primary" onClick={() => { go(help.action!.page); }}>{help.action.label}</button>}
     </div>}
-    <details><summary>Technical details</summary><pre>{details}</pre></details></div>;
+    <details><summary>{t('Technical details')}</summary><pre>{shownDetails}</pre></details></div>;
 }
 export function NavIcon({ type }: { type: 'project' | 'model' | 'time' | 'log' | 'settings' }) {
   const paths = {

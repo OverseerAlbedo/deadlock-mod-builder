@@ -15,19 +15,19 @@ Packages
   License: MIT
   Source: https://github.com/babel/babel.git
 
-@react-three/fiber 9.8.1
+@react-three/fiber 9.8.2
   License: MIT
   Source: https://github.com/pmndrs/react-three-fiber.git
 
-@tauri-apps/api 2.12.1
+@tauri-apps/api 2.12.5
   License: Apache-2.0 OR MIT
   Source: https://github.com/tauri-apps/tauri.git
 
-@tauri-apps/plugin-dialog 2.8.1
+@tauri-apps/plugin-dialog 2.8.4
   License: MIT OR Apache-2.0
   Source: https://github.com/tauri-apps/plugins-workspace
 
-@tauri-apps/plugin-opener 2.7.0
+@tauri-apps/plugin-opener 2.7.3
   License: MIT OR Apache-2.0
   Source: https://github.com/tauri-apps/plugins-workspace
 
@@ -63,11 +63,11 @@ its-fine 2.1.1
   License: MIT
   Source: https://github.com/pmndrs/its-fine
 
-react 19.3.0
+react 19.3.1
   License: MIT
   Source: https://github.com/react/react.git
 
-react-dom 19.3.0
+react-dom 19.3.1
   License: MIT
   Source: https://github.com/react/react.git
 
@@ -97,7 +97,7 @@ zustand 5.0.15
 
 These packages carry no license file of their own; their declared license applies:
 
-  @react-three/fiber 9.8.1 (MIT)
+  @react-three/fiber 9.8.2 (MIT)
 
 License and notice texts
 ------------------------
@@ -132,7 +132,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ------------------------------------------------------------------------------
 Text 2 (LICENSE-APACHE-2.0)
-Used by: @tauri-apps/api 2.12.1
+Used by: @tauri-apps/api 2.12.5
 ------------------------------------------------------------------------------
 
 Apache License
@@ -314,7 +314,7 @@ Apache License
 
 ------------------------------------------------------------------------------
 Text 3 (LICENSE-MIT)
-Used by: @tauri-apps/api 2.12.1
+Used by: @tauri-apps/api 2.12.5
 ------------------------------------------------------------------------------
 
 MIT License
@@ -341,33 +341,7 @@ SOFTWARE.
 
 ------------------------------------------------------------------------------
 Text 4 (LICENSE.spdx)
-Used by: @tauri-apps/api 2.12.1
-------------------------------------------------------------------------------
-
-SPDXVersion: SPDX-2.1
-DataLicense: CC0-1.0
-PackageName: tauri
-DataFormat: SPDXRef-1
-PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
-PackageHomePage: https://tauri.app
-PackageLicenseDeclared: Apache-2.0
-PackageLicenseDeclared: MIT
-PackageCopyrightText: 2019-2025, The Tauri Programme in the Commons Conservancy
-PackageSummary: <text>Tauri is a rust project that enables developers to make secure
-and small desktop applications using a web frontend.
-                </text>
-PackageComment: <text>The package includes the following libraries; see
-Relationship information.
-                </text>
-Created: 2019-05-20T09:00:00Z
-PackageDownloadLocation: git://github.com/tauri-apps/tauri
-PackageDownloadLocation: git+https://github.com/tauri-apps/tauri.git
-PackageDownloadLocation: git+ssh://github.com/tauri-apps/tauri.git
-Creator: Person: Daniel Thompson-Yvetot
-
-------------------------------------------------------------------------------
-Text 5 (LICENSE.spdx)
-Used by: @tauri-apps/plugin-dialog 2.8.1, @tauri-apps/plugin-opener 2.7.0
+Used by: @tauri-apps/plugin-dialog 2.8.4, @tauri-apps/plugin-opener 2.7.3
 ------------------------------------------------------------------------------
 
 SPDXVersion: SPDX-2.1
@@ -392,7 +366,7 @@ PackageDownloadLocation: git+ssh://github.com/tauri-apps/tauri.git
 Creator: Person: Daniel Thompson-Yvetot
 
 ------------------------------------------------------------------------------
-Text 6 (LICENSE)
+Text 5 (LICENSE)
 Used by: @types/react 19.3.0, @types/react-reconciler 0.28.9, @types/webxr 0.5.24
 ------------------------------------------------------------------------------
 
@@ -419,7 +393,7 @@ MIT License
     SOFTWARE
 
 ------------------------------------------------------------------------------
-Text 7 (LICENSE)
+Text 6 (LICENSE)
 Used by: base64-js 1.5.1
 ------------------------------------------------------------------------------
 
@@ -446,7 +420,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 8 (LICENSE)
+Text 7 (LICENSE)
 Used by: buffer 6.0.3
 ------------------------------------------------------------------------------
 
@@ -473,7 +447,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 9 (LICENSE)
+Text 8 (LICENSE)
 Used by: csstype 3.2.3
 ------------------------------------------------------------------------------
 
@@ -498,7 +472,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 10 (LICENSE)
+Text 9 (LICENSE)
 Used by: ieee754 1.2.1
 ------------------------------------------------------------------------------
 
@@ -515,7 +489,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
-Text 11 (LICENSE)
+Text 10 (LICENSE)
 Used by: its-fine 2.1.1
 ------------------------------------------------------------------------------
 
@@ -542,8 +516,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 12 (LICENSE)
-Used by: react 19.3.0, react-dom 19.3.0, scheduler 0.28.0, use-sync-external-store 1.7.0
+Text 11 (LICENSE)
+Used by: react 19.3.1, react-dom 19.3.1, scheduler 0.28.0, use-sync-external-store 1.7.0
 ------------------------------------------------------------------------------
 
 MIT License
@@ -569,7 +543,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 13 (LICENSE)
+Text 12 (LICENSE)
 Used by: react-use-measure 2.1.7
 ------------------------------------------------------------------------------
 
@@ -596,7 +570,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 14 (LICENSE)
+Text 13 (LICENSE)
 Used by: suspend-react 0.1.3
 ------------------------------------------------------------------------------
 
@@ -623,7 +597,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 15 (LICENSE)
+Text 14 (LICENSE)
 Used by: three 0.186.1
 ------------------------------------------------------------------------------
 
@@ -650,7 +624,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ------------------------------------------------------------------------------
-Text 16 (LICENSE)
+Text 15 (LICENSE)
 Used by: zustand 5.0.15
 ------------------------------------------------------------------------------
 

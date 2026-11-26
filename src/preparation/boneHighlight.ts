@@ -6,6 +6,8 @@
  * index in each mesh's skeleton, and written into one float attribute per geometry. The material
  * only mixes a colour by that attribute, so the light follows the skinned surface while a movement
  * test bends the model, and nothing runs per frame. */
+// i18n-area: prepare
+import { t } from '../i18n';
 import { BufferAttribute, Float32BufferAttribute, SkinnedMesh, type Bone as ThreeBone, type BufferGeometry, type Material, type Object3D, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 
 /** The attribute the material reads. */
@@ -64,8 +66,8 @@ export interface LitResult { found: boolean; moved: number }
 /** The line under the view: what is lit, or that the bone moves nothing. */
 export function litMessage(name: string, result: LitResult | null): string {
   if (!result) return '';
-  if (!result.found) return `${name}: this bone is not in the preview.`;
-  return result.moved ? `Lit: what ${name} moves.` : `${name}: this bone moves no part of the model.`;
+  if (!result.found) return t('{name}: this bone is not in the preview.', {name});
+  return result.moved ? t('Lit: what {name} moves.', {name}) : t('{name}: this bone moves no part of the model.', {name});
 }
 
 /** One loaded source preview's highlight: patches its skinned meshes once, then lights one bone at a time. */

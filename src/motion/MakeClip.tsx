@@ -1,6 +1,8 @@
+// i18n-area: motion
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { openFor } from '../dialogs';
+import { m, mc, tc, tp, useT } from '../i18n';
 import type { Project, ResourceReplacement } from '../models';
 import type { AnimationEntry } from '../components/AssetCatalog';
 import { useHistory } from '../history/useProjectHistory';
@@ -13,20 +15,22 @@ import {
 } from './madeRows';
 import { NewestQueue, isDropped } from './madeQueue';
 import { MAX_LOOP_BLEND, MADE_SUPERSEDED } from './makeTypes';
+import { sentences } from '../build/words';
 
 /** The app's operation runner (busy state, Cancel, the one error line). */
 export type Operate = <T>(label: string, operation: () => Promise<T>, canCancel?: boolean, refreshTimings?: boolean, keepError?: boolean) => Promise<T | undefined>;
 
-export const LIST_FAILED = 'Could not read the animations of the file';
-export const MAKE_FAILED = 'Could not make the clip from your animation';
+export const LIST_FAILED = m('Could not read the animations of the file');
+export const MAKE_FAILED = m('Could not make the clip from your animation');
 
+// The options' words stay English here and are translated where they are drawn.
 const MODES: { value: ClipMode; title: string; badge?: string; badgeTone?: 'ok'; help: string }[] = [
-  { value: 'as_it_looks', title: 'As it looks', badge: 'default', badgeTone: 'ok', help: 'Arms, legs and head point the way they do in your animation.' },
-  { value: 'from_rest', title: 'Change from my rest pose', help: 'For a rig that rests in the hero’s own pose: the change from your rest pose is added to the hero’s.' },
+  { value: 'as_it_looks', title: m('As it looks'), badge: mc('option badge', 'default'), badgeTone: 'ok', help: m('Arms, legs and head point the way they do in your animation.') },
+  { value: 'from_rest', title: m('Change from my rest pose'), help: m('For a rig that rests in the hero’s own pose: the change from your rest pose is added to the hero’s.') },
 ];
 const BONES: { value: ClipBones; title: string; help: string }[] = [
-  { value: 'all', title: 'Every matched bone', help: 'The whole body. The hero’s own stance and footwork are replaced: feet may slide.' },
-  { value: 'keyed', title: 'Only the bones my animation moves', help: 'The rest keeps the game’s motion. Good for a wave or a head turn.' },
+  { value: 'all', title: m('Every matched bone'), help: m('The whole body. The hero’s own stance and footwork are replaced: feet may slide.') },
+  { value: 'keyed', title: m('Only the bones my animation moves'), help: m('The rest keeps the game’s motion. Good for a wave or a head turn.') },
 ];
 
 /** What the page remembers for this session (never saved): the file chosen before an animation
@@ -41,7 +45,7 @@ const listKey = (project: Project, source: string) => `${project.id}|${project.d
 
 /** Said on the card when the engine answers NOT_MADE: the engine's own sentence ends by sending
  * the user to this page, which reads oddly on it. */
-export const MAKE_AGAIN = 'This clip is not made yet, or your animation file, its animation or the prepared model changed since it was made.';
+export const MAKE_AGAIN = m('This clip is not made yet, or your animation file, its animation or the prepared model changed since it was made.');
 /** `notMade`: the engine's NOT_MADE sentence, as it answered (the clip must be made again). */
 type ReportState = { key: string; report: MadeReport | null; notMade: string | null; error: string | null; loading: boolean };
 type CheckState = { key: string; check: MadeClipCheck | null; error: string | null };
@@ -62,6 +66,7 @@ export function MakeClip({ project, entry, row, disabled, revision, write, remov
   made: () => void;
   useCompiled: () => void; openPreparation?: () => void;
 }) {
+  const t = useT();
   const target = entry.target;
   const projectRef = useRef(project); projectRef.current = project;
   const alive = useRef(true);
@@ -143,8 +148,8 @@ export function MakeClip({ project, entry, row, disabled, revision, write, remov
   }
   async function browse() {
     let picked: string | string[] | null = null;
-    try { picked = await openFor('animation-blend', { title: 'File with your animation', multiple: false, directory: false, filters: [{ name: 'Blender, FBX or glTF file', extensions: [...ANIMATION_FILE_SUFFIXES] }] }); }
-    catch (error) { setFileError(`The file window could not be opened: ${messageOf(error)}`); return; }
+    try { picked = await openFor('animation-blend', { title: t('File with your animation'), multiple: false, directory: false, filters: [{ name: t('Blender, FBX or glTF file'), extensions: [...ANIMATION_FILE_SUFFIXES] }] }); }
+    catch (error) { setFileError(t('The file window could not be opened: {reason}', { reason: messageOf(error) })); return; }
     const path = Array.isArray(picked) ? picked[0] : picked;
     if (path) await listFile(path);
   }
@@ -169,19 +174,21 @@ export function MakeClip({ project, entry, row, disabled, revision, write, remov
   const busy = disabled || listing || making;
   const model = project.preparation_source;
   const ownFile = isAnimationFile(model) && fold(model.trim()) !== fold(file.trim()) ? model : '';
-  const intro = <p className="hint made-intro">Animate your prepared character in Blender (or in another program, saved as FBX or glTF), choose the file and the animation here, and the app makes this clip from it. Its length, events and root motion stay the game’s, so it always fits.</p>;
+  const intro = <p className="hint made-intro">{t('Animate your prepared character in Blender (or in another program, saved as FBX or glTF), choose the file and the animation here, and the app makes this clip from it. Its length, events and root motion stay the game’s, so it always fits.')}</p>;
+  const shownOptions = <O extends { title: string; help: string; badge?: string }>(options: O[]): O[] =>
+    options.map(option => ({ ...option, title: t(option.title), help: t(option.help), badge: option.badge && tc('option badge', option.badge) }));
 
-  if (!checked) return <div className="made-panel">{intro}<p className="hint" role="status">Checking whether this clip can be made from an animation…</p></div>;
-  if (checked.error) return <div className="made-panel">{intro}<p className="hint" role="status">Whether this clip can be made from an animation could not be checked here: {checked.error}</p></div>;
+  if (!checked) return <div className="made-panel">{intro}<p className="hint" role="status">{t('Checking whether this clip can be made from an animation…')}</p></div>;
+  if (checked.error) return <div className="made-panel">{intro}<p className="hint" role="status">{t('Whether this clip can be made from an animation could not be checked here: {reason}', { reason: checked.error })}</p></div>;
   const refusal = checked.check?.refusal, fitError = checked.check?.fit_error;
   if (refusal) return <div className="made-panel">
     <div className="made-plain" role="note"><Lead text={refusal}/></div>
-    <div className="made-actions"><button type="button" onClick={useCompiled}>Use a compiled clip file instead</button></div>
+    <div className="made-actions"><button type="button" onClick={useCompiled}>{t('Use a compiled clip file instead')}</button></div>
     {saved && <SavedRemove disabled={disabled} remove={remove}/>}
   </div>;
   if (fitError) return <div className="made-panel">
     <div className="made-plain" role="note">{fitError}</div>
-    {openPreparation && <div className="made-actions"><button type="button" onClick={openPreparation}>Open Prepare model <span aria-hidden="true">→</span></button></div>}
+    {openPreparation && <div className="made-actions"><button type="button" onClick={openPreparation}>{t('Open Prepare model')} <span aria-hidden="true">→</span></button></div>}
     {saved && <SavedRemove disabled={disabled} remove={remove}/>}
   </div>;
 
@@ -198,93 +205,94 @@ export function MakeClip({ project, entry, row, disabled, revision, write, remov
 
   return <div className="made-panel">
     {intro}
-    {row && !saved && <p className="hint">{row.taken ? 'Your clip taken from another hero' : 'Your compiled clip file'} stays in use until you choose an animation here.</p>}
+    {row && !saved && <p className="hint">{row.taken ? t('Your clip taken from another hero stays in use until you choose an animation here.') : t('Your compiled clip file stays in use until you choose an animation here.')}</p>}
     <div className="made-kv">
-      <span className="made-key">Animation file</span>
+      <span className="made-key">{t('Animation file')}</span>
       <div className="made-value">
-        <div className="made-file" role="group" aria-label={`Animation file for ${entry.name}`}>
+        <div className="made-file" role="group" aria-label={t('Animation file for {name}', { name: entry.name })}>
           {file
             ? <span className="clip-file-name mono" title={file}>{(([a, b]) => <><span className="clip-file-start">{a}</span><span className="clip-file-end">{b}</span></>)(fileNameParts(file))}</span>
-            : <span className="hint">No file chosen yet.</span>}
+            : <span className="hint">{t('No file chosen yet.')}</span>}
           <span className="clip-file-actions">
-            <button type="button" disabled={busy} onClick={() => void browse()}>{file ? 'Change file…' : 'Choose file…'}</button>
-            {ownFile && <button type="button" disabled={busy} onClick={() => void listFile(ownFile)}>Use my model’s own file</button>}
-            {saved && pending && <button type="button" className="tertiary" disabled={busy} onClick={() => { pendingFiles.delete(pendingKey); setPending(''); }}>Keep the saved file</button>}
-            {saved && <button type="button" className="tertiary" disabled={disabled} onClick={remove}>Remove</button>}
+            <button type="button" disabled={busy} onClick={() => void browse()}>{file ? t('Change file…') : t('Choose file…')}</button>
+            {ownFile && <button type="button" disabled={busy} onClick={() => void listFile(ownFile)}>{t('Use my model’s own file')}</button>}
+            {saved && pending && <button type="button" className="tertiary" disabled={busy} onClick={() => { pendingFiles.delete(pendingKey); setPending(''); }}>{t('Keep the saved file')}</button>}
+            {saved && <button type="button" className="tertiary" disabled={disabled} onClick={remove}>{t('Remove')}</button>}
           </span>
         </div>
-        {saved && !pending && <p className="hint made-from">Made from your animation.</p>}
+        {saved && !pending && <p className="hint made-from">{t('Made from your animation.')}</p>}
         {fileError && <p className="made-line attention" role="status">{fileError}</p>}
-        {listing && <p className="hint" role="status">Reading the animations in the file with Blender…</p>}
+        {listing && <p className="hint" role="status">{t('Reading the animations in the file with Blender…')}</p>}
         {list && !listing && (list.skeleton_error
           ? <p className="made-line attention" role="status">{list.skeleton_error}</p>
-          : <p className="made-line ok"><span aria-hidden="true">✓ </span>The same skeleton as your prepared character ({list.bones} bones).</p>)}
+          : <p className="made-line ok"><span aria-hidden="true">✓ </span>{tp(list.bones, { one: 'The same skeleton as your prepared character ({count} bones).', other: 'The same skeleton as your prepared character ({count} bones).' })}</p>)}
       </div>
       {file && !list?.skeleton_error && <>
-        <span className="made-key">Animation</span>
+        <span className="made-key">{tc('made clip', 'Animation')}</span>
         <div className="made-value">
           {list
             ? usable.length
-              ? <select className="made-select" aria-label="Animation" disabled={busy} value={list.actions.some(a => a.name === chosenAction) ? chosenAction : ''}
+              ? <select className="made-select" aria-label={tc('made clip', 'Animation')} disabled={busy} value={list.actions.some(a => a.name === chosenAction) ? chosenAction : ''}
                 onChange={event => { const action = list.actions.find(a => a.name === event.target.value); if (action) chooseAction(action); }}>
-                {!list.actions.some(a => a.name === chosenAction) && <option value="" disabled>Choose an animation…</option>}
-                {list.actions.map(a => <option key={a.name} value={a.name} disabled={a.driving_keyed_bones === 0}>{actionLabel(a)}{a.driving_keyed_bones === 0 ? ' (moves none of your character’s bones)' : ''}</option>)}
+                {!list.actions.some(a => a.name === chosenAction) && <option value="" disabled>{t('Choose an animation…')}</option>}
+                {list.actions.map(a => <option key={a.name} value={a.name} disabled={a.driving_keyed_bones === 0}>{a.driving_keyed_bones === 0 ? t('{label} (moves none of your character’s bones)', { label: actionLabel(a) }) : actionLabel(a)}</option>)}
               </select>
-              : <p className="made-line attention" role="status">This file has no animation that moves your character’s bones.</p>
+              : <p className="made-line attention" role="status">{t('This file has no animation that moves your character’s bones.')}</p>
             : !list && saved && !pending
-              ? <div className="made-file"><span className="made-action-name">{saved.action}{shown ? ` · ${shown.action_seconds.toFixed(2)} s` : ''}</span><span className="clip-file-actions"><button type="button" disabled={busy} onClick={() => void listFile(file)}>List the file’s animations</button></span></div>
-              : !list && !listing ? <div className="made-actions"><button type="button" disabled={busy} onClick={() => void listFile(file)}>List the file’s animations</button></div> : null}
+              ? <div className="made-file"><span className="made-action-name">{saved.action}{shown ? ` · ${t('{value} s', { value: shown.action_seconds.toFixed(2) })}` : ''}</span><span className="clip-file-actions"><button type="button" disabled={busy} onClick={() => void listFile(file)}>{t('List the file’s animations')}</button></span></div>
+              : !list && !listing ? <div className="made-actions"><button type="button" disabled={busy} onClick={() => void listFile(file)}>{t('List the file’s animations')}</button></div> : null}
         </div>
       </>}
     </div>
-    {making && <p className="hint" role="status">Making the clip with Blender…</p>}
+    {making && <p className="hint" role="status">{t('Making the clip with Blender…')}</p>}
     {saved && !pending && !making && current?.notMade && <div className="made-line attention made-again" role="status">
-      <span>{MAKE_AGAIN}</span>
-      <button type="button" disabled={busy} onClick={() => { if (madeRowNow) void makeFrom(projectRef.current, madeRowNow); }}>Make it again</button>
+      <span>{t(MAKE_AGAIN)}</span>
+      <button type="button" disabled={busy} onClick={() => { if (madeRowNow) void makeFrom(projectRef.current, madeRowNow); }}>{t('Make it again')}</button>
     </div>}
     {saved && !pending && current?.error && <p className="made-line attention" role="status">{current.error}</p>}
     {saved && !pending && <>
       <div className="made-kv">
-        <span className="made-key">Part that plays</span>
+        <span className="made-key">{t('Part that plays')}</span>
         <div className="made-value">
-          <span className="studio-view-group made-seg" role="group" aria-label="Part that plays">
-            <button type="button" aria-pressed={stretched} disabled={disabled} onClick={() => option({ part_start_seconds: null })}>All of it, fitted to {clipSeconds.toFixed(2)} s</button>
-            <button type="button" aria-pressed={!stretched} disabled={disabled} onClick={() => option({ part_start_seconds: partStart(start, actionSeconds, clipSeconds) })}>A part at its own speed</button>
+          <span className="studio-view-group made-seg" role="group" aria-label={t('Part that plays')}>
+            <button type="button" aria-pressed={stretched} disabled={disabled} onClick={() => option({ part_start_seconds: null })}>{t('All of it, fitted to {seconds} s', { seconds: clipSeconds.toFixed(2) })}</button>
+            <button type="button" aria-pressed={!stretched} disabled={disabled} onClick={() => option({ part_start_seconds: partStart(start, actionSeconds, clipSeconds) })}>{t('A part at its own speed')}</button>
           </span>
           {!stretched && actionSeconds > 0 && <Strip start={start} latest={latest} actionSeconds={actionSeconds} clipSeconds={clipSeconds} disabled={disabled}
             change={value => option({ part_start_seconds: partStart(value, actionSeconds, clipSeconds) })} drag={dragProps}/>}
           {shown && <p className="hint">{speedWords(shown, stretched)}</p>}
         </div>
-        <span className="made-key">Stay in place</span>
+        <span className="made-key">{t('Stay in place')}</span>
         <div className="made-value">
-          <Switch label="Stay in place" checked={saved.in_place !== false} disabled={disabled} change={on => option({ in_place: on })}/>
-          <p className="hint">{saved.in_place !== false ? 'Travel across the floor is removed: the game moves the hero itself. Crouching and hopping stay.' : 'Your animation’s travel across the floor stays in the clip.'}
-            {saved.in_place !== false && shown && typeof shown.drift_removed_inches === 'number' && shown.drift_removed_inches > TRACE_INCHES ? ` ${shown.drift_removed_inches.toFixed(1)} in of travel was removed.` : ''}</p>
+          <Switch label={t('Stay in place')} checked={saved.in_place !== false} disabled={disabled} change={on => option({ in_place: on })}/>
+          <p className="hint">{saved.in_place !== false
+            ? sentences(t('Travel across the floor is removed: the game moves the hero itself. Crouching and hopping stay.'), shown && typeof shown.drift_removed_inches === 'number' && shown.drift_removed_inches > TRACE_INCHES ? t('{amount} in of travel was removed.', { amount: shown.drift_removed_inches.toFixed(1) }) : '')
+            : t('Your animation’s travel across the floor stays in the clip.')}</p>
         </div>
-        <span className="made-key">Loop</span>
+        <span className="made-key">{tc('player', 'Loop')}</span>
         <div className="made-value">
-          <Switch label="Loop" checked={blend !== undefined} disabled={disabled} change={on => option({ loop_blend_seconds: on ? loopBlend(DEFAULT_LOOP_BLEND, clipSeconds) : null })}/>
+          <Switch label={tc('player', 'Loop')} checked={blend !== undefined} disabled={disabled} change={on => option({ loop_blend_seconds: on ? loopBlend(DEFAULT_LOOP_BLEND, clipSeconds) : null })}/>
           {blend !== undefined && <label className="made-range">
-            <span className="sr-only">Blend length</span>
-            <input type="range" aria-label="Blend length" min={MIN_LOOP_BLEND} max={blendMax} step={0.05} value={Math.min(blend, blendMax)} disabled={disabled}
+            <span className="sr-only">{t('Blend length')}</span>
+            <input type="range" aria-label={t('Blend length')} min={MIN_LOOP_BLEND} max={blendMax} step={0.05} value={Math.min(blend, blendMax)} disabled={disabled}
               onChange={event => option({ loop_blend_seconds: loopBlend(Number(event.target.value), clipSeconds) })} {...dragProps}/>
-            <span className="mono made-range-value">{blend.toFixed(2)} s</span>
+            <span className="mono made-range-value">{t('{value} s', { value: blend.toFixed(2) })}</span>
           </label>}
-          <p className="hint">{blend !== undefined ? `The last ${blend.toFixed(2)} s blends into the start, so the loop has no jump.` : 'Off: the clip plays as your animation ends.'}{shown ? ` ${gapWords(shown)}` : ''}</p>
+          <p className="hint">{sentences(blend !== undefined ? t('The last {seconds} s blends into the start, so the loop has no jump.', { seconds: blend.toFixed(2) }) : t('Off: the clip plays as your animation ends.'), shown ? gapWords(shown) : '')}</p>
         </div>
       </div>
-      <h4>How your pose is carried over</h4>
-      <StudioOptionCards label="How your pose is carried over" name={`made-mode-${target}`} options={MODES} value={saved.mode ?? 'as_it_looks'} onChange={mode => option({ mode })} disabled={busy}/>
-      <h4>Which bones follow your animation</h4>
-      <StudioOptionCards label="Which bones follow your animation" name={`made-bones-${target}`} options={BONES} value={saved.bones ?? 'all'} onChange={bones => option({ bones })} disabled={disabled}/>
-      <h4>What the app makes</h4>
-      {shown ? <ul className="made-makes" aria-label="What the app makes">
+      <h4>{t('How your pose is carried over')}</h4>
+      <StudioOptionCards label={t('How your pose is carried over')} name={`made-mode-${target}`} options={shownOptions(MODES)} value={saved.mode ?? 'as_it_looks'} onChange={mode => option({ mode })} disabled={busy}/>
+      <h4>{t('Which bones follow your animation')}</h4>
+      <StudioOptionCards label={t('Which bones follow your animation')} name={`made-bones-${target}`} options={shownOptions(BONES)} value={saved.bones ?? 'all'} onChange={bones => option({ bones })} disabled={disabled}/>
+      <h4>{t('What the app makes')}</h4>
+      {shown ? <ul className="made-makes" aria-label={t('What the app makes')}>
         {makesLines(shown).map(line => <li key={line.id} className={line.mark}>
           <span className="made-mark" aria-hidden="true">{line.mark === 'note' ? '·' : '✓'}</span>
           <span className="made-text">{line.text}</span>
           {line.side ? <span className="made-side">{line.side}</span> : <span/>}
         </li>)}
-      </ul> : current?.loading ? <p className="hint" role="status">Reading what the app makes…</p> : <p className="hint">Shown once the clip is made.</p>}
+      </ul> : current?.loading ? <p className="hint" role="status">{t('Reading what the app makes…')}</p> : <p className="hint">{t('Shown once the clip is made.')}</p>}
     </>}
   </div>;
 }
@@ -295,16 +303,18 @@ function Lead({ text }: { text: string }): ReactNode {
   return cut < 0 ? text : <><strong>{text.slice(0, cut + 1)}</strong> {text.slice(cut + 2)}</>;
 }
 function SavedRemove({ disabled, remove }: { disabled: boolean; remove: () => void }) {
-  return <p className="hint made-saved">A clip made from your animation is saved for this clip. <button type="button" className="tertiary" disabled={disabled} onClick={remove}>Remove</button></p>;
+  const t = useT();
+  return <p className="hint made-saved">{t('A clip made from your animation is saved for this clip.')} <button type="button" className="tertiary" disabled={disabled} onClick={remove}>{t('Remove')}</button></p>;
 }
 function Switch({ label, checked, disabled, change }: { label: string; checked: boolean; disabled: boolean; change: (on: boolean) => void }) {
-  return <label className="motion-switch made-switch"><input type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={event => change(event.target.checked)}/><span className="motion-switch-track" aria-hidden="true"/><span className="motion-switch-state" aria-hidden="true">{checked ? 'On' : 'Off'}</span></label>;
+  return <label className="motion-switch made-switch"><input type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={event => change(event.target.checked)}/><span className="motion-switch-track" aria-hidden="true"/><span className="motion-switch-state" aria-hidden="true">{checked ? tc('switch', 'On') : tc('switch', 'Off')}</span></label>;
 }
 /** The strip of the animation's length with the part that plays on it; the start moves with the range under it. */
 function Strip({ start, latest, actionSeconds, clipSeconds, disabled, change, drag }: {
   start: number; latest: number; actionSeconds: number; clipSeconds: number; disabled: boolean; change: (value: number) => void;
   drag: { onPointerDown: () => void; onPointerUp: () => void; onPointerCancel: () => void; onBlur: () => void };
 }) {
+  const t = useT();
   const total = Math.max(actionSeconds, clipSeconds, 0.001);
   const ticks = Math.max(0, Math.min(40, Math.floor(total * 4)));
   return <div className="made-strip-wrap">
@@ -313,8 +323,8 @@ function Strip({ start, latest, actionSeconds, clipSeconds, disabled, change, dr
       <b style={{ left: `${Math.min(start, latest) / total * 100}%`, width: `${Math.min(clipSeconds, total) / total * 100}%` }}/>
     </div>
     {/* The thumb sits at the part's start on the strip's own scale; a start past the latest is held there. */}
-    <input className="made-strip-range" type="range" aria-label="Where the part starts" min={0} max={total} step={0.01} value={Math.min(start, latest)} disabled={disabled || latest <= 0}
+    <input className="made-strip-range" type="range" aria-label={t('Where the part starts')} min={0} max={total} step={0.01} value={Math.min(start, latest)} disabled={disabled || latest <= 0}
       onChange={event => change(Number(event.target.value))} {...drag}/>
-    <p className="hint mono">Starts at {start.toFixed(2)} s of {actionSeconds.toFixed(2)} s{latest <= 0 ? ' (your animation is not longer than the clip)' : ''}</p>
+    <p className="hint mono">{latest <= 0 ? t('Starts at {start} s of {total} s (your animation is not longer than the clip)', { start: start.toFixed(2), total: actionSeconds.toFixed(2) }) : t('Starts at {start} s of {total} s', { start: start.toFixed(2), total: actionSeconds.toFixed(2) })}</p>
   </div>;
 }

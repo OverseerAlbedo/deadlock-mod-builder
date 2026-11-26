@@ -6,7 +6,9 @@
  * remounting). The camera frames what the mode shows (`frameBounds`) and is framed again for
  * another object, Reset view or another mode, and when a new answer no longer fits inside the
  * box last framed; a fit change that stays inside never moves the view. Loaded on demand (lazy). */
+// i18n-area: objects
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { T } from "../i18n/T";
 import { Canvas, useThree } from "@react-three/fiber";
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, LineDashedMaterial, LineSegments, PerspectiveCamera, Vector3, type Group } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -284,13 +286,13 @@ class SceneBoundary extends Component<{ children: ReactNode; fallback: (message:
 }
 export default function ObjectScene(props: ObjectSceneProps) {
   return (
-    <SceneBoundary fallback={(message) => <p className="objects-view-line" role="status">The 3D view could not draw this object: {message}</p>}>
+    <SceneBoundary fallback={(message) => <p className="objects-view-line" role="status"><T text="The 3D view could not draw this object: {message}" values={{ message }} /></p>}>
       <Canvas
         frameloop="demand"
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
         camera={{ position: [2, -4, 2], up: [0, 0, 1], fov: 35 }}
-        fallback={<p className="objects-view-line">A WebGL 2 capable graphics driver is required for the 3D view.</p>}
+        fallback={<p className="objects-view-line"><T text="A WebGL 2 capable graphics driver is required for the 3D view." /></p>}
       >
         <Objects answer={props.answer} mode={props.mode} collision={props.collision ?? false} motion={props.motion} frame={props.frame ?? 0} />
         <Controls bounds={frameBounds(props.answer, props.mode, props.collision ?? false)} reset={props.reset} frameKey={props.frameKey} mode={props.mode} />

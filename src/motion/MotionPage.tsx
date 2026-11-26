@@ -1,4 +1,9 @@
+// i18n-area: motion
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { m, mc, tc, tp, useT } from '../i18n';
+import { shownHero } from '../i18n/gameNames';
+import { T } from '../i18n/T';
+import { sentences } from '../build/words';
 import { api } from '../api';
 import type { Project, ResourceReplacement } from '../models';
 import type { ClipGroup, ComponentCatalog } from '../components/AssetCatalog';
@@ -33,15 +38,16 @@ export interface MotionPageProps {
   openPreparation?: () => void;
 }
 
+// The options' words stay English here and are translated where they are drawn (`shownOptions`).
 const POLICIES = [
-  {value: 'preserve', title: 'Preserve original animations', badge: 'default', badgeTone: 'ok' as const, help: 'The hero’s animation references stay as the game has them.'},
-  {value: 'disable_legacy', title: 'Disable legacy animation references', help: 'For models whose build stops on old-style animation references.'},
+  {value: 'preserve', title: m('Preserve original animations'), badge: mc('option badge', 'default'), badgeTone: 'ok' as const, help: m('The hero’s animation references stay as the game has them.')},
+  {value: 'disable_legacy', title: m('Disable legacy animation references'), help: m('For models whose build stops on old-style animation references.')},
 ];
 const GRAPH_MODES = [
-  {value: 'auto', title: 'Automatic', badge: 'default', badgeTone: 'ok' as const, help: 'The app picks how the animation graph is compiled.'},
-  {value: 'preserve', title: 'Preserve', help: 'Keep the game’s compiled graph.'},
-  {value: 'cswin', title: 'Legacy compiler', help: 'Compile the graph with the older model toolset.'},
-  {value: 'adapter', title: 'Configured adapter', help: 'Use the adapter set up in Settings.'},
+  {value: 'auto', title: mc('graph mode', 'Automatic'), badge: mc('option badge', 'default'), badgeTone: 'ok' as const, help: m('The app picks how the animation graph is compiled.')},
+  {value: 'preserve', title: mc('graph mode', 'Preserve'), help: m('Keep the game’s compiled graph.')},
+  {value: 'cswin', title: mc('graph mode', 'Legacy compiler'), help: m('Compile the graph with the older model toolset.')},
+  {value: 'adapter', title: mc('graph mode', 'Configured adapter'), help: m('Use the adapter set up in Settings.')},
 ];
 type Fit = FitReport | 'checking' | Error;
 
@@ -63,6 +69,10 @@ function withMadeSources(project: Project): Project {
 }
 
 export function MotionPage(props: MotionPageProps) {
+  const t = useT();
+  /** The options with their words in the interface language (`graph`: the graph modes, whose titles have their own context). */
+  const shownOptions = <O extends {title: string; help: string; badge?: string}>(options: O[], graph = false): O[] =>
+    options.map(option => ({...option, title: graph ? tc('graph mode', option.title) : t(option.title), help: t(option.help), badge: option.badge && tc('option badge', option.badge)}));
   const {project, update, disabled, fail, canDiscover = true, preview = null, load, autoLoad, previewCurrent = true, next, operate, openPreparation} = props;
   const rows = useMemo(() => project.customization.animations ?? [], [project.customization.animations]);
   const projectRef = useRef(project); projectRef.current = project;
@@ -101,6 +111,10 @@ export function MotionPage(props: MotionPageProps) {
     opened.current = listKey;
     setGroup(item.entry.group);
   }, [catalog, chosen, item, listKey]);
+  // A group or clip the user picks is the page's opening too: the effect above, when its run comes
+  // only after that click (its render's effects still pending), must not put the old group back.
+  const pickGroup = (next: ClipGroup) => { opened.current = listKey; setGroup(next); };
+  const pickClip = (target: string) => { opened.current = listKey; setChosen(target); };
   // Fit checks, by clip and file (read-only, no lease): for the selected clip's saved file.
   const [fits, setFits] = useState<Map<string, Fit>>(() => new Map());
   useEffect(() => { setFits(new Map()); }, [project.original_model]);
@@ -126,7 +140,7 @@ export function MotionPage(props: MotionPageProps) {
     if (!item) return;
     if (item.row && item.index >= 0) change(rows.map((row, i) => i === item.index ? withCompiledFile(row, path) : row));
     else if (rows.length < 128) change([...rows, {enabled: true, source: path, target: item.entry.target, allow_shared: false}]);
-    else fail('Too many clip replacements', 'A project holds at most 128 clip replacements.');
+    else fail(m('Too many clip replacements'), 'A project holds at most 128 clip replacements.');
   }
   const edit = (values: Partial<ResourceReplacement>) => { if (item?.row) change(rows.map((row, i) => i === item.index ? {...row, ...values} : row)); };
   const remove = () => { if (item?.row) change(rows.filter((_, i) => i !== item.index)); };
@@ -143,7 +157,7 @@ export function MotionPage(props: MotionPageProps) {
   function writeRow(row: ResourceReplacement): Project | null {
     const now = projectRef.current, current = now.customization.animations ?? [];
     const at = item ? current.findIndex((r, i) => i === item.index && (r.target ?? '').toLowerCase() === (item.entry.target ?? '').toLowerCase()) : -1;
-    if (at < 0 && current.length >= 128) { fail('Too many clip replacements', 'A project holds at most 128 clip replacements.'); return null; }
+    if (at < 0 && current.length >= 128) { fail(m('Too many clip replacements'), 'A project holds at most 128 clip replacements.'); return null; }
     const nextRows = at >= 0 ? current.map((r, i) => i === at ? row : r) : [...current, row];
     const written = changeCustomization(now, {animations: nextRows}, true);
     projectRef.current = written;
@@ -190,37 +204,40 @@ export function MotionPage(props: MotionPageProps) {
   const active = rows.filter(row => row.enabled !== false && (row.source || takenOf(row)) && row.target);
   const replacedCount = project.customization.enabled ? active.length : 0;
   const notFitting = list.items.filter(i => clipState(project, i, fits) === 'does_not_fit').length;
-  const hero = project.hero_name || project.original_model.split('/').pop()?.replace(/\.vmdl(_c)?$/, '') || 'The hero';
-  const status = [hero, catalog ? `${list.items.filter(i => i.entry.graph_named).length} animation clips from your game` : discovering ? 'loading the animation list…' : null, notFitting ? `${notFitting} does not fit` : null].filter(Boolean).join(' · ');
-  const policyNote = project.animation_policy !== 'preserve' ? <p className="clip-policy-note" role="note">Advanced policy active: legacy animation references are disabled.</p> : null;
+  // The hero's name as the game has it; only shown (also inside the other hero panel's sentences).
+  const hero = shownHero(project.hero_name) || project.original_model.split('/').pop()?.replace(/\.vmdl(_c)?$/, '') || t('The hero');
+  const status = [hero, catalog ? tp(list.items.filter(i => i.entry.graph_named).length, {one: '{count} animation clips from your game', other: '{count} animation clips from your game'}) : discovering ? t('loading the animation list…') : null, notFitting ? tp(notFitting, {one: '{count} does not fit', other: '{count} does not fit'}) : null].filter(Boolean).join(' · ');
+  const policyNote = project.animation_policy !== 'preserve' ? <p className="clip-policy-note" role="note">{t('Advanced policy active: legacy animation references are disabled.')}</p> : null;
   const panel = menus.open === 'graph'
-    ? <StudioBarMenuPanel base="motion" id="graph" title="Animation graph handling" onClose={() => menus.close('graph')} className="motion-graph-panel">
-      <p className="studio-card-sub">Leave these on their defaults unless a build tells you otherwise.</p>
+    ? <StudioBarMenuPanel base="motion" id="graph" title={t('Animation graph handling')} onClose={() => menus.close('graph')} className="motion-graph-panel">
+      <p className="studio-card-sub">{t('Leave these on their defaults unless a build tells you otherwise.')}</p>
       <div className="motion-graph-options">
-        <div><h4>Animation policy</h4><StudioOptionCards label="Animation policy" name="motion-animation-policy" options={POLICIES} value={project.animation_policy} onChange={animation_policy => update({...project, animation_policy})} disabled={disabled}/></div>
-        <div><h4>Animation graph mode</h4><StudioOptionCards label="Animation graph mode" name="motion-graph-mode" options={GRAPH_MODES} value={project.ag2_mode} onChange={ag2_mode => update({...project, ag2_mode})} disabled={disabled}/></div>
+        <div><h4>{t('Animation policy')}</h4><StudioOptionCards label={t('Animation policy')} name="motion-animation-policy" options={shownOptions(POLICIES)} value={project.animation_policy} onChange={animation_policy => update({...project, animation_policy})} disabled={disabled}/></div>
+        <div><h4>{t('Animation graph mode')}</h4><StudioOptionCards label={t('Animation graph mode')} name="motion-graph-mode" options={shownOptions(GRAPH_MODES, true)} value={project.ag2_mode} onChange={ag2_mode => update({...project, ag2_mode})} disabled={disabled}/></div>
       </div>
       {policyNote}
     </StudioBarMenuPanel>
-    : confirming ? <div className="motion-confirm" role="alertdialog" aria-label="Remove all replacements">
-      <p><strong>Remove all {rows.length} saved clip {rows.length === 1 ? 'replacement' : 'replacements'}?</strong> The hero plays the game’s own clips again; your files stay where they are.</p>
-      <button type="button" className="motion-danger" disabled={disabled} onClick={removeAll}>Remove all</button>
-      <button type="button" className="tertiary" onClick={() => setConfirming(false)}>Cancel</button>
+    : confirming ? <div className="motion-confirm" role="alertdialog" aria-label={t('Remove all replacements')}>
+      <p>{rows.length === 1
+        ? <T text="<strong>Remove all {count} saved clip replacement?</strong> The hero plays the game’s own clips again; your files stay where they are." values={{count: rows.length}}/>
+        : <T text="<strong>Remove all {count} saved clip replacements?</strong> The hero plays the game’s own clips again; your files stay where they are." values={{count: rows.length}}/>}</p>
+      <button type="button" className="motion-danger" disabled={disabled} onClick={removeAll}>{t('Remove all')}</button>
+      <button type="button" className="tertiary" onClick={() => setConfirming(false)}>{t('Cancel')}</button>
     </div> : null;
   const listStatus = catalog ? null
-    : discovering ? <p className="hint" role="status">Loading the hero’s animations…</p>
-      : <div className="clip-list-empty" role="status"><p className="hint">{!canDiscover ? 'Choose the game’s pak01_dir.vpk in Settings to see the hero’s animations.' : current?.error ? `The hero’s animation list could not be read: ${current.error}` : 'The hero’s animation list is not loaded.'}</p>{canDiscover && <button type="button" onClick={discover}>{current?.error ? 'Try again' : 'Load the animation list'}</button>}</div>;
-  return <StudioFrame label="Motion" className="motion-page">
-    <h1 className="sr-only">Motion</h1>
-    <StudioTopBar title="Motion" badge={replacedCount ? `${replacedCount} ${replacedCount === 1 ? 'clip' : 'clips'} replaced` : 'Original movement'} badgeTone={replacedCount ? undefined : 'ok'} status={status} below={panel}>
-      <StudioBarMenuButton base="motion" id="graph" open={menus.open === 'graph'} onToggle={() => { setConfirming(false); menus.toggle('graph'); }} label="Animation graph handling" tone={project.animation_policy !== 'preserve' ? 'attention' : undefined}/>
-      {active.length > 0 && <button type="button" disabled={disabled} onClick={switchOff}>Switch all replacements off</button>}
-      <button type="button" className="tertiary" disabled={disabled || !rows.length} onClick={() => { menus.setOpen(null); setConfirming(true); }}>Remove all replacements…</button>
+    : discovering ? <p className="hint" role="status">{t('Loading the hero’s animations…')}</p>
+      : <div className="clip-list-empty" role="status"><p className="hint">{!canDiscover ? t('Choose the game’s pak01_dir.vpk in Settings to see the hero’s animations.') : current?.error ? t('The hero’s animation list could not be read: {reason}', {reason: current.error}) : t('The hero’s animation list is not loaded.')}</p>{canDiscover && <button type="button" onClick={discover}>{current?.error ? t('Try again') : t('Load the animation list')}</button>}</div>;
+  return <StudioFrame label={t('Motion')} className="motion-page">
+    <h1 className="sr-only">{t('Motion')}</h1>
+    <StudioTopBar title={t('Motion')} badge={replacedCount ? tp(replacedCount, {one: '{count} clip replaced', other: '{count} clips replaced'}) : t('Original movement')} badgeTone={replacedCount ? undefined : 'ok'} status={status} below={panel}>
+      <StudioBarMenuButton base="motion" id="graph" open={menus.open === 'graph'} onToggle={() => { setConfirming(false); menus.toggle('graph'); }} label={t('Animation graph handling')} tone={project.animation_policy !== 'preserve' ? 'attention' : undefined}/>
+      {active.length > 0 && <button type="button" disabled={disabled} onClick={switchOff}>{t('Switch all replacements off')}</button>}
+      <button type="button" className="tertiary" disabled={disabled || !rows.length} onClick={() => { menus.setOpen(null); setConfirming(true); }}>{t('Remove all replacements…')}</button>
     </StudioTopBar>
     {menus.open !== 'graph' && policyNote}
-    {!project.customization.enabled && rows.length > 0 && <p className="hint motion-inactive">Saved replacements are inactive while project customization is off. Enable it in Extras to include them.</p>}
+    {!project.customization.enabled && rows.length > 0 && <p className="hint motion-inactive">{t('Saved replacements are inactive while project customization is off. Enable it in Extras to include them.')}</p>}
     <div className="motion-grid">
-      <ClipList project={project} items={list.items} folded={list.folded} fits={fits} selected={item?.entry.target ?? ''} select={setChosen} group={group} setGroup={setGroup} filter={filter} setFilter={setFilter} query={query} setQuery={setQuery} status={listStatus}/>
+      <ClipList project={project} items={list.items} folded={list.folded} fits={fits} selected={item?.entry.target ?? ''} select={pickClip} group={group} setGroup={pickGroup} filter={filter} setFilter={setFilter} query={query} setQuery={setQuery} status={listStatus}/>
       <div className="motion-view-slot"><ClipPlayer project={project} entry={item?.entry ?? null} source={source} made={madePreview ?? takenPreview} preview={preview} load={load} autoLoad={autoLoad} previewCurrent={previewCurrent} busy={busy}/></div>
       <ClipCard item={item} state={item ? clipState(project, item, fits) : 'original'} fit={key ? fits.get(key) : undefined} nothingReplaced={!replacedCount} disabled={busy} fail={fail}
         choose={choose} remove={remove} include={enabled => edit({enabled})} share={allow_shared => edit({allow_shared})} next={next}
@@ -231,8 +248,8 @@ export function MotionPage(props: MotionPageProps) {
           write={writeRow} remove={remove} operate={run} made={() => { if (mounted.current) setRevision(r => r + 1); }} useCompiled={() => setRoute('file')} openPreparation={openPreparation}/> : null}/>
     </div>
     {list.others.length > 0 && <div className="motion-other-rows">
-      <AssetRows kind="animations" only={list.others} title="Other saved rows" project={project} update={next => update(withMadeSources(next))} disabled={disabled} fail={fail} catalog={catalog} discover={discover}/>
-      <p className="hint">Saved rows the list cannot show: a draft without a file or clip, a clip this hero does not have, or a second row for the same clip.{!catalog ? ' The list is not loaded, so every saved row is here.' : ''}</p>
+      <AssetRows kind="animations" only={list.others} title={t('Other saved rows')} project={project} update={next => update(withMadeSources(next))} disabled={disabled} fail={fail} catalog={catalog} discover={discover}/>
+      <p className="hint">{sentences(t('Saved rows the list cannot show: a draft without a file or clip, a clip this hero does not have, or a second row for the same clip.'), !catalog ? t('The list is not loaded, so every saved row is here.') : '')}</p>
     </div>}
   </StudioFrame>;
 }

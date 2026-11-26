@@ -1,7 +1,9 @@
 /** Extras → Effects: the saved effect edits (`customization.effect_edits`) and the page's
  * pure helpers (filters, groups, strips, multiplier texts). No colour maths: what an edit
  * does to a colour comes from Rust through `api.effectPreview`. */
+// i18n-area: effects
 import type { Customization, Project } from "../models";
+import { m, mc, t, tc, tp } from "../i18n";
 import { changeCustomization } from "../components/customization";
 import type {
   EffectEdit,
@@ -177,16 +179,22 @@ export function advancedSettings(edit: EffectEdit) {
     adjusted: own.filter((s) => s.size !== undefined || s.opacity !== undefined || s.tint || s.light !== undefined).length,
   };
 }
+/** Items joined as a list: "a, b and c" (each language its own separators). */
+export function joinAnd(items: string[]): string {
+  if (items.length < 2) return items[0] ?? "";
+  return items.slice(0, -1).join(tc("list", ", ")) + tc("list", " and ") + items[items.length - 1];
+}
+/** One item of the list each is a whole phrase with its count; the list is joined in the sentence. */
 export function advancedText(edit: EffectEdit): string {
   const { excluded, shared, colors, hidden, adjusted } = advancedSettings(edit);
   const parts = [
-    excluded ? `${excluded} part${excluded === 1 ? "" : "s"} left out` : "",
-    shared ? `${shared} part${shared === 1 ? "" : "s"} shared with other heroes included` : "",
-    colors ? `${colors} single color${colors === 1 ? "" : "s"} changed` : "",
-    hidden ? `${hidden} part${hidden === 1 ? "" : "s"} hidden` : "",
-    adjusted ? `${adjusted} part${adjusted === 1 ? " has its" : "s have their"} own settings` : "",
+    excluded ? tp(excluded, { one: "{count} part left out", other: "{count} parts left out" }) : "",
+    shared ? tp(shared, { one: "{count} part shared with other heroes included", other: "{count} parts shared with other heroes included" }) : "",
+    colors ? tp(colors, { one: "{count} single color changed", other: "{count} single colors changed" }) : "",
+    hidden ? tp(hidden, { one: "{count} part hidden", other: "{count} parts hidden" }) : "",
+    adjusted ? tp(adjusted, { one: "{count} part has its own settings", other: "{count} parts have their own settings" }) : "",
   ].filter(Boolean);
-  return parts.length ? `Advanced settings are active: ${parts.join(", ")}.` : "";
+  return parts.length ? t("Advanced settings are active: {list}.", { list: parts.join(tc("list", ", ")) }) : "";
 }
 /** Why a part keeps the game's look: the user unticked it, or other heroes use it and it was
  * not ticked in (`shared` parts are left out unless listed in the edit's `shared`). */
@@ -244,10 +252,12 @@ export const withoutShift = (edit: EffectEdit): EffectEdit => {
 
 // ── The list ────────────────────────────────────────────────────────────
 export const TAGS: { key: EffectTag; label: string }[] = [
-  { key: "ability", label: "Ability" },
-  { key: "weapon", label: "Weapon" },
-  { key: "hero", label: "Hero" },
+  { key: "ability", label: mc("effect tag", "Ability") },
+  { key: "weapon", label: mc("effect tag", "Weapon") },
+  { key: "hero", label: mc("effect tag", "Hero") },
 ];
+/** A tag's name as shown. */
+export const tagName = (label: string) => tc("effect tag", label);
 export interface TreeFilter {
   query: string;
   tags: EffectTag[];
@@ -266,7 +276,7 @@ export function matches(tree: EffectTree, filter: TreeFilter, rows: EffectEditRo
 /** How many trees each tag would show with the other filters as they are. */
 export function tagCounts(trees: EffectTree[], filter: TreeFilter, rows: EffectEditRow[]) {
   const base = trees.filter((tree) => matches(tree, { ...filter, tags: [] }, rows));
-  return new Map(TAGS.map(({ key }) => [key, base.filter((tree) => filter.tags.every((t) => tree.tags.includes(t)) && tree.tags.includes(key)).length]));
+  return new Map(TAGS.map(({ key }) => [key, base.filter((tree) => filter.tags.every((tag) => tree.tags.includes(tag)) && tree.tags.includes(key)).length]));
 }
 export interface TreeGroup {
   key: string;
@@ -278,8 +288,10 @@ export interface TreeGroup {
   byName?: boolean;
 }
 /** The quiet line for an effect (or a whole group) placed by its file name only. */
-export const BY_NAME = "Grouped by its file name";
-export const BY_NAME_GROUP = "Grouped by their file names";
+export const BY_NAME = m("Grouped by its file name");
+export const BY_NAME_GROUP = m("Grouped by their file names");
+/** The name of the group for trees in no known group (the others come from Rust as they are). */
+export const OTHER_EFFECTS = m("Other effects");
 export const byFileName = (tree: Pick<EffectTree, "grouped_by">) => tree.grouped_by === "name";
 export const isFiltering = (filter: TreeFilter) => Boolean(fold(filter.query).trim() || filter.tags.length || filter.changedOnly);
 /** The visible trees under their groups, in the groups' order (unknown groups last).
@@ -300,7 +312,7 @@ export function groupTrees(data: EffectTrees, visible: EffectTree[], filtering =
     };
   });
   const strays = visible.filter((tree) => !known.has(tree.group));
-  if (strays.length) out.push({ key: "", name: "Other effects", trees: strays, empty: false });
+  if (strays.length) out.push({ key: "", name: OTHER_EFFECTS, trees: strays, empty: false });
   return out.filter((g) => g.trees.length || (g.empty && !filtering)).map(({ empty: _, ...g }) => g);
 }
 export interface ShownGroup extends TreeGroup {
@@ -332,7 +344,7 @@ export function treeNames(data: EffectTrees | null) {
 }
 /** Other effects of this hero that hold this part (`in_trees` without the tree itself). */
 export function alsoPartOf(names: Map<string, string>, tree: EffectTree, inTrees: string[]) {
-  return inTrees.filter((t) => fold(t) !== fold(tree.target)).map((t) => names.get(fold(t)) ?? t.split("/").pop()!.replace(/\.vpcf_c$/, ""));
+  return inTrees.filter((other) => fold(other) !== fold(tree.target)).map((other) => names.get(fold(other)) ?? other.split("/").pop()!.replace(/\.vpcf_c$/, ""));
 }
 /** The main colour's palette index: the user's choice when it is in the palette, else the detected one. */
 export function mainIndex(tree: EffectTree, chosen: Rgb | null | undefined): number | null {
@@ -368,49 +380,56 @@ export function stripBackground(kind: EffectStripKind, stops: StripStop[]): stri
   const sorted = [...stops].sort((a, b) => a.position - b.position);
   return `linear-gradient(90deg, ${sorted.map((s) => `${css(s)} ${pct(s.position)}`).join(", ")})`;
 }
-const alphaText = (s: StripStop) => (s.alpha !== undefined && s.alpha < 255 ? ` (${Math.round((s.alpha / 255) * 100)}% opaque)` : "");
+const colorText = (s: StripStop) => (s.alpha !== undefined && s.alpha < 255 ? t("{hex} ({percent}% opaque)", { hex: s.hex, percent: Math.round((s.alpha / 255) * 100) }) : s.hex);
 /** The strip in words (its accessible name and tooltip). */
 export function stripText(kind: EffectStripKind, stops: StripStop[]): string {
-  if (!stops.length) return "no color";
-  if (kind === "random") return `random between ${stops.map((s) => s.hex + alphaText(s)).join(" and ")}`;
-  if (stops.length === 1) return stops[0].hex + alphaText(stops[0]);
-  return [...stops].sort((a, b) => a.position - b.position).map((s) => `${s.hex}${alphaText(s)} at ${Math.round(s.position * 100)}%`).join(", ");
+  if (!stops.length) return t("no color");
+  if (kind === "random") return t("random between {colors}", { colors: stops.map(colorText).join(tc("list", " and ")) });
+  if (stops.length === 1) return colorText(stops[0]);
+  return [...stops].sort((a, b) => a.position - b.position).map((s) => t("{color} at {percent}%", { color: colorText(s), percent: Math.round(s.position * 100) })).join(tc("list", ", "));
 }
 export const KIND_TEXT: Record<EffectStripKind, string> = {
-  constant: "one color",
-  random: "two colors, random",
-  fade: "fades from its starting color",
-  gradient: "color over its life",
+  constant: m("one color"),
+  random: m("two colors, random"),
+  fade: m("fades from its starting color"),
+  gradient: m("color over its life"),
 };
 
 // ── Size, Brightness, Opacity ───────────────────────────────────────────
 export const MULTIPLIERS: { key: EffectMultiplier; label: string }[] = [
-  { key: "size", label: "Size" },
-  { key: "glow", label: "Brightness" },
-  { key: "opacity", label: "Opacity" },
+  { key: "size", label: m("Size") },
+  { key: "glow", label: m("Brightness") },
+  { key: "opacity", label: m("Opacity") },
 ];
 export function reachText(counts: EffectSiteCounts | undefined): string {
   if (!counts) return "";
-  return `reaches ${counts.parts_reached} of ${counts.visible_parts} part${counts.visible_parts === 1 ? "" : "s"}`;
+  return tp(counts.visible_parts, { one: "reaches {reached} of {count} part", other: "reaches {reached} of {count} parts" }, { reached: counts.parts_reached });
 }
 /** Advanced, under Size: the 3D parts that have a Size of their own (empty when none). */
 export function ownSizeText(tree: EffectTree): string {
   const n = tree.parts.filter((p) => p.visible && p.controls?.size.offered).length;
-  return n === 0 ? "" : n === 1 ? "the 3D part has its own Size" : `the ${n} 3D parts have their own Size`;
+  return n === 0 ? "" : n === 1 ? t("the 3D part has its own Size") : tp(n, { one: "the {count} 3D part has its own Size", other: "the {count} 3D parts have their own Size" });
 }
 /** Why a multiplier reaches no part, in plain words (null when it reaches one). */
 export function unreachedReason(key: EffectMultiplier, counts: EffectSiteCounts | undefined): string | null {
   if (counts && counts.parts_reached > 0) return null;
-  const what = key === "size" ? "size" : key === "glow" ? "brightness" : "opacity";
-  if (!counts || counts.visible_parts === 0) return "This effect draws nothing this could change.";
-  if (counts.game_input && !counts.no_setting) return `The game sets its ${what} while the effect plays.`;
-  return `Its parts are 3D models, ground decals or lights, which have no ${what} setting.`;
+  if (!counts || counts.visible_parts === 0) return t("This effect draws nothing this could change.");
+  if (counts.game_input && !counts.no_setting)
+    return key === "size" ? t("The game sets its size while the effect plays.") : key === "glow" ? t("The game sets its brightness while the effect plays.") : t("The game sets its opacity while the effect plays.");
+  return key === "size"
+    ? t("Its parts are 3D models, ground decals or lights, which have no size setting.")
+    : key === "glow"
+      ? t("Its parts are 3D models, ground decals or lights, which have no brightness setting.")
+      : t("Its parts are 3D models, ground decals or lights, which have no opacity setting.");
 }
+// Why a slider does not reach a part, by the kind of part (whole phrases, kept English as keys).
 const KIND_WORDS: [RegExp, string][] = [
-  [/RenderModels/i, "a 3D model"],
-  [/RenderProjected|Decal/i, "a ground decal"],
-  [/Light/i, "a light"],
+  [/RenderModels/i, m("a 3D model has no such setting")],
+  [/RenderProjected|Decal/i, m("a ground decal has no such setting")],
+  [/Light/i, m("a light has no such setting")],
 ];
+const OTHER_KIND = m("this kind of part has no such setting");
+const GAME_SETS = m("the game sets it while the effect plays");
 /** Why Size, Brightness or Opacity do not reach a part, in plain words (empty when all reach it). */
 export function partUnreached(part: Pick<EffectPart, "visible" | "renderers" | "multipliers">): string[] {
   if (!part.visible) return [];
@@ -418,24 +437,25 @@ export function partUnreached(part: Pick<EffectPart, "visible" | "renderers" | "
   for (const { key, label } of MULTIPLIERS) {
     const sites = part.multipliers.filter((m) => m.multiplier === key);
     if (sites.some((m) => m.status === "changes" || m.status === "adds")) continue;
-    const kind = KIND_WORDS.find(([re]) => part.renderers.some((r) => re.test(r)))?.[1] ?? "this kind of part";
-    const why = sites.some((m) => m.status === "game_input") ? "the game sets it while the effect plays" : `${kind} has no such setting`;
+    const kind = KIND_WORDS.find(([re]) => part.renderers.some((r) => re.test(r)))?.[1] ?? OTHER_KIND;
+    const why = sites.some((site) => site.status === "game_input") ? GAME_SETS : kind;
     notes.set(why, [...(notes.get(why) ?? []), label]);
   }
-  return [...notes].map(([why, labels]) => `${labels.join(", ").replace(/, ([^,]*)$/, " and $1")} ${labels.length === 1 ? "does" : "do"} not reach it: ${why}.`);
+  return [...notes].map(([why, labels]) =>
+    tp(labels.length, { one: "{labels} does not reach it: {why}.", other: "{labels} do not reach it: {why}." }, { labels: joinAnd(labels.map((label) => t(label))), why: t(why) }));
 }
 
 // ── Main colour presets ─────────────────────────────────────────────────
 export const PRESETS: { name: string; rgb: Rgb }[] = [
-  { name: "Red", rgb: [255, 69, 58] },
-  { name: "Orange", rgb: [255, 149, 46] },
-  { name: "Yellow", rgb: [255, 214, 64] },
-  { name: "Green", rgb: [88, 214, 104] },
-  { name: "Teal", rgb: [46, 204, 185] },
-  { name: "Blue", rgb: [64, 140, 255] },
-  { name: "Neon purple", rgb: [125, 77, 255] },
-  { name: "Pink", rgb: [255, 95, 176] },
-  { name: "White", rgb: [255, 255, 255] },
+  { name: m("Red"), rgb: [255, 69, 58] },
+  { name: m("Orange"), rgb: [255, 149, 46] },
+  { name: m("Yellow"), rgb: [255, 214, 64] },
+  { name: m("Green"), rgb: [88, 214, 104] },
+  { name: m("Teal"), rgb: [46, 204, 185] },
+  { name: m("Blue"), rgb: [64, 140, 255] },
+  { name: m("Neon purple"), rgb: [125, 77, 255] },
+  { name: m("Pink"), rgb: [255, 95, 176] },
+  { name: m("White"), rgb: [255, 255, 255] },
 ];
 export const hexOf = (rgb: Rgb) => "#" + rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
 /** The colour pickers work in 0–1, the effect data in bytes. */

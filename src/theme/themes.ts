@@ -6,7 +6,9 @@
  * built-in themes are below; custom themes (Settings → Appearance → Customize)
  * are `ThemePreset`s saved in settings.json, derived from three base colors
  * plus any token the user set by hand. */
+// i18n-area: settings
 import type { CSSProperties } from 'react';
+import { mc } from '../i18n';
 import { contrast, hexToHsl, isHex, mix, shiftLightness, withLightness, withSaturation } from './colors';
 
 export interface ThemeTokens {
@@ -72,9 +74,9 @@ const MINT: ThemeTokens = {
 };
 
 export const THEMES: Theme[] = [
-  {id: 'original', name: 'Original', description: 'The app as released: grey chrome, green-teal accents.', icon: 'original', tokens: ORIGINAL},
-  {id: 'violet', name: 'Violet D', description: 'After the violet D icon: blue-black surfaces, violet accents.', icon: 'violet', tokens: VIOLET},
-  {id: 'mint', name: 'Mint D', description: 'After the mint D icon: teal-black surfaces, mint accents, sky focus.', icon: 'mint', tokens: MINT},
+  {id: 'original', name: mc('theme name', 'Original'), description: 'The app as released: grey chrome, green-teal accents.', icon: 'original', tokens: ORIGINAL},
+  {id: 'violet', name: mc('theme name', 'Violet D'), description: 'After the violet D icon: blue-black surfaces, violet accents.', icon: 'violet', tokens: VIOLET},
+  {id: 'mint', name: mc('theme name', 'Mint D'), description: 'After the mint D icon: teal-black surfaces, mint accents, sky focus.', icon: 'mint', tokens: MINT},
 ];
 
 /** Token name → CSS variable the stylesheets read. */

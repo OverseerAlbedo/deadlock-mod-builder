@@ -9,13 +9,18 @@ import type { AppearanceMaterial, Project } from '../models';
 import { appearanceRowIndex, APPEARANCE_LIMIT, colorValues } from '../extras/colorAdapter';
 import { modelEnabled } from '../build/readiness';
 import { changeCustomization } from './customization';
+import { m } from '../i18n';
+// i18n-area: appearance
 
 export const SURFACE_KEYS = ['roughness', 'metalness', 'opacity', 'emission'] as const;
 export type SurfaceKey = typeof SURFACE_KEYS[number];
 /** The value a "Change …" tick starts at (the old Override ticks' starting values). */
 export const SURFACE_START: Record<SurfaceKey, number> = {roughness: .5, metalness: 0, opacity: 1, emission: 0};
 export const SURFACE_MAX: Record<SurfaceKey, number> = {roughness: 1, metalness: 1, opacity: 1, emission: 64};
-export const SURFACE_LABELS: Record<SurfaceKey, string> = {roughness: 'Roughness', metalness: 'Metalness', opacity: 'Opacity', emission: 'Glow (emission)'};
+export const SURFACE_LABELS: Record<SurfaceKey, string> = {roughness: m('Roughness'), metalness: m('Metalness'), opacity: m('Opacity'), emission: m('Glow (emission)')};
+/** The "Change …" tick of each value and its slider, as whole labels (English text is the key). */
+export const SURFACE_CHANGE: Record<SurfaceKey, string> = {roughness: m('Change roughness'), metalness: m('Change metalness'), opacity: m('Change opacity'), emission: m('Change glow (emission)')};
+export const SURFACE_ON_TOP: Record<SurfaceKey, string> = {roughness: m('Roughness on top'), metalness: m('Metalness on top'), opacity: m('Opacity on top'), emission: m('Glow (emission) on top')};
 
 const rowsOf = (project: Project) => project.customization.appearance?.materials ?? [];
 export const surfaceLimit = APPEARANCE_LIMIT;

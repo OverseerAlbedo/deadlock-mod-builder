@@ -1,18 +1,20 @@
 /** The Motion page's list, made from the hero's clip catalog and the saved replacement rows. Names,
  * groups, graph naming and derived copies come from Rust (`motion::ClipDetails`); here they are only
  * filtered, counted and folded. Nothing here writes a row. */
+// i18n-area: motion
 import type { AnimationEntry, ClipGroup, ComponentCatalog } from '../components/AssetCatalog';
+import { mc, t } from '../i18n';
 import type { Project, ResourceReplacement } from '../models';
 import type { FitReport } from './motionTypes';
 
-/** The list groups in Rust's order, with the page's titles. */
+/** The list groups in Rust's order, with the page's titles (English; shown with `tc('clip group', title)`). */
 export const GROUPS: readonly {id: ClipGroup; title: string}[] = [
-  {id: 'movement', title: 'Movement'},
-  {id: 'jumping', title: 'Jumping and falling'},
-  {id: 'weapon', title: 'Weapon'},
-  {id: 'abilities', title: 'Abilities'},
-  {id: 'hits', title: 'Hits and deaths'},
-  {id: 'other', title: 'Emotes and other'},
+  {id: 'movement', title: mc('clip group', 'Movement')},
+  {id: 'jumping', title: mc('clip group', 'Jumping and falling')},
+  {id: 'weapon', title: mc('clip group', 'Weapon')},
+  {id: 'abilities', title: mc('clip group', 'Abilities')},
+  {id: 'hits', title: mc('clip group', 'Hits and deaths')},
+  {id: 'other', title: mc('clip group', 'Emotes and other')},
 ];
 export const groupTitle = (id: ClipGroup) => GROUPS.find(g => g.id === id)?.title ?? id;
 
@@ -80,7 +82,8 @@ export function clipState(project: Project, item: ClipItem, fits: Map<string, Fi
   if (fit && typeof fit === 'object' && !(fit instanceof Error) && !fit.fits) return 'does_not_fit';
   return 'replaced';
 }
-export const STATE_WORDS: Record<ClipState, string> = {original: 'Original', replaced: 'Replaced', off: 'Off', does_not_fit: 'Does not fit'};
+/** A clip's badge words (English; shown with `tc('clip state', word)`). */
+export const STATE_WORDS: Record<ClipState, string> = {original: mc('clip state', 'Original'), replaced: mc('clip state', 'Replaced'), off: mc('clip state', 'Off'), does_not_fit: mc('clip state', 'Does not fit')};
 
 /** Whether an item matches the search words (name, clip name or path, all words). */
 export function matches(item: ClipItem, query: string): boolean {
@@ -98,7 +101,7 @@ export function groupCounts(items: ClipItem[]): Record<ClipGroup, number> {
 }
 
 /** "0.80 s" for a clip length. */
-export const seconds = (value: number) => `${value.toFixed(2)} s`;
+export const seconds = (value: number) => t('{value} s', { value: value.toFixed(2) });
 
 /** The clip's path with its middle folders shortened (`models/heroes_staging/haze/…/run_n.vnmclip_c`). */
 export function shortPath(path: string): string {

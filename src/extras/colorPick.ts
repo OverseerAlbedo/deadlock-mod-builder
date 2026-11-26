@@ -26,6 +26,8 @@
 import type { HeroColorRange } from "../models";
 import { changesNothing, hsv, recolorTexel, rgb, usesSetColour, withDefaults, type ColorRangeValues } from "./heroColorRanges";
 import type { Rgb } from "./colorAdapter";
+import { mc, t, tc } from "../i18n";
+// i18n-area: colors
 
 export const PICK_HUE_WIDTH = 20;
 export const PICK_SATURATION_SPAN = 0.35;
@@ -230,6 +232,37 @@ export function rangeName(from: Rgb, to: Rgb, changes: boolean): string {
   const [, s1, v1] = hsv(...from), [, s2, v2] = hsv(...to);
   const how = v2 < v1 - 0.08 ? "darker" : v2 > v1 + 0.08 ? "lighter" : s2 < s1 - 0.08 ? "paler" : s2 > s1 + 0.08 ? "stronger" : "shifted";
   return `${capital(a)} → ${how} ${b.replace(/^(dark|light) /, "")}`;
+}
+/** Every name `colorName` gives, marked for translation (the names stay English as values). */
+const COLOR_NAMES: readonly string[] = [
+  mc("color name", "black"), mc("color name", "white"), mc("color name", "grey"), mc("color name", "dark grey"),
+  mc("color name", "brown"), mc("color name", "gold"),
+  mc("color name", "red"), mc("color name", "dark red"), mc("color name", "light red"),
+  mc("color name", "orange"), mc("color name", "dark orange"), mc("color name", "light orange"),
+  mc("color name", "yellow"), mc("color name", "dark yellow"), mc("color name", "light yellow"),
+  mc("color name", "green"), mc("color name", "dark green"), mc("color name", "light green"),
+  mc("color name", "teal"), mc("color name", "dark teal"), mc("color name", "light teal"),
+  mc("color name", "cyan"), mc("color name", "dark cyan"), mc("color name", "light cyan"),
+  mc("color name", "blue"), mc("color name", "dark blue"), mc("color name", "light blue"),
+  mc("color name", "purple"), mc("color name", "dark purple"), mc("color name", "light purple"),
+  mc("color name", "pink"), mc("color name", "dark pink"), mc("color name", "light pink"),
+];
+const shownName = (name: string) => (COLOR_NAMES.includes(name) ? tc("color name", name) : name);
+/** A color's plain name in the language shown (`colorName` as shown). */
+export const shownColorName = (color: Rgb) => shownName(colorName(color));
+/** `rangeName` in the language shown, as whole messages: "Blue → gold", "Blue → darker blue". */
+export function shownRangeName(from: Rgb, to: Rgb, changes: boolean): string {
+  const a = colorName(from), b = colorName(to);
+  const first = capital(shownName(a));
+  if (!changes) return t("{from} · no change yet", { from: first });
+  if (a !== b) return t("{from} → {to}", { from: first, to: shownName(b) });
+  const [, s1, v1] = hsv(...from), [, s2, v2] = hsv(...to);
+  const base = shownName(b.replace(/^(dark|light) /, ""));
+  if (v2 < v1 - 0.08) return t("{from} → darker {to}", { from: first, to: base });
+  if (v2 > v1 + 0.08) return t("{from} → lighter {to}", { from: first, to: base });
+  if (s2 < s1 - 0.08) return t("{from} → paler {to}", { from: first, to: base });
+  if (s2 > s1 + 0.08) return t("{from} → stronger {to}", { from: first, to: base });
+  return t("{from} → shifted {to}", { from: first, to: base });
 }
 /** A range changes something (a shift, or a factor other than 1). */
 export const rangeChanges = (range: HeroColorRange) => !changesNothing(withDefaults(range));

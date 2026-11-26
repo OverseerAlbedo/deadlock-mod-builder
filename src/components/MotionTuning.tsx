@@ -1,22 +1,29 @@
+// i18n-area: physics
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import type { MotionTuning, PhysicsPreset, SecondaryMotionChoices } from '../models';
+import { m, t, tc, useT } from '../i18n';
 type Tuning = Record<string, Record<string, number>>;
 
 export type TuningKind = 'hair'|'streamer'|'tail'|'ear'|'cloth'|'long_skirt'|'accessory'|'breast'|'butt'|'charm';
+/** The part types' names (English; shown with `kindName`). The keys are the saved part kinds. */
 export const KIND_LABELS: Record<TuningKind, string> = {
-  hair: 'Hair', streamer: 'Streamers and ribbons', tail: 'Tails', ear: 'Ears', cloth: 'Cloth', long_skirt: 'Long skirts',
-  accessory: 'Accessories', breast: 'Breasts', butt: 'Butt', charm: 'Gun charms',
+  hair: m('Hair'), streamer: m('Streamers and ribbons'), tail: m('Tails'), ear: m('Ears'), cloth: m('Cloth'), long_skirt: m('Long skirts'),
+  accessory: m('Accessories'), breast: m('Breasts'), butt: m('Butt'), charm: m('Gun charms'),
 };
+/** A part type's shown name (a kind the table lacks shows as it is). */
+export const kindName = (kind: string) => { const label = KIND_LABELS[kind as TuningKind]; return label ? t(label) : kind; };
+/** Names shown as a list ("a, b" in English). */
+export const listOf = (names: string[]) => names.reduce((first, next) => tc('list', '{first}, {next}', {first, next}));
 /** The four settings: -1 (much less) … 0 (automatic) … 1 (much more). */
 const SETTINGS: [keyof MotionTuning, string, string][] = [
-  ['stiffness', 'Stiffness', 'Less swings freely; more holds its shape.'],
-  ['damping', 'Damping', 'More settles faster after a move.'],
-  ['gravity', 'Gravity', 'More hangs and falls; less floats.'],
-  ['swing', 'Swing range', 'How far it may swing. Parts that have no limit stay free.'],
+  ['stiffness', m('Stiffness'), m('Less swings freely; more holds its shape.')],
+  ['damping', m('Damping'), m('More settles faster after a move.')],
+  ['gravity', m('Gravity'), m('More hangs and falls; less floats.')],
+  ['swing', m('Swing range'), m('How far it may swing. Parts that have no limit stay free.')],
 ];
 const signed = (pct: number) => `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`;
-const percent = (value: number) => value === 0 ? 'Automatic' : signed(Math.round(value * 100));
+const percent = (value: number) => value === 0 ? t('Automatic') : signed(Math.round(value * 100));
 /** Slider steps, in percent: fine enough to land on a value, coarse enough to read. */
 const STEP = 5;
 const clampPercent = (value: number) => Math.max(-100, Math.min(100, Math.round(value / STEP) * STEP));
@@ -37,14 +44,15 @@ export function parsePercent(text: string): number | null {
 /** The exact value of one setting: shows Auto or ±n%; while focused it holds the typed text,
  * committed on Enter or when it loses focus (invalid text goes back to the value, Escape too). */
 function PercentBox({name, pct, disabled, commit}: {name: string; pct: number; disabled: boolean; commit: (pct: number) => void}) {
+  const t = useT();
   const [draft, setDraft] = useState<string | null>(null);
   function done(text: string) {
     setDraft(null);
     const next = parsePercent(text);
     if (next !== null && next !== pct) commit(next);
   }
-  return <input className={`tune-box ${pct ? 'tuned' : ''}`} type="text" inputMode="numeric" aria-label={`${name} in percent`} disabled={disabled} spellCheck={false}
-    value={draft ?? (pct ? signed(pct) : 'Auto')}
+  return <input className={`tune-box ${pct ? 'tuned' : ''}`} type="text" inputMode="numeric" aria-label={t('{name} in percent', {name})} disabled={disabled} spellCheck={false}
+    value={draft ?? (pct ? signed(pct) : t('Auto'))}
     onFocus={event => { setDraft(String(pct)); const box = event.currentTarget; setTimeout(() => box.select()); }}
     onChange={event => setDraft(event.target.value)}
     onBlur={() => { if (draft !== null) done(draft); }}
@@ -59,8 +67,9 @@ function PercentBox({name, pct, disabled, commit}: {name: string; pct: number; d
  * (Shift + arrow: 1%); a typed value keeps its exact position. Double-click the slider, or
  * click Automatic under it, to go back to automatic. */
 export function TuningSlider({kind, label, hint, value, disabled, onChange}: {kind: TuningKind; label: string; hint: string; value: number; disabled: boolean; onChange: (percent: number) => void}) {
+  const t = useT();
   const pct = Math.round(value * 100);
-  const name = `${KIND_LABELS[kind]} ${label.toLowerCase()}`;
+  const name = tc('slider name', '{kind} {setting}', {kind: kindName(kind), setting: label.toLowerCase()});
   const lo = Math.min(50, 50 + pct / 2), hi = Math.max(50, 50 + pct / 2);
   const hintId = useId();
   const set = (next: number) => { if (next !== pct) onChange(next); };
@@ -87,7 +96,7 @@ export function TuningSlider({kind, label, hint, value, disabled, onChange}: {ki
             onChange={event => set(clampPercent(Number(event.target.value)))} onKeyDown={keys} onDoubleClick={() => set(0)}/>
         </div>
         <div className="tune-ticks"><span>−100%</span>
-          {pct ? <button type="button" className="tune-auto" disabled={disabled} aria-label={`${name}: back to automatic`} title="Back to automatic" onClick={() => set(0)}><span aria-hidden="true">↺ </span>Automatic</button> : <span className="tune-auto-label">Automatic</span>}
+          {pct ? <button type="button" className="tune-auto" disabled={disabled} aria-label={t('{name}: back to automatic', {name})} title={t('Back to automatic')} onClick={() => set(0)}><span aria-hidden="true">↺ </span>{t('Automatic')}</button> : <span className="tune-auto-label">{t('Automatic')}</span>}
           <span>+100%</span></div>
       </div>
       <PercentBox name={name} pct={pct} disabled={disabled} commit={set}/>
@@ -105,9 +114,10 @@ export function withTuning(current: Tuning | undefined, kind: TuningKind, values
 
 /** Stiffness, damping, gravity and swing range for one part type, starting at the automatic values. */
 export function TuningSliders({kind, cfg, update, disabled}: {kind: TuningKind; cfg: SecondaryMotionChoices; update: (choice: Partial<SecondaryMotionChoices>) => void; disabled: boolean}) {
+  const t = useT();
   const values: MotionTuning = cfg.tuning?.[kind] ?? {};
-  return <fieldset className="tune-sliders" aria-label={`Fine-tune ${KIND_LABELS[kind]}`}>
-    {SETTINGS.map(([key, label, hint]) => <TuningSlider key={key} kind={kind} label={label} hint={hint} value={values[key] ?? 0} disabled={disabled}
+  return <fieldset className="tune-sliders" aria-label={t('Fine-tune {kind}', {kind: kindName(kind)})}>
+    {SETTINGS.map(([key, label, hint]) => <TuningSlider key={key} kind={kind} label={t(label)} hint={t(hint)} value={values[key] ?? 0} disabled={disabled}
       onChange={pct => update({tuning: withTuning(cfg.tuning, kind, {...values, [key]: pct / 100})})}/>)}
   </fieldset>;
 }
@@ -132,13 +142,20 @@ export function ToolPopover({label, title, disabled, children}: {label: string; 
   </span>;
 }
 
+/** A presets message as it is kept: the app's own English sentence with its values (drawn translated), or the
+ * backend's words (`backend`), drawn as they came. Kept this way, a message follows a change of language. */
+export type PresetMessage = {text: string; values?: Record<string, string>; backend?: boolean};
+/** The message as it is drawn. */
+export const shownPresetMessage = (message: PresetMessage) => message.backend ? message.text : t(message.text, message.values);
+
 /** Save the current fine-tuning under a name, or apply one saved on this PC (by part type, so it fits any model).
  * Two header buttons: Saved presets (apply or delete each) and Save as preset (name and Save). Messages go to
  * `report` (shown under the header) or, without it, below the buttons. */
-export function PhysicsPresets({cfg, update, disabled, report}: {cfg: SecondaryMotionChoices; update: (choice: Partial<SecondaryMotionChoices>) => void; disabled: boolean; report?: (message: string) => void}) {
+export function PhysicsPresets({cfg, update, disabled, report}: {cfg: SecondaryMotionChoices; update: (choice: Partial<SecondaryMotionChoices>) => void; disabled: boolean; report?: (message: PresetMessage | null) => void}) {
+  const t = useT();
   const [presets, setPresets] = useState<PhysicsPreset[] | null>(null);
   const [name, setName] = useState('');
-  const [own, setOwn] = useState('');
+  const [own, setOwn] = useState<PresetMessage | null>(null);
   const say = report ?? setOwn;
   useEffect(() => {
     let active = true;
@@ -150,23 +167,23 @@ export function PhysicsPresets({cfg, update, disabled, report}: {cfg: SecondaryM
   const empty = !Object.keys(tuning).length, unnamed = !name.trim();
   async function save(close: () => void) {
     if (disabled || empty || unnamed) return;
-    try { setPresets(await api.savePhysicsPreset(name.trim(), tuning)); say(`Saved “${name.trim()}”.`); setName(''); close(); }
-    catch (error) { say(typeof error === 'object' && error && 'details' in error ? String((error as {details: unknown}).details) : 'The preset could not be saved.'); }
+    try { setPresets(await api.savePhysicsPreset(name.trim(), tuning)); say({text: m('Saved “{name}”.'), values: {name: name.trim()}}); setName(''); close(); }
+    catch (error) { say(typeof error === 'object' && error && 'details' in error ? {text: String((error as {details: unknown}).details), backend: true} : {text: m('The preset could not be saved.')}); }
   }
   async function remove(preset: string) {
-    try { setPresets(await api.deletePhysicsPreset(preset)); say(`Deleted “${preset}”.`); } catch { say('The preset could not be deleted.'); }
+    try { setPresets(await api.deletePhysicsPreset(preset)); say({text: m('Deleted “{name}”.'), values: {name: preset}}); } catch { say({text: m('The preset could not be deleted.')}); }
   }
   return <>
-    <ToolPopover label="Saved presets" title="Saved presets">{close => presets.length
-      ? <ul className="physics-preset-list">{presets.map(p => <li key={p.name}><span><strong>{p.name}</strong><small>{Object.keys(p.tuning).map(k => KIND_LABELS[k as TuningKind] ?? k).join(', ') || 'Automatic'}</small></span>
-        <button type="button" className="compact" disabled={disabled} aria-label={`Apply ${p.name}`} onClick={() => { update({tuning: p.tuning}); say(`Applied “${p.name}”. Analyze and Build to use it.`); close(); }}>Apply</button>
-        <button type="button" className="tertiary compact" disabled={disabled} aria-label={`Delete ${p.name}`} onClick={() => void remove(p.name)}>Delete</button></li>)}</ul>
-      : <p className="hint">No saved presets yet. Save as preset keeps your slider values on this PC for any model.</p>}</ToolPopover>
-    <ToolPopover label="Save as preset" title="Save as preset">{close => <form className="physics-preset-save" onSubmit={event => { event.preventDefault(); void save(close); }}>
-      <input className="compact" aria-label="Preset name" placeholder="Preset name" maxLength={40} value={name} disabled={disabled} onChange={event => setName(event.target.value)}/>
-      <button type="submit" className="compact primary" disabled={disabled || empty || unnamed}>Save</button>
-      {(empty || unnamed) && <p className="hint">{empty ? 'Nothing to save yet: every slider is at automatic.' : 'Type a name to save.'}</p>}
+    <ToolPopover label={t('Saved presets')} title={t('Saved presets')}>{close => presets.length
+      ? <ul className="physics-preset-list">{presets.map(p => <li key={p.name}><span><strong>{p.name}</strong><small>{Object.keys(p.tuning).length ? listOf(Object.keys(p.tuning).map(kindName)) : t('Automatic')}</small></span>
+        <button type="button" className="compact" disabled={disabled} aria-label={t('Apply {name}', {name: p.name})} onClick={() => { update({tuning: p.tuning}); say({text: m('Applied “{name}”. Analyze and Build to use it.'), values: {name: p.name}}); close(); }}>{t('Apply')}</button>
+        <button type="button" className="tertiary compact" disabled={disabled} aria-label={t('Delete {name}', {name: p.name})} onClick={() => void remove(p.name)}>{t('Delete')}</button></li>)}</ul>
+      : <p className="hint">{t('No saved presets yet. Save as preset keeps your slider values on this PC for any model.')}</p>}</ToolPopover>
+    <ToolPopover label={t('Save as preset')} title={t('Save as preset')}>{close => <form className="physics-preset-save" onSubmit={event => { event.preventDefault(); void save(close); }}>
+      <input className="compact" aria-label={t('Preset name')} placeholder={t('Preset name')} maxLength={40} value={name} disabled={disabled} onChange={event => setName(event.target.value)}/>
+      <button type="submit" className="compact primary" disabled={disabled || empty || unnamed}>{t('Save')}</button>
+      {(empty || unnamed) && <p className="hint">{empty ? t('Nothing to save yet: every slider is at automatic.') : t('Type a name to save.')}</p>}
     </form>}</ToolPopover>
-    {!report && own && <p className="hint physics-preset-message" role="status">{own}</p>}
+    {!report && own && <p className="hint physics-preset-message" role="status">{shownPresetMessage(own)}</p>}
   </>;
 }

@@ -1,6 +1,8 @@
 import { createContext, type MutableRefObject } from 'react';
 import type { ProjectInspection } from '../build/models';
 import type { Project } from '../models';
+import { m } from '../i18n';
+// i18n-area: physics
 
 /** The moving bones the last Analyze recorded for the preview (none for an asset-only report). */
 export function recordedMovingBones(report: ProjectInspection | null | undefined): number {
@@ -17,8 +19,9 @@ export function stoppedBeforeMovingParts(report: ProjectInspection | null | unde
   const waiting = report.unresolved_meshes.length > 0 || (report.secondary_meshes_left_out ?? []).length > 0;
   return waiting && recordedMovingBones(report) === 0;
 }
-/** What the Physics page says in that state, in the preview, on the tabs and in the status. */
-export const STOPPED_BEFORE_MOVING_PARTS = 'The last Analyze stopped before the moving parts, because mesh mappings on Build & install needed a choice. The parts swing here after those are set and Analyze has run again.';
+/** What the Physics page says in that state, in the preview, on the tabs and in the status (English;
+ * each place draws it with `t`). */
+export const STOPPED_BEFORE_MOVING_PARTS = m('The last Analyze stopped before the moving parts, because mesh mappings on Build & install needed a choice. The parts swing here after those are set and Analyze has run again.');
 
 /** What the Physics page's preview shows, as the Fine-tune and Moving parts tabs need it to say
  * whether the sliders can be seen working. `nodes`: moving bones the movement view swings (from

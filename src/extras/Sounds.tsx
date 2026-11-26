@@ -1,7 +1,9 @@
 // Extras → Sounds: a tagged, grouped library of the hero's sounds with
 // variations folded into one row, and the shared replacement editor for the
 // chosen variation. Tags, names, groups and families come from Rust discovery.
+// i18n-area: sounds
 import { useEffect, useMemo, useRef, useState } from "react";
+import { tc, tp, useLanguage, useT } from "../i18n";
 import type { Project, ResourceReplacement } from "../models";
 import type { ComponentCatalog } from "../components/AssetCatalog";
 import { changeCustomization } from "../components/customization";
@@ -19,7 +21,12 @@ import {
   VOICE_KINDS,
   changedStatus,
   filterRows,
+  groupText,
+  kindName,
   lengthText,
+  reasonText,
+  statusText,
+  tagName,
   newSilencedRow,
   replaceAll,
   rowStatus,
@@ -64,18 +71,26 @@ export interface SoundsProps {
 /** "3 replaced", "2 silenced" or "5 changed" (both kinds) for the saved rows. */
 function savedCountText(rows: ResourceReplacement[]) {
   const silent = rows.filter(isSilenced).length;
-  return `${rows.length} ${silent === 0 ? "replaced" : silent === rows.length ? "silenced" : "changed"}`;
+  if (silent === 0) return tp(rows.length, { one: "{count} replaced", other: "{count} replaced" });
+  if (silent === rows.length) return tp(rows.length, { one: "{count} silenced", other: "{count} silenced" });
+  return tp(rows.length, { one: "{count} changed", other: "{count} changed" });
 }
+/** Why a sound cannot be silenced, as shown ("" when it can). */
+const refusalShown = (item: AssetItem) => {
+  const why = silenceRefusal(item);
+  return why ? reasonText(why) : "";
+};
 function fileName(item: AssetItem) {
   return basename(item.entry.path).replace(/\.vsnd(_c)?$/i, "");
 }
 function TagChips({ tags }: { tags: TagKey[] }) {
+  useT();
   return (
     <span className="sounds-tags">
       {tags.map((tag) => (
         <span key={tag} className="sounds-tag">
           <i className={`sounds-dot ${tag}`} aria-hidden="true" />
-          {TAGS.find((t) => t.key === tag)?.label}
+          {tagName(tag)}
         </span>
       ))}
     </span>
@@ -167,6 +182,7 @@ function SoundDetails({
   /** `source` is null for "Silence all N variations". */
   apply: (result: ReplaceAllResult, source: string | null) => void;
 }) {
+  const t = useT();
   // Which "all variations" panel is open: one file for all, or silence for all.
   const [open, setOpenPanel] = useState<"replace" | "silence" | null>(null),
     [shared, setShared] = useState(false);
@@ -181,14 +197,14 @@ function SoundDetails({
   const channels = detailNumber(item.entry, "channels"),
     rate = detailNumber(item.entry, "rate");
   const format = [
-    channels === null ? "" : channels === 2 ? "Stereo" : channels === 1 ? "Mono" : `${channels} channels`,
+    channels === null ? "" : channels === 2 ? t("Stereo") : channels === 1 ? t("Mono") : tp(channels, { one: "{count} channel", other: "{count} channels" }),
     rate ? `${Math.round(rate / 100) / 10} kHz` : "",
   ]
     .filter(Boolean)
     .join(" · ");
   const voiceKinds = (info.voice ?? [])
-    .map((k) => VOICE_KINDS.find((v) => v.key === k)?.label)
-    .filter(Boolean);
+    .filter((k) => VOICE_KINDS.some((v) => v.key === k))
+    .map(kindName);
   return (
     <div className="sounds-inspector-details">
       {!item.missing && (
@@ -200,12 +216,12 @@ function SoundDetails({
         </div>
       )}
       <p className="sounds-inspector-file">
-        <span>Game file</span> {fileName(item)}
+        <span>{t("Game file")}</span> {fileName(item)}
         {format && <span className="sounds-inspector-format"> · {format}</span>}
       </p>
       {count > 1 && (
         <div className="sounds-variation">
-          <label htmlFor="sound-variation">Variation</label>
+          <label htmlFor="sound-variation">{t("Variation")}</label>
           <select
             id="sound-variation"
             value={item.key}
@@ -213,8 +229,11 @@ function SoundDetails({
           >
             {row.items.map((v, i) => (
               <option key={v.key} value={v.key}>
-                {i + 1} of {count}
-                {v.row ? (isSilenced(v.row) ? " · silenced" : " · replaced") : ""}
+                {v.row
+                  ? isSilenced(v.row)
+                    ? t("{number} of {count} · silenced", { number: i + 1, count })
+                    : t("{number} of {count} · replaced", { number: i + 1, count })
+                  : t("{number} of {count}", { number: i + 1, count })}
               </option>
             ))}
           </select>
@@ -226,7 +245,7 @@ function SoundDetails({
               disabled={disabled}
               onClick={() => toggle("replace")}
             >
-              Replace all {count} variations with one file
+              {tp(count, { one: "Replace all {count} variations with one file", other: "Replace all {count} variations with one file" })}
             </button>
             <button
               type="button"
@@ -235,21 +254,20 @@ function SoundDetails({
               disabled={disabled}
               onClick={() => toggle("silence")}
             >
-              Silence all {count} variations
+              {tp(count, { one: "Silence all {count} variations", other: "Silence all {count} variations" })}
             </button>
           </span>
           <span className="sounds-variation-note">
             {row.fromEvent
-              ? "The game picks one of these at random. Each can be replaced on its own."
-              : `Numbered copies of one sound (this is ${index + 1} of ${count}). Each can be replaced on its own.`}
+              ? t("The game picks one of these at random. Each can be replaced on its own.")
+              : t("Numbered copies of one sound (this is {number} of {count}). Each can be replaced on its own.", { number: index + 1, count })}
           </span>
         </div>
       )}
       {count > 1 && open === "replace" && (
-        <div className="sounds-replace-all" role="group" aria-label="Replace all variations">
+        <div className="sounds-replace-all" role="group" aria-label={t("Replace all variations")}>
           <p>
-            Every variation gets the same file. Each one can still be changed on
-            its own afterwards. Volume and timing you already set are kept.
+            {t("Every variation gets the same file. Each one can still be changed on its own afterwards. Volume and timing you already set are kept.")}
           </p>
           {sharedCount > 0 && (
             <label className="sounds-replace-shared">
@@ -259,8 +277,7 @@ function SoundDetails({
                 disabled={disabled}
                 onChange={(e) => setShared(e.target.checked)}
               />
-              Also replace the shared variations ({sharedCount}). This can also
-              change other heroes.
+              {tp(sharedCount, { one: "Also replace the shared variations ({count}). This can also change other heroes.", other: "Also replace the shared variations ({count}). This can also change other heroes." })}
             </label>
           )}
           <ExtraDropzone
@@ -275,10 +292,9 @@ function SoundDetails({
         </div>
       )}
       {count > 1 && open === "silence" && (
-        <div className="sounds-replace-all" role="group" aria-label="Silence all variations">
+        <div className="sounds-replace-all" role="group" aria-label={t("Silence all variations")}>
           <p>
-            The game plays nothing for any of them. Each one can still be
-            changed on its own afterwards.
+            {t("The game plays nothing for any of them. Each one can still be changed on its own afterwards.")}
           </p>
           {sharedCount > 0 && (
             <label className="sounds-replace-shared">
@@ -288,8 +304,7 @@ function SoundDetails({
                 disabled={disabled}
                 onChange={(e) => setShared(e.target.checked)}
               />
-              Also silence the shared variations ({sharedCount}). This can also
-              change other heroes.
+              {tp(sharedCount, { one: "Also silence the shared variations ({count}). This can also change other heroes.", other: "Also silence the shared variations ({count}). This can also change other heroes." })}
             </label>
           )}
           <button
@@ -301,7 +316,7 @@ function SoundDetails({
               setOpenPanel(null);
             }}
           >
-            Silence {count} variations
+            {tp(count, { one: "Silence {count} variations", other: "Silence {count} variations" })}
           </button>
         </div>
       )}
@@ -322,6 +337,7 @@ export function Sounds({
   revision,
   hero,
 }: SoundsProps) {
+  const t = useT();
   const [query, setQuery] = useState(""),
     [tags, setTags] = useState<TagKey[]>([]),
     [voice, setVoice] = useState<string[]>([]),
@@ -346,14 +362,16 @@ export function Sounds({
   const items = useMemo(() => assetItems(entries, saved), [entries, saved]);
   const all = useMemo(() => soundRows(items, binding === null), [items, binding]);
   const filter: SoundFilter = { query, tags, voice, replacedOnly, replaceableOnly };
+  // The search also matches the tag and voice-kind names shown in the current language.
+  const language = useLanguage();
   const visible = useMemo(() => {
     const rows = filterRows(all, filter);
     return binding === null
       ? rows
       : rows.filter((r) => r.items.every((i) => i.entry.supported && !i.row && !i.missing));
-    // The filter's fields are the dependencies.
-  }, [all, query, tags, voice, replacedOnly, replaceableOnly, binding]);
-  const counts = useMemo(() => tagCounts(all, filter), [all, query, replacedOnly, replaceableOnly, tags]);
+    // The filter's fields and the language are the dependencies.
+  }, [all, query, tags, voice, replacedOnly, replaceableOnly, binding, language]); // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = useMemo(() => tagCounts(all, filter), [all, query, replacedOnly, replaceableOnly, tags, language]); // eslint-disable-line react-hooks/exhaustive-deps
   const viewOnly = useMemo(() => items.filter((i) => !i.missing && !i.entry.supported).length, [items]);
   const groupSizes = useMemo(() => {
     const sizes = new Map<string, number>();
@@ -430,7 +448,7 @@ export function Sounds({
     setSelected((row.items.find((i) => i.row) ?? first).key);
   }
   function toggleTag(tag: TagKey) {
-    setTags((list) => (list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag]));
+    setTags((list) => (list.includes(tag) ? list.filter((other) => other !== tag) : [...list, tag]));
     if (tag === "voice" && tags.includes("voice")) setVoice([]);
   }
   function clear() {
@@ -462,7 +480,7 @@ export function Sounds({
           commit={(next) => put(edited, next)}
           close={() => setEditing(null)}
           silence={() => silence(edited)}
-          silenceRefusal={silenceRefusal(edited)}
+          silenceRefusal={refusalShown(edited)}
           variations={others > 1 ? {
             count: others,
             sharedCount: selectedRow.items.filter((i) => i.entry.shared).length,
@@ -486,31 +504,31 @@ export function Sounds({
       aria-labelledby="extras-tab-audio"
       className="extras-layout sounds-layout"
     >
-      <section className="extras-library sounds-library" aria-label="Sounds assets">
+      <section className="extras-library sounds-library" aria-label={t("Sounds assets")}>
         <div className="extras-library-heading">
           <div>
-            <h2>Sounds</h2>
+            <h2>{t("Sounds")}</h2>
             <p>
-              Replace or silence the hero’s voice, ability and weapon sounds
-              {catalog ? ` · ${catalog.audio.length.toLocaleString("en-US")} sounds from your game` : ""}
+              {t("Replace or silence the hero’s voice, ability and weapon sounds")}
+              {catalog ? ` · ${tp(catalog.audio.length, { one: "{count} sound from your game", other: "{count} sounds from your game" }, { count: catalog.audio.length.toLocaleString("en-US") })}` : ""}
             </p>
           </div>
           {saved.length > 0 ? (
             <span className="sounds-replaced-count">{savedCountText(saved)}</span>
           ) : (
-            <span className="extra-library-count">{catalog ? "" : "From your game"}</span>
+            <span className="extra-library-count">{catalog ? "" : t("From your game")}</span>
           )}
         </div>
         <div className="extras-search">
           <ExtraIcon name="search" size={18} />
           <input
-            aria-label="Search sounds"
-            placeholder="Search sounds, for example “reload”, “kill” or “ping”…"
+            aria-label={t("Search sounds")}
+            placeholder={t("Search sounds, for example “reload”, “kill” or “ping”…")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button aria-label="Clear search" onClick={() => setQuery("")}>
+            <button aria-label={t("Clear search")} onClick={() => setQuery("")}>
               <ExtraIcon name="close" size={16} />
             </button>
           )}
@@ -518,7 +536,7 @@ export function Sounds({
         <div className="sounds-filters">
           <div role="group" aria-labelledby="sounds-show" className="sounds-filter-group">
             <span className="sounds-filter-label" id="sounds-show">
-              Show
+              {t("Show")}
             </span>
             {TAGS.map((tag) => (
               <button
@@ -529,7 +547,7 @@ export function Sounds({
                 onClick={() => toggleTag(tag.key)}
               >
                 <i className={`sounds-dot ${tag.key}`} aria-hidden="true" />
-                {tag.label}
+                {tagName(tag.key)}
                 <small>{(counts.tags.get(tag.key) ?? 0).toLocaleString("en-US")}</small>
               </button>
             ))}
@@ -541,7 +559,7 @@ export function Sounds({
             aria-pressed={replacedOnly}
             onClick={() => setReplacedOnly(!replacedOnly)}
           >
-            Replaced only<small>{saved.length}</small>
+            {t("Replaced only")}<small>{saved.length}</small>
           </button>
           {viewOnly > 0 && (
             <button
@@ -550,15 +568,15 @@ export function Sounds({
               aria-pressed={replaceableOnly}
               onClick={() => setReplaceableOnly(!replaceableOnly)}
             >
-              Replaceable only
+              {t("Replaceable only")}
             </button>
           )}
           <button type="button" className="extra-text-button sounds-clear" disabled={!filtered} onClick={clear}>
-            Clear
+            {t("Clear")}
           </button>
         </div>
         {tags.includes("voice") && (
-          <div className="sounds-subfilters" role="group" aria-label="Voice line kinds">
+          <div className="sounds-subfilters" role="group" aria-label={t("Voice line kinds")}>
             {VOICE_KINDS.map((kind) => {
               const n = counts.voice.get(kind.key) ?? 0,
                 on = voice.includes(kind.key);
@@ -573,7 +591,7 @@ export function Sounds({
                     setVoice((list) => (on ? list.filter((k) => k !== kind.key) : [...list, kind.key]))
                   }
                 >
-                  {kind.label}
+                  {kindName(kind.key)}
                   <small>{n.toLocaleString("en-US")}</small>
                 </button>
               );
@@ -583,11 +601,10 @@ export function Sounds({
         {binding !== null ? (
           <div className="sounds-binding">
             <p className="extra-inline-note">
-              Choose a replaceable sound without an existing replacement to assign
-              your saved file.
+              {t("Choose a replaceable sound without an existing replacement to assign your saved file.")}
             </p>
             <button className="extra-text-button" onClick={() => setBinding(null)}>
-              Cancel destination change
+              {t("Cancel destination change")}
             </button>
           </div>
         ) : (
@@ -601,29 +618,29 @@ export function Sounds({
         {discovering ? (
           <div className="extra-empty">
             <span className="extra-spinner" />
-            <h3>Finding {hero}’s sounds</h3>
-            <p>Reading sound files and sound events from your game archive.</p>
+            <h3>{t("Finding {hero}’s sounds", { hero })}</h3>
+            <p>{t("Reading sound files and sound events from your game archive.")}</p>
           </div>
         ) : !catalog && !replacedOnly ? (
           <div className="extra-empty">
             <div className="extra-empty-symbol">
               <ExtraIcon name="audio" size={32} />
             </div>
-            <h3>{canDiscover ? "Load your character’s assets" : "Connect your game to get started"}</h3>
+            <h3>{canDiscover ? t("Load your character’s assets") : t("Connect your game to get started")}</h3>
             <p>
               {canDiscover
-                ? "Browse the original sounds before choosing what to replace. Your saved replacements stay in Replaced only."
-                : "Choose the original game VPK in Setup, then return here to load this character’s icons, sounds and effects."}
+                ? t("Browse the original sounds before choosing what to replace. Your saved replacements stay in Replaced only.")
+                : t("Choose the original game VPK in Setup, then return here to load this character’s icons, sounds and effects.")}
             </p>
             {canDiscover ? (
               <button className="extra-primary" onClick={reload} disabled={disabled || !canReload}>
-                Load character assets
+                {t("Load character assets")}
                 <ExtraIcon name="arrow" size={16} />
               </button>
             ) : (
               openSetup && (
                 <button className="extra-primary" onClick={openSetup}>
-                  Open Setup
+                  {t("Open Setup")}
                   <ExtraIcon name="arrow" size={16} />
                 </button>
               )
@@ -634,21 +651,21 @@ export function Sounds({
             <ExtraIcon name={query ? "search" : "audio"} size={32} />
             <h3>
               {query
-                ? "No matching sounds"
+                ? t("No matching sounds")
                 : replacedOnly && !tags.length
-                  ? "No replacements yet"
+                  ? t("No replacements yet")
                   : filtered
-                    ? "No sounds with these tags"
-                    : "No assets found in this category"}
+                    ? t("No sounds with these tags")
+                    : t("No assets found in this category")}
             </h3>
             <p>
               {query || tags.length
-                ? "Try another name or clear your filters."
+                ? t("Try another name or clear your filters.")
                 : replacedOnly
-                  ? "Select an original sound, then drop in a replacement."
-                  : "Discovery uses the selected model, known character aliases and linked game resources."}
+                  ? t("Select an original sound, then drop in a replacement.")
+                  : t("Discovery uses the selected model, known character aliases and linked game resources.")}
             </p>
-            {filtered && <button onClick={clear}>Show all sounds</button>}
+            {filtered && <button onClick={clear}>{t("Show all sounds")}</button>}
           </div>
         ) : (
           <div className="sounds-list">
@@ -676,28 +693,27 @@ export function Sounds({
         {visible.length > SOUNDS_PAGE_SIZE && !discovering && (
           <div className="extras-pagination">
             <span>
-              {shownPage * SOUNDS_PAGE_SIZE + 1}–{Math.min(visible.length, (shownPage + 1) * SOUNDS_PAGE_SIZE)} of{" "}
-              {visible.length.toLocaleString("en-US")}
+              {t("{from}–{to} of {total}", { from: shownPage * SOUNDS_PAGE_SIZE + 1, to: Math.min(visible.length, (shownPage + 1) * SOUNDS_PAGE_SIZE), total: visible.length.toLocaleString("en-US") })}
             </span>
-            <button aria-label="Previous sounds page" disabled={shownPage === 0} onClick={() => setPage(shownPage - 1)}>
-              Previous
+            <button aria-label={t("Previous sounds page")} disabled={shownPage === 0} onClick={() => setPage(shownPage - 1)}>
+              {tc("page", "Previous")}
             </button>
             <span>
-              Page {shownPage + 1} of {pageCount}
+              {t("Page {page} of {count}", { page: shownPage + 1, count: pageCount })}
             </span>
             <button
-              aria-label="Next sounds page"
+              aria-label={t("Next sounds page")}
               disabled={shownPage + 1 >= pageCount}
               onClick={() => setPage(shownPage + 1)}
             >
-              Next
+              {tc("page", "Next")}
             </button>
           </div>
         )}
         {catalog && (
           <div className="extras-library-footer">
             <ExtraIcon name="folder" size={15} />
-            <span>Sounds for {hero} · shared resources are labeled</span>
+            <span>{t("Sounds for {hero} · shared resources are labeled", { hero })}</span>
           </div>
         )}
         {playing &&
@@ -719,27 +735,28 @@ export function Sounds({
             ) : null;
           })()}
       </section>
-      <aside className="extras-inspector sounds-inspector" aria-label="Replacement editor">
+      <aside className="extras-inspector sounds-inspector" aria-label={t("Replacement editor")}>
         {report && selectedRow?.key === report.row && (
           <div className="sounds-report" role="status">
             <strong>
-              {report.result.set.length} of {report.result.set.length + report.result.refused.length} variations{" "}
-              {report.source === null ? "are now silenced" : `now use ${basename(report.source)}`}
+              {report.source === null
+                ? tp(report.result.set.length + report.result.refused.length, { one: "{done} of {count} variations are now silenced", other: "{done} of {count} variations are now silenced" }, { done: report.result.set.length })
+                : tp(report.result.set.length + report.result.refused.length, { one: "{done} of {count} variations now use {file}", other: "{done} of {count} variations now use {file}" }, { done: report.result.set.length, file: basename(report.source) })}
             </strong>
             {report.result.refused.length > 0 && (
               <>
-                <p>Not set:</p>
+                <p>{t("Not set:")}</p>
                 <ul>
                   {report.result.refused.map(({ item, reason }) => (
                     <li key={item.key}>
-                      <b>{fileName(item)}</b> {reason}
+                      <b>{fileName(item)}</b> {reasonText(reason)}
                     </li>
                   ))}
                 </ul>
               </>
             )}
             <button className="extra-text-button" onClick={() => setReport(null)}>
-              Dismiss
+              {t("Dismiss")}
             </button>
           </div>
         )}
@@ -757,27 +774,27 @@ export function Sounds({
             edit={(changes) => edit(selection, changes)}
             add={(path) => add(selection, path)}
             silence={() => silence(selection)}
-            silenceRefusal={silenceRefusal(selection)}
+            silenceRefusal={refusalShown(selection)}
             previewError={(error) => editable(selection) && !hasEdit(selection.row) && LONG_FILE.test(error) ? (
               <div className="extra-preview-placeholder extra-sound-long" role="status">
-                <strong>This file is longer than the game’s sound: choose the part that plays.</strong>
+                <strong>{t("This file is longer than the game’s sound: choose the part that plays.")}</strong>
                 <button type="button" className="extra-primary" onClick={() => { setPlaying(""); setEditing(selection.key); }}>
-                  Choose the part that plays
+                  {t("Choose the part that plays")}
                 </button>
               </div>
             ) : null}
             soundEdit={editable(selection) ? (
               <div className="extra-sound-edit">
                 <button type="button" className="extra-primary" onClick={() => { setPlaying(""); setEditing(selection.key); }}>
-                  Edit the part, volume and fades
+                  {t("Edit the part, volume and fades")}
                 </button>
                 <small>
                   {hasEdit(selection.row)
                     ? (() => {
                         const v = editValues(selection.row);
-                        return `From ${seconds(v.start_seconds)} · ${decibels(v.volume_db)} · fade in ${seconds(v.fade_in_seconds)}, fade out ${seconds(v.fade_out_seconds)}`;
+                        return t("From {start} · {volume} · fade in {fadeIn}, fade out {fadeOut}", { start: seconds(v.start_seconds), volume: decibels(v.volume_db), fadeIn: seconds(v.fade_in_seconds), fadeOut: seconds(v.fade_out_seconds) });
                       })()
-                    : "Choose which part of your file plays, how loud, and how it fades."}
+                    : t("Choose which part of your file plays, how loud, and how it fades.")}
                 </small>
               </div>
             ) : null}
@@ -811,21 +828,21 @@ export function Sounds({
                 <ExtraIcon name="upload" size={30} />
               </div>
             </div>
-            <span className="extras-eyebrow">PREVIEW & REPLACE</span>
-            <h2>Start with the original</h2>
-            <p>Choose a sound from the library to compare it with your replacement.</p>
+            <span className="extras-eyebrow">{t("PREVIEW & REPLACE")}</span>
+            <h2>{t("Start with the original")}</h2>
+            <p>{t("Choose a sound from the library to compare it with your replacement.")}</p>
             <ul>
               <li>
                 <ExtraIcon name="check" size={16} />
-                Preview before you change anything
+                {t("Preview before you change anything")}
               </li>
               <li>
                 <ExtraIcon name="check" size={16} />
-                Drop a file or browse your computer
+                {t("Drop a file or browse your computer")}
               </li>
               <li>
                 <ExtraIcon name="check" size={16} />
-                Choose the part that plays, its volume and fades
+                {t("Choose the part that plays, its volume and fades")}
               </li>
             </ul>
           </div>
@@ -854,14 +871,21 @@ function SoundGroupRow({
   play: () => void;
   choose: () => void;
 }) {
+  const t = useT();
   const first = row.items[0],
     count = row.items.length,
     status = rowStatus(row, active),
     voiceOnly = row.tags.includes("voice");
   const sub = first.missing
-    ? "Saved destination unavailable"
+    ? t("Saved destination unavailable")
     : count > 1
-      ? `${count} ${voiceOnly ? "lines" : "variations"}${row.fromEvent ? " · the game picks one at random" : ""}`
+      ? voiceOnly
+        ? row.fromEvent
+          ? tp(count, { one: "{count} line · the game picks one at random", other: "{count} lines · the game picks one at random" })
+          : tp(count, { one: "{count} line", other: "{count} lines" })
+        : row.fromEvent
+          ? tp(count, { one: "{count} variation · the game picks one at random", other: "{count} variations · the game picks one at random" })
+          : tp(count, { one: "{count} variation", other: "{count} variations" })
       : fileName(first);
   const tone =
     status === "Needs attention"
@@ -873,9 +897,9 @@ function SoundGroupRow({
     <>
       {heading && (
         <h3 className="sounds-group">
-          <span>{heading.name}</span>
+          <span>{groupText(heading.name)}</span>
           <em>
-            · {heading.count} {heading.count === 1 ? "sound" : "sounds"}
+            · {tp(heading.count, { one: "{count} sound", other: "{count} sounds" })}
           </em>
           <i aria-hidden="true" />
         </h3>
@@ -884,9 +908,9 @@ function SoundGroupRow({
         <button
           type="button"
           className={`sounds-play ${playing ? "playing" : ""}`}
-          aria-label={playing ? "Stop original" : "Play original"}
+          aria-label={playing ? t("Stop original") : t("Play original")}
           aria-pressed={playing}
-          title={playing ? "Stop" : "Play the original"}
+          title={playing ? t("Stop") : t("Play the original")}
           disabled={first.missing}
           onClick={play}
         >
@@ -895,11 +919,11 @@ function SoundGroupRow({
         <button type="button" className="sounds-row-main" aria-pressed={selected} onClick={choose}>
           <span className="sounds-row-name">
             <strong>{row.name}</strong>
-            <small>{error ? `Preview unavailable: ${error}` : sub}</small>
+            <small>{error ? t("Preview unavailable: {error}", { error }) : sub}</small>
           </span>
           <TagChips tags={row.tags} />
           <span className="sounds-row-length">{lengthText(row.items)}</span>
-          <span className={`sounds-state ${tone}`}>{status}</span>
+          <span className={`sounds-state ${tone}`}>{statusText(status)}</span>
         </button>
       </div>
     </>

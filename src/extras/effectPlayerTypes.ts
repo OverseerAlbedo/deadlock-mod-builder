@@ -1,6 +1,8 @@
 // Types of the effect player's commands and events (Rust `src-tauri/src/effect_player.rs`).
 // The player plays the selected effect in Extras → Effects; "yours" is made from exactly the
 // files a build writes. Frames come as raw bytes from `api.effectPlayerFrame`.
+// i18n-area: effects
+import { m } from "../i18n";
 
 /** Why the player cannot run on this computer. */
 export type PlayerUnavailable = "missing" | "opengl";
@@ -130,8 +132,8 @@ export function parseFrame(buffer: ArrayBuffer): PlayerFrame | null {
 }
 
 export const PLAYER_BACKGROUNDS = [
-  { color: "0b0c10", name: "Black" },
-  { color: "2a2e3a", name: "Slate" },
+  { color: "0b0c10", name: m("Black") },
+  { color: "2a2e3a", name: m("Slate") },
 ] as const;
 export const PLAYER_SPEEDS = [
   { value: 1, label: "1×" },

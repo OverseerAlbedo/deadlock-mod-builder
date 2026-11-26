@@ -1,4 +1,5 @@
 // @vitest-environment node
+/// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 import { AnimationMixer, LoopOnce, Mesh, Vector3 } from 'three';

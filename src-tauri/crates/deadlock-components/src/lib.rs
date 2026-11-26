@@ -30,6 +30,7 @@ pub mod object_parts;
 pub mod object_states;
 pub mod resources;
 pub mod service;
+pub mod shown_names;
 pub mod sound_tags;
 pub mod texture_recolor;
 pub mod variants;

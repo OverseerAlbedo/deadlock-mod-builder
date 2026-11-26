@@ -11,7 +11,10 @@ import { EASE_SECONDS, FALL_TOP_SPEED, JUMP_GRAVITY, MOTION_LABELS, clothJumpArc
 import type { ClothPacket } from './clothPacket';
 import { PreviewBoundary } from './PreviewBoundary';
 import type { Project } from '../models';
-import { hiddenFaceLayer, shownFaceLayer, type TextureState } from './textures';
+import { hiddenFaceLayer, shownFaceLayer, shownTextureMessage, type TextureState } from './textures';
+import { t, tc, tp, useT } from '../i18n';
+import { sentences as joinSentences } from '../build/words';
+// i18n-area: preview
 
 const LABELS: Record<string, string> = Object.fromEntries(MOTION_LABELS);
 const ORDER = MOTION_LABELS.map(([name]) => name);
@@ -23,22 +26,33 @@ function jumpWords(clip: MotionClip): {metres: string; seconds: string} {
 }
 /** Inches per second as metres per second (one decimal). */
 const metres = (inches: number) => (inches * .0254).toFixed(1);
-/** What the shown motion plays and what of it is measured or assumed, in a sentence or two. */
+/** What the shown motion plays and what of it is measured or assumed, in a sentence or two
+ * (whole sentences; empty for a motion without a note). */
 function motionNote(clip: MotionClip, packet: MotionPacket): string {
   const {speeds, fromGame} = speedsOf(packet.header);
-  const read = fromGame ? '' : ' (the hero’s speeds could not be read from the game, so this is a general estimate)';
-  const sideways = (side: string) => `Moving sideways to the ${side} at ${metres(speeds.strafe)} m/s with the hero’s own lean; the game names no sideways speed, so this uses the hero’s top speed without sprint${read}. `;
   switch (clip.name) {
-    case 'run': return `Running forward at ${metres(speeds.forward)} m/s, the hero’s top speed with sprint${read}, with the hero’s own forward lean; the floor passes underneath. `;
-    case 'back': return `Running backwards at ${metres(speeds.back)} m/s with the hero’s own lean; the game names no backward speed, so this uses the hero’s top speed without sprint${read}. `;
-    case 'left': return sideways('left');
-    case 'right': return sideways('right');
-    case 'stop': return `Running, then stopping: the speed and the lean ease out over ${EASE_SECONDS} s${read}. `;
-    case 'jump': { const jump = jumpWords(clip); return `A jump about ${jump.metres} m high, about ${jump.seconds} s in the air, landing into the stand. `; }
-    case 'fall': return `A long fall with the jump’s gravity, shown with the character kept in view; the top speed of about ${metres(FALL_TOP_SPEED)} m/s is an estimate. `;
+    case 'run': return fromGame
+      ? t('Running forward at {speed} m/s, the hero’s top speed with sprint, with the hero’s own forward lean; the floor passes underneath.', {speed: metres(speeds.forward)})
+      : t('Running forward at {speed} m/s, the hero’s top speed with sprint (the hero’s speeds could not be read from the game, so this is a general estimate), with the hero’s own forward lean; the floor passes underneath.', {speed: metres(speeds.forward)});
+    case 'back': return fromGame
+      ? t('Running backwards at {speed} m/s with the hero’s own lean; the game names no backward speed, so this uses the hero’s top speed without sprint.', {speed: metres(speeds.back)})
+      : t('Running backwards at {speed} m/s with the hero’s own lean; the game names no backward speed, so this uses the hero’s top speed without sprint (the hero’s speeds could not be read from the game, so this is a general estimate).', {speed: metres(speeds.back)});
+    case 'left': return fromGame
+      ? t('Moving sideways to the left at {speed} m/s with the hero’s own lean; the game names no sideways speed, so this uses the hero’s top speed without sprint.', {speed: metres(speeds.strafe)})
+      : t('Moving sideways to the left at {speed} m/s with the hero’s own lean; the game names no sideways speed, so this uses the hero’s top speed without sprint (the hero’s speeds could not be read from the game, so this is a general estimate).', {speed: metres(speeds.strafe)});
+    case 'right': return fromGame
+      ? t('Moving sideways to the right at {speed} m/s with the hero’s own lean; the game names no sideways speed, so this uses the hero’s top speed without sprint.', {speed: metres(speeds.strafe)})
+      : t('Moving sideways to the right at {speed} m/s with the hero’s own lean; the game names no sideways speed, so this uses the hero’s top speed without sprint (the hero’s speeds could not be read from the game, so this is a general estimate).', {speed: metres(speeds.strafe)});
+    case 'stop': return fromGame
+      ? t('Running, then stopping: the speed and the lean ease out over {seconds} s.', {seconds: EASE_SECONDS})
+      : t('Running, then stopping: the speed and the lean ease out over {seconds} s (the hero’s speeds could not be read from the game, so this is a general estimate).', {seconds: EASE_SECONDS});
+    case 'jump': { const jump = jumpWords(clip); return t('A jump about {height} m high, about {seconds} s in the air, landing into the stand.', {height: jump.metres, seconds: jump.seconds}); }
+    case 'fall': return t('A long fall with the jump’s gravity, shown with the character kept in view; the top speed of about {speed} m/s is an estimate.', {speed: metres(FALL_TOP_SPEED)});
     default: return '';
   }
 }
+/** Whole sentences shown one after the other (a space between them in English, none between two Chinese ones). */
+const sentences = (parts: string[]) => joinSentences(...parts);
 const SPEEDS = [1, .75, .5, .25];
 
 /** Rest-pose middle of the vertices mostly weighted to each bone (where a breast or charm swings). */
@@ -134,7 +148,7 @@ type Posed = {skins: Float32Array | null; offset: Vec3};
 /** The cloth preview's motions of a movement packet, by clip name, at the hero's speeds. */
 function clothMotions(packet: MotionPacket): Map<string, ClothMotion> {
   const {speeds} = speedsOf(packet.header);
-  return new Map(packet.header.clips.map(clip => [clip.name, clothMotion(packet, clip, speeds, (c, t, out) => sampleSkins(packet, c, t, out))]));
+  return new Map(packet.header.clips.map(clip => [clip.name, clothMotion(packet, clip, speeds, (c, time, out) => sampleSkins(packet, c, time, out))]));
 }
 
 function Player({scene, packet, nodes, tuning, clip, playing, speed, simulate, textures, face, posed, cloth}: {scene: PreviewScene; packet: MotionPacket; nodes: PreviewNode[]; tuning: Record<string, Tuning | undefined>; clip: string; playing: boolean; speed: number; simulate: boolean; textures: Record<string, Texture> | null; face: {hidden: Set<string>; shown: Set<string>}; posed?: MutableRefObject<Posed>; cloth: ClothRig | null}) {
@@ -254,7 +268,8 @@ export default function MovementViewport({scene, packet, nodes, tuning, project,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tuning reaches a running rig through setTuning
   }, [cloth, packet]);
   const simulation = clothRig instanceof ClothRig ? clothRig : null;
-  const note = clothRig && !simulation ? {text: 'Moving parts swing by a simple approximation: the cloth data of the last Analyze does not fit this prepared model. Analyze again to see the game’s cloth simulation.', analyze: true} : simulation ? null : clothNote;
+  const t = useT();
+  const note = clothRig && !simulation ? {text: t('Moving parts swing by a simple approximation: the cloth data of the last Analyze does not fit this prepared model. Analyze again to see the game’s cloth simulation.'), analyze: true} : simulation ? null : clothNote;
   const [clip, setClip] = useState(clips.find(c => c.name === 'run')?.name ?? clips[0]?.name ?? '');
   const [playing, setPlaying] = useState(true), [speed, setSpeed] = useState(1), [simulate, setSimulate] = useState(true);
   const textured = shading === 'textured' && Boolean(shared);
@@ -268,7 +283,7 @@ export default function MovementViewport({scene, packet, nodes, tuning, project,
   const posed = useRef<Posed>({skins: null, offset: [0, 0, 0]});
   const boneIndex = useMemo(() => new Map(packet.header.bones.map((b, i) => [b.name, i])), [packet]);
   const layer = useLabelLayer();
-  if (!clips.length) return <p className="hint">This hero's files have no stand, run or jump clips to play.</p>;
+  if (!clips.length) return <p className="hint">{t('This hero\'s files have no stand, run or jump clips to play.')}</p>;
   const shown = clips.find(c => c.name === clip);
   const ordered = [...clips].sort((a, b) => (ORDER.indexOf(a.name) + 1 || 99) - (ORDER.indexOf(b.name) + 1 || 99));
   // A label sits at the middle of its moving bones as they are drawn (rest pose until the first frame).
@@ -291,21 +306,21 @@ export default function MovementViewport({scene, packet, nodes, tuning, project,
   const inBar = Boolean(toolbarSlot);
   const group = inBar ? 'studio-view-group' : 'movement-group';
   const caption = (text: string) => inBar ? null : <span aria-hidden="true">{text}</span>;
-  const toolbar = <div className={inBar ? 'studio-view-tools' : 'prep-weapon-view'} role="toolbar" aria-label="Movement">
-    <span className={group} role="group" aria-label="Animation">{caption('Animation')}{ordered.map(c => <button key={c.name} type="button" aria-pressed={clip === c.name} title={c.sources.join(' → ')} onClick={() => setClip(c.name)}>{LABELS[c.name] ?? c.name}</button>)}</span>
-    <span className={group} role="group" aria-label="Play">{caption('Play')}<button type="button" aria-pressed={playing} onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button></span>
-    <span className={group} role="group" aria-label="Speed">{caption('Speed')}{SPEEDS.map(s => <button key={s} type="button" aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}</span>
-    <span className={inBar ? 'studio-view-check' : 'movement-group'}><label className="checkbox"><input type="checkbox" checked={simulate} onChange={event => setSimulate(event.target.checked)}/>Moving parts</label></span>
-    {onShading && inBar && <span className="studio-view-label studio-view-push" aria-hidden="true">Look</span>}
-    {onShading && <span className={group} role="group" aria-label="Look">{caption('Look')}<button type="button" aria-pressed={!textured} onClick={() => onShading('solid')}>Solid</button><button type="button" aria-pressed={textured} onClick={() => onShading('textured')}>Textures</button></span>}
+  const toolbar = <div className={inBar ? 'studio-view-tools' : 'prep-weapon-view'} role="toolbar" aria-label={t('Movement')}>
+    <span className={group} role="group" aria-label={t('Animation')}>{caption(t('Animation'))}{ordered.map(c => <button key={c.name} type="button" aria-pressed={clip === c.name} title={c.sources.join(' → ')} onClick={() => setClip(c.name)}>{LABELS[c.name] ? tc('motion', LABELS[c.name]) : c.name}</button>)}</span>
+    <span className={group} role="group" aria-label={t('Play')}>{caption(t('Play'))}<button type="button" aria-pressed={playing} onClick={() => setPlaying(!playing)}>{playing ? t('Pause') : t('Play')}</button></span>
+    <span className={group} role="group" aria-label={t('Speed')}>{caption(t('Speed'))}{SPEEDS.map(s => <button key={s} type="button" aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}</span>
+    <span className={inBar ? 'studio-view-check' : 'movement-group'}><label className="checkbox"><input type="checkbox" checked={simulate} onChange={event => setSimulate(event.target.checked)}/>{t('Moving parts')}</label></span>
+    {onShading && inBar && <span className="studio-view-label studio-view-push" aria-hidden="true">{t('Look')}</span>}
+    {onShading && <span className={group} role="group" aria-label={t('Look')}>{caption(t('Look'))}<button type="button" aria-pressed={!textured} onClick={() => onShading('solid')}>{t('Solid')}</button><button type="button" aria-pressed={textured} onClick={() => onShading('textured')}>{t('Textures')}</button></span>}
   </div>;
   const notes = <>
-    {textured && shared?.status === 'loading' && <p className="hint" role="status">Loading textures…</p>}
-    {textured && shared?.status !== 'loading' && shared?.message && <p className="hint">{shared.message}</p>}
+    {textured && shared?.status === 'loading' && <p className="hint" role="status">{t('Loading textures…')}</p>}
+    {textured && shared?.status !== 'loading' && shared?.message && <p className="hint">{shownTextureMessage(shared.message)}</p>}
     {simulation
-      ? <p className="hint">{textured ? 'Colours from your assigned base-color images; the game’s lighting and shaders differ. ' : ''}{`The game’s cloth model from your last Analyze (${simulation.model.count - simulation.model.staticNodes} moving points) moves with your Fine-tune values (changes show right away). `}{shown ? motionNote(shown, packet) : ''}An estimate of the game’s cloth from the same data: check the result in game.</p>
-      : <p className="hint">{textured ? 'Colours from your assigned base-color images; the game’s lighting and shaders differ. ' : ''}{nodes.length ? `${nodes.length} moving bones swing with your Fine-tune values (changes show right away). ` : 'Analyze on Build & install to swing the moving parts here. '}{shown?.name === 'run' ? 'Running at about hero speed, the floor passing underneath; an approximation' : shown?.name === 'jump' ? 'A jump of about 1.4 m, landing into the stand; an approximation' : shown && shown.name !== 'idle' ? 'Played in place; an approximation' : 'An approximation'} of the game's cloth: check the result in game.</p>}
-    {note && <p className="hint movement-cloth-note" role="note">{note.text}{note.analyze && onAnalyze && <> <button type="button" className="compact" onClick={onAnalyze}>Analyze again</button></>}</p>}
+      ? <p className="hint">{sentences([textured ? t('Colours from your assigned base-color images; the game’s lighting and shaders differ.') : '', tp(simulation.model.count - simulation.model.staticNodes, {other: 'The game’s cloth model from your last Analyze ({count} moving points) moves with your Fine-tune values (changes show right away).'}), shown ? motionNote(shown, packet) : '', t('An estimate of the game’s cloth from the same data: check the result in game.')])}</p>
+      : <p className="hint">{sentences([textured ? t('Colours from your assigned base-color images; the game’s lighting and shaders differ.') : '', nodes.length ? tp(nodes.length, {other: '{count} moving bones swing with your Fine-tune values (changes show right away).'}) : t('Analyze on Build & install to swing the moving parts here.'), shown?.name === 'run' ? t('Running at about hero speed, the floor passing underneath; an approximation of the game\'s cloth: check the result in game.') : shown?.name === 'jump' ? t('A jump of about 1.4 m, landing into the stand; an approximation of the game\'s cloth: check the result in game.') : shown && shown.name !== 'idle' ? t('Played in place; an approximation of the game\'s cloth: check the result in game.') : t('An approximation of the game\'s cloth: check the result in game.')])}</p>}
+    {note && <p className="hint movement-cloth-note" role="note">{note.text}{note.analyze && onAnalyze && <> <button type="button" className="compact" onClick={onAnalyze}>{t('Analyze again')}</button></>}</p>}
   </>;
   return <PreviewBoundary><div className="movement-preview">
     {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}

@@ -33,11 +33,11 @@ jobs:
       DMB_REQUIRE_EFFECT_PLAYER: 'true'
     steps:
       - name: Check out source without changing fixture bytes
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -51,7 +51,7 @@ jobs:
           workspaces: src-tauri -> target
           cache-on-failure: true
       - name: Install the .NET SDK for the effect player
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: tools/effect-player/global.json
       - name: Ensure WebView2 Runtime for the Windows startup test
@@ -69,7 +69,7 @@ jobs:
             ./scripts/build-windows.ps1
           }
       - name: Upload validated Windows application
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DeadlockModBuilder-Windows-x64
           path: artifacts/release/*
@@ -78,7 +78,7 @@ jobs:
           retention-days: 14
       - name: Retain validation diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DeadlockModBuilder-Windows-validation
           path: artifacts/validation/

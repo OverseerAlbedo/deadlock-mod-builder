@@ -1,4 +1,9 @@
+// i18n-area: prepare
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { m, useT } from '../i18n';
+import { shownHero } from '../i18n/gameNames';
+import { T } from '../i18n/T';
+import { nextSentence } from './models';
 import { api, basename, errorText, type WeaponModel } from '../api';
 import type { JsonValue, Project, VariantChoices } from '../models';
 import { changeCustomization } from '../components/customization';
@@ -34,7 +39,9 @@ type Session={path:string;project:Project;analysis:PreparationAnalysis;applied:s
 
 /** Heroes whose gun is a separate model: "use my gun" makes that model from your gun in a linked gun project. */
 export function SeparateGun({project,options,busy,operate,projectPath,saveProject,updateProject}:SeparateGunProps){
-  const hero=project.hero_name||basename(project.original_model).replace(/\.vmdl(_c)?$/,'');
+  const t=useT();
+  // `english` names the operations (their labels stay English); `hero` is only shown.
+  const english=project.hero_name||basename(project.original_model).replace(/\.vmdl(_c)?$/,''),hero=shownHero(project.hero_name)||english;
   const variants=project.customization.equipment?.variants??[];
   const linked=variants.find(v=>weaponLike(v.model??'')&&v.project);
   const [models,setModels]=useState<WeaponModel[]|null>(null),[model,setModel]=useState(linked?.model??'');
@@ -42,12 +49,12 @@ export function SeparateGun({project,options,busy,operate,projectPath,saveProjec
   const [preview,setPreview]=useState<{key:string;value?:WeaponPreview;error?:string}|null>(null);
   const asked=useRef(false);
   const gunFile=options.weapon_source??'';
-  async function discover(){await operate(`Could not find ${hero}'s gun model`,async()=>{const list=await api.discoverWeaponModels(project);setModels(list);if(list.length&&!model)setModel(list[0].path.replace(/_c$/i,''));});}
+  async function discover(){await operate(`Could not find ${english}'s gun model`,async()=>{const list=await api.discoverWeaponModels(project);setModels(list);if(list.length&&!model)setModel(list[0].path.replace(/_c$/i,''));});}
   useEffect(()=>{if(!asked.current&&!busy&&!linked&&models===null){asked.current=true;void discover();}},[busy]);// eslint-disable-line react-hooks/exhaustive-deps
   /** Prepare (or prepare again) the gun project and link it; your gun is left off the character's body. */
   async function prepare(adjusted?:WeaponChoice){
     if(!model)return;
-    await operate(`${hero}'s gun model could not be made from your gun`,async()=>{
+    await operate(`${english}'s gun model could not be made from your gun`,async()=>{
       let parentPath=projectPath??undefined;
       if(!parentPath)parentPath=await saveProject?.();
       if(!parentPath)throw new Error('Save your project first, so the gun project can be saved next to it.');
@@ -83,7 +90,7 @@ export function SeparateGun({project,options,busy,operate,projectPath,saveProjec
   }
   async function resume(){
     if(!linked?.project)return;
-    await operate('The gun project could not be opened',async()=>{
+    await operate(m('The gun project could not be opened'),async()=>{
       const document=await api.openProject(linked.project!);
       const resumed=await api.preparationResume(document.project);
       setSession({path:linked.project!,project:document.project,analysis:resumed.analysis,applied:JSON.stringify((document.project.preparation_options as PreparationOptions).weapon)});
@@ -110,22 +117,24 @@ export function SeparateGun({project,options,busy,operate,projectPath,saveProjec
   const adjust=(change:Nudge)=>{if(!session||!choice)return;const next=withAdjustments(choice,'right',nudge(adjustments(choice,'right'),change));setSession({...session,project:{...session.project,preparation_options:asOptions({...(session.project.preparation_options as PreparationOptions),weapon:next})}});};
   const pending=Boolean(session&&choice&&session.applied!==JSON.stringify(choice));
   const button=(label:string,change:Nudge)=><button type="button" className="prep-secondary" disabled={busy} onClick={()=>adjust(change)}>{label}</button>;
+  const makes=gunFile?t("The app makes {hero}'s gun model from the gun in {file}, fits it to the original gun's grip, barrel and size, and builds it into the same mod.",{hero,file:basename(gunFile)})
+    :t("The app makes {hero}'s gun model from the gun in your character file, fits it to the original gun's grip, barrel and size, and builds it into the same mod.",{hero});
   return <div className="prep-separate-gun">
     {linked?<div className="prep-gun-linked" role="status">
-      <p><strong>Your gun replaces {hero}'s gun model ({basename(linked.model??'')}).</strong> It is made in a linked gun project ({basename(linked.project??'')}) and built into this mod together with the character. Your gun is left off the character's body.</p>
-      <div className="row"><button className="prep-secondary" disabled={busy} onClick={()=>void (session?prepare(choice):resume())}>{session?'Make it again':'Adjust the fit'}</button><button className="prep-quiet" disabled={busy} onClick={unlink}>Stop replacing {hero}'s gun</button></div>
+      <p><T text="<strong>Your gun replaces {hero}'s gun model ({model}).</strong> It is made in a linked gun project ({project}) and built into this mod together with the character. Your gun is left off the character's body." values={{hero,model:basename(linked.model??''),project:basename(linked.project??'')}}/></p>
+      <div className="row"><button className="prep-secondary" disabled={busy} onClick={()=>void (session?prepare(choice):resume())}>{session?t('Make it again'):t('Adjust the fit')}</button><button className="prep-quiet" disabled={busy} onClick={unlink}>{t("Stop replacing {hero}'s gun",{hero})}</button></div>
     </div>:<>
-      {models&&models.length>1&&<SelectField label={`${hero}'s gun model`} value={model} values={models.map(m=>[m.path.replace(/_c$/i,''),`${m.label} — ${m.path}`] as const)} disabled={busy} onChange={setModel}/>}
-      {models&&!models.length&&<p className="hint">No separate gun model was found for {hero} in the game files, so the gun cannot be replaced. You can leave your gun out or keep it in the hand in Advanced.</p>}
-      <div className="row"><button className="prep-primary" disabled={busy||!model} onClick={()=>void prepare()}>Use my gun instead of {hero}'s <em className="prep-recommended">recommended</em></button>{models===null&&<button className="prep-secondary" disabled={busy} onClick={()=>void discover()}>Find {hero}'s gun model</button>}</div>
-      <p className="hint">The app makes {hero}'s gun model from {gunFile?`the gun in ${basename(gunFile)}`:'the gun in your character file'}, fits it to the original gun's grip, barrel and size, and builds it into the same mod.{projectPath?'':' Your project is saved first, so the gun project can be saved next to it.'}</p>
+      {models&&models.length>1&&<SelectField label={t("{hero}'s gun model",{hero})} value={model} values={models.map(found=>[found.path.replace(/_c$/i,''),`${found.label} — ${found.path}`] as const)} disabled={busy} onChange={setModel}/>}
+      {models&&!models.length&&<p className="hint">{t('No separate gun model was found for {hero} in the game files, so the gun cannot be replaced. You can leave your gun out or keep it in the hand in Advanced.',{hero})}</p>}
+      <div className="row"><button className="prep-primary" disabled={busy||!model} onClick={()=>void prepare()}><T text="Use my gun instead of {hero}'s <em>recommended</em>" values={{hero}} tags={{em:chunk=><em className="prep-recommended">{chunk}</em>}}/></button>{models===null&&<button className="prep-secondary" disabled={busy} onClick={()=>void discover()}>{t("Find {hero}'s gun model",{hero})}</button>}</div>
+      <p className="hint">{projectPath?makes:nextSentence(makes,t('Your project is saved first, so the gun project can be saved next to it.'))}</p>
     </>}
     {session&&choice&&<div className="prep-weapon-fit">
-      {shown?.error?<p className="hint" role="alert">The fit could not be previewed: {shown.error}</p>:shownValue?<Suspense fallback={<p>Loading the 3D preview…</p>}><WeaponViewport preview={shownValue} shapes={shapes}/></Suspense>:<div className="prep-weapon-viewport prep-weapon-loading"><p>Fitting your gun…</p></div>}
-      <div className="prep-gun-adjust" role="group" aria-label="Adjust the gun model">
-        <div className="prep-gun-adjust-row">{button('Flip direction',{kind:'flip'})}{button('Turn ⟲ 90°',{kind:'turn',degrees:-90})}{button('Turn ⟳ 90°',{kind:'turn',degrees:90})}{button('Smaller',{kind:'size',factor:1/1.1})}{button('Bigger',{kind:'size',factor:1.1})}{button('Reset',{kind:'reset'})}</div>
+      {shown?.error?<p className="hint" role="alert">{t('The fit could not be previewed: {error}',{error:shown.error})}</p>:shownValue?<Suspense fallback={<p>{t('Loading the 3D preview…')}</p>}><WeaponViewport preview={shownValue} shapes={shapes}/></Suspense>:<div className="prep-weapon-viewport prep-weapon-loading"><p>{t('Fitting your gun…')}</p></div>}
+      <div className="prep-gun-adjust" role="group" aria-label={t('Adjust the gun model')}>
+        <div className="prep-gun-adjust-row">{button(t('Flip direction'),{kind:'flip'})}{button(t('Turn ⟲ 90°'),{kind:'turn',degrees:-90})}{button(t('Turn ⟳ 90°'),{kind:'turn',degrees:90})}{button(t('Smaller'),{kind:'size',factor:1/1.1})}{button(t('Bigger'),{kind:'size',factor:1.1})}{button(t('Reset'),{kind:'reset'})}</div>
       </div>
-      <div className="row"><button className="prep-primary" disabled={busy||!pending} onClick={()=>void prepare(choice)}>Apply changes to {hero}'s gun model</button>{pending&&<span className="hint">Your adjustments are shown in the preview; Apply makes the gun model again with them.</span>}</div>
+      <div className="row"><button className="prep-primary" disabled={busy||!pending} onClick={()=>void prepare(choice)}>{t("Apply changes to {hero}'s gun model",{hero})}</button>{pending&&<span className="hint">{t('Your adjustments are shown in the preview; Apply makes the gun model again with them.')}</span>}</div>
     </div>}
   </div>;
 }

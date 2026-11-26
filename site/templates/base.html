@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="$lang">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,24 +13,23 @@ $head_extra<link rel="stylesheet" href="${root}assets/style.css">
 <link rel="apple-touch-icon" href="${root}assets/icon.png">
 $social$json_ld</head>
 <body>
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main">$skip_label</a>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="${home_href}"><img src="${root}assets/icon.svg" alt="" width="32" height="32"><span>$site_name</span></a>
-    <nav class="site-nav" aria-label="Main">
+    <nav class="site-nav" aria-label="$nav_label">
       <ul>
 $nav_items
       </ul>
     </nav>
-  </div>
+$language_menu  </div>
 </header>
 <main id="main" tabindex="-1">
 $main
 </main>
 <footer class="site-footer">
   <div class="wrap">
-    <p>Deadlock Mod Builder is open source under the <a href="$license_url">GNU Affero General Public License v3.0 or later</a>. Source code and releases are on <a href="$repo_url">GitHub</a>.</p>
-    <p>Unofficial tool, not affiliated with or endorsed by Valve. Deadlock and its assets belong to their respective owners.</p>
+    $footer
   </div>
 </footer>
 </body>

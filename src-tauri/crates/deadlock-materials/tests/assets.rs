@@ -272,7 +272,7 @@ fn corrupt_zip_payload_crc_and_lzma_wrapper_fail_without_cache() {
         let temp = tempfile::tempdir().unwrap();
         let source = fixtures().join(format!("source-{kind}.zip"));
         let mut archive = zip::ZipArchive::new(fs::File::open(&source).unwrap()).unwrap();
-        let offset = archive.by_index_raw(0).unwrap().data_start() as usize;
+        let offset = archive.by_index_raw(0).unwrap().data_start().unwrap() as usize;
         let mut bytes = fs::read(source).unwrap();
         if kind == "lzma" {
             bytes[offset + 2] = 4;
@@ -285,4 +285,99 @@ fn corrupt_zip_payload_crc_and_lzma_wrapper_fail_without_cache() {
         assert!(import_zip(&changed, &work, &CancellationToken::new()).is_err());
         assert_eq!(fs::read_dir(work).unwrap().count(), 0);
     }
+}
+
+const LOCAL_HEADER: [u8; 4] = [0x50, 0x4b, 0x03, 0x04];
+const CENTRAL_HEADER: [u8; 4] = [0x50, 0x4b, 0x01, 0x02];
+fn header_offsets(bytes: &[u8], signature: [u8; 4]) -> Vec<usize> {
+    bytes
+        .windows(4)
+        .enumerate()
+        .filter_map(|(i, s)| (s == signature).then_some(i))
+        .collect()
+}
+/// Imports changed ZIP bytes and returns the error text; nothing may be cached.
+fn refusal(bytes: Vec<u8>) -> String {
+    let temp = tempfile::tempdir().unwrap();
+    let archive = temp.path().join("changed.zip");
+    fs::write(&archive, bytes).unwrap();
+    let work = temp.path().join("work");
+    let error = import_zip(&archive, &work, &CancellationToken::new())
+        .unwrap_err()
+        .to_string();
+    if work.exists() {
+        assert_eq!(fs::read_dir(work).unwrap().count(), 0);
+    }
+    error
+}
+#[test]
+fn encrypted_entries_are_refused_for_every_method() {
+    for kind in ["stored", "deflate", "bzip2", "lzma"] {
+        let mut bytes = fs::read(fixtures().join(format!("source-{kind}.zip"))).unwrap();
+        for at in header_offsets(&bytes, LOCAL_HEADER) {
+            bytes[at + 6] |= 1;
+        }
+        for at in header_offsets(&bytes, CENTRAL_HEADER) {
+            bytes[at + 8] |= 1;
+        }
+        assert_eq!(
+            refusal(bytes),
+            "unsupported Zip archive: Password required to decrypt file",
+            "{kind}"
+        );
+    }
+}
+#[test]
+fn entries_larger_or_smaller_than_declared_are_refused() {
+    for kind in ["stored", "deflate", "bzip2", "lzma"] {
+        for (delta, expected) in [
+            (-1i64, "expands beyond its declared size."),
+            (1, "mismatch."),
+        ] {
+            let mut bytes = fs::read(fixtures().join(format!("source-{kind}.zip"))).unwrap();
+            let at = header_offsets(&bytes, CENTRAL_HEADER)[0];
+            let size = u32::from_le_bytes(bytes[at + 24..at + 28].try_into().unwrap()) as i64;
+            bytes[at + 24..at + 28].copy_from_slice(&((size + delta) as u32).to_le_bytes());
+            let error = refusal(bytes);
+            assert!(error.ends_with(expected), "{kind} {delta}: {error}");
+        }
+    }
+}
+#[test]
+fn compression_methods_other_than_the_four_are_refused() {
+    // Deflate64, PKWARE implode, zstd, xz, PPMd and the AES marker.
+    for method in [6u16, 9, 10, 93, 95, 98, 99] {
+        let mut bytes = fs::read(fixtures().join("source-stored.zip")).unwrap();
+        for at in header_offsets(&bytes, LOCAL_HEADER) {
+            bytes[at + 8..at + 10].copy_from_slice(&method.to_le_bytes());
+        }
+        for at in header_offsets(&bytes, CENTRAL_HEADER) {
+            bytes[at + 10..at + 12].copy_from_slice(&method.to_le_bytes());
+        }
+        assert_eq!(
+            refusal(bytes),
+            "unsupported Zip archive: Compression method not supported",
+            "method {method}"
+        );
+    }
+}
+#[test]
+fn utf8_entry_names_are_extracted_as_written() {
+    let temp = tempfile::tempdir().unwrap();
+    let archive = temp.path().join("names.zip");
+    create_zip(
+        &archive,
+        &[
+            ("package/manifest.json", b"[]"),
+            ("package/model.dmx", b"dmx"),
+            ("package/template.vmdl", b"{}"),
+            ("package/source_materials/a.vmat", b"material"),
+            ("package/n\u{e4}me.txt", b"text"),
+        ],
+        false,
+    );
+    let selection =
+        import_zip(&archive, &temp.path().join("work"), &CancellationToken::new()).unwrap();
+    let root = Path::new(&selection.dmx).parent().unwrap();
+    assert_eq!(fs::read(root.join("n\u{e4}me.txt")).unwrap(), b"text");
 }

@@ -403,6 +403,19 @@ pub fn run() {
             if let (Ok(settings), Some(window)) = (application.settings(), host.get_webview_window("main")) {
                 apply_theme_icon(&window, &icon_for(&settings));
             }
+            // A close request sent to the window library's hidden helper window
+            // goes to the app's window instead of destroying the helper.
+            #[cfg(windows)]
+            {
+                let guarded = host
+                    .get_webview_window("main")
+                    .ok_or_else(|| "the main window was not found".to_string())
+                    .and_then(|window| window.hwnd().map_err(|error| error.to_string()))
+                    .and_then(|main| crate::helper_window::install_for_main(main.0 as isize));
+                if let Err(error) = guarded {
+                    let _ = application.append_log("warning", &format!("Helper window guard not installed: {error}"));
+                }
+            }
             crate::effect_player::commands::connect(&application, host.handle().clone());
             host.manage(application);
             Ok(())
@@ -505,6 +518,7 @@ pub fn run() {
             crate::sound_edit::commands::sound_edit_preview,
             crate::items::commands::item_catalog,
             crate::items::commands::item_names_state,
+            crate::items::commands::game_names,
             crate::objects::commands::ability_object_catalog,
             crate::objects::commands::prepare_ability_object,
             crate::objects::commands::ability_object_fit,

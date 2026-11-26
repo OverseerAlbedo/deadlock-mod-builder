@@ -1,5 +1,5 @@
 //! Native application services shared by the desktop commands and integration tests.
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 pub const APPLICATION_NAME: &str = "Deadlock Mod Builder";
 pub mod app;
@@ -18,6 +18,9 @@ pub mod preparation;
 pub mod setup;
 pub mod storage;
 pub mod hero_fit;
+// The only module allowed unsafe code: it talks to Win32 directly.
+#[allow(unsafe_code)]
+pub mod helper_window;
 pub mod physics_presets;
 pub mod privacy;
 pub mod setup_test;

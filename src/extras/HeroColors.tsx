@@ -23,13 +23,16 @@ import { HeroImageLoader, useColorTextures, useFileImages, usePixels, type Image
 import { flatImage, recipeColor, recipeFor, uvAverage, zeroUvs } from "./colorPixels";
 import { forgetScene, GUN_AWAY_REASON, heroSceneKey, loadHeroScene, loadReplacementScene, replacementSceneKey, useScene, type HeroSceneMesh } from "./colorScenes";
 import type { Highlight, ScenePick } from "./ColorScene";
-import { colorName, huelessPick, pickRange, type Bytes } from "./colorPick";
+import { huelessPick, pickRange, shownColorName, type Bytes } from "./colorPick";
 import { percentText, useCoverages } from "./colorCoverage";
 import { glowColorFor } from "./colorGlow";
 import { rangeColors } from "./ColorRangeCard";
 import { cssColor, rememberColor } from "./colorMath";
 import { useHistory } from "../history/useProjectHistory";
+import { m, tc, tp, useLanguage, useT } from "../i18n";
+import { T } from "../i18n/T";
 import "./colors.css";
+// i18n-area: colors
 
 export { heroColorItems, type HeroColorItem } from "./colorAdapter";
 export { activeRanges, coverPixel } from "./colorPixels";
@@ -59,11 +62,15 @@ const partSpot = ({ u, v }: { u: number; v: number }) => ({ u: Math.round(u * 1e
 const toBytes = (color: Rgb): Bytes => color.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)) as Bytes;
 const fromBytes = (bytes: Bytes): Rgb => [bytes[0] / 255, bytes[1] / 255, bytes[2] / 255];
 
+/** The reason shown for a hidden part when the scene gives none (English; shown in the language shown). */
+const NOT_SHOWN = m("Not shown in game by default");
+/** A line under the view, kept as what it says (built in the language shown when drawn). */
+type Notice = { kind: "other"; part: string | null; material: string } | { kind: "no-uvs" } | { kind: "loading" } | null;
 type Tab = "character" | "texture";
 type View = "original" | "yours";
 /** The line under the view while the Weapon filter draws weapon parts the view hides at first. */
 export const weaponShownNote = (count: number) =>
-  `Weapon: ${count === 1 ? "1 part the game places by animation is" : `${count} parts the game places by animation are`} shown where the model keeps ${count === 1 ? "it" : "them"}.`;
+  tp(count, { one: "Weapon: {count} part the game places by animation is shown where the model keeps it.", other: "Weapon: {count} parts the game places by animation are shown where the model keeps them." });
 
 export function HeroColors({
   project,
@@ -92,7 +99,11 @@ export function HeroColors({
   /** The hero's name as the Extras page shows it. */
   heroName?: string;
 }) {
-  const adapter = useMemo(() => colorAdapter(project, catalog, revision), [project, catalog, revision]);
+  const language = useLanguage();
+  const t = useT();
+  // Built again when the language changes: the adapter's texts are in the language shown.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the language is read inside
+  const adapter = useMemo(() => colorAdapter(project, catalog, revision), [project, catalog, revision, language]);
   const { mode, materials } = adapter;
   const hero = mode === "hero";
   const [selected, setSelected] = useState("");
@@ -105,7 +116,7 @@ export function HeroColors({
   const [resetView, setResetView] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<Notice>(null);
   const [attempt, setAttempt] = useState(0);
   // Pointing: a row of the list (lights the material), a part of the character (marks the row),
   // a range card or a dragged "selects" slider (lights what the range selects).
@@ -114,10 +125,10 @@ export function HeroColors({
   const [litRange, setLitRange] = useState<number | null>(null);
   const litTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const selectDragging = useRef(false);
-  useEffect(() => { setSelected(""); setPick(null); setNotice(""); setLitRange(null); }, [mode, project.id, project.original_model]);
+  useEffect(() => { setSelected(""); setPick(null); setNotice(null); setLitRange(null); }, [mode, project.id, project.original_model]);
   useEffect(() => () => clearTimeout(litTimer.current), []);
   const material = materials.find((m) => fold(m.id) === fold(selected)) ?? null;
-  const select = (id: string) => { if (fold(id) !== fold(selected)) { setPick(null); setNotice(""); setLitRange(null); } setSelected(id); };
+  const select = (id: string) => { if (fold(id) !== fold(selected)) { setPick(null); setNotice(null); setLitRange(null); } setSelected(id); };
 
   // Undo and Redo: the app's one project history (Ctrl+Z / Ctrl+Y are handled there too).
   const history = useHistory();
@@ -176,7 +187,7 @@ export function HeroColors({
   }, [scene.scene, meshes, weaponShown]);
   const hiddenReasons = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const index of hiddenMeshes) { const reason = meshes[index].hidden_reason || "Not shown in game by default"; counts.set(reason, (counts.get(reason) ?? 0) + 1); }
+    for (const index of hiddenMeshes) { const reason = meshes[index].hidden_reason || NOT_SHOWN; counts.set(reason, (counts.get(reason) ?? 0) + 1); }
     return [...counts];
   }, [hiddenMeshes, meshes]);
   const noUvs = useMemo(() => scene.scene ? meshes.map((mesh) => zeroUvs(mesh.uvs ? floatBuffer(scene.scene!, mesh.uvs) : null)) : [], [scene.scene, meshes]);
@@ -327,14 +338,14 @@ export function HeroColors({
       stage: "choose", index: pick.index, keep: false, from: bytes, to: pick.stage === "choose" && !pick.keep ? pick.to : fromBytes(bytes), spot,
       ...(spotPart !== undefined ? { part: spotPart, scope: spotPart ? "part" : "everywhere" } : {}),
     });
-    setNotice("");
+    setNotice(null);
   }
   function pickOnModel(hit: ScenePick) {
     if (!pick || !material) return;
-    if (hit.id !== material.id) { setNotice(`That part is ${materials.find((m) => m.id === hit.id)?.label ?? "another material"}: click ${material.label} to pick its color.`); return; }
+    if (hit.id !== material.id) { setNotice({ kind: "other", part: materials.find((m) => m.id === hit.id)?.label ?? null, material: material.label }); return; }
     const source = pixels[hit.id];
-    if (noUvs[hit.mesh]) { setNotice("This part has no texture coordinates to pick from: pick on the Texture tab instead."); setTab("texture"); return; }
-    if (!source) { setNotice("The texture is still loading."); return; }
+    if (noUvs[hit.mesh]) { setNotice({ kind: "no-uvs" }); setTab("texture"); return; }
+    if (!source) { setNotice({ kind: "loading" }); return; }
     // The average over the small area read around the click on the clicked part.
     picked(uvAverage(source.full, hit.samples?.length ? hit.samples : [{ u: hit.u, v: hit.v }]), { x: hit.x, y: hit.y, w: hit.w }, { u: hit.u, v: hit.v });
   }
@@ -353,11 +364,11 @@ export function HeroColors({
     rememberColor(pick.to);
     setPick(null);
   }
-  const cancelPick = () => { setPick(null); setNotice(""); };
+  const cancelPick = () => { setPick(null); setNotice(null); };
   // Esc cancels picking at any point (a field that uses Esc itself keeps it).
   useEffect(() => {
     if (!pick) return;
-    const key = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape" && !event.defaultPrevented) { setPick(null); setNotice(""); } };
+    const key = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape" && !event.defaultPrevented) { setPick(null); setNotice(null); } };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [pick]);
@@ -366,10 +377,14 @@ export function HeroColors({
   const image = material ? imageOf(material) : NO_IMAGE;
   const rangesUnsupported = hero && typeof image.media?.details.ranges_unsupported === "string" ? (image.media.details.ranges_unsupported as string) : "";
   const average = (material && (averageColor(pixels[material.id]) ?? material.baseColor ?? material.originalTint)) || ([0.6, 0.6, 0.6] as Rgb);
-  const originalLabel = hero ? "Game" : "Original";
+  const originalLabel = hero ? t("Game") : tc("own colors", "Original");
   const pickHint = character
-    ? `Click a color on ${material?.label ?? "the material"} on the character (or on the ${originalLabel} image on the Texture tab).`
-    : `Click a color on the ${originalLabel} or Yours image.`;
+    ? material ? t("Click a color on {material} on the character (or on the {original} image on the Texture tab).", { material: material.label, original: originalLabel }) : t("Click a color on the material on the character (or on the {original} image on the Texture tab).", { original: originalLabel })
+    : t("Click a color on the {original} or Yours image.", { original: originalLabel });
+  const noticeText = !notice ? "" : notice.kind === "no-uvs" ? t("This part has no texture coordinates to pick from: pick on the Texture tab instead.")
+    : notice.kind === "loading" ? t("The texture is still loading.")
+    : notice.part !== null ? t("That part is {part}: click {material} to pick its color.", { part: notice.part, material: notice.material })
+    : t("That part is another material: click {material} to pick its color.", { material: notice.material });
   const heroRows = savedHeroColors(project);
   const changed = adapter.changed;
   const loaders = hero
@@ -380,15 +395,15 @@ export function HeroColors({
     : null;
 
   const listEmpty = hero && discovering ? (
-    <div className="color-list-empty"><span className="extra-spinner" /><strong>Finding the hero's materials</strong><p>Reading the hero's model and the game models that share its materials.</p></div>
+    <div className="color-list-empty"><span className="extra-spinner" /><strong>{t("Finding the hero's materials")}</strong><p>{t("Reading the hero's model and the game models that share its materials.")}</p></div>
   ) : hero && !catalog ? (
     <div className="color-list-empty">
       <ExtraIcon name="palette" size={28} />
-      <strong>{canDiscover ? "Load your character's assets" : "Connect your game to get started"}</strong>
-      <p>{canDiscover ? "The hero's materials come from your game files." : "Choose the original game VPK in Setup, then return here."}</p>
+      <strong>{canDiscover ? t("Load your character's assets") : t("Connect your game to get started")}</strong>
+      <p>{canDiscover ? t("The hero's materials come from your game files.") : t("Choose the original game VPK in Setup, then return here.")}</p>
       {canDiscover ? (
-        <button className="extra-primary" onClick={reload} disabled={disabled}>Load character assets<ExtraIcon name="arrow" size={16} /></button>
-      ) : openSetup && <button className="extra-primary" onClick={openSetup}>Open Setup<ExtraIcon name="arrow" size={16} /></button>}
+        <button className="extra-primary" onClick={reload} disabled={disabled}>{t("Load character assets")}<ExtraIcon name="arrow" size={16} /></button>
+      ) : openSetup && <button className="extra-primary" onClick={openSetup}>{t("Open Setup")}<ExtraIcon name="arrow" size={16} /></button>}
     </div>
   ) : undefined;
 
@@ -397,26 +412,28 @@ export function HeroColors({
   const shownPick: PickState | null = pick?.stage === "point" && !pick.note && flat(material?.id) ? { ...pick, note: "flat" } : pick;
   // The view's chip and legend: what the view is showing now.
   const litName = pickResult ? "this color" : litRange !== null ? `Range ${litRange + 1}` : "";
-  const chip = shownPick?.stage === "point" && !shownPick.note ? `Click a color on ${material?.label ?? "the character"}`
-    : litName ? `Showing what ${litName} covers`
-    : material ? `${material.label} selected` : "";
+  const chip = shownPick?.stage === "point" && !shownPick.note ? (material ? t("Click a color on {material}", { material: material.label }) : t("Click a color on the character"))
+    : litName ? (pickResult ? t("Showing what this color covers") : t("Showing what Range {number} covers", { number: (litRange ?? 0) + 1 }))
+    : material ? t("{material} selected", { material: material.label }) : "";
   const legend = selectionGlow && litName && material
-    ? `what ${litName} covers${litCoverage ? ` · ${percentText(litCoverage.fraction)} of ${material.label}` : ""}`
-    : highlight?.kind === "material" && pointedMaterial ? `${pointedMaterial.label} · what you are pointing at` : "";
+    ? litCoverage
+      ? pickResult ? t("what this color covers · {share} of {material}", { share: percentText(litCoverage.fraction), material: material.label }) : t("what Range {number} covers · {share} of {material}", { number: (litRange ?? 0) + 1, share: percentText(litCoverage.fraction), material: material.label })
+      : pickResult ? t("what this color covers") : t("what Range {number} covers", { number: (litRange ?? 0) + 1 })
+    : highlight?.kind === "material" && pointedMaterial ? t("{material} · what you are pointing at", { material: pointedMaterial.label }) : "";
   const glowCss = highlight ? cssColor(highlight.color) : undefined;
   const popover = pick?.stage === "choose" && pick.spot && !pick.keep ? (
     <span className="color-pick-pop" style={{ left: Math.max(8, Math.min(pick.spot.x - 140, pick.spot.w - 288)), top: pick.spot.y > 70 ? pick.spot.y - 54 : pick.spot.y + 24 }}>
       <span className="color-inline-swatch" style={{ background: cssColor(fromBytes(pick.from)) }} aria-hidden="true" />
-      <b>This {colorName(fromBytes(pick.from))}</b>
-      {pickCoverage && <span> selects <b>{percentText(pickCoverage.fraction)}</b> of {material?.label}</span>}
+      <b>{t("This {color}", { color: shownColorName(fromBytes(pick.from)) })}</b>
+      {pickCoverage && <span><T text=" selects <b>{share}</b> of {material}" values={{ share: percentText(pickCoverage.fraction), material: material?.label ?? "" }} tags={{ b: (chunk) => <b>{chunk}</b> }} /></span>}
     </span>
   ) : null;
 
   function stage() {
     if (tab === "texture") {
-      if (!material) return <div className="color-stage-message"><strong>Choose a material</strong><p>Its base-color image is shown here, {originalLabel.toLowerCase()} and yours side by side.</p></div>;
+      if (!material) return <div className="color-stage-message"><strong>{t("Choose a material")}</strong><p>{hero ? t("Its base-color image is shown here, game and yours side by side.") : t("Its base-color image is shown here, original and yours side by side.")}</p></div>;
       if (material.missing) return <div className="color-stage-message"><strong>{material.blocked}</strong></div>;
-      if (!material.texture) return <div className="color-stage-message"><strong>No base-color image</strong><p>{hero ? "This material has no base-color texture to show." : "This material has a plain base color; the 3D view shows it."}</p></div>;
+      if (!material.texture) return <div className="color-stage-message"><strong>{t("No base-color image")}</strong><p>{hero ? t("This material has no base-color texture to show.") : t("This material has a plain base color; the 3D view shows it.")}</p></div>;
       return (
         <>
           <ColorTextureView
@@ -442,41 +459,41 @@ export function HeroColors({
         </>
       );
     }
-    if (hero && !catalog) return <div className="color-stage-message"><strong>The hero appears here</strong><p>Load the character's assets to see the hero in 3D.</p></div>;
+    if (hero && !catalog) return <div className="color-stage-message"><strong>{t("The hero appears here")}</strong><p>{t("Load the character's assets to see the hero in 3D.")}</p></div>;
     if (!hero && !project.dmx) return (
       <div className="color-stage-message">
-        <strong>No prepared model yet</strong>
-        <p>Prepare your model first: the 3D view shows the prepared replacement with your colors.</p>
+        <strong>{t("No prepared model yet")}</strong>
+        <p>{t("Prepare your model first: the 3D view shows the prepared replacement with your colors.")}</p>
         <div className="row-actions">
-          {openPreparation && <button className="extra-primary" onClick={openPreparation}>Open Prepare model<ExtraIcon name="arrow" size={16} /></button>}
+          {openPreparation && <button className="extra-primary" onClick={openPreparation}>{t("Open Prepare model")}<ExtraIcon name="arrow" size={16} /></button>}
           <button className="extra-secondary" disabled={disabled} onClick={() => update(changeCustomization(project, { model_enabled: false }))}>
-            Recolor the game's own {heroName || "hero"} instead
+            {heroName ? t("Recolor the game's own {hero} instead", { hero: heroName }) : t("Recolor the game's own hero instead")}
           </button>
         </div>
-        <p>The build then changes the colors of the game's own model and includes no replacement model.</p>
+        <p>{t("The build then changes the colors of the game's own model and includes no replacement model.")}</p>
       </div>
     );
     if (scene.status === "failed") return (
       <div className="color-stage-message" role="alert">
-        <strong>{hero ? "The hero's model could not be shown" : "Your model could not be shown"}</strong>
+        <strong>{hero ? t("The hero's model could not be shown") : t("Your model could not be shown")}</strong>
         <p>{scene.message}</p>
-        <p>The Texture tab still shows each material's base color, and every setting can be changed.</p>
+        <p>{t("The Texture tab still shows each material's base color, and every setting can be changed.")}</p>
         <div className="row-actions">
-          <button className="extra-secondary" onClick={() => setAttempt((v) => v + 1)}>Try again</button>
-          <button className="extra-secondary" onClick={() => setTab("texture")}>Show the Texture tab</button>
+          <button className="extra-secondary" onClick={() => setAttempt((v) => v + 1)}>{t("Try again")}</button>
+          <button className="extra-secondary" onClick={() => setTab("texture")}>{t("Show the Texture tab")}</button>
         </div>
       </div>
     );
     if (scene.status !== "ready" || !scene.scene) return (
       <div className="color-stage-message" role="status">
         <span className="extra-spinner" />
-        <strong>{hero ? "Loading the hero's model…" : "Loading your model…"}</strong>
-        <p>{hero ? "The first time, the hero's model is read from your game files; this can take a minute. You can change colors meanwhile." : "Reading the prepared model."}</p>
+        <strong>{hero ? t("Loading the hero's model…") : t("Loading your model…")}</strong>
+        <p>{hero ? t("The first time, the hero's model is read from your game files; this can take a minute. You can change colors meanwhile.") : t("Reading the prepared model.")}</p>
       </div>
     );
     return (
       <>
-        <Suspense fallback={<div className="color-stage-message" role="status"><span className="extra-spinner" /><strong>Loading the 3D view…</strong></div>}>
+        <Suspense fallback={<div className="color-stage-message" role="status"><span className="extra-spinner" /><strong>{t("Loading the 3D view…")}</strong></div>}>
           <ColorScene
             scene={scene.scene}
             materialOf={(index) => meshMaterials[index] ?? null}
@@ -500,33 +517,35 @@ export function HeroColors({
     );
   }
   const foot = tab === "texture"
-    ? pick ? "Click a color in the image to pick it, exactly as on the character. Press Esc to cancel." : ""
-    : pick ? "Click a color: everything that color covers lights up before you choose. Press Esc to cancel."
-    : `Click a part of the character to choose its material · ${hero ? "approximate: the game's lighting and shaders differ" : "the game's lighting differs"}`;
+    ? pick ? t("Click a color in the image to pick it, exactly as on the character. Press Esc to cancel.") : ""
+    : pick ? t("Click a color: everything that color covers lights up before you choose. Press Esc to cancel.")
+    : hero ? t("Click a part of the character to choose its material · approximate: the game's lighting and shaders differ") : t("Click a part of the character to choose its material · the game's lighting differs");
 
   return (
     <div id="extras-panel" role="tabpanel" aria-labelledby="extras-tab-colors" className="colors-studio" ref={root}>
       {loaders}
       <header className="colors-head colors-topbar">
-        <h2>Colors</h2>
-        <span className="color-mode-badge">{hero ? "Game hero" : "Your model"}</span>
-        {(!hero || catalog) && <span className="colors-stat">{materials.length} material{materials.length === 1 ? "" : "s"}{hero ? " from your game" : ""}</span>}
-        {changed > 0 && <span className="color-count">{changed} changed</span>}
+        <h2>{t("Colors")}</h2>
+        <span className="color-mode-badge">{hero ? t("Game hero") : t("Your model")}</span>
+        {(!hero || catalog) && <span className="colors-stat">{hero ? tp(materials.length, { one: "{count} material from your game", other: "{count} materials from your game" }) : tp(materials.length, { one: "{count} material", other: "{count} materials" })}</span>}
+        {changed > 0 && <span className="color-count">{tp(changed, { one: "{count} changed", other: "{count} changed" })}</span>}
         <span className="color-picker-spacer" />
-        <button type="button" className="extra-secondary small color-history" disabled={disabled || !history?.canUndo} aria-keyshortcuts="Control+Z" title="Undo (Ctrl+Z)" onClick={() => travel("undo")}>
-          <span aria-hidden="true">↶ </span>Undo
+        <button type="button" className="extra-secondary small color-history" disabled={disabled || !history?.canUndo} aria-keyshortcuts="Control+Z" title={t("Undo ({keys})", { keys: "Ctrl+Z" })} onClick={() => travel("undo")}>
+          <span aria-hidden="true">↶ </span>{t("Undo")}
         </button>
-        <button type="button" className="extra-secondary small color-history" disabled={disabled || !history?.canRedo} aria-keyshortcuts="Control+Y Control+Shift+Z" title="Redo (Ctrl+Y)" onClick={() => travel("redo")}>
-          <span aria-hidden="true">↷ </span>Redo
+        <button type="button" className="extra-secondary small color-history" disabled={disabled || !history?.canRedo} aria-keyshortcuts="Control+Y Control+Shift+Z" title={t("Redo ({keys})", { keys: "Ctrl+Y" })} onClick={() => travel("redo")}>
+          <span aria-hidden="true">↷ </span>{t("Redo")}
         </button>
         <span className="color-reset-all">
-          <button type="button" className="extra-text-button" disabled={disabled || !changed} aria-expanded={confirmReset} onClick={() => setConfirmReset(!confirmReset)}>Reset all colors…</button>
+          <button type="button" className="extra-text-button" disabled={disabled || !changed} aria-expanded={confirmReset} onClick={() => setConfirmReset(!confirmReset)}>{t("Reset all colors…")}</button>
           {confirmReset && (
-            <div className="color-confirm" role="dialog" aria-label="Reset all colors">
-              <p>Remove your colors from all {changed} material{changed === 1 ? "" : "s"}? {hero ? "The hero keeps the game's colors." : "Other surface changes stay."} Undo brings them back.</p>
+            <div className="color-confirm" role="dialog" aria-label={t("Reset all colors")}>
+              <p>{hero
+                ? tp(changed, { one: "Remove your colors from all {count} material? The hero keeps the game's colors. Undo brings them back.", other: "Remove your colors from all {count} materials? The hero keeps the game's colors. Undo brings them back." })
+                : tp(changed, { one: "Remove your colors from all {count} material? Other surface changes stay. Undo brings them back.", other: "Remove your colors from all {count} materials? Other surface changes stay. Undo brings them back." })}</p>
               <div className="row-actions">
-                <button type="button" className="extra-remove" onClick={() => { apply(adapter.resetAll(), materials.filter((m) => m.values).map((m) => m.id)); setConfirmReset(false); setPick(null); }}>Reset all</button>
-                <button type="button" className="extra-secondary" autoFocus onClick={() => setConfirmReset(false)}>Cancel</button>
+                <button type="button" className="extra-remove" onClick={() => { apply(adapter.resetAll(), materials.filter((m) => m.values).map((m) => m.id)); setConfirmReset(false); setPick(null); }}>{t("Reset all")}</button>
+                <button type="button" className="extra-secondary" autoFocus onClick={() => setConfirmReset(false)}>{t("Cancel")}</button>
               </div>
             </div>
           )}
@@ -536,11 +555,11 @@ export function HeroColors({
         <div className="extra-banner" role="note">
           <ExtraIcon name="warning" />
           <div>
-            <strong>{heroRows} saved hero color{heroRows === 1 ? "" : "s"} not used with a replacement model</strong>
-            <p>This page now edits your replacement model's colors. Hero colors recolor the game's own model and apply only when you build without a replacement model.</p>
+            <strong>{tp(heroRows, { one: "{count} saved hero color not used with a replacement model", other: "{count} saved hero colors not used with a replacement model" })}</strong>
+            <p>{t("This page now edits your replacement model's colors. Hero colors recolor the game's own model and apply only when you build without a replacement model.")}</p>
           </div>
           <button disabled={disabled} onClick={() => update(changeCustomization(project, { model_enabled: false }))}>
-            Build without a replacement model
+            {t("Build without a replacement model")}
           </button>
         </div>
       )}
@@ -561,45 +580,45 @@ export function HeroColors({
           point={setPointedRow}
           pointed={character ? pointedPart ?? (highlight?.kind === "material" ? pointedRow : null) : null}
         />
-        <section className="color-view" aria-label="Preview">
+        <section className="color-view" aria-label={t("Preview")}>
           <div className="color-view-tools">
-            <div className="color-segmented" role="radiogroup" aria-label="Preview">
+            <div className="color-segmented" role="radiogroup" aria-label={t("Preview")}>
               {(["character", "texture"] as const).map((key) => (
-                <button key={key} type="button" role="radio" aria-checked={tab === key} onClick={() => setTab(key)}>{key === "character" ? "Character" : "Texture"}</button>
+                <button key={key} type="button" role="radio" aria-checked={tab === key} onClick={() => setTab(key)}>{key === "character" ? tc("color view", "Character") : t("Texture")}</button>
               ))}
             </div>
             {tab === "character" && (
-              <div className="color-segmented" role="radiogroup" aria-label="Colors shown">
+              <div className="color-segmented" role="radiogroup" aria-label={t("Colors shown")}>
                 {(["original", "yours"] as const).map((key) => (
-                  <button key={key} type="button" role="radio" aria-checked={view === key} onClick={() => setView(key)}>{key === "original" ? originalLabel : "Yours"}</button>
+                  <button key={key} type="button" role="radio" aria-checked={view === key} onClick={() => setView(key)}>{key === "original" ? originalLabel : t("Yours")}</button>
                 ))}
               </div>
             )}
             <span className="color-picker-spacer" />
             {chip && <span className={`color-view-chip ${litName || pick ? "lit" : ""}`} role="status" style={glowCss && litName ? ({ "--glow": glowCss } as CSSProperties) : undefined}>{chip}</span>}
             {tab === "character" && hiddenMeshes.length > 0 && (
-              <label className="hero-color-check" title={hiddenReasons.map(([reason, count]) => `${reason} (${count})`).join("\n")}>
+              <label className="hero-color-check" title={hiddenReasons.map(([reason, count]) => `${reason === NOT_SHOWN ? t(NOT_SHOWN) : reason} (${count})`).join("\n")}>
                 <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
-                Show hidden parts ({hiddenMeshes.length})
+                {t("Show hidden parts ({count})", { count: hiddenMeshes.length })}
               </label>
             )}
-            {character && <button type="button" className="extra-secondary small" onClick={() => setResetView((v) => v + 1)}>Reset view</button>}
+            {character && <button type="button" className="extra-secondary small" onClick={() => setResetView((v) => v + 1)}>{t("Reset view")}</button>}
           </div>
           {tab === "character" && showHidden && hiddenReasons.length > 0 && (
-            <ul className="color-hidden-reasons" aria-label="Why these parts are hidden">
-              {hiddenReasons.map(([reason, count]) => <li key={reason}>{reason}{count > 1 ? ` (${count} parts)` : ""}</li>)}
+            <ul className="color-hidden-reasons" aria-label={t("Why these parts are hidden")}>
+              {hiddenReasons.map(([reason, count]) => <li key={reason}>{count > 1 ? tp(count, { other: "{reason} ({count} parts)" }, { reason: reason === NOT_SHOWN ? t(NOT_SHOWN) : reason }) : reason === NOT_SHOWN ? t(NOT_SHOWN) : reason}</li>)}
             </ul>
           )}
           {character && weaponShown.length > 0 && (
             <p className="hint color-view-notice" role="status">{weaponShownNote(weaponShown.length)}</p>
           )}
           {character && notOnModel.length > 0 && (
-            <p className="hint color-view-notice">Not on the model in 3D (they still change in game): {notOnModel.join(", ")}. Use the Texture tab for them.</p>
+            <p className="hint color-view-notice">{t("Not on the model in 3D (they still change in game): {materials}. Use the Texture tab for them.", { materials: notOnModel.join(", ") })}</p>
           )}
           {tab === "texture" && scene.status === "failed" && (
             <p className="hint color-view-notice" role="status">
-              {hero ? "The hero's model could not be shown in 3D: " : "Your model could not be shown in 3D: "}{scene.message}{" "}
-              <button type="button" className="extra-text-button" onClick={() => { setAttempt((v) => v + 1); setTab("character"); }}>Try again</button>
+              {hero ? t("The hero's model could not be shown in 3D: {message}", { message: scene.message ?? "" }) : t("Your model could not be shown in 3D: {message}", { message: scene.message ?? "" })}{" "}
+              <button type="button" className="extra-text-button" onClick={() => { setAttempt((v) => v + 1); setTab("character"); }}>{t("Try again")}</button>
             </p>
           )}
           <div className={`color-stage ${tab}`} style={glowCss ? ({ "--glow": glowCss } as CSSProperties) : undefined}>
@@ -607,9 +626,9 @@ export function HeroColors({
             {legend && (character || tab === "texture") && <span className={`color-stage-legend ${tab === "texture" ? "right" : ""}`}><i aria-hidden="true" />{legend}</span>}
           </div>
           {foot && <p className="color-view-foot">{foot}</p>}
-          {notice && <p className="hint color-view-notice" role="status">{notice}</p>}
+          {noticeText && <p className="hint color-view-notice" role="status">{noticeText}</p>}
         </section>
-        <aside className="color-inspector" aria-label="Color editor">
+        <aside className="color-inspector" aria-label={t("Color editor")}>
           {material ? (
             <ColorEditor
               key={material.id}
@@ -624,7 +643,7 @@ export function HeroColors({
               pickCoverage={pickCoverage}
               pick={shownPick}
               pickResult={pickResult}
-              startPick={(index) => { setPick({ stage: "point", index, keep: false, note: "" }); setNotice(""); }}
+              startPick={(index) => { setPick({ stage: "point", index, keep: false, note: "" }); setNotice(null); }}
               changeColor={changeColor}
               setPickColor={(to) => setPick((current) => (current?.stage === "choose" ? { ...current, to } : current))}
               finishPick={finishPick}
@@ -648,25 +667,25 @@ export function HeroColors({
             />
           ) : (
             <div className="extra-editor-empty">
-              <span className="extras-eyebrow">{hero ? "HERO COLORS" : "YOUR MODEL'S COLORS"}</span>
-              <h2>Choose a material</h2>
+              <span className="extras-eyebrow">{hero ? t("HERO COLORS") : t("YOUR MODEL'S COLORS")}</span>
+              <h2>{t("Choose a material")}</h2>
               <p>
                 {hero
-                  ? "Pick one of the hero's materials, in the list or on the character. Recolor some of its colors by clicking them on the character, or change the whole material or its tint. For black clothes, set the tint to black or the brightness to 0%."
-                  : "Pick one of your model's materials, in the list or on the character. Recolor some of its colors by clicking them on the character, or change the whole material's hue, saturation, brightness or tint."}
+                  ? t("Pick one of the hero's materials, in the list or on the character. Recolor some of its colors by clicking them on the character, or change the whole material or its tint. For black clothes, set the tint to black or the brightness to 0%.")
+                  : t("Pick one of your model's materials, in the list or on the character. Recolor some of its colors by clicking them on the character, or change the whole material's hue, saturation, brightness or tint.")}
               </p>
               <ul>
                 {hero ? (
                   <>
-                    <li><ExtraIcon name="check" size={16} />The game's textures and model stay unchanged</li>
-                    <li><ExtraIcon name="check" size={16} />Only the changed materials go into the mod</li>
-                    <li><ExtraIcon name="check" size={16} />Shared materials are marked before you change them</li>
+                    <li><ExtraIcon name="check" size={16} />{t("The game's textures and model stay unchanged")}</li>
+                    <li><ExtraIcon name="check" size={16} />{t("Only the changed materials go into the mod")}</li>
+                    <li><ExtraIcon name="check" size={16} />{t("Shared materials are marked before you change them")}</li>
                   </>
                 ) : (
                   <>
-                    <li><ExtraIcon name="check" size={16} />The same changes as Appearance → Surface changes</li>
-                    <li><ExtraIcon name="check" size={16} />Your image files stay unchanged; the build recolors copies</li>
-                    <li><ExtraIcon name="check" size={16} />The preview uses the build's own color math</li>
+                    <li><ExtraIcon name="check" size={16} />{t("The same changes as Appearance → Surface changes")}</li>
+                    <li><ExtraIcon name="check" size={16} />{t("Your image files stay unchanged; the build recolors copies")}</li>
+                    <li><ExtraIcon name="check" size={16} />{t("The preview uses the build's own color math")}</li>
                   </>
                 )}
               </ul>

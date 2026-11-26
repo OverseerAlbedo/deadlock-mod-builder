@@ -1,5 +1,10 @@
+// i18n-area: motion
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
+import { m, t, tc, tp, useT } from '../i18n';
+import { T } from '../i18n/T';
+import { shownHero, useGameNames } from '../i18n/gameNames';
+import { ShownHeroLabel } from '../components/HeroPicker';
 import type { Project, ResourceReplacement } from '../models';
 import type { AnimationEntry } from '../components/AssetCatalog';
 import { isMessage, messageOf } from './madeRows';
@@ -19,16 +24,16 @@ const checks = new Map<string, TakenClipCheck>();
 export function forgetTakenState() { pendingHeroes.clear(); heroLists.clear(); sourceLists.clear(); checks.clear(); }
 const fold = (value: string) => value.replace(/\\/g, '/').toLowerCase();
 
-export const TAKEN_INTRO = (hero: string) => `Take the move from a hero already in the game. ${hero}’s length, events and travel stay the game’s, so it always fits.`;
-export const SAME_MOVE_LINE = (hero: string) => `The same move as ${hero}’s: suggested first.`;
-const TIMING = [['stretched', 'Fit it to this animation’s length'], ['own_speed', 'Play a part at its own speed']] as const;
+export const TAKEN_INTRO = (hero: string) => t('Take the move from a hero already in the game. {hero}’s length, events and travel stay the game’s, so it always fits.', { hero });
+export const SAME_MOVE_LINE = (hero: string) => t('The same move as {hero}’s: suggested first.', { hero });
+const TIMING = [['stretched', m('Fit it to this animation’s length')], ['own_speed', m('Play a part at its own speed')]] as const;
 
-type Load<T> = { key: string; value: T | null; error: string | null };
+type Load<Value> = { key: string; value: Value | null; error: string | null };
 /** One read per key through its own queue (one request at a time, the newest waiting one wins);
  * kept for the session in `store`. Nothing is asked while `key` is empty. */
-function useRead<T>(key: string, store: Map<string, T>, read: () => Promise<T>): Load<T> & { loading: boolean } {
+function useRead<Value>(key: string, store: Map<string, Value>, read: () => Promise<Value>): Load<Value> & { loading: boolean } {
   const queue = useRef(new NewestQueue());
-  const [state, setState] = useState<Load<T>>(() => ({ key, value: key ? store.get(key) ?? null : null, error: null }));
+  const [state, setState] = useState<Load<Value>>(() => ({ key, value: key ? store.get(key) ?? null : null, error: null }));
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
@@ -61,6 +66,8 @@ export function TakeClip({ project, entry, entries, heroName, row, disabled, wri
   /** Told the saved row's other hero's name once an answer holds it (the player's words). */
   named?: (name: string) => void;
 }) {
+  const t = useT();
+  useGameNames();
   const target = entry.target;
   const projectRef = useRef(project); projectRef.current = project;
   const saved = takenOf(row);
@@ -95,8 +102,8 @@ export function TakeClip({ project, entry, entries, heroName, row, disabled, wri
   const shown = saved ? report.value : null;
   const current = report.key === reportKey ? report : null;
 
-  const otherName = heroInfo?.name ?? shown?.source_name ?? '';
-  const savedName = saved ? heroes.value?.find(h => fold(h.hero) === fold(saved.hero))?.name ?? shown?.source_name ?? '' : '';
+  const otherName = shownHero(heroInfo?.name ?? shown?.source_name ?? '');
+  const savedName = shownHero(saved ? heroes.value?.find(h => fold(h.hero) === fold(saved.hero))?.name ?? shown?.source_name ?? '' : '');
   useEffect(() => { if (savedName) named?.(savedName); }, [savedName, named]);
   const chosenClip = saved && fold(saved.hero) === fold(hero) ? sources.value?.clips.find(c => fold(c.clip) === fold(saved.clip)) ?? null : null;
 
@@ -124,16 +131,16 @@ export function TakeClip({ project, entry, entries, heroName, row, disabled, wri
     const wanted = set.members.filter(m => m.usable && m.target && m.clip);
     const written = wanted.filter(m => next.some(r => fold(r.target ?? '') === fold(m.target!) && takenOf(r) && fold(takenOf(r)!.clip) === fold(m.clip!)));
     writeRows(next);
-    if (written.length < wanted.length) fail('Too many clip replacements', `A project holds at most 128 clip replacements: ${wanted.length - written.length} of the ${wanted.length} could not be added.`);
+    if (written.length < wanted.length) fail(m('Too many clip replacements'), `A project holds at most 128 clip replacements: ${wanted.length - written.length} of the ${wanted.length} could not be added.`);
   }
 
   const intro = <p className="hint made-intro">{TAKEN_INTRO(heroName)}</p>;
-  if (check.error) return <div className="made-panel">{intro}<p className="hint" role="status">Whether this clip can be taken from another hero could not be checked here: {check.error}</p></div>;
-  if (!check.value) return <div className="made-panel">{intro}<p className="hint" role="status">Checking whether this clip can be taken from another hero…</p></div>;
+  if (check.error) return <div className="made-panel">{intro}<p className="hint" role="status">{t('Whether this clip can be taken from another hero could not be checked here: {reason}', { reason: check.error })}</p></div>;
+  if (!check.value) return <div className="made-panel">{intro}<p className="hint" role="status">{t('Checking whether this clip can be taken from another hero…')}</p></div>;
   if (refusal) return <div className="made-panel">
     <div className="made-plain" role="note"><Lead text={refusal}/></div>
-    <div className="made-actions"><button type="button" onClick={useCompiled}>Use a compiled clip file instead</button></div>
-    {saved && <p className="hint made-saved">A clip taken from another hero is saved for this clip. <button type="button" className="tertiary" disabled={disabled} onClick={remove}>Remove</button></p>}
+    <div className="made-actions"><button type="button" onClick={useCompiled}>{t('Use a compiled clip file instead')}</button></div>
+    {saved && <p className="hint made-saved">{t('A clip taken from another hero is saved for this clip.')} <button type="button" className="tertiary" disabled={disabled} onClick={remove}>{t('Remove')}</button></p>}
   </div>;
 
   const stretched = saved?.timing !== 'own_speed';
@@ -144,41 +151,41 @@ export function TakeClip({ project, entry, entries, heroName, row, disabled, wri
   const setTaken = Boolean(set && hero && takenSetUnchanged(project.customization.animations ?? [], set, hero));
   return <div className="made-panel taken-panel">
     {intro}
-    {row && !saved && <p className="hint">{row.made ? 'Your clip made from your animation' : 'Your compiled clip file'} stays in use until you choose an animation here.</p>}
+    {row && !saved && <p className="hint">{row.made ? t('Your clip made from your animation stays in use until you choose an animation here.') : t('Your compiled clip file stays in use until you choose an animation here.')}</p>}
     <div className="made-kv">
-      <span className="made-key" id={`taken-hero-${target}`}>Hero</span>
+      <span className="made-key" id={`taken-hero-${target}`}>{t('Hero')}</span>
       <div className="made-value">
-        <Picker label="Hero" disabled={disabled} empty={!hero} button={hero
+        <Picker label={t('Hero')} search={t('Search heroes…')} disabled={disabled} empty={!hero} button={hero
           ? <><Mark name={otherName || hero}/><span className="taken-picker-text"><strong>{otherName || hero}</strong></span></>
-          : <span className="taken-picker-text muted">{heroes.loading ? 'Loading the heroes…' : 'Choose a hero…'}</span>}>
-          {(query, close) => heroes.error ? <p className="hint" role="status">The heroes could not be read: {heroes.error}</p>
-            : !heroes.value ? <p className="hint" role="status">Loading the heroes…</p>
-              : <ul className="taken-list" role="listbox" aria-label="Heroes">
-                {heroes.value.filter(h => h.name.toLowerCase().includes(query.toLowerCase().trim())).map(h =>
-                  <Option key={h.hero} selected={fold(h.hero) === fold(hero)} disabled={!h.usable} pick={() => { pickHero(h); close(); }} label={h.name}>
-                    <Mark name={h.name}/>
-                    <span className="taken-option-text"><strong>{h.name}</strong>{h.reason && <small>{h.reason}</small>}</span>
+          : <span className="taken-picker-text muted">{heroes.loading ? t('Loading the heroes…') : t('Choose a hero…')}</span>}>
+          {(query, close) => heroes.error ? <p className="hint" role="status">{t('The heroes could not be read: {reason}', { reason: heroes.error })}</p>
+            : !heroes.value ? <p className="hint" role="status">{t('Loading the heroes…')}</p>
+              : <ul className="taken-list" role="listbox" aria-label={t('Heroes')}>
+                {heroes.value.filter(h => [h.name, shownHero(h.name)].some(name => name.toLowerCase().includes(query.toLowerCase().trim()))).map(h =>
+                  <Option key={h.hero} selected={fold(h.hero) === fold(hero)} disabled={!h.usable} pick={() => { pickHero(h); close(); }} label={shownHero(h.name)}>
+                    <Mark name={shownHero(h.name)}/>
+                    <span className="taken-option-text"><strong><ShownHeroLabel label={h.name}/></strong>{h.reason && <small>{h.reason}</small>}</span>
                   </Option>)}
               </ul>}
         </Picker>
         {heroInfo && !heroInfo.usable && <p className="made-line attention" role="status">{heroInfo.reason}</p>}
       </div>
       {hero && <>
-        <span className="made-key">Animation</span>
+        <span className="made-key">{tc('made clip', 'Animation')}</span>
         <div className="made-value">
           {sources.error ? <p className="made-line attention" role="status">{sources.error}</p>
-            : <Picker label="Animation" disabled={disabled || !sources.value} empty={!chosenClip} search={`Search ${otherName ? `${otherName}’s` : 'the hero’s'} animations…`} button={chosenClip
-              ? <><span className="taken-picker-text"><strong>{chosenClip.name}</strong><span className="muted"> · {chosenClip.seconds.toFixed(2)} s · {chosenClip.frames} {chosenClip.frames === 1 ? 'frame' : 'frames'}</span></span>{chosenClip.rank === 0 && <SameTag/>}</>
-              : <span className="taken-picker-text muted">{sources.loading ? `Loading ${otherName ? `${otherName}’s` : 'the hero’s'} animations…` : 'Choose an animation…'}</span>}>
-              {(query, close) => !sources.value ? <p className="hint" role="status">Loading the animations…</p>
-                : <ul className="taken-list" role="listbox" aria-label={`${otherName || 'The hero'}’s animations`}>
+            : <Picker label={tc('made clip', 'Animation')} disabled={disabled || !sources.value} empty={!chosenClip} search={otherName ? t('Search {hero}’s animations…', { hero: otherName }) : t('Search the hero’s animations…')} button={chosenClip
+              ? <><span className="taken-picker-text"><strong>{chosenClip.name}</strong><span className="muted"> · {t('{value} s', { value: chosenClip.seconds.toFixed(2) })} · {tp(chosenClip.frames, { one: '{count} frame', other: '{count} frames' })}</span></span>{chosenClip.rank === 0 && <SameTag/>}</>
+              : <span className="taken-picker-text muted">{sources.loading ? otherName ? t('Loading {hero}’s animations…', { hero: otherName }) : t('Loading the hero’s animations…') : t('Choose an animation…')}</span>}>
+              {(query, close) => !sources.value ? <p className="hint" role="status">{t('Loading the animations…')}</p>
+                : <ul className="taken-list" role="listbox" aria-label={t('{hero}’s animations', { hero: otherName || t('The hero') })}>
                   {clipSections(sources.value.clips, query).map(section => <li key={section.title} role="presentation" className="taken-section">
-                    <span className="taken-sep" aria-hidden="true">{section.title}</span>
-                    <ul role="group" aria-label={section.title}>
+                    <span className="taken-sep" aria-hidden="true">{tc('taken section', section.title)}</span>
+                    <ul role="group" aria-label={tc('taken section', section.title)}>
                       {section.clips.map(c => <Option key={c.clip} selected={Boolean(chosenClip && fold(chosenClip.clip) === fold(c.clip))} disabled={!c.usable || disabled} pick={() => { pickClip(c); close(); }} label={c.name}>
                         <span className="taken-option-text">
                           <span className="taken-option-head"><strong>{c.name}</strong>{c.rank === 0 && c.usable && <SameTag/>}</span>
-                          <small className="mono">{c.label} · {c.seconds.toFixed(2)} s · {c.frames} {c.frames === 1 ? 'frame' : 'frames'}</small>
+                          <small className="mono">{c.label} · {t('{value} s', { value: c.seconds.toFixed(2) })} · {tp(c.frames, { one: '{count} frame', other: '{count} frames' })}</small>
                           {c.reason && <small className="taken-reason">{c.reason}</small>}
                         </span>
                       </Option>)}
@@ -187,47 +194,49 @@ export function TakeClip({ project, entry, entries, heroName, row, disabled, wri
                 </ul>}
             </Picker>}
           {chosenClip?.rank === 0 && <p className="made-line ok"><span aria-hidden="true">✓ </span>{SAME_MOVE_LINE(heroName)}</p>}
-          {pending && saved && <p className="hint">Your saved clip from {shown?.source_name ?? 'the other hero'} stays in use until you choose an animation of {otherName || 'this hero'}. <button type="button" className="tertiary" onClick={() => { pendingHeroes.delete(pendingKey); setPending(''); }}>Keep the saved hero</button></p>}
+          {pending && saved && <p className="hint">{t('Your saved clip from {source} stays in use until you choose an animation of {hero}.', { source: shown?.source_name ? shownHero(shown.source_name) : t('the other hero'), hero: otherName || t('this hero') })} <button type="button" className="tertiary" onClick={() => { pendingHeroes.delete(pendingKey); setPending(''); }}>{t('Keep the saved hero')}</button></p>}
         </div>
       </>}
       {saved && !pending && <>
-        <span className="made-key">Timing</span>
+        <span className="made-key">{t('Timing')}</span>
         <div className="made-value">
-          <span className="studio-view-group made-seg" role="group" aria-label="Timing">
+          <span className="studio-view-group made-seg" role="group" aria-label={t('Timing')}>
             {TIMING.map(([value, label]) => <button key={value} type="button" aria-pressed={(saved.timing ?? 'stretched') === value} disabled={disabled}
-              onClick={() => option(value === 'stretched' ? { timing: 'stretched', start_seconds: null } : { timing: 'own_speed' })}>{label}</button>)}
+              onClick={() => option(value === 'stretched' ? { timing: 'stretched', start_seconds: null } : { timing: 'own_speed' })}>{t(label)}</button>)}
           </span>
           {!stretched && <StartField key={`${saved.start_seconds ?? 0}`} value={saved.start_seconds ?? 0} latest={shown ? latestTakenStart(shown.made.action_seconds, shown.made.clip_seconds) : null} disabled={disabled}
             commit={value => option({ start_seconds: value })}/>}
           {shown && <p className="hint">{timingWords(shown, heroName, stretched)}</p>}
         </div>
-        <span className="made-key">Arms and hands</span>
+        <span className="made-key">{t('Arms and hands')}</span>
         <div className="made-value">
-          <span className="studio-view-group made-seg" role="group" aria-label="Arms and hands">
-            <button type="button" aria-pressed={(saved.arms ?? 'source') === 'source'} disabled={disabled} onClick={() => option({ arms: 'source' })}>From {otherName || 'the other hero'}</button>
-            <button type="button" aria-pressed={saved.arms === 'own'} disabled={disabled} onClick={() => option({ arms: 'own' })}>Keep {heroName}’s own</button>
+          <span className="studio-view-group made-seg" role="group" aria-label={t('Arms and hands')}>
+            <button type="button" aria-pressed={(saved.arms ?? 'source') === 'source'} disabled={disabled} onClick={() => option({ arms: 'source' })}>{t('From {hero}', { hero: otherName || t('the other hero') })}</button>
+            <button type="button" aria-pressed={saved.arms === 'own'} disabled={disabled} onClick={() => option({ arms: 'own' })}>{t('Keep {hero}’s own', { hero: heroName })}</button>
           </span>
-          <p className="hint">{armsWords(otherName || 'The other hero', heroName)}</p>
+          <p className="hint">{armsWords(otherName || t('The other hero'), heroName)}</p>
         </div>
       </>}
     </div>
     {set && setText && heroInfo?.usable && <div className="made-plain taken-set">
-      <span><strong>{setText.lead}</strong> ({setText.members}).{setUsable < set.members.length ? ` ${setUsable} of them can be taken from ${otherName}.` : ''}</span>
+      <span>{setUsable < set.members.length
+        ? <T text="<strong>{lead}</strong> ({members}). {usable}" values={{ lead: setText.lead, members: setText.members, usable: tp(setUsable, { one: '{count} of them can be taken from {hero}.', other: '{count} of them can be taken from {hero}.' }, { hero: otherName }) }}/>
+        : <T text="<strong>{lead}</strong> ({members})." values={{ lead: setText.lead, members: setText.members }}/>}</span>
       {setUsable > 0 && (setTaken
-        ? <span className="hint">All {setUsable} are taken from {otherName}.</span>
-        : <button type="button" disabled={disabled} onClick={takeAll}>Take all {setUsable} from {otherName}</button>)}
+        ? <span className="hint">{tp(setUsable, { one: 'All {count} are taken from {hero}.', other: 'All {count} are taken from {hero}.' }, { hero: otherName })}</span>
+        : <button type="button" disabled={disabled} onClick={takeAll}>{tp(setUsable, { one: 'Take all {count} from {hero}', other: 'Take all {count} from {hero}' }, { hero: otherName })}</button>)}
     </div>}
     {saved && !pending && <>
       {current?.error && <p className="made-line attention" role="status">{current.error}</p>}
-      <h4>What you get</h4>
-      {shown ? <ul className="made-makes" aria-label="What you get">
+      <h4>{t('What you get')}</h4>
+      {shown ? <ul className="made-makes" aria-label={t('What you get')}>
         {takenLines(shown, heroName, stretched).map(line => <li key={line.id} className={line.mark}>
           <span className="made-mark" aria-hidden="true">{line.mark === 'note' ? '·' : '✓'}</span>
           <span className="made-text">{line.text}</span>
           {line.side ? <span className="made-side">{line.side}</span> : <span/>}
         </li>)}
-      </ul> : current?.loading ? <p className="hint" role="status">Reading what the app makes…</p> : null}
-      <p className="hint made-saved">Taken from {shown?.source_name ?? otherName}. <button type="button" className="tertiary" disabled={disabled} onClick={remove}>Remove</button></p>
+      </ul> : current?.loading ? <p className="hint" role="status">{t('Reading what the app makes…')}</p> : null}
+      <p className="hint made-saved">{t('Taken from {hero}.', { hero: shown?.source_name ? shownHero(shown.source_name) : otherName })} <button type="button" className="tertiary" disabled={disabled} onClick={remove}>{t('Remove')}</button></p>
     </>}
   </div>;
 }
@@ -237,13 +246,14 @@ function Lead({ text }: { text: string }): ReactNode {
   const cut = text.indexOf('. ');
   return cut < 0 ? text : <><strong>{text.slice(0, cut + 1)}</strong> {text.slice(cut + 2)}</>;
 }
-const SameTag = () => <span className="taken-tag">same move</span>;
+const SameTag = () => <span className="taken-tag">{t('same move')}</span>;
 const Mark = ({ name }: { name: string }) => <span className="taken-mark" aria-hidden="true">{initials(name)}</span>;
 
 /** A searchable drop-down: the button shows the choice; the list opens under it, with a search
  * field, and closes on a choice, Escape, the button or a click outside. Opening it writes nothing. */
-function Picker({ label, disabled, empty, button, search = `Search ${label.toLowerCase() === 'hero' ? 'heroes' : 'animations'}…`, children }: {
-  label: string; disabled: boolean; empty: boolean; button: ReactNode; search?: string;
+function Picker({ label, disabled, empty, button, search, children }: {
+  /** The shown label, also its accessible name; `search` names its search field. */
+  label: string; disabled: boolean; empty: boolean; button: ReactNode; search: string;
   children: (query: string, close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false), [query, setQuery] = useState('');
@@ -259,7 +269,7 @@ function Picker({ label, disabled, empty, button, search = `Search ${label.toLow
     <button type="button" className={`taken-picker${empty ? ' empty' : ''}`} aria-label={label} aria-haspopup="listbox" aria-expanded={open} disabled={disabled && !open} onClick={() => (open ? close() : setOpen(true))}>
       {button}<span className="taken-caret" aria-hidden="true">▾</span>
     </button>
-    {open && <div className="taken-pop" role="dialog" aria-label={`Choose: ${label}`}>
+    {open && <div className="taken-pop" role="dialog" aria-label={t('Choose: {label}', { label })}>
       <input className="taken-search" type="search" aria-label={search} placeholder={search} value={query} autoFocus onChange={event => setQuery(event.target.value)}/>
       {children(query, close)}
     </div>}
@@ -281,9 +291,9 @@ function StartField({ value, latest, disabled, commit }: { value: number; latest
     commit(held);
   };
   return <label className="taken-start">
-    <span>Starts at</span>
-    <input type="number" aria-label="Where the part starts (seconds)" min={0} max={latest ?? undefined} step={0.01} value={draft} disabled={disabled}
+    <span>{t('Starts at')}</span>
+    <input type="number" aria-label={t('Where the part starts (seconds)')} min={0} max={latest ?? undefined} step={0.01} value={draft} disabled={disabled}
       onChange={event => setDraft(event.target.value)} onBlur={done} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); done(); } }}/>
-    <span className="muted">s{latest !== null ? ` (0 to ${latest.toFixed(2)} s)` : ''}</span>
+    <span className="muted">s{latest !== null ? ` ${t('(0 to {latest} s)', { latest: latest.toFixed(2) })}` : ''}</span>
   </label>;
 }

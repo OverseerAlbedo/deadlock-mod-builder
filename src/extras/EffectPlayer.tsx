@@ -5,9 +5,12 @@
  * When the computer cannot run the player, one quiet line replaces it and the strips below
  * stay as they are. */
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
+// i18n-area: effects
 import { api, isDesktop } from "../api";
+import { m, t, tp, useT, type Values } from "../i18n";
+import { sentences } from "../build/words";
 import type { Project } from "../models";
-import type { EffectEdit, EffectTree } from "./effectTypes";
+import { EFFECTS_NOT_LOADED, type EffectEdit, type EffectTree } from "./effectTypes";
 import {
   DEFAULT_VIEW,
   PLAYER_BACKGROUNDS,
@@ -89,6 +92,13 @@ export function resetSessionView() {
   sessionView = { compare: false, loop: true, speed: 1, background: DEFAULT_VIEW.background, brightness: 0 };
 }
 
+/** The line under the player: a message from the helper as it comes, or the page's own sentence (English, drawn translated). */
+type Line = string | { text: string; values?: Values };
+/** A line as drawn. The backend's "list not loaded" message (recognised by its constant, which stays
+ * as it is) is drawn as the page's own sentence, so it reads as one with the sentence after it. */
+const lineText = (line: Line) => (typeof line === "string" ? (line === EFFECTS_NOT_LOADED ? t("The effect list is not loaded. Open Extras → Effects again") : line) : t(line.text, line.values));
+/** The backgrounds' accessible names, whole per background. */
+const BACKGROUND_NAMES: Record<string, string> = { Black: m("Black background"), Slate: m("Slate background") };
 type Status = "starting" | "loading" | "playing" | "paused" | "finished" | "unavailable" | "failed";
 const frameCallback = (cb: () => void) => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(cb) : (setTimeout(cb, 16) as unknown as number));
 
@@ -111,21 +121,21 @@ export function playerNotes(loaded: PlayerLoaded | null, compare: boolean): stri
   const n = loaded?.notes;
   const short = (path: string) => path.split("/").pop()?.replace(/\.vpcf_c$/, "").replace(/_/g, " ") ?? path;
   if (n?.untintedModels?.parts.length) {
-    notes.push(`3D model parts (${n.untintedModels.parts.map(short).join(", ")}) are drawn without their colors here; in the game they keep their own colors.`);
+    notes.push(t("3D model parts ({parts}) are drawn without their colors here; in the game they keep their own colors.", { parts: n.untintedModels.parts.map(short).join(", ") }));
   }
   if (n?.decals?.parts.length) {
-    notes.push(n.decals.surface === "floor" ? "Decals are shown on a flat floor; in the game they also land on walls and slopes." : "Decals have no surface to land on here and are not shown.");
+    notes.push(n.decals.surface === "floor" ? t("Decals are shown on a flat floor; in the game they also land on walls and slopes.") : t("Decals have no surface to land on here and are not shown."));
   }
-  if (n?.screenSpace) notes.push("A screen effect: in the game it covers the player's view.");
+  if (n?.screenSpace) notes.push(t("A screen effect: in the game it covers the player's view."));
   for (const line of n?.cannotShow ?? []) notes.push(line);
-  if (compare) notes.push(loaded?.compareNote || "The game's version and yours play in step.");
-  if (compare && loaded?.gameVersion === false) notes.push("The game has no version of this effect to compare with.");
+  if (compare) notes.push(loaded?.compareNote || t("The game's version and yours play in step."));
+  if (compare && loaded?.gameVersion === false) notes.push(t("The game has no version of this effect to compare with."));
   return notes;
 }
 /** Nothing can be drawn: the reason, else null. */
 export function nothingToDraw(loaded: PlayerLoaded | null, coverage: number | null): string | null {
   const cannot = loaded?.notes?.cannotShow ?? [];
-  if (loaded?.bounds?.empty) return cannot[0] ?? "This effect draws nothing on its own here: in the game it is placed on a character or starts other effects.";
+  if (loaded?.bounds?.empty) return cannot[0] ?? t("This effect draws nothing on its own here: in the game it is placed on a character or starts other effects.");
   if (coverage === 0 && cannot.length) return cannot[0];
   return null;
 }
@@ -139,8 +149,9 @@ export interface EffectPlayerProps {
 }
 
 export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps) {
+  const t = useT();
   const [status, setStatus] = useState<Status>("starting");
-  const [line, setLine] = useState("");
+  const [line, setLine] = useState<Line>("");
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState<PlayerLoaded | null>(null);
   const [view, setViewState] = useState<PlayerView>(() => ({ ...DEFAULT_VIEW, ...sessionView, fps: savedFps() }));
@@ -174,7 +185,7 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
     const state = answer.state;
     if (state.state === "unavailable") {
       setStatus("unavailable");
-      setLine(state.reason === "missing" ? "The moving preview is not part of this copy of the app." : `The moving preview cannot run on this computer: ${state.message}`);
+      setLine(state.reason === "missing" ? { text: m("The moving preview is not part of this copy of the app.") } : { text: m("The moving preview cannot run on this computer: {message}"), values: { message: state.message } });
       playing.current = false;
       return false;
     }
@@ -186,7 +197,7 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
     }
     if (state.state === "ready") setDriver(state.driver);
     if (answer.notice) setNotice(answer.notice);
-    if (answer.error) setLine(`The preview could not show this: ${answer.error}`);
+    if (answer.error) setLine({ text: m("The preview could not show this: {error}"), values: { error: answer.error } });
     if (answer.loaded) setLoaded(answer.loaded);
     if (answer.generation !== undefined) generation.current = Math.max(generation.current, answer.generation);
     return true;
@@ -296,7 +307,7 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
       });
     // No React render per frame: the time is written straight into its text.
     shownTime.current = frame.time;
-    if (timeText.current) timeText.current.textContent = `${frame.time.toFixed(2)} s`;
+    if (timeText.current) timeText.current.textContent = t("{value} s", { value: frame.time.toFixed(2) });
     if (frame.generation >= generation.current) {
       const drawsSomething = frame.coverage > 0;
       if (drawsSomething) coverageSince.current = performance.now();
@@ -474,31 +485,31 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
   if (status === "unavailable") {
     return (
       <p className="effects-player-off" role="note">
-        {line} The color strips below show your edit.
+        {sentences(lineText(line), t("The color strips below show your edit."))}
       </p>
     );
   }
   if (status === "failed") {
     return (
       <div className="effects-player-off" role="alert">
-        <span>{line || "The moving preview stopped."} The color strips below still show your edit.</span>
-        <button type="button" className="extra-secondary small" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
+        <span>{sentences(line ? lineText(line) : t("The moving preview stopped."), t("The color strips below still show your edit."))}</span>
+        <button type="button" className="extra-secondary small" onClick={() => setAttempt((a) => a + 1)}>{t("Try again")}</button>
       </div>
     );
   }
   const empty = status === "playing" || status === "paused" || status === "finished" ? nothingToDraw(loaded, coverage) : null;
   const notes = playerNotes(loaded, view.compare);
   const busy = status === "starting" || status === "loading";
-  const label = `Moving preview of ${name}${view.compare ? ": the game's version on the left, yours on the right" : ": your version"}`;
+  const label = view.compare ? t("Moving preview of {name}: the game's version on the left, yours on the right", { name }) : t("Moving preview of {name}: your version", { name });
   return (
-    <section className="effects-player" aria-label="Effect preview">
+    <section className="effects-player" aria-label={t("Effect preview")}>
       <div className="effects-player-bar">
         <button type="button" className="effects-player-button" aria-pressed={status === "paused"} disabled={busy} onClick={togglePause}>
-          {status === "finished" ? "Play again" : status === "paused" ? "Play" : "Pause"}
+          {status === "finished" ? t("Play again") : status === "paused" ? t("Play") : t("Pause")}
         </button>
-        <button type="button" className="effects-player-button" aria-pressed={view.loop} disabled={busy} onClick={() => setLoop(!view.loop)}>Loop</button>
-        <div className="effects-player-group" role="radiogroup" aria-label="Speed">
-          <span>Speed</span>
+        <button type="button" className="effects-player-button" aria-pressed={view.loop} disabled={busy} onClick={() => setLoop(!view.loop)}>{t("Loop")}</button>
+        <div className="effects-player-group" role="radiogroup" aria-label={t("Speed")}>
+          <span>{t("Speed")}</span>
           {PLAYER_SPEEDS.map((s) => (
             <button key={s.value} type="button" role="radio" aria-checked={view.speed === s.value} disabled={busy} onClick={() => { setView({ speed: s.value }); void control({ command: "speed", value: s.value }); }}>{s.label}</button>
           ))}
@@ -507,7 +518,7 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
         <label className="extra-toggle effects-player-compare">
           <input type="checkbox" checked={view.compare} disabled={busy} onChange={(e) => setCompare(e.target.checked)} />
           <span aria-hidden="true" />
-          <strong>Compare with the game effect</strong>
+          <strong>{t("Compare with the game effect")}</strong>
         </label>
       </div>
       <div ref={stage} className="effects-player-stage" style={{ background: `#${view.background}` }}>
@@ -526,47 +537,47 @@ export function EffectPlayer({ project, tree, edit, bridge }: EffectPlayerProps)
         />
         {view.compare ? (
           <>
-            <span className="effects-player-tag left">Game</span>
-            <span className="effects-player-tag right">Yours</span>
+            <span className="effects-player-tag left">{t("Game")}</span>
+            <span className="effects-player-tag right">{t("Yours")}</span>
           </>
-        ) : <span className="effects-player-tag left">Yours</span>}
+        ) : <span className="effects-player-tag left">{t("Yours")}</span>}
         {busy && (
           <div className="effects-player-wait" role="status">
             <span className="extra-spinner" />
-            {status === "starting" ? "Starting the effect player…" : `Loading ${name}…`}
+            {status === "starting" ? t("Starting the effect player…") : t("Loading {name}…", { name })}
           </div>
         )}
-        {empty && !busy && <div className="effects-player-empty" role="note"><strong>Nothing to draw here</strong><span>{empty}</span></div>}
-        {!busy && !empty && <span className="effects-player-time" aria-live="off">{status === "finished" ? "finished · " : status === "paused" ? "paused · " : ""}<span ref={timeText}>{shownTime.current.toFixed(2)} s</span></span>}
-        {updating && !busy && <span className="effects-player-updating" role="status">Updating yours…</span>}
+        {empty && !busy && <div className="effects-player-empty" role="note"><strong>{t("Nothing to draw here")}</strong><span>{empty}</span></div>}
+        {!busy && !empty && <span className="effects-player-time" aria-live="off">{status === "finished" ? `${t("finished")} · ` : status === "paused" ? `${t("paused")} · ` : ""}<span ref={timeText}>{t("{value} s", { value: shownTime.current.toFixed(2) })}</span></span>}
+        {updating && !busy && <span className="effects-player-updating" role="status">{t("Updating yours…")}</span>}
       </div>
       <div className="effects-player-bar view">
-        <div className="effects-player-group" role="radiogroup" aria-label="Background">
-          <span>Background</span>
+        <div className="effects-player-group" role="radiogroup" aria-label={t("Background")}>
+          <span>{t("Background")}</span>
           {PLAYER_BACKGROUNDS.map((b) => (
-            <button key={b.color} type="button" role="radio" className="effects-player-swatch" aria-checked={view.background === b.color} aria-label={`${b.name} background`} title={b.name} style={{ background: `#${b.color}` }} onClick={() => { setView({ background: b.color }); void control({ command: "background", color: b.color }); }} />
+            <button key={b.color} type="button" role="radio" className="effects-player-swatch" aria-checked={view.background === b.color} aria-label={BACKGROUND_NAMES[b.name] ? t(BACKGROUND_NAMES[b.name]) : `${b.name} background`} title={t(b.name)} style={{ background: `#${b.color}` }} onClick={() => { setView({ background: b.color }); void control({ command: "background", color: b.color }); }} />
           ))}
         </div>
         <label className="effects-player-brightness">
-          <span>View brightness</span>
-          <input type="range" aria-label="View brightness" title="Only changes this view, never the mod" min={0} max={4} step={0.5} value={view.brightness} aria-valuetext={`+${view.brightness} stops`} onChange={(e) => { const stops = Number(e.target.value); setView({ brightness: stops }); void control({ command: "brightness", stops }); }} />
+          <span>{t("View brightness")}</span>
+          <input type="range" aria-label={t("View brightness")} title={t("Only changes this view, never the mod")} min={0} max={4} step={0.5} value={view.brightness} aria-valuetext={tp(view.brightness, { one: "+{count} stops", other: "+{count} stops" })} onChange={(e) => { const stops = Number(e.target.value); setView({ brightness: stops }); void control({ command: "brightness", stops }); }} />
           <small>{view.brightness ? `+${view.brightness}` : "0"}</small>
         </label>
         <label className="effects-player-fps">
-          <span>Frame rate</span>
+          <span>{t("Frame rate")}</span>
           <select value={view.fps} onChange={(e) => setFps(Number(e.target.value))}>
             {FRAME_RATES.map((r) => <option key={r} value={r}>{r} fps</option>)}
           </select>
         </label>
         <span className="effects-player-actions">
-          <button type="button" className="extra-secondary small" disabled={busy} onClick={() => void control({ command: "fit" })}>Fit to effect</button>
-          <button type="button" className="extra-secondary small" disabled={busy} onClick={() => void control({ command: "reset_view" })}>Reset view</button>
+          <button type="button" className="extra-secondary small" disabled={busy} onClick={() => void control({ command: "fit" })}>{t("Fit to effect")}</button>
+          <button type="button" className="extra-secondary small" disabled={busy} onClick={() => void control({ command: "reset_view" })}>{t("Reset view")}</button>
         </span>
       </div>
-      {line && <p className="effects-player-line" role="status">{line}</p>}
+      {line && <p className="effects-player-line" role="status">{lineText(line)}</p>}
       {notice && <p className="effects-player-line" role="status">{notice}</p>}
       <ul className="effects-player-notes">
-        <li>Approximate preview: no map lighting, and the effect is not attached to the hero. Drag to turn it, scroll to zoom. Background, view brightness and frame rate only change this view, never the mod.</li>
+        <li>{t("Approximate preview: no map lighting, and the effect is not attached to the hero. Drag to turn it, scroll to zoom. Background, view brightness and frame rate only change this view, never the mod.")}</li>
         {notes.map((n, i) => <li key={i}>{n}</li>)}
       </ul>
       {driver && <span className="effects-player-driver" hidden>{driver}</span>}

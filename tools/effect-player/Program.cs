@@ -184,7 +184,7 @@ static class Program
                 {
                     foreach (var child in system.GetChildParticleNames(enabledOnly: true))
                     {
-                        children.Add(child.EndsWith("_c", StringComparison.Ordinal) ? child : child + "_c");
+                        children.Add((JsonNode?)(child.EndsWith("_c", StringComparison.Ordinal) ? child : child + "_c"));
                     }
 
                     configurations = ControlPointScan.Configurations(system);
@@ -193,12 +193,12 @@ static class Program
                     {
                         foreach (var f in system.GetUpgradedData().GetArray(list) ?? [])
                         {
-                            classes.Add(f.GetStringProperty("_class") ?? "?");
+                            classes.Add((JsonNode?)(f.GetStringProperty("_class") ?? "?"));
                         }
                     }
                 }
 
-                result.Add(new JsonObject
+                result.Add((JsonNode)new JsonObject
                 {
                     ["effect"] = path,
                     ["classes"] = classes,
@@ -359,7 +359,7 @@ static class Program
                         continue;
                     }
 
-                    models.Add(path);
+                    models.Add((JsonNode?)path);
                     using var model = loader.LoadFileCompiled(path);
                     foreach (var reference in model?.ExternalReferences?.ResourceRefInfoList ?? [])
                     {
@@ -423,7 +423,7 @@ static class Program
                     };
                 }
 
-                parts.Add(new JsonObject
+                parts.Add((JsonNode)new JsonObject
                 {
                     ["part"] = part.Path,
                     ["materialVars"] = function.ContainsKey("m_MaterialVars") ? Describe(function["m_MaterialVars"]) : null,
@@ -599,7 +599,7 @@ static class Program
                 row["brightestSat"] = Math.Round(ts, 1);
             }
 
-            rows.Add(row);
+            rows.Add((JsonNode)row);
         }
 
         Console.WriteLine(rows.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -680,13 +680,13 @@ static class Program
             var plan = EffectRules.Analyse(loader, o.Effect, o.Radius);
             foreach (var applied in EffectRules.ApplyControlPoints(plan, node))
             {
-                rulesApplied.Add(applied);
+                rulesApplied.Add((JsonNode?)applied);
             }
 
             if (plan.Ground != null && o.Ground == null)
             {
                 host.Renderer.EntitySystem.PhysicsWorld.GroundPlane = 0f;
-                rulesApplied.Add($"ground: {plan.Ground}");
+                rulesApplied.Add((JsonNode?)$"ground: {plan.Ground}");
             }
 
             if (plan.Moving is { } moving && o.ControlPointVelocities.Count == 0)
@@ -697,7 +697,7 @@ static class Program
                 o.ControlPointVelocities.Add((0, new Vector3(moving.Speed, 0, 0)));
                 o.ControlPointPeriod = moving.Period;
                 node.GetControlPoint(0).Position = start;
-                rulesApplied.Add($"moving: {moving.Reason}");
+                rulesApplied.Add((JsonNode?)$"moving: {moving.Reason}");
             }
         }
 
@@ -762,7 +762,7 @@ static class Program
                 }
 
                 var fit = FitToPixels(camera, box, o.Width, o.Height, 0.8f);
-                fitPasses.Add(fit);
+                fitPasses.Add((JsonNode)fit);
                 if (box.IsEmpty)
                 {
                     break;
@@ -831,7 +831,7 @@ static class Program
             maxParticles = Math.Max(maxParticles, particles);
             renderBounds = renderBounds.Add(node);
 
-            frames.Add(new JsonObject
+            frames.Add((JsonNode)new JsonObject
             {
                 ["frame"] = frame,
                 ["particles"] = particles,
@@ -849,14 +849,14 @@ static class Program
         {
             if (level >= LogLevel.Warning || message.Contains("unknown", StringComparison.OrdinalIgnoreCase) || message.Contains("unsupported", StringComparison.OrdinalIgnoreCase) || message.Contains("not implemented", StringComparison.OrdinalIgnoreCase))
             {
-                warnings.Add($"{level}: {message}");
+                warnings.Add((JsonNode?)$"{level}: {message}");
             }
         }
 
         var allMessages = new JsonArray();
         foreach (var (level, message) in logger.Messages)
         {
-            allMessages.Add($"{level}: {message}");
+            allMessages.Add((JsonNode?)$"{level}: {message}");
         }
 
         var gameInfo = loader.GameInfo;
@@ -1056,7 +1056,7 @@ static class Program
         var result = new JsonArray();
         foreach (var name in LibraryAccess.SkippedRenderers(node))
         {
-            result.Add(name);
+            result.Add((JsonNode?)name);
         }
 
         return result;

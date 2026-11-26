@@ -6,12 +6,15 @@
  *   Surface changes rows (`customization.appearance.materials`), the same rows
  *   the Appearance page edits.
  * The page is written against `ColorAdapter` only. Every function here is pure:
- * an edit returns the next project (or null when nothing may change). */
+ * an edit returns the next project (or null when nothing may change). Its texts are in the
+ * language shown (the page builds the adapter again when it changes). */
+// i18n-area: colors
 import type { AppearanceMaterial, HeroColorRange, HeroMaterial, Project } from "../models";
 import type { ComponentCatalog, HeroMaterialEntry } from "../components/AssetCatalog";
 import { changeCustomization } from "../components/customization";
 import { modelEnabled } from "../build/readiness";
 import type { ExtraPreviewRequest } from "./models";
+import { t, tp } from "../i18n";
 
 export type Rgb = [number, number, number];
 export type ColorMode = "hero" | "replacement";
@@ -106,17 +109,17 @@ export function colorValues(row: ColorValues | undefined | null): ColorValues | 
   return Object.keys(out).length ? out : null;
 }
 const pct = (value: number) => `${Math.round(value * 100)}%`;
-/** What a material's saved colors change, for the list ("Tint · 1 color range"). */
+/** What a material's saved colors change, for the list ("Tint · 1 color range"), in the language shown. */
 export function changeSummary(values: ColorValues | null): string {
   if (!values) return "";
   const parts: string[] = [];
-  if (values.color) parts.push("Tint");
-  if ((values.hue ?? 0) !== 0) parts.push(`Hue ${values.hue! > 0 ? "+" : ""}${Math.round(values.hue!)}°`);
-  if ((values.saturation ?? 1) !== 1) parts.push(`Saturation ${pct(values.saturation!)}`);
-  if ((values.brightness ?? 1) !== 1) parts.push(`Brightness ${pct(values.brightness!)}`);
+  if (values.color) parts.push(t("Tint"));
+  if ((values.hue ?? 0) !== 0) parts.push(t("Hue {value}", { value: `${values.hue! > 0 ? "+" : ""}${Math.round(values.hue!)}°` }));
+  if ((values.saturation ?? 1) !== 1) parts.push(t("Saturation {value}", { value: pct(values.saturation!) }));
+  if ((values.brightness ?? 1) !== 1) parts.push(t("Brightness {value}", { value: pct(values.brightness!) }));
   const ranges = values.ranges?.length ?? 0;
-  if (ranges) parts.push(`${ranges} color range${ranges === 1 ? "" : "s"}`);
-  return parts.join(" · ") || "No change yet";
+  if (ranges) parts.push(tp(ranges, { one: "{count} color range", other: "{count} color ranges" }));
+  return parts.join(" · ") || t("No change yet");
 }
 
 // ---------------------------------------------------------------- game hero
@@ -174,32 +177,32 @@ export function heroColorAdapter(project: Project, catalog: ComponentCatalog | n
     return {
       id: entry.target,
       label: entry.label,
-      group: missing ? "Saved, not in the game" : heroGroup(entry.path) || "Materials",
+      group: missing ? t("Saved, not in the game") : heroGroup(entry.path) || t("Materials"),
       texture: entry.color_texture && !missing
         ? { kind: "hero", request: { hero_path: project.original_model, target: entry.target, kind: "materials", max_dimension: 512 }, identity: `${entry.original_sha256}:${revision}` }
         : null,
       capabilities: { tint: Boolean(entry.tint), hue: false, saturation: Boolean(entry.albedo), brightness: Boolean(entry.albedo), ranges: Boolean(entry.color_texture) },
       notes: {
         tint: entry.tint
-          ? entry.tint_masked ? "The game limits this material's tint to some areas (its tint mask)." : "The tint covers this whole material, including any skin it holds; check the preview."
-          : "This material has no tint setting.",
-        whole: entry.albedo ? undefined : "This material has no saturation or brightness setting.",
+          ? entry.tint_masked ? t("The game limits this material's tint to some areas (its tint mask).") : t("The tint covers this whole material, including any skin it holds; check the preview.")
+          : t("This material has no tint setting."),
+        whole: entry.albedo ? undefined : t("This material has no saturation or brightness setting."),
       },
       state,
       values,
       enabled: row?.enabled !== false,
       editable,
-      blocked: missing ? "This material is no longer in the game files" : !entry.supported ? reason : !editable ? `Hero colors hold at most ${HERO_LIMIT} materials. Remove one before adding another.` : "",
+      blocked: missing ? t("This material is no longer in the game files") : !entry.supported ? reason : !editable ? tp(HERO_LIMIT, { other: "Hero colors hold at most {count} materials. Remove one before adding another." }) : "",
       originalTint: entry.tint ?? WHITE,
       baseColor: null,
       missing,
       sharedWith: entry.shared ? usedByLabels(entry.used_by) : [],
       allowShared: row?.allow_shared ?? false,
       details: [
-        ["Game material", entry.target],
-        ...(entry.color_texture ? [["Base-color texture", entry.color_texture] as [string, string]] : []),
-        ...(entry.shader ? [["Shader", entry.shader] as [string, string]] : []),
-        ...(entry.albedo ? [["Game saturation · brightness", `${pct(entry.albedo[1])} · ${pct(entry.albedo[2])}`] as [string, string]] : []),
+        [t("Game material"), entry.target],
+        ...(entry.color_texture ? [[t("Base-color texture"), entry.color_texture] as [string, string]] : []),
+        ...(entry.shader ? [[t("Shader"), entry.shader] as [string, string]] : []),
+        ...(entry.albedo ? [[t("Game saturation · brightness"), `${pct(entry.albedo[1])} · ${pct(entry.albedo[2])}`] as [string, string]] : []),
       ],
       entry,
       approximate: true,
@@ -289,31 +292,31 @@ export function replacementColorAdapter(project: Project): ColorAdapter {
     return {
       id,
       label: stem(id.split("/").pop() ?? id),
-      group: missing ? "Saved, not in the model" : grouped ? folder(id) || "Materials" : "Materials",
+      group: missing ? t("Saved, not in the model") : grouped ? folder(id) || t("Materials") : t("Materials"),
       texture: image && !missing ? { kind: "file", path: image } : null,
       capabilities: { tint: !missing, hue: !missing, saturation: !missing, brightness: !missing, ranges: ranges && !missing },
       notes: {
-        tint: kept ? "This material keeps its source VMAT: the build changes it only when it uses pbr.vfx." : "The tint multiplies this material's base color.",
-        whole: image ? undefined : "No base-color image is assigned in Materials; the plain base color is adjusted instead.",
+        tint: kept ? t("This material keeps its source VMAT: the build changes it only when it uses pbr.vfx.") : t("The tint multiplies this material's base color."),
+        whole: image ? undefined : t("No base-color image is assigned in Materials; the plain base color is adjusted instead."),
         ranges: ranges ? undefined
-          : kept ? "Color ranges need a generated material; this one keeps its source VMAT."
-          : image ? "Color ranges need a PNG, JPEG, TGA, TIFF or EXR base-color image."
-          : "This material has a plain base color, not an image: color ranges need a base-color image. Use Tint, Hue shift, Saturation and Brightness instead.",
+          : kept ? t("Color ranges need a generated material; this one keeps its source VMAT.")
+          : image ? t("Color ranges need a PNG, JPEG, TGA, TIFF or EXR base-color image.")
+          : t("This material has a plain base color, not an image: color ranges need a base-color image. Use Tint, Hue shift, Saturation and Brightness instead."),
       },
       state,
       values,
       enabled: row?.enabled !== false,
       editable,
-      blocked: missing ? "This material is no longer in the prepared model" : !editable ? `Surface changes hold at most ${APPEARANCE_LIMIT} rows. Remove one on the Appearance page before adding another.` : "",
+      blocked: missing ? t("This material is no longer in the prepared model") : !editable ? tp(APPEARANCE_LIMIT, { other: "Surface changes hold at most {count} rows. Remove one on the Appearance page before adding another." }) : "",
       originalTint: WHITE,
       baseColor: image ? null : material?.color ?? [0.5, 0.5, 0.5],
       missing,
       sharedWith: [],
       allowShared: false,
       details: [
-        ["Material", id],
-        ...(image ? [["Base-color image", image] as [string, string]] : []),
-        ["Material handling", kept ? "Keep source VMAT" : `Generated (${material?.preset ?? "generic"})`],
+        [t("Material"), id],
+        ...(image ? [[t("Base-color image"), image] as [string, string]] : []),
+        [t("Material handling"), kept ? t("Keep source VMAT") : t("Generated ({preset})", { preset: material?.preset ?? "generic" })],
       ],
       approximate: !image || /\.(exr|tiff?)$/i.test(image),
       otherChanges: other,

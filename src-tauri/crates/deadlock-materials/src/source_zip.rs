@@ -7,6 +7,14 @@ use std::{
 };
 
 const MAX_IMPORT_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const SUPPORTED_METHODS: [zip::CompressionMethod; 4] = [
+    zip::CompressionMethod::STORE,
+    zip::CompressionMethod::DEFLATE,
+    zip::CompressionMethod::BZIP2,
+    zip::CompressionMethod::LZMA,
+];
+// The text of the zip crate's error for an entry that inflates past its declared size.
+const ZIP_SIZE_LIMIT_ERROR: &str = "File is larger than its declared uncompressed size";
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SourcePackageSelection {
     pub dmx: String,
@@ -120,13 +128,22 @@ pub fn import_zip(
     for i in 0..archive.len() {
         cancel.check()?;
         let item = archive.by_index(i)?;
+        // The zip crate opens decoders lazily; refuse other methods here, before
+        // anything is written.
+        if !SUPPORTED_METHODS.contains(&item.compression()) {
+            return Err(zip::result::ZipError::UnsupportedArchive(
+                "Compression method not supported",
+            )
+            .into());
+        }
         total = total
             .checked_add(item.size())
             .ok_or_else(|| invalid("Source package size overflow."))?;
         if total > MAX_IMPORT_BYTES {
             return Err(invalid("Source package exceeds the 4 GiB import limit."));
         }
-        let name = item.name().trim_end_matches('/');
+        let name = item.name()?;
+        let name = name.trim_end_matches('/');
         inside(pending.path(), name)?;
         if item.unix_mode().is_some_and(|m| m & 0o170000 == 0o120000)
             || (!item.is_dir() && !names.insert(casefold(name)))
@@ -148,7 +165,7 @@ pub fn import_zip(
             if item.is_dir() {
                 continue;
             }
-            let target = inside(pending.path(), item.name())?;
+            let target = inside(pending.path(), &item.name()?)?;
             fs::create_dir_all(
                 target
                     .parent()
@@ -166,7 +183,7 @@ pub fn import_zip(
         if item.is_dir() {
             continue;
         }
-        let target = inside(pending.path(), item.name())?;
+        let target = inside(pending.path(), &item.name()?)?;
         fs::create_dir_all(
             target
                 .parent()
@@ -180,7 +197,14 @@ pub fn import_zip(
         let mut count = 0u64;
         loop {
             cancel.check()?;
-            let n = item.read(&mut buffer)?;
+            let n = match item.read(&mut buffer) {
+                Ok(n) => n,
+                // The zip crate stops reading at the declared size itself.
+                Err(error) if error.to_string() == ZIP_SIZE_LIMIT_ERROR => {
+                    return Err(invalid("ZIP entry expands beyond its declared size."));
+                }
+                Err(error) => return Err(error.into()),
+            };
             if n == 0 {
                 break;
             }
@@ -213,11 +237,11 @@ pub fn import_zip(
 }
 
 // ZIP LZMA stores a version/length wrapper and five filter-property bytes, not
-// an LZMA-alone 13-byte header. zip 2.4's built-in decoder does not consume that
-// wrapper correctly. Decode raw entry bytes through lzma-rs with bounded output,
-// cancellation, dictionary memory limit, finalization, length and CRC checks.
+// an LZMA-alone 13-byte header. Decode raw entry bytes through lzma-rs with bounded
+// output, cancellation, dictionary memory limit, finalization, length and CRC
+// checks, so zip's own LZMA decoder is not used (and not built).
 fn decode_lzma(
-    item: &mut zip::read::ZipFile<'_>,
+    item: &mut zip::read::ZipFile<'_, fs::File>,
     output: &mut fs::File,
     cancel: &CancellationToken,
 ) -> Result<()> {
@@ -295,7 +319,7 @@ impl Write for BoundedOutput<'_> {
     }
 }
 
-// zip 2.x folds exact duplicate names into an IndexMap before exposing len().
+// The zip crate folds exact duplicate names into an IndexMap before exposing len().
 // Independently count bounded central records so duplicates cannot disappear
 // before the archive path/case-collision checks below see them.
 fn verify_central_entry_count(

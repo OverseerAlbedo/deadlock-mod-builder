@@ -1,4 +1,8 @@
+// i18n-area: motion
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { tc, tp, useT } from '../i18n';
+import { shownHero } from '../i18n/gameNames';
+import { nameList, sentences } from '../build/words';
 import { api } from '../api';
 import type { Project } from '../models';
 import type { PreviewScene } from '../preview/packet';
@@ -53,6 +57,7 @@ export function ClipPlayer({project, entry, source, made = null, preview, load, 
   made?: MadePreview | null;
   preview: PreviewScene | null; load?: () => void; autoLoad?: () => Promise<boolean>; previewCurrent?: boolean; busy: boolean;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<PlayMode>('game');
   const [playing, setPlaying] = useState(true), [speed, setSpeed] = useState(1), [loop, setLoop] = useState(true);
   const hasYours = Boolean(source || made);
@@ -102,47 +107,51 @@ export function ClipPlayer({project, entry, source, made = null, preview, load, 
   }
   const marks: ClipMark[] = (clip?.marks ?? []).filter(m => MARKED.has(m.kind));
   const words = [...new Set(marks.map(m => m.word.toLowerCase()))];
-  const switcher = <span className="studio-view-group" role="group" aria-label="Clip to play">
-    {([['game', 'The game’s clip'], ['yours', made?.from !== undefined ? 'Yours' : made ? 'Your animation' : 'Your clip'], ['both', 'Both']] as const).map(([id, label]) =>
-      <button key={id} type="button" aria-pressed={shownMode === id} disabled={id !== 'game' && !hasYours} title={id !== 'game' && !hasYours ? 'Choose your replacement first' : undefined} onClick={() => setMode(id)}>{label}</button>)}
+  const switcher = <span className="studio-view-group" role="group" aria-label={t('Clip to play')}>
+    {([['game', t('The game’s clip')], ['yours', made?.from !== undefined ? t('Yours') : made ? t('Your animation') : t('Your clip')], ['both', t('Both')]] as const).map(([id, label]) =>
+      <button key={id} type="button" aria-pressed={shownMode === id} disabled={id !== 'game' && !hasYours} title={id !== 'game' && !hasYours ? t('Choose your replacement first') : undefined} onClick={() => setMode(id)}>{label}</button>)}
   </span>;
-  const title = <span className="clip-view-title"><strong>{entry?.name ?? 'No clip selected'}</strong> <span className="muted">on your character</span></span>;
+  const title = <span className="clip-view-title"><strong>{entry?.name ?? t('No clip selected')}</strong> <span className="muted">{t('on your character')}</span></span>;
+  const notPlayed = (reason: string) => t('This clip could not be played here: {reason}', {reason});
   let stage;
-  if (!project.dmx) stage = <p className="hint studio-view-wait">Prepare your model first (step 2): the clip plays on your prepared character. The list, replacing and the fit checks work without it.</p>;
-  else if (!preview || !previewCurrent) stage = <div className="studio-view-wait clip-wait"><p className="hint">See the selected clip played on your prepared character.</p><button type="button" className="primary" disabled={busy || !load} onClick={load}>Show my character</button></div>;
-  else if (!entry) stage = <p className="hint studio-view-wait">Choose a clip from the list.</p>;
-  else if (!main) stage = failed ? <div className="studio-view-wait clip-wait" role="status"><p className="hint">This clip could not be played here: {failed}</p></div> : <p className="hint studio-view-wait" role="status">Loading the clip…</p>;
+  if (!project.dmx) stage = <p className="hint studio-view-wait">{t('Prepare your model first (step 2): the clip plays on your prepared character. The list, replacing and the fit checks work without it.')}</p>;
+  else if (!preview || !previewCurrent) stage = <div className="studio-view-wait clip-wait"><p className="hint">{t('See the selected clip played on your prepared character.')}</p><button type="button" className="primary" disabled={busy || !load} onClick={load}>{t('Show my character')}</button></div>;
+  else if (!entry) stage = <p className="hint studio-view-wait">{t('Choose a clip from the list.')}</p>;
+  else if (!main) stage = failed ? <div className="studio-view-wait clip-wait" role="status"><p className="hint">{notPlayed(failed)}</p></div> : <p className="hint studio-view-wait" role="status">{t('Loading the clip…')}</p>;
   else stage = <>
-    <Suspense fallback={<p className="hint studio-view-wait">Loading the 3D view…</p>}><ClipViewport scene={preview} main={main} ghost={ghost} clock={clock}/></Suspense>
-    {pending && <p className="clip-overlay-note" role="status">Loading the clip…</p>}
-    {failed && <div className="clip-overlay" role="status"><p className="hint">This clip could not be played here: {failed}</p></div>}
+    <Suspense fallback={<p className="hint studio-view-wait">{t('Loading the 3D view…')}</p>}><ClipViewport scene={preview} main={main} ghost={ghost} clock={clock}/></Suspense>
+    {pending && <p className="clip-overlay-note" role="status">{t('Loading the clip…')}</p>}
+    {failed && <div className="clip-overlay" role="status"><p className="hint">{notPlayed(failed)}</p></div>}
   </>;
   const notes: string[] = [];
+  const at = (mark: ClipMark) => t('{event} at {time} s', {event: mark.word, time: (mark.at * length).toFixed(2)});
   if (clip) {
-    const hero = project.hero_name || 'this hero';
+    const hero = shownHero(project.hero_name) || t('this hero');
     notes.push(made?.from !== undefined
-      ? shownMode === 'both' ? `Both: ${made.from || 'the other hero'}’s move on your character in full, ${hero}’s own clip as a see-through figure, in step. This is the clip the build writes.` : shownMode === 'yours' ? `${made.from || 'The other hero'}’s move played on your prepared character: the clip the build writes.` : 'The game’s clip played on your prepared character.'
+      ? shownMode === 'both' ? t('Both: {other}’s move on your character in full, {hero}’s own clip as a see-through figure, in step. This is the clip the build writes.', {other: made.from || t('the other hero'), hero}) : shownMode === 'yours' ? t('{other}’s move played on your prepared character: the clip the build writes.', {other: made.from || t('The other hero')}) : t('The game’s clip played on your prepared character.')
       : made
-      ? shownMode === 'both' ? 'Both: your animation in full, the game’s clip as a see-through figure, in step. This is the clip the build writes.' : shownMode === 'yours' ? 'Your animation played on your prepared character: the clip the build writes.' : 'The game’s clip played on your prepared character.'
-      : shownMode === 'both' ? 'Both: your clip in full, the game’s clip as a see-through figure, in step.' : shownMode === 'yours' ? 'Your clip played on your prepared character.' : 'The game’s clip played on your prepared character.');
-    notes.push('It plays in place; hair and cloth are not simulated here (see Physics & preview).');
-    if (marks.length) notes.push(`Marks on the time bar are the clip’s events (${words.slice(0, 3).join(', ')}${words.length > 3 ? '…' : ''}).`);
-    if (clip.additive) notes.push(`An additive clip, shown over the standing pose${clip.over ? ` (${clip.over})` : ''}${clip.blend_may_differ ? '; the game’s blend may differ' : ''}.`);
-    if (clip.cut) notes.push(`Only the first ${clip.frames} of its ${clip.clip_frames} frames are shown.`);
+      ? shownMode === 'both' ? t('Both: your animation in full, the game’s clip as a see-through figure, in step. This is the clip the build writes.') : shownMode === 'yours' ? t('Your animation played on your prepared character: the clip the build writes.') : t('The game’s clip played on your prepared character.')
+      : shownMode === 'both' ? t('Both: your clip in full, the game’s clip as a see-through figure, in step.') : shownMode === 'yours' ? t('Your clip played on your prepared character.') : t('The game’s clip played on your prepared character.'));
+    notes.push(t('It plays in place; hair and cloth are not simulated here (see Physics & preview).'));
+    if (marks.length) notes.push(t('Marks on the time bar are the clip’s events ({events}).', {events: `${nameList(words.slice(0, 3))}${words.length > 3 ? '…' : ''}`}));
+    if (clip.additive) notes.push(clip.over
+      ? clip.blend_may_differ ? t('An additive clip, shown over the standing pose ({over}); the game’s blend may differ.', {over: clip.over}) : t('An additive clip, shown over the standing pose ({over}).', {over: clip.over})
+      : clip.blend_may_differ ? t('An additive clip, shown over the standing pose; the game’s blend may differ.') : t('An additive clip, shown over the standing pose.'));
+    if (clip.cut) notes.push(t('Only the first {shown} of its {total} frames are shown.', {shown: clip.frames, total: clip.clip_frames}));
   }
-  return <StudioView title="Clip player" className="clip-player" bar={<>{title}<span className="studio-view-push"/>{switcher}</>} footer={<>
-    {clip && <div className="clip-controls" role="group" aria-label="Playback">
-      <button type="button" className="clip-play" aria-pressed={!playing} onClick={toggle}>{playing ? 'Pause' : 'Play'}</button>
-      <span className="studio-view-group" role="group" aria-label="Speed">{SPEEDS.map(([value, label]) => <button key={value} type="button" aria-pressed={speed === value} aria-label={`Speed ${label}`} onClick={() => setSpeed(value)}>{label}</button>)}</span>
+  return <StudioView title={t('Clip player')} className="clip-player" bar={<>{title}<span className="studio-view-push"/>{switcher}</>} footer={<>
+    {clip && <div className="clip-controls" role="group" aria-label={t('Playback')}>
+      <button type="button" className="clip-play" aria-pressed={!playing} onClick={toggle}>{playing ? t('Pause') : t('Play')}</button>
+      <span className="studio-view-group" role="group" aria-label={t('Speed')}>{SPEEDS.map(([value, label]) => <button key={value} type="button" aria-pressed={speed === value} aria-label={t('Speed {speed}', {speed: label})} onClick={() => setSpeed(value)}>{label}</button>)}</span>
       <span className="clip-timebar">
-        <input ref={bar} type="range" min={0} max={1000} step={1} defaultValue={0} aria-label="Time in the clip" onChange={event => seek(Number(event.target.value))}/>
-        {marks.map((mark, i) => <span key={i} className={`clip-mark ${mark.kind}`} style={{left: `${mark.at * 100}%`}} title={`${mark.word} at ${(mark.at * length).toFixed(2)} s`} aria-hidden="true"/>)}
+        <input ref={bar} type="range" min={0} max={1000} step={1} defaultValue={0} aria-label={t('Time in the clip')} onChange={event => seek(Number(event.target.value))}/>
+        {marks.map((mark, i) => <span key={i} className={`clip-mark ${mark.kind}`} style={{left: `${mark.at * 100}%`}} title={at(mark)} aria-hidden="true"/>)}
       </span>
       <span ref={text} className="clip-readout mono" aria-live="off">{readout(clip, 0)}</span>
-      <button type="button" className="clip-loop" aria-pressed={loop} onClick={() => setLoop(!loop)}>Loop</button>
+      <button type="button" className="clip-loop" aria-pressed={loop} onClick={() => setLoop(!loop)}>{tc('player', 'Loop')}</button>
     </div>}
-    {notes.length > 0 && <p className="hint">{notes.join(' ')}</p>}
-    {clip && marks.length > 0 && <p className="sr-only">{marks.length} events: {marks.map(m => `${m.word} at ${(m.at * length).toFixed(2)} s`).join(', ')}</p>}
+    {notes.length > 0 && <p className="hint">{sentences(...notes)}</p>}
+    {clip && marks.length > 0 && <p className="sr-only">{tp(marks.length, {one: '{count} events: {list}', other: '{count} events: {list}'}, {list: nameList(marks.map(at))})}</p>}
   </>}>
     {stage}
   </StudioView>;
